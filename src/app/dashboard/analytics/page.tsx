@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
                 <CardHeader>
                     <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
                     <CardDescription>Classement des fournisseurs par montant total dépensé.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent>
                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -331,7 +331,7 @@ export default function AnalyticsPage() {
                 <CardHeader>
                     <CardTitle>Dépense Moyenne par Type</CardTitle>
                     <CardDescription>Montant moyen des dépenses pour chaque type de document.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent>
                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
