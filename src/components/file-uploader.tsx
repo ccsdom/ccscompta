@@ -53,8 +53,8 @@ export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle>Upload Documents</CardTitle>
-        <CardDescription>Drag and drop files or click to browse.</CardDescription>
+        <CardTitle>Téléverser des documents</CardTitle>
+        <CardDescription>Glissez-déposez des fichiers ou cliquez pour parcourir.</CardDescription>
       </CardHeader>
       <CardContent>
         <label
@@ -79,16 +79,16 @@ export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
             {isLoading ? (
                 <>
                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    <p className="mt-4 text-sm font-medium text-muted-foreground">Processing Document...</p>
+                    <p className="mt-4 text-sm font-medium text-muted-foreground">Traitement du document...</p>
                 </>
             ) : (
                 <>
                     <UploadCloud className="h-10 w-10 text-muted-foreground" />
                     <p className="mt-4 text-sm font-medium">
-                      Drag & drop files, or <span className="font-semibold text-primary">click to browse</span>
+                      Glissez-déposez des fichiers, ou <span className="font-semibold text-primary">cliquez pour parcourir</span>
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Supports: PDF, PNG, JPG
+                      Formats pris en charge : PDF, PNG, JPG
                     </p>
                 </>
             )}

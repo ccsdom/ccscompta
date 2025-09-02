@@ -63,8 +63,8 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     if (document?.extractedData) {
         setFormData(document.extractedData);
         toast({
-            title: "Changes Discarded",
-            description: "Your modifications have been reverted.",
+            title: "Modifications annulées",
+            description: "Vos modifications ont été annulées.",
         });
     }
   }
@@ -97,8 +97,8 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     return (
       <Card className="flex h-full min-h-[550px] items-center justify-center">
         <div className="text-center p-8">
-          <p className="text-lg font-medium">No document selected</p>
-          <p className="text-sm text-muted-foreground">Select a document from the history or upload a new one to begin.</p>
+          <p className="text-lg font-medium">Aucun document sélectionné</p>
+          <p className="text-sm text-muted-foreground">Sélectionnez un document dans l'historique ou téléchargez-en un nouveau pour commencer.</p>
         </div>
       </Card>
     );
@@ -110,9 +110,9 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
         <CardHeader>
           <div className="flex justify-between items-start gap-4">
             <div>
-              <CardTitle>Data Validation</CardTitle>
+              <CardTitle>Validation des données</CardTitle>
               <CardDescription className="truncate max-w-[250px] md:max-w-sm" title={document.name}>
-                Reviewing: {document.name}
+                Examen de : {document.name}
               </CardDescription>
             </div>
             {document.type && <Badge variant="secondary">{document.type} ({((document.confidence ?? 0) * 100).toFixed(0)}%)</Badge>}
@@ -123,8 +123,8 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-center gap-4 text-destructive">
               <AlertCircle className="h-6 w-6" />
               <div>
-                <h3 className="font-semibold">Processing Error</h3>
-                <p className="text-sm">Could not extract data from this document. Try reprocessing or use a different file.</p>
+                <h3 className="font-semibold">Erreur de traitement</h3>
+                <p className="text-sm">Impossible d'extraire les données de ce document. Essayez de retraiter ou utilisez un autre fichier.</p>
               </div>
             </div>
           )}
@@ -132,7 +132,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Vendor Names</Label>
+                  <Label>Noms des vendeurs</Label>
                   {formData.vendorNames.map((vendor, index) => <Input key={index} value={vendor} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
                 </div>
                 <div className="space-y-2">
@@ -141,30 +141,30 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Amounts</Label>
+                <Label>Montants</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {formData.amounts.map((amount, index) => <Input type="number" key={index} value={amount} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Other Information</Label>
+                <Label>Autres informations</Label>
                 <Textarea value={formData.otherInformation} onChange={handleOtherInfoChange} readOnly={isReadOnly} rows={4} />
               </div>
             </div>
           ) : (
-             document.status !== 'error' && <p className="text-sm text-muted-foreground text-center py-10">Process this document to extract its data.</p>
+             document.status !== 'error' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
           )}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
           {document.status === 'reviewing' && (
             <>
-              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="mr-2 h-4 w-4" />Discard Changes</Button>
-              <Button type="submit"><Check className="mr-2 h-4 w-4" />Approve Data</Button>
+              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="mr-2 h-4 w-4" />Annuler les modifications</Button>
+              <Button type="submit"><Check className="mr-2 h-4 w-4" />Approuver les données</Button>
             </>
           )}
           {document.status === 'approved' && (
             <Button type="button" onClick={() => { onSendToCegid(document); setIsSent(true); }} disabled={isSent}>
-              {isSent ? <><Check className="mr-2 h-4 w-4" />Sent to Cegid</> : <><Send className="mr-2 h-4 w-4" />Send to Cegid</>}
+              {isSent ? <><Check className="mr-2 h-4 w-4" />Envoyé à Cegid</> : <><Send className="mr-2 h-4 w-4" />Envoyer à Cegid</>}
             </Button>
           )}
         </CardFooter>

@@ -36,7 +36,7 @@ export default function Home() {
         newDocuments.push({
           id: crypto.randomUUID(),
           name: file.name,
-          uploadDate: new Date().toLocaleDateString(),
+          uploadDate: new Date().toLocaleDateString('fr-FR'),
           status: 'pending',
           file,
           dataUrl,
@@ -45,16 +45,16 @@ export default function Home() {
         console.error("Error converting file to data URI:", error);
         toast({
           variant: "destructive",
-          title: "File Read Error",
-          description: `Could not read the file ${file.name}.`,
+          title: "Erreur de lecture de fichier",
+          description: `Impossible de lire le fichier ${file.name}.`,
         });
       }
     }
     setDocuments(prev => [...newDocuments, ...prev]);
     if (newDocuments.length > 0) {
       toast({
-        title: "Files Uploaded",
-        description: `${newDocuments.length} document(s) added to the queue.`,
+        title: "Fichiers téléversés",
+        description: `${newDocuments.length} document(s) ajouté(s) à la file d'attente.`,
       });
     }
   };
@@ -76,8 +76,8 @@ export default function Home() {
       updateDocument(doc.id, { status: 'reviewing', extractedData: extracted });
       
       toast({
-        title: "Processing Complete",
-        description: `Data extracted from ${doc.name}. Please review.`,
+        title: "Traitement terminé",
+        description: `Données extraites de ${doc.name}. Veuillez vérifier.`,
       });
 
     } catch (error) {
@@ -85,8 +85,8 @@ export default function Home() {
       updateDocument(doc.id, { status: 'error' });
       toast({
         variant: "destructive",
-        title: "Processing Failed",
-        description: `Could not process ${doc.name}.`,
+        title: "Le traitement a échoué",
+        description: `Impossible de traiter ${doc.name}.`,
       });
     } finally {
       setIsLoading(false);
@@ -96,16 +96,16 @@ export default function Home() {
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     updateDocument(docId, { status: 'approved', extractedData: updatedData });
     toast({
-      title: "Document Approved",
-      description: "The data has been validated and saved.",
+      title: "Document approuvé",
+      description: "Les données ont été validées et enregistrées.",
     });
   };
 
   const handleSendToCegid = (doc: Document) => {
     console.log("Sending to Cegid:", doc);
     toast({
-      title: "Data Sent",
-      description: `${doc.name} has been sent to CEGID successfully.`,
+      title: "Données envoyées",
+      description: `${doc.name} a été envoyé à CEGID avec succès.`,
     });
   };
 

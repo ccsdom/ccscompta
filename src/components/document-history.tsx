@@ -21,17 +21,17 @@ interface DocumentHistoryProps {
 const getStatusBadge = (status: Document['status']) => {
   switch (status) {
     case 'pending':
-      return <Badge variant="outline">Pending</Badge>;
+      return <Badge variant="outline">En attente</Badge>;
     case 'processing':
-      return <Badge variant="secondary">Processing</Badge>;
+      return <Badge variant="secondary">En traitement</Badge>;
     case 'reviewing':
-      return <Badge variant="default">Review</Badge>;
+      return <Badge variant="default">Examen</Badge>;
     case 'approved':
-      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">Approved</Badge>;
+      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">Approuvé</Badge>;
     case 'error':
-      return <Badge variant="destructive">Error</Badge>;
+      return <Badge variant="destructive">Erreur</Badge>;
     default:
-      return <Badge variant="outline">Unknown</Badge>;
+      return <Badge variant="outline">Inconnu</Badge>;
   }
 };
 
@@ -47,8 +47,8 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Document History</CardTitle>
-        <CardDescription>An audit trail of all uploaded documents.</CardDescription>
+        <CardTitle>Historique des documents</CardTitle>
+        <CardDescription>Une piste d'audit de tous les documents téléchargés.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="border rounded-md">
@@ -56,9 +56,9 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[60px] p-2 text-center">Type</TableHead>
-                <TableHead>File Name</TableHead>
-                <TableHead className="hidden md:table-cell">Upload Date</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Nom du fichier</TableHead>
+                <TableHead className="hidden md:table-cell">Date de téléversement</TableHead>
+                <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -78,13 +78,13 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                       {(doc.status === 'pending' || doc.status === 'error') && (
                         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onProcess(doc); }}>
                           <Play className="h-4 w-4" />
-                          <span className="sr-only">Process</span>
+                          <span className="sr-only">Traiter</span>
                         </Button>
                       )}
                       {(doc.status === 'reviewing' || doc.status === 'approved') && (
                         <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">View Details</span>
+                            <span className="sr-only">Voir les détails</span>
                         </Button>
                       )}
                     </TableCell>
@@ -93,7 +93,7 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    No documents uploaded yet.
+                    Aucun document n'a encore été téléversé.
                   </TableCell>
                 </TableRow>
               )}
