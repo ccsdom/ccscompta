@@ -250,8 +250,27 @@ export default function DocumentsPage() {
     setSelectedDocumentIds([]);
   }
 
+  const handleDeleteSingle = (docId: string) => {
+     setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
+      if (activeDocumentId === docId) {
+        setActiveDocumentId(null);
+      }
+     toast({
+        variant: 'destructive',
+        title: "Document supprimé",
+        description: `Le document a été supprimé.`,
+     });
+  }
+
   const handleBulkDelete = () => {
-    setDocuments(prevDocs => prevDocs.filter(doc => !selectedDocumentIds.includes(doc.id)));
+    setDocuments(prevDocs => {
+      const newDocs = prevDocs.filter(doc => !selectedDocumentIds.includes(doc.id))
+      if (activeDocumentId && selectedDocumentIds.includes(activeDocumentId)) {
+        setActiveDocumentId(null)
+      }
+      return newDocs
+    });
+
     toast({
       variant: 'destructive',
       title: "Documents supprimés",
@@ -372,6 +391,7 @@ export default function DocumentsPage() {
         <DocumentHistory
           documents={filteredDocuments}
           onProcess={(doc) => handleProcessDocument(doc, documents)}
+          onDelete={handleDeleteSingle}
           activeDocumentId={activeDocumentId}
           setActiveDocument={handleSetActiveDocument}
           selectedDocumentIds={selectedDocumentIds}

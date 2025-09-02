@@ -3,14 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Receipt, Landmark, FileQuestion, Play, MoreHorizontal, FileClock } from "lucide-react";
+import { FileText, Receipt, Landmark, FileQuestion, Play, MoreHorizontal, FileClock, Eye, Trash2 } from "lucide-react";
 import type { Document } from "@/app/dashboard/documents/page";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface DocumentHistoryProps {
   documents: Document[];
   onProcess: (doc: Document) => void;
+  onDelete: (docId: string) => void;
   activeDocumentId?: string | null;
   setActiveDocument: (doc: Document) => void;
   selectedDocumentIds: string[];
@@ -42,9 +56,9 @@ const getDocIcon = (type?: string) => {
     return <FileQuestion className="h-5 w-5 text-muted-foreground" />;
 }
 
-export function DocumentHistory({ documents, onProcess, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
+export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
   
-    const handleSelectAll = (checked: boolean) => {
+    const handleSelectAll = (checked: boolean | string) => {
         if (checked) {
             setSelectedDocumentIds(documents.map(d => d.id));
         } else {
@@ -67,14 +81,15 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
             <CardDescription>Consultez et gérez vos documents téléversés.</CardDescription>
         </CardHeader>
         <CardContent className="p-0 flex-1">
-            <ScrollArea className="h-full max-h-[400px]">
+            <ScrollArea className="h-full max-h-[calc(100vh-350px)]">
                 <Table>
-                    <TableHeader className="sticky top-0 bg-background">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                         <TableHead className="w-[40px] px-4">
                              <Checkbox
                                 onCheckedChange={handleSelectAll}
-                                checked={selectedDocumentIds.length === documents.length && documents.length > 0}
+                                checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                indeterminate={selectedDocumentIds.length > 0 && selectedDocumentIds.length < documents.length}
                                 aria-label="Tout sélectionner"
                             />
                         </TableHead>
@@ -82,7 +97,7 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                         <TableHead>Nom du fichier</TableHead>
                         <TableHead className="hidden md:table-cell">Date</TableHead>
                         <TableHead>Statut</TableHead>
-                        <TableHead className="text-right w-[100px]">Actions</TableHead>
+                        <TableHead className="text-right w-[140px]">Actions</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -90,7 +105,8 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                         documents.map((doc) => (
                         <TableRow 
                             key={doc.id} 
-                            className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-secondary' : ''}`}
+                            data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
+                            className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-muted/80' : ''}`}
                             onClick={() => setActiveDocument(doc)}
                         >
                              <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
@@ -104,18 +120,57 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                             <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
                             <TableCell className="hidden md:table-cell text-muted-foreground">{doc.uploadDate}</TableCell>
                             <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                            <TableCell className="text-right">
-                            {(doc.status === 'pending' || doc.status === 'error') && (
-                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onProcess(doc); }}>
-                                <Play className="h-4 w-4 mr-2" />
-                                Traiter
-                                </Button>
-                            )}
-                            {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
-                                 <Button variant="ghost" size="sm" onClick={() => setActiveDocument(doc)}>
-                                    {doc.status === 'processing' ? 'Affichage...' : 'Afficher'}
-                                </Button>
-                            )}
+                            <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                            <TooltipProvider>
+                                {(doc.status === 'pending' || doc.status === 'error') && (
+                                     <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" onClick={() => onProcess(doc)}>
+                                                <Play className="h-4 w-4" />
+                                                <span className="sr-only">Traiter</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Traiter le document</p></TooltipContent>
+                                    </Tooltip>
+                                )}
+                                {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
+                                                <Eye className="h-4 w-4" />
+                                                <span className="sr-only">Afficher</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Afficher les détails</p></TooltipContent>
+                                    </Tooltip>
+                                )}
+
+                                <AlertDialog>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span className="sr-only">Supprimer</span>
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="border-destructive text-destructive"><p>Supprimer le document</p></TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Cette action est irréversible. Le document "{doc.name}" sera définitivement supprimé.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                </TooltipProvider>
                             </TableCell>
                         </TableRow>
                         ))
