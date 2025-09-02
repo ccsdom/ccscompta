@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
-import type { Document } from '@/app/dashboard/documents/page';
+import type { Document, Notification } from '@/app/dashboard/documents/page';
 import { PlusCircle, CheckCircle } from 'lucide-react';
 
 export function QuickUpload() {
@@ -17,6 +17,20 @@ export function QuickUpload() {
     const [isLoading, setIsLoading] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const { toast } = useToast();
+
+    const createNotification = (doc: Document, message: string) => {
+        const newNotification: Notification = {
+          id: crypto.randomUUID(),
+          documentId: doc.id,
+          documentName: doc.name,
+          message,
+          date: new Date().toISOString(),
+          isRead: false
+        };
+        const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
+        localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
+        window.dispatchEvent(new Event('storage')); // Notify header
+    };
 
     const processDocument = useCallback(async (doc: Omit<Document, 'file'> & {file?: File}) => {
         try {
@@ -60,8 +74,14 @@ export function QuickUpload() {
                 dataUrl,
               };
               
-              const processedDoc = await processDocument(newDoc);
-              newDocuments.push(processedDoc as Document);
+              const processedDoc = await processDocument(newDoc) as Document;
+              newDocuments.push(processedDoc);
+
+              if (processedDoc.status === 'reviewing') {
+                createNotification(processedDoc, 'est prêt pour examen.');
+              } else if (processedDoc.status === 'error') {
+                createNotification(processedDoc, 'a échoué lors du traitement.');
+              }
             }
 
             const allDocs = [...newDocuments.map(d => ({...d, file: undefined})), ...storedDocs];
@@ -125,4 +145,3 @@ export function QuickUpload() {
         </Dialog>
     );
 }
-

@@ -25,6 +25,16 @@ export interface Document {
   extractedData?: ExtractDataOutput;
 }
 
+export type Notification = {
+  id: string;
+  documentId: string;
+  documentName: string;
+  message: string;
+  date: string;
+  isRead: boolean;
+};
+
+
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
@@ -58,6 +68,20 @@ export default function DocumentsPage() {
         console.error("Failed to save documents to localStorage", error)
     }
   }, [documents])
+
+  const createNotification = (doc: Document, message: string) => {
+    const newNotification: Notification = {
+      id: crypto.randomUUID(),
+      documentId: doc.id,
+      documentName: doc.name,
+      message,
+      date: new Date().toISOString(),
+      isRead: false
+    };
+    const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
+    localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
+    window.dispatchEvent(new Event('storage')); // Notify header
+  };
 
   const handleFileDrop = async (files: File[]) => {
     const newDocuments: Document[] = [];
@@ -118,34 +142,48 @@ export default function DocumentsPage() {
       setDocuments(currentDocs);
       
       const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
-      currentDocs = updateDocumentInState(doc.id, { status: 'reviewing', extractedData: extracted }, currentDocs);
+      const finalDoc = { ...doc, status: 'reviewing' as const, extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence };
+      currentDocs = updateDocumentInState(doc.id, finalDoc, currentDocs);
       setDocuments(currentDocs);
       
       toast({
         title: "Traitement terminé",
         description: `Données extraites de ${doc.name}. Prêt pour examen.`,
       });
+      createNotification(finalDoc, 'est prêt pour examen.');
 
     } catch (error) {
       console.error("Error processing document:", error);
-      currentDocs = updateDocumentInState(doc.id, { status: 'error' }, currentDocs);
+      const errorDoc = { ...doc, status: 'error' as const };
+      currentDocs = updateDocumentInState(doc.id, errorDoc, currentDocs);
       setDocuments(currentDocs);
       toast({
         variant: "destructive",
         title: "Le traitement a échoué",
         description: `Impossible de traiter ${doc.name}.`,
       });
+      createNotification(errorDoc, 'a échoué lors du traitement.');
     } finally {
       setIsLoading(false);
     }
   }, [toast]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'approved', extractedData: updatedData } : d));
+    let updatedDoc : Document | undefined;
+    setDocuments(prev => prev.map(d => {
+      if (d.id === docId) {
+        updatedDoc = { ...d, status: 'approved', extractedData: updatedData };
+        return updatedDoc;
+      }
+      return d;
+    }));
     toast({
       title: "Document approuvé",
       description: "Les données ont été validées et enregistrées.",
     });
+    if (updatedDoc) {
+      createNotification(updatedDoc, 'a été approuvé.');
+    }
   };
 
   const handleSendToCegid = (doc: Document) => {
@@ -154,6 +192,7 @@ export default function DocumentsPage() {
       title: "Données envoyées",
       description: `${doc.name} a été envoyé à CEGID avec succès.`,
     });
+     createNotification(doc, 'a été envoyé à Cegid.');
   };
   
   const handleSetActiveDocument = (doc: Document | null) => {

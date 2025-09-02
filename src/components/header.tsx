@@ -1,15 +1,18 @@
 'use client';
-
+import { useState, useEffect } from 'react';
 import Link from "next/link"
 import {
   Bell,
   Search,
-  PlusCircle,
   LogOut,
   User,
   CreditCard,
-  Settings
+  Settings,
+  CheckCircle,
+  FileWarning
 } from "lucide-react"
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,8 +28,47 @@ import { Input } from "@/components/ui/input"
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { QuickUpload } from "./quick-upload";
+import type { Notification } from '@/app/dashboard/documents/page';
 
 export function Header() {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [hasUnread, setHasUnread] = useState(false);
+
+  useEffect(() => {
+    const loadNotifications = () => {
+      try {
+        const storedNotifications = localStorage.getItem('notifications');
+        if (storedNotifications) {
+          const parsed = JSON.parse(storedNotifications) as Notification[];
+          setNotifications(parsed);
+          setHasUnread(parsed.some(n => !n.isRead));
+        }
+      } catch (e) {
+        console.error("Failed to load notifications", e);
+      }
+    }
+    loadNotifications();
+    window.addEventListener('storage', loadNotifications);
+    return () => window.removeEventListener('storage', loadNotifications);
+  }, []);
+
+  const handleMarkAsRead = () => {
+    const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
+    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
+    setNotifications(updatedNotifications);
+    setHasUnread(false);
+  }
+
+  const getIconForStatus = (message: string) => {
+    if (message.includes('approuvé') || message.includes('envoyé')) {
+      return <CheckCircle className="h-8 w-8 text-green-500" />;
+    }
+    if (message.includes('examen')) {
+      return <FileWarning className="h-8 w-8 text-yellow-500" />;
+    }
+    return <FileWarning className="h-8 w-8 text-red-500" />;
+  }
+
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
@@ -47,44 +89,36 @@ export function Header() {
         <div className="flex items-center space-x-1 md:space-x-2">
             <QuickUpload />
 
-             <DropdownMenu>
+             <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                   <Badge className="absolute top-1 right-1 h-2 w-2 p-0 justify-center" />
+                  {hasUnread && <Badge className="absolute top-1 right-1 h-2 w-2 p-0 justify-center" />}
                   <span className="sr-only">Notifications</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[350px]">
+              <DropdownMenuContent align="end" className="w-[380px]">
                 <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                  <DropdownMenuSeparator />
-                    <DropdownMenuItem className="flex gap-3 items-start p-3">
-                        <Avatar className="h-8 w-8 mt-1">
-                            <AvatarImage src="https://picsum.photos/100?a=1" data-ai-hint="company logo" alt="Logo" />
-                            <AvatarFallback>A</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-tight">Traitement terminé</p>
-                            <p className="text-xs text-muted-foreground">
-                                Votre facture "facture-apple.pdf" a été traitée avec succès.
-                            </p>
-                        </div>
-                    </DropdownMenuItem>
-                     <DropdownMenuSeparator />
-                     <DropdownMenuItem className="flex gap-3 items-start p-3">
-                         <Avatar className="h-8 w-8 mt-1">
-                            <AvatarImage src="https://picsum.photos/100?b=2" data-ai-hint="company logo" alt="Logo" />
-                            <AvatarFallback>G</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-tight">Examen requis</p>
-                            <p className="text-xs text-muted-foreground">
-                                Le document "reçu-hotel.pdf" nécessite votre validation.
-                            </p>
-                        </div>
-                    </DropdownMenuItem>
+                 {notifications.length > 0 ? (
+                    notifications.slice(0, 4).map(notif => (
+                        <DropdownMenuItem key={notif.id} className="flex gap-3 items-start p-3 cursor-pointer">
+                            {getIconForStatus(notif.message)}
+                            <div className="flex flex-col space-y-1">
+                                <p className="text-sm font-medium leading-tight">
+                                    <span className="font-bold">{notif.documentName}</span> {notif.message}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(notif.date), { addSuffix: true, locale: fr })}
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                    ))
+                 ) : (
+                    <p className="p-4 text-sm text-center text-muted-foreground">Aucune nouvelle notification</p>
+                 )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="justify-center text-sm text-primary hover:!text-primary py-2">
+                    <DropdownMenuItem className="justify-center text-sm text-primary hover:!text-primary py-2 cursor-pointer">
                         Voir toutes les notifications
                     </DropdownMenuItem>
               </DropdownMenuContent>
