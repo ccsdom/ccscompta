@@ -2,13 +2,23 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2 } from "lucide-react";
+import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2, LayoutGrid } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
 import { Label } from '@/components/ui/label';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
@@ -51,10 +61,19 @@ const chartConfig = {
   }
 } satisfies ChartConfig
 
+const defaultVisibleComponents = {
+    keyStats: true,
+    expensesByMonth: true,
+    distributionByType: true,
+    expensesByVendor: true,
+    averageSpendByType: true,
+}
+
 export default function AnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
+    const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
 
     useEffect(() => {
         const loadState = () => {
@@ -77,6 +96,11 @@ export default function AnalyticsPage() {
                 if (storedCriteria) {
                     setSearchCriteria(JSON.parse(storedCriteria));
                 }
+
+                const storedVisibility = localStorage.getItem('analyticsVisibility');
+                if (storedVisibility) {
+                    setVisibleComponents(JSON.parse(storedVisibility));
+                }
             } catch (e) {
                 console.error("Failed to parse documents from local storage", e)
                 setDocuments(MOCK_DOCUMENTS);
@@ -86,6 +110,14 @@ export default function AnalyticsPage() {
         window.addEventListener('storage', loadState);
         return () => window.removeEventListener('storage', loadState);
     }, [])
+
+     useEffect(() => {
+        try {
+            localStorage.setItem('analyticsVisibility', JSON.stringify(visibleComponents));
+        } catch (error) {
+            console.error("Failed to save visibility state to localStorage", error);
+        }
+    }, [visibleComponents]);
     
     const filteredDocuments = useMemo(() => {
         let docs = [...documents];
@@ -222,9 +254,34 @@ export default function AnalyticsPage() {
         };
     }, [filteredDocuments]);
 
+    const handleVisibilityChange = (key: keyof typeof visibleComponents, checked: boolean) => {
+        setVisibleComponents(prev => ({
+            ...prev,
+            [key]: checked
+        }));
+    }
+
   return (
     <div className="space-y-6">
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="flex justify-end">
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline"><LayoutGrid className="mr-2 h-4 w-4" />Personnaliser</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuLabel>Afficher/Masquer les composants</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem checked={visibleComponents.keyStats} onCheckedChange={(checked) => handleVisibilityChange('keyStats', !!checked)}>Statistiques Clés</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.expensesByMonth} onCheckedChange={(checked) => handleVisibilityChange('expensesByMonth', !!checked)}>Dépenses par Mois</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.distributionByType} onCheckedChange={(checked) => handleVisibilityChange('distributionByType', !!checked)}>Répartition par Type</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.expensesByVendor} onCheckedChange={(checked) => handleVisibilityChange('expensesByVendor', !!checked)}>Dépenses par Fournisseur</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.averageSpendByType} onCheckedChange={(checked) => handleVisibilityChange('averageSpendByType', !!checked)}>Dépense Moyenne par Type</DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+
+       {visibleComponents.keyStats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Dépenses Approuvées</CardTitle>
@@ -256,8 +313,10 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
+       )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+            {visibleComponents.expensesByMonth && (
             <Card className="lg:col-span-1">
                 <CardHeader>
                     <CardTitle>Dépenses par Mois</CardTitle>
@@ -285,7 +344,9 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 </CardContent>
             </Card>
+            )}
 
+            {visibleComponents.distributionByType && (
             <Card>
                 <CardHeader>
                     <CardTitle>Répartition par Type</CardTitle>
@@ -346,9 +407,11 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 </CardContent>
             </Card>
+            )}
         </div>
         
          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {visibleComponents.expensesByVendor && (
             <Card className="lg:col-span-3">
                 <CardHeader>
                     <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
@@ -376,6 +439,8 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 </CardContent>
             </Card>
+            )}
+            {visibleComponents.averageSpendByType && (
             <Card className="lg:col-span-2">
                 <CardHeader>
                     <CardTitle>Dépense Moyenne par Type</CardTitle>
@@ -403,6 +468,7 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 </CardContent>
             </Card>
+            )}
         </div>
     </div>
   );
