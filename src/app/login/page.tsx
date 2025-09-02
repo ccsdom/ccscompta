@@ -13,6 +13,30 @@ import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/logo";
 import { useRouter } from 'next/navigation';
 
+function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" {...props}>
+      <title>Google</title>
+      <path
+        d="M17.64,9.2045a1,1,0,0,0-.0454-.2386,9,9,0,0,0-17.15,0,1,1,0,0,0,.0454.2386,8.7455,8.7455,0,0,0,17.15,0Z"
+        fill="#4285f4"
+      />
+      <path
+        d="M9,18a9,9,0,0,0,8.64-5.7955H.36A9,9,0,0,0,9,18Z"
+        fill="#34a853"
+      />
+      <path
+        d="M.36,9.2045A9,9,0,0,0,0,9a1,1,0,0,0,.0091.1182,8.8712,8.8712,0,0,0,.0545.4909H9V0A9,9,0,0,0,.36,9.2045Z"
+        fill="#fbbc05"
+      />
+      <path
+        d="M17.64,9.2045A9,9,0,0,0,18,9a1,1,0,0,0-.0091-.1182,8.8712,8.8712,0,0,0-.0545-.4909H9V18A9,9,0,0,0,17.64,9.2045Z"
+        fill="#ea4335"
+      />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -20,37 +44,56 @@ export default function LoginPage() {
     e.preventDefault();
     router.push('/dashboard');
   }
+  
+  const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+     // In a real app, this would trigger the Firebase Google Auth flow
+    router.push('/dashboard');
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-md mx-auto p-4">
-        <div className="flex justify-center mb-6">
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex justify-center mb-8">
             <Logo className="h-10 w-10 text-primary" />
         </div>
-        <Card>
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl">Connexion</CardTitle>
+        <Card className="w-full">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Connectez-vous</CardTitle>
             <CardDescription>
-              Entrez votre email ci-dessous pour vous connecter à votre compte
+              Accédez à votre espace CCS Compta
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" placeholder="m@example.com" defaultValue="demo@ccs-compta.com" required />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Mot de passe</Label>
-                </div>
+                 <Label htmlFor="password">Mot de passe</Label>
                 <Input id="password" type="password" defaultValue="demodemo" required />
               </div>
-            </CardContent>
-            <CardFooter>
               <Button type="submit" className="w-full">Se connecter</Button>
-            </CardFooter>
-          </form>
+            </form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  OU
+                </span>
+              </div>
+            </div>
+
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
+              <GoogleIcon className="mr-2" />
+              Se connecter avec Google
+            </Button>
+
+          </CardContent>
         </Card>
       </div>
     </div>
