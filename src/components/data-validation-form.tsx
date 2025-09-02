@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Check, Send, RotateCcw, FileUp, Info, Loader2, ListOrdered, User, Clock, CheckCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert } from 'lucide-react';
 import { type Document, type AuditEvent } from "@/app/dashboard/documents/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +31,7 @@ const initialFormState: ExtractDataOutput = {
   vendorNames: [],
   category: '',
   otherInformation: '',
+  anomalies: [],
 };
 
 const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
@@ -139,6 +141,8 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     return null;
   }
 
+  const hasAnomalies = formData.anomalies && formData.anomalies.length > 0;
+
   return (
     <CardWrapper>
       <form onSubmit={handleSubmit} className="h-full flex flex-col">
@@ -192,6 +196,23 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                     </div>
                     </div>
                 )}
+
+                {hasAnomalies && (
+                  <Alert variant="destructive">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertTitle>Anomalies Détectées !</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 mt-1">
+                        {formData.anomalies!.map((anomaly, index) => (
+                          <li key={index}>{anomaly}</li>
+                        ))}
+                      </ul>
+                      <p className="mt-2">Veuillez vérifier attentivement les données extraites avant d'approuver.</p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+
                 {(document.extractedData && !isLoading) ? (
                     <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
