@@ -13,7 +13,7 @@ import {
   SheetContent,
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Card, CardContent } from '@/components/ui/card';
 
 export interface Document {
   id: string;
@@ -127,69 +128,58 @@ export default function DocumentsPage() {
     }
     
     if (newDocuments.length > 0) {
-      // Add all new documents to state at once
       const updatedDocs = [...newDocuments, ...documents];
       setDocuments(updatedDocs);
-      
-      // Select the first uploaded document
       handleSetActiveDocument(newDocuments[0]);
-
       toast({
         title: "Fichiers téléversés",
         description: `${newDocuments.length} document(s) sont en cours de traitement.`,
       });
-
-      // Process each new document
-      newDocuments.forEach(doc => handleProcessDocument(doc, updatedDocs));
+      newDocuments.forEach(doc => handleProcessDocument(doc.id));
     }
   };
 
-  const updateDocumentInState = (id: string, data: Partial<Document>, currentDocs: Document[]): Document[] => {
-    return currentDocs.map(d => d.id === id ? { ...d, ...data } : d);
+  const updateDocumentState = (id: string, updates: Partial<Document>) => {
+    setDocuments(prevDocs => 
+      prevDocs.map(d => (d.id === id ? { ...d, ...updates } : d))
+    );
   };
   
-  const handleProcessDocument = useCallback(async (doc: Document, currentDocsState: Document[]) => {
-    // Only set active document and loading state if this is the currently active one
-    if (doc.id === activeDocumentId) {
-      setIsLoading(true);
-    }
-    
-    let currentDocs = updateDocumentInState(doc.id, { status: 'processing' }, currentDocsState);
-    setDocuments(currentDocs);
+  const handleProcessDocument = useCallback(async (docId: string) => {
+    const docToProcess = documents.find(d => d.id === docId);
+    if (!docToProcess) return;
 
+    if (docId === activeDocumentId) setIsLoading(true);
+    updateDocumentState(docId, { status: 'processing' });
+  
     try {
-      const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl });
-      currentDocs = updateDocumentInState(doc.id, { type: recognition.documentType, confidence: recognition.confidence }, currentDocs);
-      setDocuments(currentDocs);
+      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
+      updateDocumentState(docId, { type: recognition.documentType, confidence: recognition.confidence });
       
-      const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
-      const finalDoc = { ...doc, status: 'reviewing' as const, extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence };
-      currentDocs = updateDocumentInState(doc.id, finalDoc, currentDocs);
-      setDocuments(currentDocs);
+      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
+      updateDocumentState(docId, { status: 'reviewing', extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence });
       
       toast({
         title: "Traitement terminé",
-        description: `Données extraites de ${doc.name}. Prêt pour examen.`,
+        description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
       });
-      createNotification(finalDoc, 'est prêt pour examen.');
+      const finalDoc = documents.find(d => d.id === docId);
+      if(finalDoc) createNotification(finalDoc, 'est prêt pour examen.');
 
     } catch (error) {
       console.error("Error processing document:", error);
-      const errorDoc = { ...doc, status: 'error' as const };
-      currentDocs = updateDocumentInState(doc.id, errorDoc, currentDocs);
-      setDocuments(currentDocs);
+      updateDocumentState(docId, { status: 'error' });
       toast({
         variant: "destructive",
         title: "Le traitement a échoué",
-        description: `Impossible de traiter ${doc.name}.`,
+        description: `Impossible de traiter ${docToProcess.name}.`,
       });
-      createNotification(errorDoc, 'a échoué lors du traitement.');
+      const finalDoc = documents.find(d => d.id === docId);
+      if(finalDoc) createNotification(finalDoc, 'a échoué lors du traitement.');
     } finally {
-      if (doc.id === activeDocumentId) {
-        setIsLoading(false);
-      }
+      if (docId === activeDocumentId) setIsLoading(false);
     }
-  }, [toast, activeDocumentId]);
+  }, [documents, activeDocumentId, toast]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
@@ -393,15 +383,43 @@ export default function DocumentsPage() {
     </div>
   )
 
+  const renderContent = () => {
+    if (activeDocument) {
+      return (
+        <div className="flex flex-col h-full gap-6">
+          <Card className="flex-1 aspect-square w-full bg-muted overflow-hidden">
+            <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
+          </Card>
+          <DataValidationForm
+            key={activeDocument.id}
+            document={activeDocument}
+            onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
+            onSendToCegid={handleSendToCegid}
+            isLoading={isLoading && activeDocument.id === activeDocumentId}
+          />
+        </div>
+      );
+    }
+    return (
+      <Card className="h-full">
+        <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
+            <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
+            <p className="text-sm text-muted-foreground mt-1">Sélectionnez un document dans la liste ou téléversez-en un nouveau.</p>
+        </CardContent>
+      </Card>
+    );
+  };
+
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full items-start">
-      <div className="lg:col-span-2 flex flex-col gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full items-start">
+      <div className="flex flex-col gap-6 h-full">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
         <DocumentHistory
           documents={filteredDocuments}
-          onProcess={(doc) => handleProcessDocument(doc, documents)}
+          onProcess={(doc) => handleProcessDocument(doc.id)}
           onDelete={handleDeleteSingle}
           activeDocumentId={activeDocumentId}
           setActiveDocument={handleSetActiveDocument}
@@ -409,25 +427,27 @@ export default function DocumentsPage() {
           setSelectedDocumentIds={setSelectedDocumentIds}
         />
       </div>
-      <div className="hidden lg:block lg:col-span-1 h-full sticky top-0">
-        <DataValidationForm
-          key={activeDocument?.id}
-          document={activeDocument}
-          onUpdate={(data) => activeDocument && handleUpdateDocumentData(activeDocument.id, data)}
-          onSendToCegid={handleSendToCegid}
-          isLoading={isLoading && activeDocument?.id === activeDocumentId}
-        />
+      <div className="hidden lg:block h-full sticky top-0">
+        {renderContent()}
       </div>
 
-       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
-           <DataValidationForm
-              key={activeDocument?.id}
+          {activeDocument ? (
+            <DataValidationForm
+              key={activeDocument.id}
               document={activeDocument}
-              onUpdate={(data) => activeDocument && handleUpdateDocumentData(activeDocument.id, data)}
+              onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
               onSendToCegid={handleSendToCegid}
-              isLoading={isLoading && activeDocument?.id === activeDocumentId}
+              isLoading={isLoading && activeDocument.id === activeDocumentId}
+              isSheet
             />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8">
+              <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     </div>

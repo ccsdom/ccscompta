@@ -18,6 +18,7 @@ interface DataValidationFormProps {
   onUpdate: (updatedData: ExtractDataOutput) => void;
   onSendToCegid: (doc: Document) => void;
   isLoading: boolean;
+  isSheet?: boolean;
 }
 
 const initialFormState: ExtractDataOutput = {
@@ -27,7 +28,7 @@ const initialFormState: ExtractDataOutput = {
   otherInformation: '',
 };
 
-export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSent, setIsSent] = useState(false);
   const { toast } = useToast();
@@ -72,27 +73,20 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onUpdate(formData);
+    if(document) onUpdate(formData);
   }
 
   const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
 
   const CardWrapper = ({ children }: { children: React.ReactNode }) => (
-    <Card className="flex-1 rounded-none border-0 lg:rounded-lg lg:border h-full flex flex-col">
+    <Card className={`flex-1 rounded-none border-0 lg:rounded-lg lg:border h-full flex flex-col ${isSheet ? '' : 'mt-[-24px]'}`}>
         {children}
     </Card>
   );
 
   if (!document) {
-    return (
-      <CardWrapper>
-        <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
-          <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
-          <p className="text-sm text-muted-foreground mt-1">Sélectionnez un document dans la liste ou téléversez-en un nouveau.</p>
-        </CardContent>
-      </CardWrapper>
-    );
+    // This case is now handled on the parent page
+    return null;
   }
 
   return (
@@ -110,15 +104,17 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
           </div>
         </CardHeader>
         <CardContent className="flex-1 p-0 lg:p-6 lg:pt-0 flex flex-col gap-4">
-          <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto p-2 lg:p-0">
-             {document.dataUrl ? (
-                <iframe src={document.dataUrl} className="w-full h-full" title="Aperçu du document" />
-             ): (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                    Aperçu non disponible
+            {isSheet && (
+                <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto p-4 lg:p-0">
+                    {document.dataUrl ? (
+                        <iframe src={document.dataUrl} className="w-full h-full" title="Aperçu du document" />
+                    ): (
+                        <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                            Aperçu non disponible
+                        </div>
+                    )}
                 </div>
-             )}
-          </div>
+            )}
 
           <ScrollArea className="flex-1 px-4 lg:px-0">
             <div className="space-y-4">
