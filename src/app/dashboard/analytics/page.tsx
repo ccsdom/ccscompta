@@ -4,9 +4,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart, Label } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
+import { Label } from '@/components/ui/label';
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
@@ -84,7 +85,7 @@ export default function AnalyticsPage() {
         const lowercasedQuery = searchQuery.toLowerCase();
         return documents.filter(doc => 
             doc.name.toLowerCase().includes(lowercasedQuery) ||
-            doc.extractedData?.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery))
+            (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
         );
     }, [documents, searchQuery]);
 
@@ -169,7 +170,7 @@ export default function AnalyticsPage() {
             vendorChartData,
             typeChartData,
             averageSpendByTypeChartData
-        }
+        };
     }, [filteredDocuments]);
 
   return (
