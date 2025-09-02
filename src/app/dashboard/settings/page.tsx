@@ -8,9 +8,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
 
 export default function SettingsPage() {
     const { toast } = useToast();
+    const { theme, setTheme } = useTheme();
 
     const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -98,7 +100,11 @@ export default function SettingsPage() {
                     <Label htmlFor="theme">Thème sombre</Label>
                     <p className="text-sm text-muted-foreground">Basculez entre le thème clair et le thème sombre.</p>
                 </div>
-                <Switch id="theme" />
+                <Switch 
+                  id="theme" 
+                  checked={theme === 'dark'}
+                  onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                />
             </div>
             <Separator />
              <div className="flex items-center justify-between">
