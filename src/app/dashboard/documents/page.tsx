@@ -12,6 +12,19 @@ import {
   Sheet,
   SheetContent,
 } from "@/components/ui/sheet"
+import { Button } from '@/components/ui/button';
+import { Check, Send, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export interface Document {
   id: string;
@@ -38,6 +51,7 @@ export type Notification = {
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,13 +224,48 @@ export default function DocumentsPage() {
         setActiveDocumentId(null);
     }
   }
+
+  const handleBulkApprove = () => {
+    setDocuments(prevDocs => 
+        prevDocs.map(doc => 
+            selectedDocumentIds.includes(doc.id) && doc.status === 'reviewing'
+            ? { ...doc, status: 'approved' } 
+            : doc
+        )
+    );
+    toast({
+      title: "Documents approuvés",
+      description: `${selectedDocumentIds.length} documents ont été approuvés.`,
+    });
+    setSelectedDocumentIds([]);
+  }
+
+  const handleBulkSend = () => {
+    const sentDocs = documents.filter(doc => selectedDocumentIds.includes(doc.id));
+    sentDocs.forEach(doc => console.log("Sending to Cegid:", doc));
+     toast({
+      title: "Données envoyées",
+      description: `${selectedDocumentIds.length} documents ont été envoyés à CEGID.`,
+    });
+    setSelectedDocumentIds([]);
+  }
+
+  const handleBulkDelete = () => {
+    setDocuments(prevDocs => prevDocs.filter(doc => !selectedDocumentIds.includes(doc.id)));
+    toast({
+      variant: 'destructive',
+      title: "Documents supprimés",
+      description: `${selectedDocumentIds.length} documents ont été supprimés.`,
+    });
+    setSelectedDocumentIds([]);
+  }
   
   const filteredDocuments = useMemo(() => {
     if (!searchQuery) return documents;
     const lowercasedQuery = searchQuery.toLowerCase();
     return documents.filter(doc => 
         doc.name.toLowerCase().includes(lowercasedQuery) ||
-        doc.extractedData?.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery))
+        (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
     );
   }, [documents, searchQuery]);
 
@@ -239,16 +288,45 @@ export default function DocumentsPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const BulkActionsToolbar = () => (
+    <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4">
+        <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
+        <div className="flex-grow" />
+        <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
+        <Button variant="outline" size="sm" onClick={handleBulkSend}><Send className="h-4 w-4 mr-2" />Envoyer</Button>
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Cette action est irréversible. Les documents sélectionnés seront définitivement supprimés.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </div>
+  )
+
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full items-start">
       <div className="lg:col-span-2 flex flex-col gap-6">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
+        {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
         <DocumentHistory
           documents={filteredDocuments}
           onProcess={(doc) => handleProcessDocument(doc, documents)}
           activeDocumentId={activeDocumentId}
           setActiveDocument={handleSetActiveDocument}
+          selectedDocumentIds={selectedDocumentIds}
+          setSelectedDocumentIds={setSelectedDocumentIds}
         />
       </div>
       <div className="hidden lg:block lg:col-span-1 h-full sticky top-0">

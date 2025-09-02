@@ -2,15 +2,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileText, Receipt, Landmark, FileQuestion, Play, MoreHorizontal, FileClock } from "lucide-react";
 import type { Document } from "@/app/dashboard/documents/page";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import React from 'react';
 
 interface DocumentHistoryProps {
   documents: Document[];
   onProcess: (doc: Document) => void;
   activeDocumentId?: string | null;
   setActiveDocument: (doc: Document) => void;
+  selectedDocumentIds: string[];
+  setSelectedDocumentIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const getStatusBadge = (status: Document['status']) => {
@@ -38,7 +42,24 @@ const getDocIcon = (type?: string) => {
     return <FileQuestion className="h-5 w-5 text-muted-foreground" />;
 }
 
-export function DocumentHistory({ documents, onProcess, activeDocumentId, setActiveDocument }: DocumentHistoryProps) {
+export function DocumentHistory({ documents, onProcess, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
+  
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedDocumentIds(documents.map(d => d.id));
+        } else {
+            setSelectedDocumentIds([]);
+        }
+    }
+
+    const handleSelectRow = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedDocumentIds(prev => [...prev, id]);
+        } else {
+            setSelectedDocumentIds(prev => prev.filter(docId => docId !== id));
+        }
+    }
+  
   return (
     <Card className="flex-1 flex flex-col">
         <CardHeader>
@@ -50,6 +71,13 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                 <Table>
                     <TableHeader className="sticky top-0 bg-background">
                     <TableRow>
+                        <TableHead className="w-[40px] px-4">
+                             <Checkbox
+                                onCheckedChange={handleSelectAll}
+                                checked={selectedDocumentIds.length === documents.length && documents.length > 0}
+                                aria-label="Tout sélectionner"
+                            />
+                        </TableHead>
                         <TableHead className="w-[50px] p-2 text-center"></TableHead>
                         <TableHead>Nom du fichier</TableHead>
                         <TableHead className="hidden md:table-cell">Date</TableHead>
@@ -65,6 +93,13 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                             className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-secondary' : ''}`}
                             onClick={() => setActiveDocument(doc)}
                         >
+                             <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                    onCheckedChange={(checked) => handleSelectRow(doc.id, !!checked)}
+                                    checked={selectedDocumentIds.includes(doc.id)}
+                                    aria-label={`Sélectionner ${doc.name}`}
+                                />
+                            </TableCell>
                             <TableCell className="p-2 text-center">{getDocIcon(doc.type)}</TableCell>
                             <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
                             <TableCell className="hidden md:table-cell text-muted-foreground">{doc.uploadDate}</TableCell>
@@ -86,7 +121,7 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={5} className="h-48 text-center">
+                        <TableCell colSpan={6} className="h-48 text-center">
                             <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
                             <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
