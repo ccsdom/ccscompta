@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { DataValidationForm } from '@/components/data-validation-form';
 import { DocumentHistory } from '@/components/document-history';
@@ -8,6 +8,10 @@ import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet"
 
 export interface Document {
   id: string;
@@ -25,6 +29,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
 
   const handleFileDrop = async (files: File[]) => {
@@ -42,8 +47,12 @@ export default function DocumentsPage() {
         };
         newDocuments.push(newDoc);
         
-        // Automatically start processing
-        handleProcessDocument(newDoc, [newDoc, ...documents]);
+        // Use a function to get the latest state
+        setDocuments(prev => {
+          const updatedDocs = [newDoc, ...prev];
+          handleProcessDocument(newDoc, updatedDocs);
+          return updatedDocs;
+        });
 
       } catch (error) {
         console.error("Error converting file to data URI:", error);
@@ -54,11 +63,10 @@ export default function DocumentsPage() {
         });
       }
     }
-    setDocuments(prev => [...newDocuments, ...prev]);
     
     if (newDocuments.length > 0) {
       if(newDocuments.length === 1) {
-        setActiveDocumentId(newDocuments[0].id);
+        handleSetActiveDocument(newDocuments[0]);
       }
       toast({
         title: "Fichiers téléversés",
@@ -67,14 +75,12 @@ export default function DocumentsPage() {
     }
   };
 
-  const updateDocumentInState = (id: string, data: Partial<Document>, currentDocs: Document[]): Document[] => {
+ const updateDocumentInState = (id: string, data: Partial<Document>, currentDocs: Document[]): Document[] => {
     return currentDocs.map(d => d.id === id ? { ...d, ...data } : d);
   };
   
-  const handleProcessDocument = async (doc: Document, currentDocsState: Document[]) => {
-    if (activeDocumentId !== doc.id) {
-        setActiveDocumentId(doc.id);
-    }
+  const handleProcessDocument = useCallback(async (doc: Document, currentDocsState: Document[]) => {
+    handleSetActiveDocument(doc);
     setIsLoading(true);
     let currentDocs = updateDocumentInState(doc.id, { status: 'processing' }, currentDocsState);
     setDocuments(currentDocs);
@@ -105,7 +111,7 @@ export default function DocumentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'approved', extractedData: updatedData } : d));
@@ -123,15 +129,39 @@ export default function DocumentsPage() {
     });
   };
   
-  const handleSetActiveDocument = (doc: Document) => {
-    setActiveDocumentId(doc.id);
+  const handleSetActiveDocument = (doc: Document | null) => {
+    if (doc) {
+        setActiveDocumentId(doc.id);
+        if (window.innerWidth < 1024) {
+            setIsSheetOpen(true);
+        }
+    } else {
+        setActiveDocumentId(null);
+    }
   }
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
   const isProcessingAny = documents.some(d => d.status === 'processing');
 
+  useEffect(() => {
+    if (activeDocumentId && window.innerWidth < 1024) {
+      setIsSheetOpen(true)
+    }
+  }, [activeDocumentId])
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsSheetOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full items-start">
       <div className="lg:col-span-2 flex flex-col gap-6">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
         <DocumentHistory
@@ -141,15 +171,27 @@ export default function DocumentsPage() {
           setActiveDocument={handleSetActiveDocument}
         />
       </div>
-      <div className="lg:col-span-1">
+      <div className="hidden lg:block lg:col-span-1 h-full sticky top-0">
         <DataValidationForm
           key={activeDocument?.id}
           document={activeDocument}
           onUpdate={(data) => activeDocument && handleUpdateDocumentData(activeDocument.id, data)}
           onSendToCegid={handleSendToCegid}
-          isLoading={isLoading && activeDocument?.status === 'processing'}
+          isLoading={isLoading && activeDocument?.id === activeDocumentId}
         />
       </div>
+
+       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
+           <DataValidationForm
+              key={activeDocument?.id}
+              document={activeDocument}
+              onUpdate={(data) => activeDocument && handleUpdateDocumentData(activeDocument.id, data)}
+              onSendToCegid={handleSendToCegid}
+              isLoading={isLoading && activeDocument?.id === activeDocumentId}
+            />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
