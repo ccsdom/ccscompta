@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Check, Send, RotateCcw, FileUp, Info, Loader2 } from 'lucide-react';
-import { type Document } from "@/app/dashboard/documents/page";
+import { AlertCircle, Check, Send, RotateCcw, FileUp, Info, Loader2, ListOrdered, User, Clock, CheckCircle } from 'lucide-react';
+import { type Document, type AuditEvent } from "@/app/dashboard/documents/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -27,6 +30,48 @@ const initialFormState: ExtractDataOutput = {
   vendorNames: [],
   otherInformation: '',
 };
+
+const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
+  if (!trail || trail.length === 0) return null;
+
+  return (
+    <div>
+      <Label className="flex items-center gap-2 mb-2">
+        <ListOrdered className="h-4 w-4" />
+        Historique du document
+      </Label>
+      <div className="space-y-3">
+        {trail.slice().reverse().map((event, index) => (
+          <div key={index} className="flex items-start gap-3 text-sm">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted mt-1">
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1">
+                <p className="font-medium text-foreground">{event.action}</p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="flex items-center gap-1"><User className="h-3 w-3" /> {event.user}</span>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Utilisateur</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(event.date), "PPP à HH:mm", { locale: fr })}</span>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Date et heure</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
@@ -117,7 +162,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             )}
 
           <ScrollArea className="flex-1 px-4 lg:px-0">
-            <div className="space-y-4">
+            <div className="space-y-6">
                 {isLoading && (
                     <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -171,6 +216,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                 ) : (
                     !isLoading && document.status !== 'error' && document.status !== 'pending' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
                 )}
+                 <AuditTrail trail={document.auditTrail} />
             </div>
           </ScrollArea>
         </CardContent>

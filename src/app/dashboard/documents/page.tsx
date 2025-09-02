@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from '@/components/ui/card';
 
+export interface AuditEvent {
+  action: string;
+  date: string;
+  user: string;
+}
+
 export interface Document {
   id: string;
   name: string;
@@ -37,6 +43,7 @@ export interface Document {
   type?: string;
   confidence?: number;
   extractedData?: ExtractDataOutput;
+  auditTrail: AuditEvent[];
 }
 
 export type Notification = {
@@ -48,6 +55,7 @@ export type Notification = {
   isRead: boolean;
 };
 
+const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -64,7 +72,7 @@ export default function DocumentsPage() {
             const storedDocs = localStorage.getItem('documents');
             if (storedDocs) {
                 // We need to reconstruct File objects as they are not serializable
-                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [] }));
                 setDocuments(parsedDocs);
             }
              const storedQuery = localStorage.getItem('searchQuery');
@@ -103,6 +111,17 @@ export default function DocumentsPage() {
     window.dispatchEvent(new Event('storage')); // Notify header
   };
 
+  const addAuditEvent = (docId: string, action: string): AuditEvent[] => {
+    const event: AuditEvent = {
+        action,
+        date: new Date().toISOString(),
+        user: getCurrentUser(),
+    };
+    const doc = documents.find(d => d.id === docId);
+    return [...(doc?.auditTrail || []), event];
+  }
+
+
   const handleFileDrop = async (files: File[]) => {
     const newDocuments: Document[] = [];
     for (const file of files) {
@@ -115,6 +134,11 @@ export default function DocumentsPage() {
           status: 'pending' as const,
           file,
           dataUrl,
+          auditTrail: [{
+            action: 'Document téléversé',
+            date: new Date().toISOString(),
+            user: getCurrentUser(),
+          }]
         };
         newDocuments.push(newDoc);
       } catch (error) {
@@ -146,18 +170,20 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId);
+    const docToProcess = documents.find(d => d.id === docId) || newDocuments.find(d => d.id === docId);
     if (!docToProcess) return;
 
     if (docId === activeDocumentId) setIsLoading(true);
-    updateDocumentState(docId, { status: 'processing' });
+    let trail = addAuditEvent(docId, 'Traitement IA initié');
+    updateDocumentState(docId, { status: 'processing', auditTrail: trail });
   
     try {
       const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       updateDocumentState(docId, { type: recognition.documentType, confidence: recognition.confidence });
       
       const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
-      updateDocumentState(docId, { status: 'reviewing', extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence });
+      trail = addAuditEvent(docId, 'Traitement IA terminé');
+      updateDocumentState(docId, { status: 'reviewing', extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence, auditTrail: trail });
       
       toast({
         title: "Traitement terminé",
@@ -168,7 +194,8 @@ export default function DocumentsPage() {
 
     } catch (error) {
       console.error("Error processing document:", error);
-      updateDocumentState(docId, { status: 'error' });
+      trail = addAuditEvent(docId, 'Erreur de traitement IA');
+      updateDocumentState(docId, { status: 'error', auditTrail: trail });
       toast({
         variant: "destructive",
         title: "Le traitement a échoué",
@@ -179,13 +206,15 @@ export default function DocumentsPage() {
     } finally {
       if (docId === activeDocumentId) setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documents, activeDocumentId, toast]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
+    const trail = addAuditEvent(docId, 'Document approuvé');
     setDocuments(prev => prev.map(d => {
       if (d.id === docId) {
-        updatedDoc = { ...d, status: 'approved', extractedData: updatedData };
+        updatedDoc = { ...d, status: 'approved', extractedData: updatedData, auditTrail: trail };
         return updatedDoc;
       }
       return d;
@@ -200,6 +229,8 @@ export default function DocumentsPage() {
   };
 
   const handleSendToCegid = (doc: Document) => {
+    const trail = addAuditEvent(doc.id, 'Document envoyé à Cegid');
+    updateDocumentState(doc.id, { auditTrail: trail });
     console.log("Sending to Cegid:", doc);
     toast({
       title: "Données envoyées",
@@ -226,7 +257,8 @@ export default function DocumentsPage() {
             if (selectedDocumentIds.includes(doc.id) && doc.status === 'reviewing') {
               approvedCount++;
               createNotification(doc, 'a été approuvé.');
-              return { ...doc, status: 'approved' };
+              const trail = addAuditEvent(doc.id, 'Document approuvé (en masse)');
+              return { ...doc, status: 'approved', auditTrail: trail };
             }
             return doc;
         })
@@ -239,11 +271,17 @@ export default function DocumentsPage() {
   }
 
   const handleBulkSend = () => {
-    const sentDocs = documents.filter(doc => selectedDocumentIds.includes(doc.id));
-    sentDocs.forEach(doc => {
-      console.log("Sending to Cegid:", doc);
-      createNotification(doc, 'a été envoyé à Cegid.');
-    });
+    setDocuments(prevDocs =>
+        prevDocs.map(doc => {
+            if (selectedDocumentIds.includes(doc.id) && doc.status === 'approved') {
+                console.log("Sending to Cegid:", doc);
+                createNotification(doc, 'a été envoyé à Cegid.');
+                const trail = addAuditEvent(doc.id, 'Document envoyé à Cegid (en masse)');
+                return { ...doc, auditTrail: trail };
+            }
+            return doc;
+        })
+    )
      toast({
       title: "Données envoyées",
       description: `${selectedDocumentIds.length} documents ont été envoyés à CEGID.`,
@@ -339,6 +377,7 @@ export default function DocumentsPage() {
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
   const isProcessingAny = documents.some(d => d.status === 'processing');
+  const newDocuments: Document[] = [];
 
   useEffect(() => {
     if (activeDocumentId && window.innerWidth < 1024) {
