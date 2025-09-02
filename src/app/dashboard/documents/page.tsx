@@ -32,6 +32,27 @@ export default function DocumentsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
 
+   useEffect(() => {
+    try {
+        const storedDocs = localStorage.getItem('documents');
+        if (storedDocs) {
+            // We need to reconstruct File objects as they are not serializable
+            const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+            setDocuments(parsedDocs);
+        }
+    } catch (error) {
+        console.error("Failed to load documents from localStorage", error)
+    }
+  }, [])
+  
+  useEffect(() => {
+    try {
+        localStorage.setItem('documents', JSON.stringify(documents.map(d => ({...d, file: undefined}))));
+    } catch (error) {
+        console.error("Failed to save documents to localStorage", error)
+    }
+  }, [documents])
+
   const handleFileDrop = async (files: File[]) => {
     const newDocuments: Document[] = [];
     for (const file of files) {

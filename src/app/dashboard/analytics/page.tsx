@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { BarChart, PieChart, LineChart, DollarSign, Users, FileText } from "lucide-react";
+import { DollarSign, Users, FileText } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Pie, Cell, ResponsiveContainer, Label, LabelList } from 'recharts';
-import type { Document } from '../documents/page'; // Reuse the type
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart } from 'recharts';
+import type { Document } from '../documents/page'; 
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
@@ -18,19 +18,47 @@ const MOCK_DOCUMENTS: Document[] = [
   { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], otherInformation: '' } },
   { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], otherInformation: '' } },
 ];
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
+
+const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
+const chartConfig = {
+  total: {
+    label: "Total (€)",
+    color: "hsl(var(--chart-1))",
+  },
+  invoice: {
+    label: "Factures",
+    color: "hsl(var(--chart-1))",
+  },
+  receipt: {
+    label: "Reçus",
+    color: "hsl(var(--chart-2))",
+  },
+  'bank statement': {
+    label: "Relevés",
+    color: "hsl(var(--chart-3))",
+  },
+  other: {
+    label: "Autres",
+    color: "hsl(var(--chart-4))",
+  }
+} satisfies ChartConfig
 
 export default function AnalyticsPage() {
-    // In a real app, you'd fetch this data or get it from a global state
     const [documents, setDocuments] = useState<Document[]>([]);
 
     useEffect(() => {
-        // Simulating data fetching
-        setDocuments(MOCK_DOCUMENTS);
+        const storedDocs = localStorage.getItem('documents');
+        if (storedDocs) {
+            const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+            setDocuments(parsedDocs);
+        } else {
+            setDocuments(MOCK_DOCUMENTS);
+        }
     }, [])
 
     const analyticsData = useMemo(() => {
-        const approvedDocs = documents.filter(d => d.status === 'approved' && d.extractedData);
+        const approvedDocs = documents.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
@@ -51,8 +79,10 @@ export default function AnalyticsPage() {
             .sort((a,b) => {
                 const [m1, y1] = a.name.split(' ');
                 const [m2, y2] = b.name.split(' ');
-                const d1 = new Date(`01 ${m1} 20${y1}`);
-                const d2 = new Date(`01 ${m2} 20${y2}`);
+                // A simple date conversion for sorting that works with "mai 24" format
+                const months = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+                const d1 = new Date(parseInt(`20${y1}`), months.indexOf(m1));
+                const d2 = new Date(parseInt(`20${y2}`), months.indexOf(m2));
                 return d1.getTime() - d2.getTime();
             });
 
@@ -73,7 +103,7 @@ export default function AnalyticsPage() {
         const mainVendor = vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A';
 
         const docsByType = documents.reduce((acc, doc) => {
-            const type = doc.type || 'Inconnu';
+            const type = doc.type || 'other';
              if (!acc[type]) {
                 acc[type] = 0;
             }
@@ -92,13 +122,6 @@ export default function AnalyticsPage() {
             typeChartData
         }
     }, [documents]);
-
-    const chartConfig = {
-      total: {
-        label: "Total",
-        color: "hsl(var(--chart-1))",
-      },
-    }
 
   return (
     <div className="space-y-6">
@@ -148,7 +171,7 @@ export default function AnalyticsPage() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
-                                <Tooltip
+                                <ChartTooltip
                                     cursor={false}
                                     content={<ChartTooltipContent 
                                         formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
@@ -170,36 +193,56 @@ export default function AnalyticsPage() {
                     <CardDescription>Distribution des documents par type.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ChartContainer config={{}} className="h-[250px] w-full">
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                            <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                             <Pie
                                 data={analyticsData.typeChartData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                outerRadius={80}
                                 dataKey="value"
                                 nameKey="name"
-                                label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                                    const RADIAN = Math.PI / 180;
-                                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-                                    return (
-                                    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
-                                        {`${(percent * 100).toFixed(0)}%`}
-                                    </text>
-                                    );
-                                }}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={80}
+                                innerRadius={50}
+                                fill="#8884d8"
+                                labelLine={false}
                             >
-                            {analyticsData.typeChartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
+                                {analyticsData.typeChartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                                <Label
+                                    content={({ viewBox }) => {
+                                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                        return (
+                                            <text
+                                            x={viewBox.cx}
+                                            y={viewBox.cy}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            >
+                                            <tspan
+                                                x={viewBox.cx}
+                                                y={viewBox.cy}
+                                                className="text-3xl font-bold fill-foreground"
+                                            >
+                                                {documents.length.toLocaleString()}
+                                            </tspan>
+                                            <tspan
+                                                x={viewBox.cx}
+                                                y={(viewBox.cy || 0) + 16}
+                                                className="text-sm text-muted-foreground"
+                                            >
+                                                Documents
+                                            </tspan>
+                                            </text>
+                                        )
+                                        }
+                                        return null;
+                                    }}
+                                    />
                             </Pie>
-                            <Legend content={<ChartLegendContent />} />
+                            <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                         </PieChart>
                         </ResponsiveContainer>
                     </ChartContainer>
@@ -220,7 +263,7 @@ export default function AnalyticsPage() {
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
                                 <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
-                                <Tooltip
+                                <ChartTooltip
                                     cursor={false}
                                     content={<ChartTooltipContent 
                                         formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
@@ -238,4 +281,12 @@ export default function AnalyticsPage() {
         </div>
     </div>
   );
+}
+
+// Re-defining for use in this page, ideally this would be shared.
+type ChartConfig = {
+  [k in string]: {
+    label: string
+    color: string
+  }
 }
