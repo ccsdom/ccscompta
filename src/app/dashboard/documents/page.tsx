@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Header } from '@/components/header';
 import { FileUploader } from '@/components/file-uploader';
 import { DataValidationForm } from '@/components/data-validation-form';
 import { DocumentHistory } from '@/components/document-history';
@@ -9,7 +8,6 @@ import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
 
 export interface Document {
   id: string;
@@ -23,7 +21,7 @@ export interface Document {
   extractedData?: ExtractDataOutput;
 }
 
-export default function Dashboard() {
+export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -133,8 +131,8 @@ export default function Dashboard() {
   const isProcessingAny = documents.some(d => d.status === 'processing');
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+      <div className="lg:col-span-2 flex flex-col gap-6">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
         <DocumentHistory
           documents={documents}
