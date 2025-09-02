@@ -40,10 +40,11 @@ export default function DocumentsPage() {
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
    useEffect(() => {
-    const loadDocuments = () => {
+    const loadState = () => {
         try {
             const storedDocs = localStorage.getItem('documents');
             if (storedDocs) {
@@ -51,14 +52,18 @@ export default function DocumentsPage() {
                 const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
                 setDocuments(parsedDocs);
             }
+             const storedQuery = localStorage.getItem('searchQuery');
+             if (storedQuery) {
+                setSearchQuery(storedQuery);
+             }
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
         }
     };
-    loadDocuments();
+    loadState();
     // Listen for storage changes to update the document list from other components
-    window.addEventListener('storage', loadDocuments);
-    return () => window.removeEventListener('storage', loadDocuments);
+    window.addEventListener('storage', loadState);
+    return () => window.removeEventListener('storage', loadState);
   }, [])
   
   useEffect(() => {
@@ -205,6 +210,15 @@ export default function DocumentsPage() {
         setActiveDocumentId(null);
     }
   }
+  
+  const filteredDocuments = useMemo(() => {
+    if (!searchQuery) return documents;
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return documents.filter(doc => 
+        doc.name.toLowerCase().includes(lowercasedQuery) ||
+        doc.extractedData?.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery))
+    );
+  }, [documents, searchQuery]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
   const isProcessingAny = documents.some(d => d.status === 'processing');
@@ -231,7 +245,7 @@ export default function DocumentsPage() {
       <div className="lg:col-span-2 flex flex-col gap-6">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
         <DocumentHistory
-          documents={documents}
+          documents={filteredDocuments}
           onProcess={(doc) => handleProcessDocument(doc, documents)}
           activeDocumentId={activeDocumentId}
           setActiveDocument={handleSetActiveDocument}

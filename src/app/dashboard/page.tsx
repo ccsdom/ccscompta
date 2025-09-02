@@ -3,39 +3,59 @@
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { DocumentHistory } from "@/components/document-history";
 import { FileUp, FileCheck, FileClock, CircleDollarSign } from "lucide-react";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Document } from "./documents/page"; // Re-using type from documents page
 
-// Dummy data for charts
-const expenseData = [
-    { month: 'Jan', total: Math.floor(Math.random() * 5000) + 1000 },
-    { month: 'Fev', total: Math.floor(Math.random() * 5000) + 1000 },
-    { month: 'Mar', total: Math.floor(Math.random() * 5000) + 1000 },
-    { month: 'Avr', total: Math.floor(Math.random() * 5000) + 1000 },
-    { month: 'Mai', total: Math.floor(Math.random() * 5000) + 1000 },
-    { month: 'Juin', total: Math.floor(Math.random() * 5000) + 1000 },
-];
-
 export default function Dashboard() {
-    // This state would ideally be shared via a global state manager (e.g., Context, Redux)
     const [documents, setDocuments] = useState<Document[]>([]);
     const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        const loadState = () => {
+            try {
+                const storedDocs = localStorage.getItem('documents');
+                if (storedDocs) {
+                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+                    setDocuments(parsedDocs);
+                }
+                 const storedQuery = localStorage.getItem('searchQuery');
+                 if (storedQuery) {
+                    setSearchQuery(storedQuery);
+                 }
+            } catch (error) {
+                console.error("Failed to load documents from localStorage", error)
+            }
+        };
+        loadState();
+        window.addEventListener('storage', loadState);
+        return () => window.removeEventListener('storage', loadState);
+    }, []);
+
+    const filteredDocuments = useMemo(() => {
+        if (!searchQuery) return documents;
+        const lowercasedQuery = searchQuery.toLowerCase();
+        return documents.filter(doc => 
+            doc.name.toLowerCase().includes(lowercasedQuery) ||
+            doc.extractedData?.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery))
+        );
+    }, [documents, searchQuery]);
 
     const stats = useMemo(() => {
-        const approved = documents.filter(d => d.status === 'approved').length;
-        const pending = documents.filter(d => d.status === 'reviewing' || d.status === 'pending').length;
-        const totalAmount = documents
+        const approved = filteredDocuments.filter(d => d.status === 'approved').length;
+        const pending = filteredDocuments.filter(d => d.status === 'reviewing' || d.status === 'pending').length;
+        const totalAmount = filteredDocuments
             .filter(d => d.status === 'approved' && d.extractedData)
             .flatMap(d => d.extractedData!.amounts)
             .reduce((sum, amount) => sum + amount, 0);
 
         return {
-            total: documents.length,
+            total: filteredDocuments.length,
             approved,
             pending,
             totalAmount: totalAmount.toFixed(2),
         }
-    }, [documents]);
+    }, [filteredDocuments]);
 
     // These handlers are placeholders. They would be implemented with global state management.
     const handleProcessDocument = (doc: Document) => {
@@ -51,12 +71,12 @@ export default function Dashboard() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Documents téléversés</CardTitle>
+                        <CardTitle className="text-sm font-medium">Documents affichés</CardTitle>
                         <FileUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.total}</div>
-                        <p className="text-xs text-muted-foreground">Total des fichiers</p>
+                        <p className="text-xs text-muted-foreground">Total des fichiers correspondants</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -93,7 +113,7 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-1 gap-6">
                 <DocumentHistory
-                    documents={documents}
+                    documents={filteredDocuments}
                     onProcess={handleProcessDocument}
                     activeDocumentId={activeDocumentId}
                     setActiveDocument={handleSetActiveDocument}

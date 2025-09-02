@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from "next/link"
 import {
   Bell,
@@ -33,30 +33,57 @@ import type { Notification } from '@/app/dashboard/documents/page';
 export function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const loadNotifications = useCallback(() => {
+    try {
+      const storedNotifications = localStorage.getItem('notifications');
+      if (storedNotifications) {
+        const parsed = JSON.parse(storedNotifications) as Notification[];
+        setNotifications(parsed);
+        setHasUnread(parsed.some(n => !n.isRead));
+      }
+    } catch (e) {
+      console.error("Failed to load notifications", e);
+    }
+  }, []);
+
+  const loadSearchQuery = useCallback(() => {
+    const storedQuery = localStorage.getItem('searchQuery');
+    if (storedQuery) {
+        setSearchQuery(storedQuery);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadNotifications = () => {
-      try {
-        const storedNotifications = localStorage.getItem('notifications');
-        if (storedNotifications) {
-          const parsed = JSON.parse(storedNotifications) as Notification[];
-          setNotifications(parsed);
-          setHasUnread(parsed.some(n => !n.isRead));
-        }
-      } catch (e) {
-        console.error("Failed to load notifications", e);
-      }
-    }
     loadNotifications();
-    window.addEventListener('storage', loadNotifications);
-    return () => window.removeEventListener('storage', loadNotifications);
-  }, []);
+    loadSearchQuery();
+    
+    const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'notifications') {
+            loadNotifications();
+        }
+        if (e.key === 'searchQuery') {
+            loadSearchQuery();
+        }
+    }
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadNotifications, loadSearchQuery]);
 
   const handleMarkAsRead = () => {
     const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
     localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
     setNotifications(updatedNotifications);
     setHasUnread(false);
+  }
+  
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    localStorage.setItem('searchQuery', query);
+    window.dispatchEvent(new StorageEvent('storage', { key: 'searchQuery', newValue: query }));
   }
 
   const getIconForStatus = (message: string) => {
@@ -79,8 +106,10 @@ export function Header() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Rechercher des documents..."
+                  placeholder="Rechercher par nom, fournisseur..."
                   className="w-full appearance-none bg-transparent pl-8 shadow-none md:w-2/3 lg:w-1/3 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 border-b rounded-none focus-visible:border-primary"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
                 />
               </div>
             </form>

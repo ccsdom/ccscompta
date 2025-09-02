@@ -51,24 +51,45 @@ const chartConfig = {
 
 export default function AnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        const storedDocs = localStorage.getItem('documents');
-        if (storedDocs) {
+        const loadState = () => {
             try {
-                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-                 setDocuments(parsedDocs.length > 0 ? parsedDocs : MOCK_DOCUMENTS);
+                const storedDocs = localStorage.getItem('documents');
+                 if (storedDocs) {
+                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+                    const initialDocs = parsedDocs.length > 0 ? parsedDocs : MOCK_DOCUMENTS;
+                    setDocuments(initialDocs);
+                } else {
+                    setDocuments(MOCK_DOCUMENTS);
+                }
+
+                const storedQuery = localStorage.getItem('searchQuery');
+                if (storedQuery) {
+                    setSearchQuery(storedQuery);
+                }
             } catch (e) {
                 console.error("Failed to parse documents from local storage", e)
                 setDocuments(MOCK_DOCUMENTS);
             }
-        } else {
-            setDocuments(MOCK_DOCUMENTS);
         }
+        loadState();
+        window.addEventListener('storage', loadState);
+        return () => window.removeEventListener('storage', loadState);
     }, [])
+    
+    const filteredDocuments = useMemo(() => {
+        if (!searchQuery) return documents;
+        const lowercasedQuery = searchQuery.toLowerCase();
+        return documents.filter(doc => 
+            doc.name.toLowerCase().includes(lowercasedQuery) ||
+            doc.extractedData?.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery))
+        );
+    }, [documents, searchQuery]);
 
     const analyticsData = useMemo(() => {
-        const approvedDocs = documents.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);
+        const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
@@ -111,7 +132,7 @@ export default function AnalyticsPage() {
         
         const mainVendor = vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A';
 
-        const docsByType = documents.reduce((acc, doc) => {
+        const docsByType = filteredDocuments.reduce((acc, doc) => {
             const type = doc.type || 'other';
              if (!acc[type]) {
                 acc[type] = 0;
@@ -149,7 +170,7 @@ export default function AnalyticsPage() {
             typeChartData,
             averageSpendByTypeChartData
         }
-    }, [documents]);
+    }, [filteredDocuments]);
 
   return (
     <div className="space-y-6">
@@ -161,7 +182,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">Basé sur {documents.filter(d=>d.status === 'approved').length} documents approuvés</p>
+              <p className="text-xs text-muted-foreground">Basé sur {filteredDocuments.filter(d=>d.status === 'approved').length} documents approuvés</p>
             </CardContent>
           </Card>
           <Card>
@@ -253,7 +274,7 @@ export default function AnalyticsPage() {
                                                 y={viewBox.cy}
                                                 className="text-3xl font-bold fill-foreground"
                                             >
-                                                {documents.length.toLocaleString()}
+                                                {filteredDocuments.length.toLocaleString()}
                                             </tspan>
                                             <tspan
                                                 x={viewBox.cx}
@@ -282,7 +303,7 @@ export default function AnalyticsPage() {
                 <CardHeader>
                     <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
                     <CardDescription>Classement des fournisseurs par montant total dépensé.</CardDescription>
-                </CardHeader>
+                </Header>
                 <CardContent>
                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -309,7 +330,7 @@ export default function AnalyticsPage() {
                 <CardHeader>
                     <CardTitle>Dépense Moyenne par Type</CardTitle>
                     <CardDescription>Montant moyen des dépenses pour chaque type de document.</CardDescription>
-                </CardHeader>
+                </Header>
                 <CardContent>
                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
