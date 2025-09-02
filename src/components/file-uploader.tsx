@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 interface FileUploaderProps {
   onFileDrop: (files: File[]) => void;
@@ -51,19 +50,13 @@ export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
   };
   
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Téléverser des documents</CardTitle>
-        <CardDescription>Glissez-déposez des fichiers ou cliquez pour parcourir.</CardDescription>
-      </CardHeader>
-      <CardContent>
         <label
           htmlFor="file-upload"
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          className={`relative flex flex-col items-center justify-center w-full p-12 border-2 border-dashed rounded-lg cursor-pointer transition-colors
+          className={`relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors
             ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
         >
           <input
@@ -79,22 +72,20 @@ export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
             {isLoading ? (
                 <>
                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    <p className="mt-4 text-sm font-medium text-muted-foreground">Traitement du document...</p>
+                    <p className="mt-4 text-sm font-medium text-muted-foreground">Traitement en cours...</p>
                 </>
             ) : (
                 <>
                     <UploadCloud className="h-10 w-10 text-muted-foreground" />
                     <p className="mt-4 text-sm font-medium">
-                      Glissez-déposez des fichiers, ou <span className="font-semibold text-primary">cliquez pour parcourir</span>
+                      Glissez-déposez ou <span className="font-semibold text-primary">parcourir</span>
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Formats pris en charge : PDF, PNG, JPG
+                      PDF, PNG, JPG
                     </p>
                 </>
             )}
           </div>
         </label>
-      </CardContent>
-    </Card>
   );
 }

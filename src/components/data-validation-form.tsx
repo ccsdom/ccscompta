@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Check, Send, RotateCcw } from 'lucide-react';
-import { type Document } from "@/app/page";
+import { AlertCircle, Check, Send, RotateCcw, FileUp, Info } from 'lucide-react';
+import { type Document } from "@/app/dashboard/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
 
@@ -78,7 +78,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
 
   if (isLoading) {
     return (
-      <Card className="min-h-[550px]">
+      <Card className="flex-1">
         <CardHeader>
           <Skeleton className="h-7 w-3/5" />
           <Skeleton className="h-5 w-4/5 mt-1" />
@@ -95,36 +95,46 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
 
   if (!document) {
     return (
-      <Card className="flex h-full min-h-[550px] items-center justify-center">
-        <div className="text-center p-8">
-          <p className="text-lg font-medium">Aucun document sélectionné</p>
-          <p className="text-sm text-muted-foreground">Sélectionnez un document dans l'historique ou téléchargez-en un nouveau pour commencer.</p>
-        </div>
+      <Card className="flex-1">
+        <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
+          <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
+          <p className="text-sm text-muted-foreground mt-1">Sélectionnez un document dans la liste ou téléversez-en un nouveau.</p>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="min-h-[550px]">
-      <form onSubmit={handleSubmit}>
+    <Card className="flex-1">
+      <form onSubmit={handleSubmit} className="h-full flex flex-col">
         <CardHeader>
           <div className="flex justify-between items-start gap-4">
             <div>
-              <CardTitle>Validation des données</CardTitle>
+              <CardTitle className="text-xl">Validation des Données</CardTitle>
               <CardDescription className="truncate max-w-[250px] md:max-w-sm" title={document.name}>
                 Examen de : {document.name}
               </CardDescription>
             </div>
-            {document.type && <Badge variant="secondary">{document.type} ({((document.confidence ?? 0) * 100).toFixed(0)}%)</Badge>}
+            {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({(document.confidence ?? 0) * 100}%)</Badge>}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1">
           {document.status === 'error' && (
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-center gap-4 text-destructive">
               <AlertCircle className="h-6 w-6" />
               <div>
                 <h3 className="font-semibold">Erreur de traitement</h3>
-                <p className="text-sm">Impossible d'extraire les données de ce document. Essayez de retraiter ou utilisez un autre fichier.</p>
+                <p className="text-sm">Impossible d'extraire les données. Essayez de retraiter ou utilisez un autre fichier.</p>
+              </div>
+            </div>
+          )}
+           {document.status === 'pending' && (
+            <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 flex items-center gap-4 text-primary-foreground">
+              <Info className="h-6 w-6 text-primary" />
+              <div>
+                <h3 className="font-semibold text-primary">Document en attente</h3>
+                <p className="text-sm text-primary/80">Cliquez sur "Traiter" pour lancer l'extraction des données par l'IA.</p>
               </div>
             </div>
           )}
@@ -152,19 +162,19 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
               </div>
             </div>
           ) : (
-             document.status !== 'error' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
+             document.status !== 'error' && document.status !== 'pending' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
           )}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
           {document.status === 'reviewing' && (
             <>
-              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="mr-2 h-4 w-4" />Annuler les modifications</Button>
-              <Button type="submit"><Check className="mr-2 h-4 w-4" />Approuver les données</Button>
+              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw />Annuler</Button>
+              <Button type="submit"><Check />Approuver</Button>
             </>
           )}
           {document.status === 'approved' && (
             <Button type="button" onClick={() => { onSendToCegid(document); setIsSent(true); }} disabled={isSent}>
-              {isSent ? <><Check className="mr-2 h-4 w-4" />Envoyé à Cegid</> : <><Send className="mr-2 h-4 w-4" />Envoyer à Cegid</>}
+              {isSent ? <><Check />Envoyé</> : <><Send />Envoyer à Cegid</>}
             </Button>
           )}
         </CardFooter>
