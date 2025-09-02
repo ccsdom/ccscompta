@@ -177,7 +177,7 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    let docToProcess = documents.find(d => d.id === docId);
+    const docToProcess = documents.find(d => d.id === docId);
     if (!docToProcess) return;
 
     if (docId === activeDocumentId) setIsLoading(true);
@@ -197,6 +197,7 @@ export default function DocumentsPage() {
         description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
       });
       
+      // Need to re-find the document to get the latest state for notification
       const finalDoc = documents.find(d => d.id === docId);
       if(finalDoc) createNotification(finalDoc, 'est prêt pour examen.');
 
@@ -342,7 +343,7 @@ export default function DocumentsPage() {
       return;
     }
 
-    const headers = ['Nom du fichier', 'Fournisseur', 'Date', 'Montant', 'Autres informations'];
+    const headers = ['Nom du fichier', 'Fournisseur', 'Date', 'Montant', 'Catégorie', 'Autres informations'];
     const rows = docsToExport.map(doc => {
       const data = doc.extractedData!;
       const row = [
@@ -350,7 +351,8 @@ export default function DocumentsPage() {
         data.vendorNames.join('; '),
         data.dates.join('; '),
         data.amounts.join('; '),
-        `"${data.otherInformation.replace(/"/g, '""')}"` // Escape quotes
+        data.category || '',
+        `"${(data.otherInformation || '').replace(/"/g, '""')}"` // Escape quotes
       ];
       return row.join(',');
     });

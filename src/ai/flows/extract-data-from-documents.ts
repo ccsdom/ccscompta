@@ -24,6 +24,7 @@ const ExtractDataOutputSchema = z.object({
   dates: z.array(z.string()).describe('Dates found in the document.'),
   amounts: z.array(z.number()).describe('Amounts found in the document.'),
   vendorNames: z.array(z.string()).describe('Vendor names found in the document.'),
+  category: z.string().optional().describe('The suggested accounting category for the expense (e.g., "Fournitures", "Transport", "Repas").'),
   otherInformation: z.string().describe('Other relevant information extracted from the document.'),
 });
 export type ExtractDataOutput = z.infer<typeof ExtractDataOutputSchema>;
@@ -44,6 +45,7 @@ Specifically, you will identify and extract:
 - Dates: All dates present in the document.
 - Amounts: All monetary amounts present in the document.
 - Vendor Names: The names of the vendors or suppliers.
+- Category: Based on the document content, suggest an accounting category. Examples: "Fournitures de bureau", "Transport", "Repas et divertissement", "Services informatiques", "Loyer", "Autre".
 - Other Information: Any other relevant information in the document.
 
 Document Type: {{{documentType}}}

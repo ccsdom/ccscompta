@@ -28,6 +28,7 @@ const initialFormState: ExtractDataOutput = {
   dates: [],
   amounts: [],
   vendorNames: [],
+  category: '',
   otherInformation: '',
 };
 
@@ -87,6 +88,10 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
      // Reset sent state when document changes
     setIsSent(false);
   }, [document]);
+
+  const handleInputChange = (field: keyof ExtractDataOutput, value: string) => {
+    setFormData(prev => ({...prev, [field]: value}));
+  }
 
   const handleArrayInputChange = (field: 'dates' | 'vendorNames', index: number, value: string) => {
     setFormData(prev => {
@@ -200,6 +205,10 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                         {formData.dates.map((date, index) => <Input key={index} value={date} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
                         {formData.dates.length === 0 && <Input value="-" readOnly disabled />}
                         </div>
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Catégorie</Label>
+                        <Input value={formData.category || ''} onChange={(e) => handleInputChange('category', e.target.value)} readOnly={isReadOnly} placeholder="Catégorie suggérée par l'IA" />
                     </div>
                     <div className="space-y-2">
                         <Label>Montants</Label>
