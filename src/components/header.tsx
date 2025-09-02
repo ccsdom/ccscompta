@@ -1,6 +1,5 @@
-import { FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Link from 'next/link';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export function Header() {
   return (
@@ -8,6 +7,7 @@ export function Header() {
       <div className="container flex h-16 max-w-full items-center px-4 md:px-6">
         
         <div className="flex flex-1 items-center justify-end space-x-4">
+            <ThemeToggle />
            <Avatar>
             <AvatarImage src="https://picsum.photos/100" data-ai-hint="person face" alt="Utilisateur" />
             <AvatarFallback>U</AvatarFallback>
