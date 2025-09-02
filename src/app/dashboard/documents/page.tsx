@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from '@/components/ui/card';
+import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 
 export interface AuditEvent {
   action: string;
@@ -64,6 +65,8 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
+
   const { toast } = useToast();
 
    useEffect(() => {
@@ -78,6 +81,10 @@ export default function DocumentsPage() {
              const storedQuery = localStorage.getItem('searchQuery');
              if (storedQuery) {
                 setSearchQuery(storedQuery);
+             }
+             const storedCriteria = localStorage.getItem('searchCriteria');
+             if (storedCriteria) {
+                 setSearchCriteria(JSON.parse(storedCriteria));
              }
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -170,7 +177,7 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId) || newDocuments.find(d => d.id === docId);
+    let docToProcess = documents.find(d => d.id === docId);
     if (!docToProcess) return;
 
     if (docId === activeDocumentId) setIsLoading(true);
@@ -189,6 +196,7 @@ export default function DocumentsPage() {
         title: "Traitement terminé",
         description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
       });
+      
       const finalDoc = documents.find(d => d.id === docId);
       if(finalDoc) createNotification(finalDoc, 'est prêt pour examen.');
 
@@ -367,17 +375,68 @@ export default function DocumentsPage() {
   }
   
   const filteredDocuments = useMemo(() => {
-    if (!searchQuery) return documents;
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return documents.filter(doc => 
-        doc.name.toLowerCase().includes(lowercasedQuery) ||
-        (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
-    );
-  }, [documents, searchQuery]);
+        let docs = [...documents];
+        
+        if (searchCriteria) {
+            // AI Search Logic
+            let filteredByAI = false;
+            const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
+
+            if (documentTypes && documentTypes.length > 0) {
+                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+                filteredByAI = true;
+            }
+            if (minAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a >= minAmount));
+                filteredByAI = true;
+            }
+            if (maxAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a <= maxAmount));
+                filteredByAI = true;
+            }
+            if (startDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+                filteredByAI = true;
+            }
+            if (endDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+                filteredByAI = true;
+            }
+            if (vendor) {
+                const lowerVendor = vendor.toLowerCase();
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+                filteredByAI = true;
+            }
+            if (keywords && keywords.length > 0) {
+                docs = docs.filter(d => {
+                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
+                    return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
+                });
+                filteredByAI = true;
+            }
+            
+            // If AI search didn't use specific criteria, fall back to simple text search with the original query
+            if (!filteredByAI && originalQuery) {
+                 const lowercasedQuery = originalQuery.toLowerCase();
+                 docs = docs.filter(doc => 
+                    doc.name.toLowerCase().includes(lowercasedQuery) ||
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
+                );
+            }
+
+        } else if (searchQuery) {
+             // Fallback to simple search
+            const lowercasedQuery = searchQuery.toLowerCase();
+            docs = docs.filter(doc => 
+                doc.name.toLowerCase().includes(lowercasedQuery) ||
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+            );
+        }
+        return docs.sort((a,b) => new Date(b.auditTrail[0].date).getTime() - new Date(a.auditTrail[0].date).getTime());
+  }, [documents, searchQuery, searchCriteria]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
   const isProcessingAny = documents.some(d => d.status === 'processing');
-  const newDocuments: Document[] = [];
 
   useEffect(() => {
     if (activeDocumentId && window.innerWidth < 1024) {

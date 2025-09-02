@@ -8,17 +8,18 @@ import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContain
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
 import { Label } from '@/components/ui/label';
+import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
-  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], otherInformation: '' } },
-  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], otherInformation: '' } },
-  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], otherInformation: '' } },
-  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], otherInformation: '' } },
-  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], otherInformation: '' } },
-  { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', type: 'bank statement' },
-  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], otherInformation: '' } },
-  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], otherInformation: '' } },
+  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], otherInformation: '' }, auditTrail: [] },
+  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], otherInformation: '' }, auditTrail: [] },
+  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], otherInformation: '' }, auditTrail: [] },
+  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], otherInformation: '' }, auditTrail: [] },
+  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], otherInformation: '' }, auditTrail: [] },
+  { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', type: 'bank statement', auditTrail: [] },
+  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], otherInformation: '' }, auditTrail: [] },
+  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], otherInformation: '' }, auditTrail: [] },
 ];
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -53,6 +54,7 @@ const chartConfig = {
 export default function AnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
 
     useEffect(() => {
         const loadState = () => {
@@ -70,6 +72,11 @@ export default function AnalyticsPage() {
                 if (storedQuery) {
                     setSearchQuery(storedQuery);
                 }
+
+                const storedCriteria = localStorage.getItem('searchCriteria');
+                if (storedCriteria) {
+                    setSearchCriteria(JSON.parse(storedCriteria));
+                }
             } catch (e) {
                 console.error("Failed to parse documents from local storage", e)
                 setDocuments(MOCK_DOCUMENTS);
@@ -81,13 +88,55 @@ export default function AnalyticsPage() {
     }, [])
     
     const filteredDocuments = useMemo(() => {
-        if (!searchQuery) return documents;
-        const lowercasedQuery = searchQuery.toLowerCase();
-        return documents.filter(doc => 
-            doc.name.toLowerCase().includes(lowercasedQuery) ||
-            (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
-        );
-    }, [documents, searchQuery]);
+        let docs = [...documents];
+        
+        if (searchCriteria) {
+            // AI Search Logic
+            const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
+
+            if (documentTypes && documentTypes.length > 0) {
+                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+            }
+            if (minAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a >= minAmount));
+            }
+            if (maxAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a <= maxAmount));
+            }
+            if (startDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+            }
+            if (endDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+            }
+            if (vendor) {
+                const lowerVendor = vendor.toLowerCase();
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+            }
+            if (keywords && keywords.length > 0) {
+                docs = docs.filter(d => {
+                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
+                    return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
+                });
+            }
+            if (originalQuery) {
+                 const lowercasedQuery = originalQuery.toLowerCase();
+                 docs = docs.filter(doc => 
+                    doc.name.toLowerCase().includes(lowercasedQuery) ||
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+                );
+            }
+
+        } else if (searchQuery) {
+             // Fallback to simple search
+            const lowercasedQuery = searchQuery.toLowerCase();
+            docs = docs.filter(doc => 
+                doc.name.toLowerCase().includes(lowercasedQuery) ||
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+            );
+        }
+        return docs;
+    }, [documents, searchQuery, searchCriteria]);
 
     const analyticsData = useMemo(() => {
         const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);

@@ -9,7 +9,9 @@ import {
   CreditCard,
   Settings,
   CheckCircle,
-  FileWarning
+  FileWarning,
+  Wand2,
+  Loader2
 } from "lucide-react"
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -29,13 +31,17 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { QuickUpload } from "./quick-upload";
 import type { Notification } from '@/app/dashboard/documents/page';
+import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
+import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAiSearching, setIsAiSearching] = useState(false);
   const [userName, setUserName] = useState("Utilisateur Démo");
   const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
+  const { toast } = useToast();
 
   const loadNotifications = useCallback(() => {
     try {
@@ -63,6 +69,12 @@ export function Header() {
     if (storedQuery) {
         setSearchQuery(storedQuery);
     }
+     const storedCriteria = localStorage.getItem('searchCriteria');
+    if (!storedCriteria && storedQuery) {
+      setSearchQuery(storedQuery);
+    } else if (storedCriteria) {
+      setSearchQuery(JSON.parse(storedCriteria).originalQuery);
+    }
   }, []);
 
   useEffect(() => {
@@ -74,7 +86,7 @@ export function Header() {
         if (e.key === 'notifications') {
             loadNotifications();
         }
-        if (e.key === 'searchQuery') {
+        if (e.key === 'searchQuery' || e.key === 'searchCriteria') {
             loadSearchQuery();
         }
         if (e.key === 'userName' || e.key === 'userEmail') {
@@ -96,8 +108,47 @@ export function Header() {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    localStorage.setItem('searchQuery', query);
-    window.dispatchEvent(new StorageEvent('storage', { key: 'searchQuery', newValue: query }));
+    if (!query) {
+        // Clear search
+        localStorage.removeItem('searchQuery');
+        localStorage.removeItem('searchCriteria');
+        window.dispatchEvent(new Event('storage'));
+    }
+  }
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+        localStorage.setItem('searchQuery', searchQuery);
+        localStorage.removeItem('searchCriteria'); // Prioritize simple search
+        window.dispatchEvent(new Event('storage'));
+    }
+  }
+
+  const handleAiSearch = async () => {
+    if (!searchQuery.trim()) {
+        toast({ title: 'Veuillez entrer un terme de recherche.', variant: 'destructive' });
+        return;
+    }
+    setIsAiSearching(true);
+    try {
+        const criteria = await intelligentSearch({
+            query: searchQuery,
+            currentDate: new Date().toISOString()
+        });
+        localStorage.setItem('searchCriteria', JSON.stringify(criteria));
+        localStorage.removeItem('searchQuery'); // Prioritize AI search
+        window.dispatchEvent(new Event('storage'));
+        toast({
+          title: 'Recherche intelligente terminée',
+          description: 'Les résultats ont été filtrés selon vos critères.',
+        });
+    } catch (error) {
+        console.error("AI Search failed", error);
+        toast({ title: 'La recherche intelligente a échoué.', description: 'Veuillez réessayer.', variant: 'destructive' });
+    } finally {
+        setIsAiSearching(false);
+    }
   }
 
   const getIconForStatus = (message: string) => {
@@ -115,16 +166,27 @@ export function Header() {
       <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
         
         <div className="flex-1">
-           <form>
+           <form onSubmit={handleSearchSubmit}>
               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Rechercher par nom, fournisseur..."
-                  className="w-full appearance-none bg-transparent pl-8 shadow-none md:w-2/3 lg:w-1/3 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 border-b rounded-none focus-visible:border-primary"
+                  placeholder="Rechercher ou utiliser la recherche intelligente..."
+                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-2/3 lg:w-1/2 focus-visible:ring-0"
                   value={searchQuery}
                   onChange={handleSearchChange}
                 />
+                <Button 
+                    type="button" 
+                    size="icon" 
+                    variant="ghost" 
+                    className="absolute right-1.5 top-[5px]"
+                    onClick={handleAiSearch}
+                    disabled={isAiSearching}
+                >
+                    {isAiSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                    <span className="sr-only">Recherche Intelligente</span>
+                </Button>
               </div>
             </form>
         </div>

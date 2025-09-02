@@ -9,14 +9,25 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
-import type { Document, Notification } from '@/app/dashboard/documents/page';
+import type { Document, Notification, AuditEvent } from '@/app/dashboard/documents/page';
 import { PlusCircle, CheckCircle } from 'lucide-react';
+
+const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
 
 export function QuickUpload() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
     const { toast } = useToast();
+
+    const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
+        const event: AuditEvent = {
+            action,
+            date: new Date().toISOString(),
+            user: getCurrentUser(),
+        };
+        return [...trail, event];
+    }
 
     const createNotification = (doc: Document, message: string) => {
         const newNotification: Notification = {
@@ -32,8 +43,9 @@ export function QuickUpload() {
         window.dispatchEvent(new Event('storage')); // Notify header
     };
 
-    const processDocument = useCallback(async (doc: Omit<Document, 'file'> & {file?: File}) => {
+    const processDocument = useCallback(async (doc: Document) => {
         try {
+          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA initié');
           const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl });
           doc.type = recognition.documentType;
           doc.confidence = recognition.confidence;
@@ -41,10 +53,12 @@ export function QuickUpload() {
           const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
           doc.extractedData = extracted;
           doc.status = 'reviewing';
+          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA terminé');
     
         } catch (error) {
           console.error("Error processing document:", error);
           doc.status = 'error';
+          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
           toast({
             variant: "destructive",
             title: "Le traitement a échoué",
@@ -72,6 +86,11 @@ export function QuickUpload() {
                 status: 'processing' as const,
                 file,
                 dataUrl,
+                auditTrail: [{
+                    action: 'Document téléversé (ajout rapide)',
+                    date: new Date().toISOString(),
+                    user: getCurrentUser(),
+                }]
               };
               
               const processedDoc = await processDocument(newDoc) as Document;
