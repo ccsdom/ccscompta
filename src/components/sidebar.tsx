@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, LayoutDashboard, BarChart3, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Settings, LogOut, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/logo';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -20,8 +21,8 @@ export function Sidebar() {
     <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col">
       <div className="flex items-center justify-center h-16 border-b">
         <Link href="/dashboard" className="flex items-center space-x-2">
-            <FileText className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">PaperTrail</span>
+            <Logo className="h-6 w-6 text-primary" />
+            <span className="font-bold text-lg">CCS Compta</span>
         </Link>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">

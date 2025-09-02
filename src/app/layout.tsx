@@ -11,7 +11,7 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: 'PaperTrail',
+  title: 'CCS Compta',
   description: 'Téléchargez et traitez facilement des documents comptables.',
 };
 

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { FileText } from "lucide-react"
+import { Logo } from "@/components/logo";
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -25,7 +25,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-md mx-auto p-4">
         <div className="flex justify-center mb-6">
-            <FileText className="h-10 w-10 text-primary" />
+            <Logo className="h-10 w-10 text-primary" />
         </div>
         <Card>
           <CardHeader className="space-y-1 text-center">
@@ -38,7 +38,7 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="m@example.com" defaultValue="demo@papertrail.com" required />
+                <Input id="email" type="email" placeholder="m@example.com" defaultValue="demo@ccs-compta.com" required />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center">

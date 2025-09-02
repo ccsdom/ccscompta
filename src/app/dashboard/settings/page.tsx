@@ -49,7 +49,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" defaultValue="demo@papertrail.com" readOnly disabled/>
+                    <Input id="email" type="email" defaultValue="demo@ccs-compta.com" readOnly disabled/>
                 </div>
             </div>
             </CardContent>
