@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, Check, Send, RotateCcw, FileUp, Info, Loader2 } from 'lucide-react';
 import { type Document } from "@/app/dashboard/documents/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from './ui/scroll-area';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -40,11 +40,6 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     }
      // Reset sent state when document changes
     setIsSent(false);
-    // Persist sent state only if approved
-    if (document?.status === 'approved') {
-        // Here you would check if it was *actually* sent, e.g. from a field in the document object
-        // For now, we simulate it being 'sent' for the session with a simple state
-    }
   }, [document]);
 
   const handleArrayInputChange = (field: 'dates' | 'vendorNames', index: number, value: string) => {
@@ -114,60 +109,74 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({(document.confidence ?? 0).toFixed(0)}%)</Badge>}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 flex-1 p-4 lg:p-6 pt-0">
-          {isLoading && (
-              <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="mt-4 text-sm font-medium">Analyse par l'IA en cours...</p>
-              </div>
-          )}
-          {document.status === 'error' && (
-            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-center gap-4 text-destructive">
-              <AlertCircle className="h-6 w-6" />
-              <div>
-                <h3 className="font-semibold">Erreur de traitement</h3>
-                <p className="text-sm">Impossible d'extraire les données. Essayez de retraiter ou utilisez un autre fichier.</p>
-              </div>
-            </div>
-          )}
-           {document.status === 'pending' && !isLoading && (
-            <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 flex items-center gap-4 text-primary-foreground">
-              <Info className="h-6 w-6 text-primary" />
-              <div>
-                <h3 className="font-semibold text-primary">Document en attente</h3>
-                <p className="text-sm text-primary/80">Cliquez sur "Traiter" pour lancer l'extraction des données par l'IA.</p>
-              </div>
-            </div>
-          )}
-          {(document.extractedData && !isLoading) ? (
+        <CardContent className="flex-1 p-0 lg:p-6 lg:pt-0 flex flex-col gap-4">
+          <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto p-2 lg:p-0">
+             {document.dataUrl ? (
+                <iframe src={document.dataUrl} className="w-full h-full" title="Aperçu du document" />
+             ): (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    Aperçu non disponible
+                </div>
+             )}
+          </div>
+
+          <ScrollArea className="flex-1 px-4 lg:px-0">
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Noms des vendeurs</Label>
-                  {formData.vendorNames.map((vendor, index) => <Input key={index} value={vendor} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
-                  {formData.vendorNames.length === 0 && <Input value="-" readOnly disabled />}
-                </div>
-                <div className="space-y-2">
-                  <Label>Dates</Label>
-                  {formData.dates.map((date, index) => <Input key={index} value={date} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
-                  {formData.dates.length === 0 && <Input value="-" readOnly disabled />}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Montants</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {formData.amounts.map((amount, index) => <Input type="number" key={index} value={amount} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
-                  {formData.amounts.length === 0 && <Input value="-" readOnly disabled />}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Autres informations</Label>
-                <Textarea value={formData.otherInformation} onChange={handleOtherInfoChange} readOnly={isReadOnly} rows={4} />
-              </div>
+                {isLoading && (
+                    <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-4 text-sm font-medium">Analyse par l'IA en cours...</p>
+                    </div>
+                )}
+                {document.status === 'error' && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-center gap-4 text-destructive">
+                    <AlertCircle className="h-6 w-6" />
+                    <div>
+                        <h3 className="font-semibold">Erreur de traitement</h3>
+                        <p className="text-sm">Impossible d'extraire les données. Essayez de retraiter ou utilisez un autre fichier.</p>
+                    </div>
+                    </div>
+                )}
+                {document.status === 'pending' && !isLoading && (
+                    <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 flex items-center gap-4 text-primary-foreground">
+                    <Info className="h-6 w-6 text-primary" />
+                    <div>
+                        <h3 className="font-semibold text-primary">Document en attente</h3>
+                        <p className="text-sm text-primary/80">Cliquez sur "Traiter" pour lancer l'extraction des données par l'IA.</p>
+                    </div>
+                    </div>
+                )}
+                {(document.extractedData && !isLoading) ? (
+                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                        <Label>Noms des vendeurs</Label>
+                        {formData.vendorNames.map((vendor, index) => <Input key={index} value={vendor} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
+                        {formData.vendorNames.length === 0 && <Input value="-" readOnly disabled />}
+                        </div>
+                        <div className="space-y-2">
+                        <Label>Dates</Label>
+                        {formData.dates.map((date, index) => <Input key={index} value={date} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
+                        {formData.dates.length === 0 && <Input value="-" readOnly disabled />}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Montants</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {formData.amounts.map((amount, index) => <Input type="number" key={index} value={amount} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
+                        {formData.amounts.length === 0 && <Input value="-" readOnly disabled />}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Autres informations</Label>
+                        <Textarea value={formData.otherInformation} onChange={handleOtherInfoChange} readOnly={isReadOnly} rows={4} />
+                    </div>
+                    </div>
+                ) : (
+                    !isLoading && document.status !== 'error' && document.status !== 'pending' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
+                )}
             </div>
-          ) : (
-             !isLoading && document.status !== 'error' && document.status !== 'pending' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
-          )}
+          </ScrollArea>
         </CardContent>
         <CardFooter className="flex justify-end gap-2 p-4 lg:p-6 border-t">
           {document.status === 'reviewing' && (

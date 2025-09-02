@@ -107,7 +107,7 @@ export default function DocumentsPage() {
     for (const file of files) {
       try {
         const dataUrl = await fileToDataUri(file);
-        const newDoc = {
+        const newDoc: Document = {
           id: crypto.randomUUID(),
           name: file.name,
           uploadDate: new Date().toLocaleDateString('fr-FR'),
@@ -116,14 +116,6 @@ export default function DocumentsPage() {
           dataUrl,
         };
         newDocuments.push(newDoc);
-        
-        // Use a function to get the latest state
-        setDocuments(prev => {
-          const updatedDocs = [newDoc, ...prev];
-          handleProcessDocument(newDoc, updatedDocs);
-          return updatedDocs;
-        });
-
       } catch (error) {
         console.error("Error converting file to data URI:", error);
         toast({
@@ -135,23 +127,33 @@ export default function DocumentsPage() {
     }
     
     if (newDocuments.length > 0) {
-      if(newDocuments.length === 1) {
-        handleSetActiveDocument(newDocuments[0]);
-      }
+      // Add all new documents to state at once
+      const updatedDocs = [...newDocuments, ...documents];
+      setDocuments(updatedDocs);
+      
+      // Select the first uploaded document
+      handleSetActiveDocument(newDocuments[0]);
+
       toast({
         title: "Fichiers téléversés",
         description: `${newDocuments.length} document(s) sont en cours de traitement.`,
       });
+
+      // Process each new document
+      newDocuments.forEach(doc => handleProcessDocument(doc, updatedDocs));
     }
   };
 
- const updateDocumentInState = (id: string, data: Partial<Document>, currentDocs: Document[]): Document[] => {
+  const updateDocumentInState = (id: string, data: Partial<Document>, currentDocs: Document[]): Document[] => {
     return currentDocs.map(d => d.id === id ? { ...d, ...data } : d);
   };
   
   const handleProcessDocument = useCallback(async (doc: Document, currentDocsState: Document[]) => {
-    handleSetActiveDocument(doc);
-    setIsLoading(true);
+    // Only set active document and loading state if this is the currently active one
+    if (doc.id === activeDocumentId) {
+      setIsLoading(true);
+    }
+    
     let currentDocs = updateDocumentInState(doc.id, { status: 'processing' }, currentDocsState);
     setDocuments(currentDocs);
 
@@ -183,9 +185,11 @@ export default function DocumentsPage() {
       });
       createNotification(errorDoc, 'a échoué lors du traitement.');
     } finally {
-      setIsLoading(false);
+      if (doc.id === activeDocumentId) {
+        setIsLoading(false);
+      }
     }
-  }, [toast]);
+  }, [toast, activeDocumentId]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
@@ -226,23 +230,30 @@ export default function DocumentsPage() {
   }
 
   const handleBulkApprove = () => {
+    let approvedCount = 0;
     setDocuments(prevDocs => 
-        prevDocs.map(doc => 
-            selectedDocumentIds.includes(doc.id) && doc.status === 'reviewing'
-            ? { ...doc, status: 'approved' } 
-            : doc
-        )
+        prevDocs.map(doc => {
+            if (selectedDocumentIds.includes(doc.id) && doc.status === 'reviewing') {
+              approvedCount++;
+              createNotification(doc, 'a été approuvé.');
+              return { ...doc, status: 'approved' };
+            }
+            return doc;
+        })
     );
     toast({
       title: "Documents approuvés",
-      description: `${selectedDocumentIds.length} documents ont été approuvés.`,
+      description: `${approvedCount} documents ont été approuvés.`,
     });
     setSelectedDocumentIds([]);
   }
 
   const handleBulkSend = () => {
     const sentDocs = documents.filter(doc => selectedDocumentIds.includes(doc.id));
-    sentDocs.forEach(doc => console.log("Sending to Cegid:", doc));
+    sentDocs.forEach(doc => {
+      console.log("Sending to Cegid:", doc);
+      createNotification(doc, 'a été envoyé à Cegid.');
+    });
      toast({
       title: "Données envoyées",
       description: `${selectedDocumentIds.length} documents ont été envoyés à CEGID.`,
