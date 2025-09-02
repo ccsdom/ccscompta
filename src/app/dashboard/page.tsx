@@ -1,157 +1,104 @@
 'use client';
 
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { DocumentHistory } from "@/components/document-history";
+import { FileUp, FileCheck, FileClock, CircleDollarSign } from "lucide-react";
 import { useState, useMemo } from 'react';
-import { Header } from '@/components/header';
-import { FileUploader } from '@/components/file-uploader';
-import { DataValidationForm } from '@/components/data-validation-form';
-import { DocumentHistory } from '@/components/document-history';
-import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
-import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
-import { useToast } from "@/hooks/use-toast";
-import { fileToDataUri } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
+import type { Document } from "./documents/page"; // Re-using type from documents page
 
-export interface Document {
-  id: string;
-  name: string;
-  uploadDate: string;
-  status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
-  file: File;
-  dataUrl: string;
-  type?: string;
-  confidence?: number;
-  extractedData?: ExtractDataOutput;
-}
+// Dummy data for charts
+const expenseData = [
+    { month: 'Jan', total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: 'Fev', total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: 'Mar', total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: 'Avr', total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: 'Mai', total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: 'Juin', total: Math.floor(Math.random() * 5000) + 1000 },
+];
 
 export default function Dashboard() {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+    // This state would ideally be shared via a global state manager (e.g., Context, Redux)
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
 
-  const handleFileDrop = async (files: File[]) => {
-    const newDocuments: Document[] = [];
-    for (const file of files) {
-      try {
-        const dataUrl = await fileToDataUri(file);
-        const newDoc = {
-          id: crypto.randomUUID(),
-          name: file.name,
-          uploadDate: new Date().toLocaleDateString('fr-FR'),
-          status: 'pending' as const,
-          file,
-          dataUrl,
-        };
-        newDocuments.push(newDoc);
-        
-        // Automatically start processing
-        handleProcessDocument(newDoc, [newDoc, ...documents]);
+    const stats = useMemo(() => {
+        const approved = documents.filter(d => d.status === 'approved').length;
+        const pending = documents.filter(d => d.status === 'reviewing' || d.status === 'pending').length;
+        const totalAmount = documents
+            .filter(d => d.status === 'approved' && d.extractedData)
+            .flatMap(d => d.extractedData!.amounts)
+            .reduce((sum, amount) => sum + amount, 0);
 
-      } catch (error) {
-        console.error("Error converting file to data URI:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de lecture de fichier",
-          description: `Impossible de lire le fichier ${file.name}.`,
-        });
-      }
-    }
-    setDocuments(prev => [...newDocuments, ...prev]);
-    
-    if (newDocuments.length > 0) {
-      if(newDocuments.length === 1) {
-        setActiveDocumentId(newDocuments[0].id);
-      }
-      toast({
-        title: "Fichiers téléversés",
-        description: `${newDocuments.length} document(s) sont en cours de traitement.`,
-      });
-    }
-  };
+        return {
+            total: documents.length,
+            approved,
+            pending,
+            totalAmount: totalAmount.toFixed(2),
+        }
+    }, [documents]);
 
-  const updateDocumentInState = (id: string, data: Partial<Document>, currentDocs: Document[]): Document[] => {
-    return currentDocs.map(d => d.id === id ? { ...d, ...data } : d);
-  };
-  
-  const handleProcessDocument = async (doc: Document, currentDocsState: Document[]) => {
-    if (activeDocumentId !== doc.id) {
+    // These handlers are placeholders. They would be implemented with global state management.
+    const handleProcessDocument = (doc: Document) => {
+        console.log("Processing document from dashboard:", doc.name);
+    };
+    const handleSetActiveDocument = (doc: Document) => {
         setActiveDocumentId(doc.id);
-    }
-    setIsLoading(true);
-    let currentDocs = updateDocumentInState(doc.id, { status: 'processing' }, currentDocsState);
-    setDocuments(currentDocs);
+        console.log("Setting active document from dashboard:", doc.name);
+    };
 
-    try {
-      const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl });
-      currentDocs = updateDocumentInState(doc.id, { type: recognition.documentType, confidence: recognition.confidence }, currentDocs);
-      setDocuments(currentDocs);
-      
-      const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
-      currentDocs = updateDocumentInState(doc.id, { status: 'reviewing', extractedData: extracted }, currentDocs);
-      setDocuments(currentDocs);
-      
-      toast({
-        title: "Traitement terminé",
-        description: `Données extraites de ${doc.name}. Prêt pour examen.`,
-      });
-
-    } catch (error) {
-      console.error("Error processing document:", error);
-      currentDocs = updateDocumentInState(doc.id, { status: 'error' }, currentDocs);
-      setDocuments(currentDocs);
-      toast({
-        variant: "destructive",
-        title: "Le traitement a échoué",
-        description: `Impossible de traiter ${doc.name}.`,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, status: 'approved', extractedData: updatedData } : d));
-    toast({
-      title: "Document approuvé",
-      description: "Les données ont été validées et enregistrées.",
-    });
-  };
-
-  const handleSendToCegid = (doc: Document) => {
-    console.log("Sending to Cegid:", doc);
-    toast({
-      title: "Données envoyées",
-      description: `${doc.name} a été envoyé à CEGID avec succès.`,
-    });
-  };
-  
-  const handleSetActiveDocument = (doc: Document) => {
-    setActiveDocumentId(doc.id);
-  }
-
-  const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
-  const isProcessingAny = documents.some(d => d.status === 'processing');
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
-        <DocumentHistory
-          documents={documents}
-          onProcess={(doc) => handleProcessDocument(doc, documents)}
-          activeDocumentId={activeDocumentId}
-          setActiveDocument={handleSetActiveDocument}
-        />
-      </div>
-      <div className="lg:col-span-1">
-        <DataValidationForm
-          key={activeDocument?.id}
-          document={activeDocument}
-          onUpdate={(data) => activeDocument && handleUpdateDocumentData(activeDocument.id, data)}
-          onSendToCegid={handleSendToCegid}
-          isLoading={isLoading && activeDocument?.status === 'processing'}
-        />
-      </div>
-    </div>
-  );
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Documents téléversés</CardTitle>
+                        <FileUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.total}</div>
+                        <p className="text-xs text-muted-foreground">Total des fichiers</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Documents approuvés</CardTitle>
+                        <FileCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.approved}</div>
+                        <p className="text-xs text-muted-foreground">Validés et prêts à être envoyés</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">En attente d'examen</CardTitle>
+                        <FileClock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.pending}</div>
+                        <p className="text-xs text-muted-foreground">À traiter ou à valider</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Montant Total Approuvé</CardTitle>
+                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalAmount} €</div>
+                        <p className="text-xs text-muted-foreground">Somme des documents validés</p>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6">
+                <DocumentHistory
+                    documents={documents}
+                    onProcess={handleProcessDocument}
+                    activeDocumentId={activeDocumentId}
+                    setActiveDocument={handleSetActiveDocument}
+                />
+            </div>
+        </div>
+    );
 }

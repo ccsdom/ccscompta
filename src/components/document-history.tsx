@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Receipt, Landmark, FileQuestion, Play, MoreHorizontal, FileClock } from "lucide-react";
-import type { Document } from "@/app/dashboard/page";
+import type { Document } from "@/app/dashboard/documents/page";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DocumentHistoryProps {
@@ -46,7 +46,7 @@ export function DocumentHistory({ documents, onProcess, activeDocumentId, setAct
             <CardDescription>Consultez et gérez vos documents téléversés.</CardDescription>
         </CardHeader>
         <CardContent className="p-0 flex-1">
-            <ScrollArea className="h-full">
+            <ScrollArea className="h-full max-h-[400px]">
                 <Table>
                     <TableHeader className="sticky top-0 bg-background">
                     <TableRow>
