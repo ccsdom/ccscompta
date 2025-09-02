@@ -131,7 +131,17 @@ export default function DocumentsPage() {
 
   const handleFileDrop = async (files: File[]) => {
     const newDocuments: Document[] = [];
+    const existingFileNames = new Set(documents.map(d => d.name));
+
     for (const file of files) {
+      if (existingFileNames.has(file.name)) {
+        toast({
+          variant: "destructive",
+          title: "Fichier en double",
+          description: `Le fichier "${file.name}" a déjà été téléversé.`,
+        });
+        continue;
+      }
       try {
         const dataUrl = await fileToDataUri(file);
         const newDoc: Document = {
@@ -148,6 +158,7 @@ export default function DocumentsPage() {
           }]
         };
         newDocuments.push(newDoc);
+        existingFileNames.add(file.name); // Add to set to prevent duplicate uploads in the same batch
       } catch (error) {
         console.error("Error converting file to data URI:", error);
         toast({
@@ -164,7 +175,7 @@ export default function DocumentsPage() {
       handleSetActiveDocument(newDocuments[0]);
       toast({
         title: "Fichiers téléversés",
-        description: `${newDocuments.length} document(s) sont en cours de traitement.`,
+        description: `${newDocuments.length} nouveau(x) document(s) sont en cours de traitement.`,
       });
       newDocuments.forEach(doc => handleProcessDocument(doc.id));
     }
@@ -177,46 +188,56 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId);
-    if (!docToProcess) return;
+    let docToProcess = documents.find(d => d.id === docId);
+    // Use a function with setDocuments to ensure we have the latest state
+    setDocuments(currentDocs => {
+      docToProcess = currentDocs.find(d => d.id === docId);
+      if (!docToProcess) return currentDocs;
+      
+      if (docId === activeDocumentId) setIsLoading(true);
+      let trail = addAuditEvent(docId, 'Traitement IA initié');
+      
+      const docsWithStatus = currentDocs.map(d => (d.id === docId ? { ...d, status: 'processing', auditTrail: trail } as Document : d));
 
-    if (docId === activeDocumentId) setIsLoading(true);
-    let trail = addAuditEvent(docId, 'Traitement IA initié');
-    updateDocumentState(docId, { status: 'processing', auditTrail: trail });
-  
-    try {
-      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
-      updateDocumentState(docId, { type: recognition.documentType, confidence: recognition.confidence });
-      
-      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
-      trail = addAuditEvent(docId, 'Traitement IA terminé');
-      updateDocumentState(docId, { status: 'reviewing', extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence, auditTrail: trail });
-      
-      toast({
-        title: "Traitement terminé",
-        description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
-      });
-      
-      // Need to re-find the document to get the latest state for notification
-      const finalDoc = documents.find(d => d.id === docId);
-      if(finalDoc) createNotification(finalDoc, 'est prêt pour examen.');
+      (async () => {
+        try {
+          const recognition = await recognizeDocumentType({ documentDataUri: docToProcess!.dataUrl });
+          
+          const extracted = await extractData({ documentDataUri: docToProcess!.dataUrl, documentType: recognition.documentType });
+          trail = addAuditEvent(docId, 'Traitement IA terminé');
+          
+          setDocuments(prev => prev.map(d => d.id === docId ? {...d, status: 'reviewing', extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence, auditTrail: trail } : d));
 
-    } catch (error) {
-      console.error("Error processing document:", error);
-      trail = addAuditEvent(docId, 'Erreur de traitement IA');
-      updateDocumentState(docId, { status: 'error', auditTrail: trail });
-      toast({
-        variant: "destructive",
-        title: "Le traitement a échoué",
-        description: `Impossible de traiter ${docToProcess.name}.`,
-      });
-      const finalDoc = documents.find(d => d.id === docId);
-      if(finalDoc) createNotification(finalDoc, 'a échoué lors du traitement.');
-    } finally {
-      if (docId === activeDocumentId) setIsLoading(false);
-    }
+          toast({
+            title: "Traitement terminé",
+            description: `Données extraites de ${docToProcess!.name}. Prêt pour examen.`,
+          });
+          
+          // Use the latest version of the doc for notification
+          const finalDoc = documents.find(d => d.id === docId) || docToProcess;
+          createNotification({...finalDoc!, status: 'reviewing', extractedData: extracted}, 'est prêt pour examen.');
+
+        } catch (error) {
+          console.error("Error processing document:", error);
+          trail = addAuditEvent(docId, 'Erreur de traitement IA');
+          setDocuments(prev => prev.map(d => d.id === docId ? {...d, status: 'error', auditTrail: trail } : d));
+          toast({
+            variant: "destructive",
+            title: "Le traitement a échoué",
+            description: `Impossible de traiter ${docToProcess!.name}.`,
+          });
+          const finalDoc = documents.find(d => d.id === docId) || docToProcess;
+          createNotification({...finalDoc!, status: 'error'}, 'a échoué lors du traitement.');
+        } finally {
+          if (docId === activeDocumentId) setIsLoading(false);
+        }
+      })();
+
+      return docsWithStatus;
+    });
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents, activeDocumentId, toast]);
+  }, [activeDocumentId, toast]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
