@@ -24,18 +24,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from "@/hooks/use-toast"
+import { QuickUpload } from "./quick-upload";
 
 export function Header() {
-  const { toast } = useToast();
-
-  const handleQuickUpload = () => {
-    toast({
-        title: "Fonctionnalité à venir",
-        description: "Le téléversement rapide sera bientôt disponible.",
-    });
-  }
-
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
@@ -54,10 +45,8 @@ export function Header() {
         </div>
         
         <div className="flex items-center space-x-1 md:space-x-2">
-            <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={handleQuickUpload}>
-                <PlusCircle className="h-5 w-5" />
-                <span className="sr-only">Ajout Rapide</span>
-            </Button>
+            <QuickUpload />
+
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">

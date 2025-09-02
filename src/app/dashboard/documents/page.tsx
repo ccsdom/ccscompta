@@ -33,16 +33,22 @@ export default function DocumentsPage() {
   const { toast } = useToast();
 
    useEffect(() => {
-    try {
-        const storedDocs = localStorage.getItem('documents');
-        if (storedDocs) {
-            // We need to reconstruct File objects as they are not serializable
-            const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-            setDocuments(parsedDocs);
+    const loadDocuments = () => {
+        try {
+            const storedDocs = localStorage.getItem('documents');
+            if (storedDocs) {
+                // We need to reconstruct File objects as they are not serializable
+                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+                setDocuments(parsedDocs);
+            }
+        } catch (error) {
+            console.error("Failed to load documents from localStorage", error)
         }
-    } catch (error) {
-        console.error("Failed to load documents from localStorage", error)
-    }
+    };
+    loadDocuments();
+    // Listen for storage changes to update the document list from other components
+    window.addEventListener('storage', loadDocuments);
+    return () => window.removeEventListener('storage', loadDocuments);
   }, [])
   
   useEffect(() => {
