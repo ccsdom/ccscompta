@@ -6,6 +6,7 @@ import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2 } from
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart, Label } from 'recharts';
 import type { Document } from '../documents/page'; 
+import {type ChartConfig} from '@/components/ui/chart';
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
@@ -54,8 +55,13 @@ export default function AnalyticsPage() {
     useEffect(() => {
         const storedDocs = localStorage.getItem('documents');
         if (storedDocs) {
-            const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-            setDocuments(parsedDocs);
+            try {
+                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
+                 setDocuments(parsedDocs.length > 0 ? parsedDocs : MOCK_DOCUMENTS);
+            } catch (e) {
+                console.error("Failed to parse documents from local storage", e)
+                setDocuments(MOCK_DOCUMENTS);
+            }
         } else {
             setDocuments(MOCK_DOCUMENTS);
         }
@@ -114,7 +120,7 @@ export default function AnalyticsPage() {
             return acc;
         }, {} as Record<string, number>);
 
-        const typeChartData = Object.entries(docsByType).map(([name, value]) => ({ name, value, fill: `var(--color-${name.replace(' ','-')})`  }));
+        const typeChartData = Object.entries(docsByType).map(([name, value]) => ({ name, value, fill: chartConfig[name as keyof typeof chartConfig]?.color  }));
         
         const spendByType = approvedDocs.reduce((acc, doc) => {
             const type = doc.type || 'other';
@@ -129,9 +135,8 @@ export default function AnalyticsPage() {
         
         const averageSpendByTypeChartData = Object.entries(spendByType)
             .map(([name, { total, count }]) => ({
-                name: chartConfig[name]?.label || name,
-                average: total / count,
-                fill: `var(--color-average)`
+                name: chartConfig[name as keyof typeof chartConfig]?.label || name,
+                average: total / count
             }))
             .sort((a, b) => b.average - a.average);
 
@@ -219,7 +224,7 @@ export default function AnalyticsPage() {
                     <ChartContainer config={chartConfig} className="h-[250px] w-full max-w-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value, name) => <>{chartConfig[name as keyof typeof chartConfig]?.label} ({value})</>}/>} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(_, name, payload) => <>{chartConfig[payload.name as keyof typeof chartConfig]?.label} ({payload.value})</>}/>} />
                             <Pie
                                 data={analyticsData.typeChartData}
                                 dataKey="value"
@@ -231,7 +236,7 @@ export default function AnalyticsPage() {
                                 labelLine={false}
                             >
                                 {analyticsData.typeChartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    <Cell key={`cell-${index}`} fill={entry.fill} />
                                 ))}
                                 <Label
                                     content={({ viewBox }) => {
@@ -264,7 +269,7 @@ export default function AnalyticsPage() {
                                     }}
                                     />
                             </Pie>
-                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
+                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value, entry) => <>{chartConfig[entry.payload?.name as keyof typeof chartConfig]?.label} ({entry.payload?.value})</>}/>} className="flex-wrap" />
                         </PieChart>
                         </ResponsiveContainer>
                     </ChartContainer>
@@ -330,15 +335,4 @@ export default function AnalyticsPage() {
         </div>
     </div>
   );
-}
-
-type ChartConfigKey = keyof typeof chartConfig;
-
-// Re-defining for use in this page, ideally this would be shared.
-type ChartConfig = {
-  [k in string]: {
-    label: string
-    color: string
-    icon?: React.ComponentType
-  }
 }
