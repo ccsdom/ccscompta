@@ -34,6 +34,8 @@ export function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userName, setUserName] = useState("Utilisateur Démo");
+  const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
 
   const loadNotifications = useCallback(() => {
     try {
@@ -48,6 +50,14 @@ export function Header() {
     }
   }, []);
 
+  const loadUserData = useCallback(() => {
+    const storedName = localStorage.getItem('userName');
+    if (storedName) setUserName(storedName);
+
+    const storedEmail = localStorage.getItem('userEmail');
+    if (storedEmail) setUserEmail(storedEmail);
+  }, []);
+
   const loadSearchQuery = useCallback(() => {
     const storedQuery = localStorage.getItem('searchQuery');
     if (storedQuery) {
@@ -58,6 +68,7 @@ export function Header() {
   useEffect(() => {
     loadNotifications();
     loadSearchQuery();
+    loadUserData();
     
     const handleStorageChange = (e: StorageEvent) => {
         if (e.key === 'notifications') {
@@ -66,11 +77,14 @@ export function Header() {
         if (e.key === 'searchQuery') {
             loadSearchQuery();
         }
+        if (e.key === 'userName' || e.key === 'userEmail') {
+            loadUserData();
+        }
     }
     
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadNotifications, loadSearchQuery]);
+  }, [loadNotifications, loadSearchQuery, loadUserData]);
 
   const handleMarkAsRead = () => {
     const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
@@ -160,16 +174,16 @@ export function Header() {
                      <Button variant="ghost" size="icon" className="relative rounded-full">
                         <Avatar className="h-8 w-8">
                             <AvatarImage src="https://picsum.photos/100" data-ai-hint="person face" alt="Utilisateur" />
-                            <AvatarFallback>U</AvatarFallback>
+                            <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
                      </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>
                         <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">Utilisateur Démo</p>
+                            <p className="text-sm font-medium leading-none">{userName}</p>
                             <p className="text-xs leading-none text-muted-foreground">
-                            demo@ccs-compta.com
+                            {userEmail}
                             </p>
                         </div>
                     </DropdownMenuLabel>

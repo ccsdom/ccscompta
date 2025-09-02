@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +14,40 @@ import { useTheme } from "next-themes";
 export default function SettingsPage() {
     const { toast } = useToast();
     const { theme, setTheme } = useTheme();
+    const [userName, setUserName] = useState("Utilisateur Démo");
+    const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
 
-    const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    useEffect(() => {
+        const storedName = localStorage.getItem('userName');
+        if (storedName) setUserName(storedName);
+
+        const storedEmail = localStorage.getItem('userEmail');
+        if (storedEmail) setUserEmail(storedEmail);
+    }, []);
+
+    const handleProfileSave = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        localStorage.setItem('userName', userName);
+        toast({
+            title: "Profil enregistré",
+            description: "Votre nom a été mis à jour.",
+        });
+        window.dispatchEvent(new Event('storage')); // Notify header
+    }
+
+    const handlePasswordSave = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         toast({
-            title: "Paramètres enregistrés",
-            description: "Vos informations ont été mises à jour.",
+            title: "Fonctionnalité non implémentée",
+            description: "La modification du mot de passe n'est pas encore disponible.",
+        });
+    }
+
+    const handlePreferencesSave = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        toast({
+            title: "Préférences enregistrées",
+            description: "Vos préférences ont été mises à jour.",
         });
     }
 
@@ -40,23 +69,23 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
                     <AvatarImage src="https://picsum.photos/100" data-ai-hint="person face" alt="Utilisateur" />
-                    <AvatarFallback>U</AvatarFallback>
+                    <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <Button variant="outline" type="button">Changer l'avatar</Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="name">Nom</Label>
-                    <Input id="name" defaultValue="Utilisateur Démo" />
+                    <Input id="name" value={userName} onChange={(e) => setUserName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" defaultValue="demo@ccs-compta.com" readOnly disabled/>
+                    <Input id="email" type="email" value={userEmail} readOnly disabled/>
                 </div>
             </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4 justify-end">
-                <Button onClick={handleSave}>Enregistrer</Button>
+                <Button onClick={handleProfileSave}>Enregistrer</Button>
             </CardFooter>
         </form>
       </Card>
@@ -83,7 +112,7 @@ export default function SettingsPage() {
             </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4 justify-end">
-                <Button onClick={handleSave}>Changer le mot de passe</Button>
+                <Button onClick={handlePasswordSave}>Changer le mot de passe</Button>
             </CardFooter>
         </form>
       </Card>
@@ -116,7 +145,7 @@ export default function SettingsPage() {
             </div>
         </CardContent>
          <CardFooter className="border-t px-6 py-4 justify-end">
-                <Button onClick={handleSave}>Enregistrer les préférences</Button>
+                <Button onClick={handlePreferencesSave}>Enregistrer les préférences</Button>
         </CardFooter>
       </Card>
     </div>
