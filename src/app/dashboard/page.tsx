@@ -10,6 +10,8 @@ export default function Dashboard() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+
 
     useEffect(() => {
         const loadState = () => {
@@ -37,7 +39,7 @@ export default function Dashboard() {
         const lowercasedQuery = searchQuery.toLowerCase();
         return documents.filter(doc => 
             doc.name.toLowerCase().includes(lowercasedQuery) ||
-            doc.extractedData?.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery))
+            (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
         );
     }, [documents, searchQuery]);
 
@@ -117,6 +119,8 @@ export default function Dashboard() {
                     onProcess={handleProcessDocument}
                     activeDocumentId={activeDocumentId}
                     setActiveDocument={handleSetActiveDocument}
+                    selectedDocumentIds={selectedDocumentIds}
+                    setSelectedDocumentIds={setSelectedDocumentIds}
                 />
             </div>
         </div>
