@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, FileText } from "lucide-react";
+import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart, Label } from 'recharts';
 import type { Document } from '../documents/page'; 
@@ -25,6 +25,10 @@ const chartConfig = {
   total: {
     label: "Total (€)",
     color: "hsl(var(--chart-1))",
+  },
+  average: {
+    label: "Moyenne (€)",
+    color: "hsl(var(--chart-2))",
   },
   invoice: {
     label: "Factures",
@@ -79,7 +83,6 @@ export default function AnalyticsPage() {
             .sort((a,b) => {
                 const [m1, y1] = a.name.split(' ');
                 const [m2, y2] = b.name.split(' ');
-                // A simple date conversion for sorting that works with "mai 24" format
                 const months = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
                 const d1 = new Date(parseInt(`20${y1}`), months.indexOf(m1));
                 const d2 = new Date(parseInt(`20${y2}`), months.indexOf(m2));
@@ -111,7 +114,26 @@ export default function AnalyticsPage() {
             return acc;
         }, {} as Record<string, number>);
 
-        const typeChartData = Object.entries(docsByType).map(([name, value]) => ({ name, value }));
+        const typeChartData = Object.entries(docsByType).map(([name, value]) => ({ name, value, fill: `var(--color-${name.replace(' ','-')})`  }));
+        
+        const spendByType = approvedDocs.reduce((acc, doc) => {
+            const type = doc.type || 'other';
+            const amount = doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+            if (!acc[type]) {
+                acc[type] = { total: 0, count: 0 };
+            }
+            acc[type].total += amount;
+            acc[type].count++;
+            return acc;
+        }, {} as Record<string, { total: number, count: number }>);
+        
+        const averageSpendByTypeChartData = Object.entries(spendByType)
+            .map(([name, { total, count }]) => ({
+                name: chartConfig[name]?.label || name,
+                average: total / count,
+                fill: `var(--color-average)`
+            }))
+            .sort((a, b) => b.average - a.average);
 
         return {
             totalSpent,
@@ -119,7 +141,8 @@ export default function AnalyticsPage() {
             mainVendor,
             monthlyChartData,
             vendorChartData,
-            typeChartData
+            typeChartData,
+            averageSpendByTypeChartData
         }
     }, [documents]);
 
@@ -158,8 +181,8 @@ export default function AnalyticsPage() {
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+            <Card className="lg:col-span-1">
                 <CardHeader>
                     <CardTitle>Dépenses par Mois</CardTitle>
                     <CardDescription>Évolution des dépenses totales approuvées au fil du temps.</CardDescription>
@@ -192,11 +215,11 @@ export default function AnalyticsPage() {
                     <CardTitle>Répartition par Type</CardTitle>
                     <CardDescription>Distribution des documents par type.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                <CardContent className="flex items-center justify-center">
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full max-w-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value, name) => <>{chartConfig[name as keyof typeof chartConfig]?.label} ({value})</>}/>} />
                             <Pie
                                 data={analyticsData.typeChartData}
                                 dataKey="value"
@@ -205,7 +228,6 @@ export default function AnalyticsPage() {
                                 cy="50%"
                                 outerRadius={80}
                                 innerRadius={50}
-                                fill="#8884d8"
                                 labelLine={false}
                             >
                                 {analyticsData.typeChartData.map((entry, index) => (
@@ -242,7 +264,7 @@ export default function AnalyticsPage() {
                                     }}
                                     />
                             </Pie>
-                            <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
                         </PieChart>
                         </ResponsiveContainer>
                     </ChartContainer>
@@ -250,8 +272,8 @@ export default function AnalyticsPage() {
             </Card>
         </div>
         
-         <div className="grid grid-cols-1 gap-6">
-            <Card>
+         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Card className="lg:col-span-3">
                 <CardHeader>
                     <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
                     <CardDescription>Classement des fournisseurs par montant total dépensé.</CardDescription>
@@ -278,15 +300,45 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 </CardContent>
             </Card>
+            <Card className="lg:col-span-2">
+                <CardHeader>
+                    <CardTitle>Dépense Moyenne par Type</CardTitle>
+                    <CardDescription>Montant moyen des dépenses pour chaque type de document.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent 
+                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
+                                        indicator="dot" 
+                                    />}
+                                />
+                                <Bar dataKey="average" fill="var(--color-average)" radius={4}>
+                                     <LabelList dataKey="average" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value).toLocaleString('fr-FR')}€`} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </ChartContainer>
+                </CardContent>
+            </Card>
         </div>
     </div>
   );
 }
+
+type ChartConfigKey = keyof typeof chartConfig;
 
 // Re-defining for use in this page, ideally this would be shared.
 type ChartConfig = {
   [k in string]: {
     label: string
     color: string
+    icon?: React.ComponentType
   }
 }
