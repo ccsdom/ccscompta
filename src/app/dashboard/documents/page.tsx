@@ -13,7 +13,7 @@ import {
   SheetContent,
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2 } from 'lucide-react';
+import { Check, Send, Trash2, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -259,6 +259,54 @@ export default function DocumentsPage() {
     });
     setSelectedDocumentIds([]);
   }
+
+  const handleBulkExport = () => {
+    const docsToExport = documents.filter(doc => 
+      selectedDocumentIds.includes(doc.id) && 
+      doc.status === 'approved' && 
+      doc.extractedData
+    );
+    
+    if (docsToExport.length === 0) {
+      toast({
+        title: "Aucun document à exporter",
+        description: "Veuillez sélectionner des documents approuvés avec des données extraites.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const headers = ['Nom du fichier', 'Fournisseur', 'Date', 'Montant', 'Autres informations'];
+    const rows = docsToExport.map(doc => {
+      const data = doc.extractedData!;
+      const row = [
+        doc.name.replace(/,/g, ''), // Escape commas in file name
+        data.vendorNames.join('; '),
+        data.dates.join('; '),
+        data.amounts.join('; '),
+        `"${data.otherInformation.replace(/"/g, '""')}"` // Escape quotes
+      ];
+      return row.join(',');
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + headers.join(',') + "\n" 
+      + rows.join("\n");
+      
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const date = new Date().toISOString().slice(0,10);
+    link.setAttribute("download", `export-ccs-compta-${date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Exportation réussie",
+      description: `${docsToExport.length} documents ont été exportés.`,
+    });
+  }
   
   const filteredDocuments = useMemo(() => {
     if (!searchQuery) return documents;
@@ -294,6 +342,7 @@ export default function DocumentsPage() {
         <div className="flex-grow" />
         <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
         <Button variant="outline" size="sm" onClick={handleBulkSend}><Send className="h-4 w-4 mr-2" />Envoyer</Button>
+        <Button variant="outline" size="sm" onClick={handleBulkExport}><Download className="h-4 w-4 mr-2" />Exporter</Button>
         <AlertDialog>
             <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
