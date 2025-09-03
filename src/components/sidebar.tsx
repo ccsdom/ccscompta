@@ -36,9 +36,11 @@ export function Sidebar() {
     if (role === 'accountant') {
       setNavItems(accountantNavItems);
       setCurrentRole('accountant');
+      document.body.classList.add('accountant-theme');
     } else {
       setNavItems(clientNavItems);
       setCurrentRole('client');
+      document.body.classList.remove('accountant-theme');
     }
   }, [pathname]); // Rerun on path change to ensure correct state
 

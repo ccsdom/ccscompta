@@ -56,6 +56,18 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
+  .accountant-theme {
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 142.1 76.2% 96.3%;
+    --ring: 142.1 76.2% 36.3%;
+  }
+
+  .dark .accountant-theme {
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 142.1 76.2% 96.3%;
+    --ring: 142.1 76.2% 36.3%;
+  }
 }
 
 @layer base {
