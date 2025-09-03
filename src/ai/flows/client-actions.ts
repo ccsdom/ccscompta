@@ -29,7 +29,7 @@ const fromFirestore = (firestoreDoc: DocumentData): Client => {
         legalRepresentative: data.legalRepresentative,
         fiscalYearEndDate: data.fiscalYearEndDate,
         status: data.status,
-        newDocuments: data.newDocuments,
+        newDocuments: data.newDocuments ?? 0,
         lastActivity: lastActivity,
         email: data.email,
         phone: data.phone,
