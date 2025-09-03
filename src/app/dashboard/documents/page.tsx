@@ -80,6 +80,7 @@ export default function DocumentsPage() {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const { toast } = useToast();
 
 
    useEffect(() => {
