@@ -15,6 +15,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'analytics': 'Analyse Détaillée',
   'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord',
+  'admin': 'Tableau de Bord Admin',
   'my-documents': 'Mes Documents',
   'my-analytics': 'Mon Analyse',
   'my-settings': 'Paramètres',
@@ -64,7 +65,7 @@ export function Breadcrumb() {
           
           let name = breadcrumbNameMap[segment] || getDynamicName(segment);
           
-          if (segment === 'dashboard' || segment === 'accountant') return null;
+          if (segment === 'dashboard' || segment === 'accountant' || segment === 'admin') return null;
 
           return (
             <Fragment key={href}>

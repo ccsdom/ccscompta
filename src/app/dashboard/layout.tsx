@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Sidebar } from "@/components/sidebar";
@@ -12,7 +13,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   // Hide breadcrumbs on root dashboard pages
-  const showBreadcrumb = pathname !== '/dashboard' && pathname !== '/dashboard/accountant';
+  const showBreadcrumb = !['/dashboard', '/dashboard/accountant', '/dashboard/admin'].includes(pathname);
 
   return (
     <div className="flex h-screen bg-background">

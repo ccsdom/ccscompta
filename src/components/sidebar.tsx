@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -12,12 +12,9 @@ import { ClientSwitcher } from './client-switcher';
 import { Separator } from './ui/separator';
 
 const adminNavItems = [
-  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { href: '/dashboard/admin', icon: ShieldCheck, label: 'Tableau de bord Admin' },
   { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
-  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
-  { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
-  { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
-  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
+  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports Globaux' },
 ];
 
 const accountantNavItems = [
@@ -75,14 +72,16 @@ export function Sidebar() {
   }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
-    if (itemHref === '/dashboard' || itemHref === '/dashboard/accountant') {
+    if (itemHref === '/dashboard' || itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin') {
         return pathname === itemHref;
     }
-    return pathname.startsWith(itemHref) && itemHref !== '/dashboard' && itemHref !== '/dashboard/accountant';
+    return pathname.startsWith(itemHref);
   }
   
   const getDashboardHomeLink = () => {
-    return currentRole === 'client' ? '/dashboard' : '/dashboard/accountant';
+    if (currentRole === 'client') return '/dashboard';
+    if (currentRole === 'accountant') return '/dashboard/accountant';
+    return '/dashboard/admin';
   }
 
   const { items: navItems, bottomItems, label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
@@ -128,7 +127,7 @@ export function Sidebar() {
                 {roleLabel}
             </span>
         </div>
-        {currentRole !== 'client' && <ClientSwitcher />}
+        {currentRole === 'accountant' && <ClientSwitcher />}
       </div>
 
 

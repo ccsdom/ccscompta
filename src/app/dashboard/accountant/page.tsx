@@ -8,31 +8,31 @@ import { BarChart, Bar, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { Document, AuditEvent } from '../documents/page';
+import type { Document, AuditEvent } from '@/lib/types';
 import type { Client } from '@/lib/client-data';
-
-const MOCK_CLIENTS: Client[] = [
-    { id: 'alpha', name: 'Entreprise Alpha', siret: '12345678901234', address: '123 Rue de la Paix, 75001 Paris', legalRepresentative: 'Jean Dupont', fiscalYearEndDate: '31/12', status: 'active', newDocuments: 3, lastActivity: '2024-07-16', email: 'contact@alpha.com', phone: '0123456789' },
-    { id: 'beta', name: 'Bêta SARL', siret: '23456789012345', address: '45 Avenue des Champs-Élysées, 75008 Paris', legalRepresentative: 'Marie Curie', fiscalYearEndDate: '30/06', status: 'active', newDocuments: 0, lastActivity: '2024-07-15', email: 'compta@beta.eu', phone: '0987654321' },
-    { id: 'gamma', name: 'Gamma Inc.', siret: '34567890123456', address: '67 Boulevard Saint-Germain, 75005 Paris', legalRepresentative: 'Louis Pasteur', fiscalYearEndDate: '31/03', status: 'onboarding', newDocuments: 1, lastActivity: '2024-07-17', email: 'factures@gamma.io', phone: '0112233445' },
-    { id: 'delta', name: 'Delta Industries', siret: '45678901234567', address: '89 Rue de Rivoli, 75004 Paris', legalRepresentative: 'Simone Veil', fiscalYearEndDate: '30/09', status: 'active', newDocuments: 5, lastActivity: '2024-07-16', email: 'admin@delta-industries.fr', phone: '0655443322' },
-    { id: 'epsilon', name: 'Epsilon Global', siret: '56789012345678', address: '101 Avenue Victor Hugo, 75116 Paris', legalRepresentative: 'Charles de Gaulle', fiscalYearEndDate: '31/12', status: 'inactive', newDocuments: 0, lastActivity: '2024-05-20', email: 'support@epsilon.com', phone: '0788990011' },
-];
+import { getClients } from '@/lib/client-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AccountantDashboard() {
     const [documents, setDocuments] = useState<Document[]>([]);
-    const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const loadState = () => {
+        const loadState = async () => {
+            setLoading(true);
             try {
                 const storedDocs = localStorage.getItem('documents');
                 if (storedDocs) {
                     const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [], comments: d.comments || [] }));
                     setDocuments(parsedDocs);
                 }
+                const clientsData = await getClients();
+                setClients(clientsData);
             } catch (error) {
-                console.error("Failed to load documents from localStorage", error);
+                console.error("Failed to load data", error);
+            } finally {
+                setLoading(false);
             }
         };
         loadState();
@@ -42,11 +42,14 @@ export default function AccountantDashboard() {
 
     const dashboardData = useMemo(() => {
         const today = new Date();
-        const todayStr = today.toLocaleDateString('fr-FR');
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
-        const docsUploadedToday = documents.filter(d => d.uploadDate === todayStr).length;
-        const docsPendingReview = documents.filter(d => ['pending', 'reviewing'].includes(d.status)).length;
+        const docsUploadedToday = documents.filter(d => {
+            const uploadEvent = d.auditTrail.find(e => e.action.includes('téléversé'));
+            return uploadEvent && new Date(uploadEvent.date) >= twentyFourHoursAgo;
+        }).length;
+        
+        const docsPendingReview = documents.filter(d => ['pending', 'reviewing', 'error'].includes(d.status)).length;
         
         const docsApprovedToday = documents.filter(doc => {
             const approvalEvent = doc.auditTrail.find(e => e.action.includes('approuvé'));
@@ -55,7 +58,9 @@ export default function AccountantDashboard() {
         
         const activityByClient = clients.map(client => {
             const clientDocsToday = documents.filter(d => 
-                d.clientId === client.id && new Date(d.auditTrail[0]?.date) >= twentyFourHoursAgo
+                d.clientId === client.id && 
+                d.auditTrail.length > 0 && 
+                new Date(d.auditTrail[0].date) >= twentyFourHoursAgo
             ).length;
             return { name: client.name, docs: clientDocsToday };
         }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
@@ -63,14 +68,14 @@ export default function AccountantDashboard() {
         const recentActivities = documents
             .flatMap(doc => {
                 const client = clients.find(c => c.id === doc.clientId);
-                return doc.auditTrail.map(event => ({
+                return (doc.auditTrail || []).map(event => ({
                     ...event,
                     clientName: client?.name || 'Inconnu',
                     documentName: doc.name,
                 }));
             })
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 5); // Get top 5 most recent events across all documents
+            .slice(0, 5);
 
 
         return {
@@ -82,6 +87,27 @@ export default function AccountantDashboard() {
             recentActivities
         };
     }, [documents, clients]);
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Skeleton className="lg:col-span-2 h-80" />
+                    <Skeleton className="h-80" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -107,7 +133,7 @@ export default function AccountantDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">+{dashboardData.docsUploadedToday}</div>
-                        <p className="text-xs text-muted-foreground">Téléversés par les clients aujourd'hui</p>
+                        <p className="text-xs text-muted-foreground">Téléversés dans les dernières 24h</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -127,7 +153,7 @@ export default function AccountantDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{dashboardData.docsApprovedToday}</div>
-                        <p className="text-xs text-muted-foreground">Documents approuvés par vos soins</p>
+                        <p className="text-xs text-muted-foreground">Approuvés dans les dernières 24h</p>
                     </CardContent>
                 </Card>
             </div>
