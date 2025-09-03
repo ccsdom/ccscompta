@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +13,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/logo";
 import { useRouter } from 'next/navigation';
+import Image from "next/image";
+import Link from "next/link";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -42,7 +45,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/dashboard');
+    router.push('/dashboard/accountant');
   }
   
   const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -52,49 +55,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <div className="w-full max-w-sm">
-        <div className="flex justify-center mb-8">
-            <Logo className="h-10 w-10 text-primary" />
+    <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2">
+      <div className="hidden bg-muted lg:flex lg:flex-col lg:items-center lg:justify-between p-12">
+        <Link href="/" className="self-start flex items-center gap-2 font-semibold">
+          <Logo className="h-6 w-6" />
+          <span>CCS Compta</span>
+        </Link>
+        <div className="text-center">
+            <h1 className="text-3xl font-bold">Gérez votre comptabilité en toute simplicité</h1>
+            <p className="text-balance text-muted-foreground mt-2">
+                Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
+            </p>
         </div>
-        <Card className="w-full">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Connectez-vous</CardTitle>
-            <CardDescription>
-              Utilisez l'adresse email enregistrée par votre comptable.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="m@example.com" defaultValue="demo@ccs-compta.com" required />
-              </div>
-              <div className="space-y-2">
-                 <Label htmlFor="password">Mot de passe</Label>
-                <Input id="password" type="password" defaultValue="demodemo" required />
-              </div>
-              <Button type="submit" className="w-full">Se connecter</Button>
-            </form>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Ou si votre compte est une adresse Google
-                </span>
-              </div>
+        <div className="w-full relative h-96">
+             <Image
+                src="https://picsum.photos/800/600"
+                alt="Image"
+                fill
+                className="rounded-lg object-cover"
+                data-ai-hint="abstract workspace"
+            />
+        </div>
+      </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="mx-auto grid w-[350px] gap-6">
+          <div className="grid gap-2 text-center">
+             <div className="flex justify-center mb-4 lg:hidden">
+                <Logo className="h-10 w-10 text-primary" />
             </div>
-
+            <h1 className="text-3xl font-bold">Connectez-vous</h1>
+            <p className="text-balance text-muted-foreground">
+              Utilisez l'adresse email enregistrée par votre comptable.
+            </p>
+          </div>
+          <form onSubmit={handleLogin} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                defaultValue="demo@ccs-compta.com"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center">
+                <Label htmlFor="password">Mot de passe</Label>
+                <Link
+                  href="#"
+                  className="ml-auto inline-block text-sm underline"
+                >
+                  Mot de passe oublié?
+                </Link>
+              </div>
+              <Input id="password" type="password" defaultValue="demodemo" required />
+            </div>
+            <Button type="submit" className="w-full">
+              Se connecter
+            </Button>
             <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
-              <GoogleIcon className="mr-2" />
+              <GoogleIcon className="mr-2 h-4 w-4" />
               Se connecter avec Google
             </Button>
-
-          </CardContent>
-        </Card>
+          </form>
+           <p className="text-xs text-muted-foreground text-center">
+              La connexion via Google ne fonctionne que si votre comptable vous a enregistré avec une adresse Gmail.
+          </p>
+        </div>
       </div>
     </div>
   )
