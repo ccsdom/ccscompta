@@ -36,6 +36,9 @@ import type { Notification } from '@/app/dashboard/documents/page';
 import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 export function Header() {
   const [mounted, setMounted] = useState(false);
@@ -47,6 +50,7 @@ export function Header() {
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("client");
   const { toast } = useToast();
+  const router = useRouter();
 
   const loadNotifications = useCallback(() => {
     try {
@@ -118,6 +122,22 @@ export function Header() {
         window.dispatchEvent(new Event('storage'));
     }
   }
+  
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Clear local storage and redirect to login
+      localStorage.clear();
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de déconnexion",
+        description: "Impossible de se déconnecter. Veuillez réessayer."
+      });
+    }
+  };
 
   const handleAiSearch = async () => {
     if (!searchQuery.trim()) {
@@ -275,10 +295,8 @@ export function Header() {
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                         <Link href="/login">
-                            <LogOut className="mr-2 h-4 w-4" /> Déconnexion
-                        </Link>
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                         <LogOut className="mr-2 h-4 w-4" /> Déconnexion
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

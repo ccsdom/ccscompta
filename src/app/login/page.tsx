@@ -16,6 +16,10 @@ import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -43,42 +47,72 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [email, setEmail] = useState("demo@ccs-compta.com");
   const [password, setPassword] = useState("demodemo");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simulate role-based redirect
-    if (email === 'admin@ccs-compta.com') {
+  const handleSuccessfulLogin = (user: User) => {
+    const userEmail = user.email || "";
+    // Simulate role-based redirect based on email
+    if (userEmail === 'admin@ccs-compta.com') {
         localStorage.setItem('userRole', 'admin');
-        localStorage.setItem('userName', 'Super Admin');
-        localStorage.setItem('userEmail', 'admin@ccs-compta.com');
+        localStorage.setItem('userName', user.displayName || 'Super Admin');
+        localStorage.setItem('userEmail', userEmail);
         router.push('/dashboard/accountant');
-    } else if (email === 'demo@ccs-compta.com') {
+    } else if (userEmail === 'demo@ccs-compta.com') {
         localStorage.setItem('userRole', 'accountant');
-        localStorage.setItem('userName', 'Comptable Démo');
-        localStorage.setItem('userEmail', 'demo@ccs-compta.com');
+        localStorage.setItem('userName', user.displayName || 'Comptable Démo');
+        localStorage.setItem('userEmail', userEmail);
         router.push('/dashboard/accountant');
     } else {
         localStorage.setItem('userRole', 'client');
-        localStorage.setItem('userName', 'Client Démo');
-        localStorage.setItem('userEmail', email);
-        // Default client 'alpha' on login
-        localStorage.setItem('selectedClientId', 'alpha');
+        localStorage.setItem('userName', user.displayName || 'Client Démo');
+        localStorage.setItem('userEmail', userEmail);
+        localStorage.setItem('selectedClientId', 'alpha'); // Default client 'alpha' on login
         router.push('/dashboard');
     }
   }
   
-  const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would trigger the Firebase Google Auth flow
-    // For the demo, we'll log in as a client.
-    localStorage.setItem('userRole', 'client');
-    localStorage.setItem('userName', 'Client Démo (Google)');
-    localStorage.setItem('userEmail', 'client.demo@gmail.com');
-     // Default client 'alpha' on login
-    localStorage.setItem('selectedClientId', 'alpha');
-    router.push('/dashboard');
+    setIsLoading(true);
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        handleSuccessfulLogin(userCredential.user);
+    } catch (error: any) {
+        console.error("Firebase login error:", error);
+        let description = "Une erreur inconnue est survenue.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            description = "L'adresse email ou le mot de passe est incorrect.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Échec de la connexion",
+            description,
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }
+  
+  const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        handleSuccessfulLogin(result.user);
+    } catch (error: any) {
+        console.error("Google login error:", error);
+         toast({
+            variant: "destructive",
+            title: "Échec de la connexion Google",
+            description: "Impossible de se connecter avec Google. Veuillez réessayer.",
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (
@@ -127,6 +161,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-2">
@@ -145,13 +180,15 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required 
+                disabled={isLoading}
                />
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               Se connecter
             </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
-              <GoogleIcon className="mr-2 h-4 w-4" />
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
               Se connecter avec Google
             </Button>
           </form>

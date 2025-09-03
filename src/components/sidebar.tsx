@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Separator } from './ui/separator';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const adminNavItems = [
   { href: '/dashboard/admin', icon: ShieldCheck, label: 'Tableau de bord Admin' },
@@ -51,6 +54,8 @@ const roleConfig = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin'>('client');
 
@@ -83,6 +88,21 @@ export function Sidebar() {
     if (currentRole === 'accountant') return '/dashboard/accountant';
     return '/dashboard/admin';
   }
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      localStorage.clear();
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de déconnexion",
+        description: "Impossible de se déconnecter. Veuillez réessayer."
+      });
+    }
+  };
 
   const { items: navItems, bottomItems, label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
 
@@ -161,12 +181,10 @@ export function Sidebar() {
             </Link>
         ))}
         <Separator className="my-2"/>
-        <Link href="/login">
-            <Button variant="ghost" className="w-full justify-start">
-                <LogOut className="mr-2 h-4 w-4" />
-                Déconnexion
-            </Button>
-        </Link>
+        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Déconnexion
+        </Button>
       </div>
     </aside>
   );
