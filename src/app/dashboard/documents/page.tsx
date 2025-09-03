@@ -203,16 +203,17 @@ export default function DocumentsPage() {
       const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       trail = addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
-      // Get all other client documents for reconciliation context
-      const allClientDocuments = documents
+      // Prepare documents for reconciliation context if needed, ensuring they are serializable
+      const allClientDocumentsForAI = documents
         .filter(d => d.clientId === docToProcess.clientId && d.id !== docToProcess.id)
-        .map(({ file, ...rest }) => rest); // Remove the File object before passing to the AI flow
-      
-      const extracted = await extractData({ 
-          documentDataUri: docToProcess.dataUrl, 
-          documentType: recognition.documentType,
-          allClientDocuments: allClientDocuments
+        .map(({ file, dataUrl, ...rest }) => rest); // Remove File and dataUrl objects
+
+      const extracted = await extractData({
+        documentDataUri: docToProcess.dataUrl,
+        documentType: recognition.documentType,
+        allClientDocuments: recognition.documentType === 'bank statement' ? allClientDocumentsForAI : undefined,
       });
+
       trail = addAuditEvent(docId, 'Données extraites par IA');
 
       let finalUpdates: Partial<Document> = {
@@ -720,4 +721,5 @@ export default function DocumentsPage() {
   );
 }
 
+    
     

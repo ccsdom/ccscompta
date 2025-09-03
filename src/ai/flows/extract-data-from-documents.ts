@@ -43,7 +43,7 @@ const ExtractDataInputSchema = z.object({
     ),
   documentType: z.string().describe('The type of the accounting document (e.g., "invoice", "receipt", "bank statement").'),
   // In a real app, this would be retrieved from a database by the tool itself.
-  // For this demo, we pass it from the client.
+  // For this demo, we pass it from the client, but only when needed.
   allClientDocuments: z.array(DocumentSchemaForTool).optional().describe("A list of all other documents for the same client. Only used for bank statement reconciliation."),
 });
 export type ExtractDataInput = z.infer<typeof ExtractDataInputSchema>;
@@ -62,7 +62,7 @@ const ExtractDataOutputSchema = z.object({
   // Common fields
   category: z.string().optional().describe('The suggested accounting category for the expense (e.g., "Fournitures", "Transport", "Repas"). Not used for bank statements.'),
   otherInformation: z.string().optional().describe('Other relevant information extracted from the document.'),
-  anomalies: z.array(z.string()).optional().describe('Potential anomalies or red flags detected in the document (e.g., "Unusually high amount", "Suspicious date").'),
+  anomalies: zarray(z.string()).optional().describe('Potential anomalies or red flags detected in the document (e.g., "Unusually high amount", "Suspicious date").'),
 });
 export type ExtractDataOutput = z.infer<typeof ExtractDataOutputSchema>;
 
@@ -138,12 +138,8 @@ const extractDataFlow = ai.defineFlow(
     outputSchema: ExtractDataOutputSchema,
   },
   async input => {
-    // Pass the allClientDocuments to the prompt context, so the tool can use it.
-    // This is a workaround for the demo. In a real app, the tool would fetch from a DB.
-     const {output} = await prompt({
-      ...input,
-      allClientDocuments: input.documentType === 'bank statement' ? input.allClientDocuments : undefined,
-    });
+    // Pass the allClientDocuments to the prompt context only if it's a bank statement.
+    const {output} = await prompt(input);
     return output!;
   }
 );
