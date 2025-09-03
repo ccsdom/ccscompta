@@ -12,7 +12,7 @@ import {z} from 'genkit';
 import { type ExtractDataOutput } from './extract-data-from-documents';
 
 
-export const ValidateExtractionInputSchema = z.object({
+const ValidateExtractionInputSchema = z.object({
   documentDataUri: z
     .string()
     .describe(
@@ -27,15 +27,15 @@ export const ValidateExtractionInputSchema = z.object({
       anomalies: z.array(z.string()).optional().describe('Potential anomalies detected.'),
   }),
 });
-export type ValidateExtractionInput = z.infer<typeof ValidateExtractionInputSchema>;
+type ValidateExtractionInput = z.infer<typeof ValidateExtractionInputSchema>;
 
 
-export const ValidateExtractionOutputSchema = z.object({
+const ValidateExtractionOutputSchema = z.object({
     isConfident: z.boolean().describe("True if the AI is highly confident that the extracted data perfectly matches the document."),
     confidenceScore: z.number().min(0).max(1).describe("A confidence score from 0 to 1 on how well the extracted data matches the document."),
     mismatchReason: z.string().optional().describe("A brief explanation if a mismatch or low confidence is found. Empty if confident."),
 });
-export type ValidateExtractionOutput = z.infer<typeof ValidateExtractionOutputSchema>;
+type ValidateExtractionOutput = z.infer<typeof ValidateExtractionOutputSchema>;
 
 
 export async function validateExtraction(
