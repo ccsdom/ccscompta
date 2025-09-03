@@ -25,6 +25,7 @@ const accountantNavItems = [
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
+  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
 ];
 
 const clientNavItems = [
