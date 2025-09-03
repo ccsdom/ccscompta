@@ -18,6 +18,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'my-documents': 'Mes Documents',
   'my-analytics': 'Mon Analyse',
   'my-settings': 'Paramètres',
+  'billing': 'Facturation',
 };
 
 const mockClients = [
