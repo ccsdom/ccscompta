@@ -66,17 +66,17 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="p-4 border-b">
+      <div className="p-4 border-b space-y-4">
         {currentRole === 'accountant' ? (
           <>
-            <ClientSwitcher />
-            <div className="mt-4 text-center">
-              <span className="text-xs font-semibold uppercase text-muted-foreground">Espace Comptable</span>
+            <div className="text-center">
+              <span className="text-sm font-semibold uppercase text-primary">Espace Comptable</span>
             </div>
+            <ClientSwitcher />
           </>
         ) : (
            <div className="text-center">
-             <span className="text-xs font-semibold uppercase text-muted-foreground">Espace Client</span>
+             <span className="text-sm font-semibold uppercase text-primary">Espace Client</span>
            </div>
         )}
       </div>
