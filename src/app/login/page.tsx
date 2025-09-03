@@ -15,6 +15,7 @@ import { Logo } from "@/components/logo";
 import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -42,15 +43,31 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("demo@ccs-compta.com");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/dashboard/accountant');
+    // Simulate role-based redirect
+    if (email === 'demo@ccs-compta.com') {
+        localStorage.setItem('userRole', 'accountant');
+        localStorage.setItem('userName', 'Comptable Démo');
+        localStorage.setItem('userEmail', 'demo@ccs-compta.com');
+        router.push('/dashboard/accountant');
+    } else {
+        localStorage.setItem('userRole', 'client');
+        localStorage.setItem('userName', 'Client Démo');
+        localStorage.setItem('userEmail', email);
+        router.push('/dashboard');
+    }
   }
   
   const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-     // In a real app, this would trigger the Firebase Google Auth flow
+    // In a real app, this would trigger the Firebase Google Auth flow
+    // For the demo, we'll log in as a client.
+    localStorage.setItem('userRole', 'client');
+    localStorage.setItem('userName', 'Client Démo (Google)');
+    localStorage.setItem('userEmail', 'client.demo@gmail.com');
     router.push('/dashboard');
   }
 
@@ -87,7 +104,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-3xl font-bold">Connectez-vous</h1>
             <p className="text-balance text-muted-foreground">
-              Utilisez l'adresse email enregistrée par votre comptable.
+              Utilisez les identifiants fournis par votre cabinet comptable.
             </p>
           </div>
           <form onSubmit={handleLogin} className="grid gap-4">
@@ -97,7 +114,8 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="m@example.com"
-                defaultValue="demo@ccs-compta.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>

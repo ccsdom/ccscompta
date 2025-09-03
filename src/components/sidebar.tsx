@@ -10,39 +10,37 @@ import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 
-// In a real app, this would come from a user session
-const USER_ROLE = 'accountant'; // or 'client'
-
 const accountantNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
-  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse' },
+  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 const clientNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes documents' },
-  { href: '/dashboard/my-analytics', icon: BarChart, label: 'Analyse' },
+  { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [navItems, setNavItems] = useState(clientNavItems);
-  const [showClientSwitcher, setShowClientSwitcher] = useState(false);
+  const [currentRole, setCurrentRole] = useState('client');
 
   useEffect(() => {
-    // Simulate role-based navigation
-    if (USER_ROLE === 'accountant') {
+    // Simulate role-based navigation by reading from local storage
+    const role = localStorage.getItem('userRole');
+    if (role === 'accountant') {
       setNavItems(accountantNavItems);
-      setShowClientSwitcher(true);
+      setCurrentRole('accountant');
     } else {
       setNavItems(clientNavItems);
-      setShowClientSwitcher(false);
+      setCurrentRole('client');
     }
-  }, []);
+  }, [pathname]); // Rerun on path change to ensure correct state
 
   const isNavItemActive = (itemHref: string) => {
     // Exact match for root dashboards
@@ -52,17 +50,21 @@ export function Sidebar() {
     // Starts with for parent routes, but not for the root dashboard
     return pathname.startsWith(itemHref) && itemHref !== '/dashboard' && itemHref !== '/dashboard/accountant';
   }
+  
+  const getDashboardHomeLink = () => {
+    return currentRole === 'accountant' ? '/dashboard/accountant' : '/dashboard';
+  }
 
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col hidden md:flex">
       <div className="flex items-center justify-center h-16 border-b">
-        <Link href="/dashboard" className="flex items-center space-x-2">
+        <Link href={getDashboardHomeLink()} className="flex items-center space-x-2">
             <Logo className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">CCS Compta</span>
         </Link>
       </div>
 
-      {showClientSwitcher && (
+      {currentRole === 'accountant' && (
         <div className="p-4 border-b">
             <ClientSwitcher />
         </div>

@@ -123,7 +123,7 @@ export default function MyAnalyticsPage() {
   return (
     <div className="space-y-6">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Analyse de mes Dépenses</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Mon Analyse de Dépenses</h1>
             <p className="text-muted-foreground mt-1">Visualisez les données de vos documents validés par votre comptable.</p>
         </div>
 
