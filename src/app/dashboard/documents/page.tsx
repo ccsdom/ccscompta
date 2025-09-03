@@ -470,7 +470,7 @@ export default function DocumentsPage() {
     <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
         <TooltipProvider>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom avant</p></TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={()={() => setZoom(z => z / 1.2)}}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Pivoter</p></TooltipContent></Tooltip>
             {activeDocumentId && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(activeDocumentId)} disabled={isProcessing}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Relancer le traitement</p></TooltipContent></Tooltip>}
         </TooltipProvider>
@@ -571,5 +571,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
