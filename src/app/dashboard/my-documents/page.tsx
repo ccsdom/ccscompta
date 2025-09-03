@@ -23,6 +23,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 
@@ -137,7 +138,11 @@ export default function MyDocumentsPage() {
   const clientDocuments = useMemo(() => {
         return documents
             .filter(d => d.clientId === clientId)
-            .sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+            .sort((a,b) => {
+                const dateA = a.uploadDate.split('/').reverse().join('-');
+                const dateB = b.uploadDate.split('/').reverse().join('-');
+                return new Date(dateB).getTime() - new Date(dateA).getTime();
+            });
   }, [documents, clientId]);
 
   const SimpleDocumentHistory = () => (
