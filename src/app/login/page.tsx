@@ -44,6 +44,7 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("demo@ccs-compta.com");
+  const [password, setPassword] = useState("demodemo");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +139,13 @@ export default function LoginPage() {
                   Mot de passe oublié?
                 </Link>
               </div>
-              <Input id="password" type="password" defaultValue="demodemo" required />
+              <Input 
+                id="password" 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required 
+               />
             </div>
             <Button type="submit" className="w-full">
               Se connecter
