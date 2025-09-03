@@ -264,8 +264,10 @@ export function Header() {
                             <User className="mr-2 h-4 w-4" /> Profil
                         </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                        <CreditCard className="mr-2 h-4 w-4" /> Facturation
+                    <DropdownMenuItem asChild>
+                         <Link href="/dashboard/billing">
+                            <CreditCard className="mr-2 h-4 w-4" /> Facturation
+                        </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <Link href={userRole === 'accountant' ? "/dashboard/settings" : "/dashboard/my-settings"}>
