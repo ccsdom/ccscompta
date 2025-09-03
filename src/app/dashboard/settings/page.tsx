@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy } from "lucide-react";
+import { Copy, KeyRound } from "lucide-react";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -67,14 +67,13 @@ export default function SettingsPage() {
     <div className="space-y-8 max-w-3xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Paramètres</h1>
-        <p className="text-muted-foreground mt-1">Gérez les paramètres de votre compte et vos préférences.</p>
+        <p className="text-muted-foreground mt-1">Gérez les paramètres de votre compte, vos intégrations et vos préférences.</p>
       </div>
       
-      {/* Profile Section */}
       <Card>
         <CardHeader>
           <CardTitle>Profil</CardTitle>
-          <CardDescription>Gérez les informations de votre profil public.</CardDescription>
+          <CardDescription>Gérez les informations de votre profil.</CardDescription>
         </CardHeader>
         <form>
             <CardContent className="space-y-4">
@@ -97,38 +96,68 @@ export default function SettingsPage() {
             </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4 justify-end">
-                <Button onClick={handleProfileSave}>Enregistrer</Button>
+                <Button onClick={handleProfileSave}>Enregistrer les modifications</Button>
             </CardFooter>
         </form>
       </Card>
       
-      {/* Email Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Intégrations</CardTitle>
+          <CardDescription>
+            Connectez CCS Compta à vos logiciels de production pour un flux de travail transparent.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                     <div className="bg-muted p-3 rounded-full">
+                        <KeyRound className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold">Cegid</h4>
+                        <p className="text-sm text-muted-foreground">Synchronisez vos écritures comptables.</p>
+                    </div>
+                </div>
+                 <Button variant="outline" disabled>Connecté</Button>
+            </div>
+            <div className="space-y-2 pt-2">
+                 <Label htmlFor="cegid-api-key">Clé d'API Cegid</Label>
+                 <Input id="cegid-api-key" type="password" defaultValue="********************" />
+            </div>
+        </CardContent>
+         <CardFooter className="border-t px-6 py-4 justify-end">
+            <Button>Enregistrer l'intégration</Button>
+        </CardFooter>
+      </Card>
+      
       <Card>
         <CardHeader>
           <CardTitle>Téléversement par Email</CardTitle>
           <CardDescription>
-            Transférez vos documents directement dans l'application en les envoyant à votre adresse email dédiée.
-            <span className="font-semibold block mt-1 text-orange-500">Note : Ceci est une démonstration. La fonctionnalité n'est pas active.</span>
+            Communiquez à vos clients leur adresse email dédiée pour qu'ils puissent envoyer leurs documents directement dans la plateforme.
           </CardDescription>
         </CardHeader>
         <CardContent>
              <div className="space-y-2">
-                <Label htmlFor="upload-email">Votre adresse de téléversement unique</Label>
+                <Label htmlFor="upload-email">Adresse de téléversement pour vos clients</Label>
                 <div className="flex items-center gap-2">
-                    <Input id="upload-email" value={uploadEmail} readOnly />
+                    <Input id="upload-email" value={"uploads-{ID_CLIENT}@ccs-compta-in.com"} readOnly />
                     <Button variant="outline" size="icon" type="button" onClick={copyToClipboard}>
                         <Copy className="h-4 w-4" />
                         <span className="sr-only">Copier</span>
                     </Button>
                 </div>
+                <p className="text-xs text-muted-foreground pt-1">
+                    Note: Chaque client possède sa propre adresse unique. Vous pouvez la trouver dans les détails de leur dossier. L'adresse ci-dessus est un modèle.
+                </p>
             </div>
         </CardContent>
       </Card>
 
-      {/* Password Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Mot de passe</CardTitle>
+          <CardTitle>Sécurité</CardTitle>
           <CardDescription>Changez votre mot de passe ici. Il est recommandé d'utiliser un mot de passe fort.</CardDescription>
         </CardHeader>
         <form>
@@ -152,7 +181,6 @@ export default function SettingsPage() {
         </form>
       </Card>
 
-        {/* Preferences Section */}
       <Card>
         <CardHeader>
           <CardTitle>Préférences</CardTitle>
@@ -174,7 +202,7 @@ export default function SettingsPage() {
              <div className="flex items-center justify-between">
                 <div>
                     <Label htmlFor="notifications">Notifications par email</Label>
-                    <p className="text-sm text-muted-foreground">Recevez des emails lorsque vos documents sont traités.</p>
+                    <p className="text-sm text-muted-foreground">Recevez des emails lorsqu'un client téléverse un document.</p>
                 </div>
                 <Switch id="notifications" defaultChecked />
             </div>
