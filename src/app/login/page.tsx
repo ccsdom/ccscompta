@@ -56,26 +56,27 @@ export default function LoginPage() {
 
   return (
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2">
-      <div className="hidden bg-muted lg:flex lg:flex-col lg:items-center lg:justify-between p-12">
-        <Link href="/" className="self-start flex items-center gap-2 font-semibold">
-          <Logo className="h-6 w-6" />
-          <span>CCS Compta</span>
-        </Link>
-        <div className="text-center">
-            <h1 className="text-3xl font-bold">Gérez votre comptabilité en toute simplicité</h1>
-            <p className="text-balance text-muted-foreground mt-2">
-                Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
-            </p>
-        </div>
-        <div className="w-full relative h-96">
-             <Image
-                src="https://picsum.photos/800/600"
-                alt="Image"
-                fill
-                className="rounded-lg object-cover"
-                data-ai-hint="abstract workspace"
-            />
-        </div>
+      <div className="hidden bg-gray-100 lg:block relative">
+        <Image
+            src="https://picsum.photos/1200/1800"
+            alt="Image"
+            fill
+            className="object-cover"
+            data-ai-hint="accounting finance"
+        />
+         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/0" />
+         <div className="relative h-full flex flex-col justify-between p-12 text-white">
+            <Link href="/" className="flex items-center gap-2 font-semibold text-white">
+                <Logo className="h-6 w-6" />
+                <span>CCS Compta</span>
+            </Link>
+            <div className="text-left">
+                <h1 className="text-4xl font-bold leading-tight">Gérez votre comptabilité en toute simplicité</h1>
+                <p className="text-balance text-white/80 mt-4 text-lg">
+                    Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
+                </p>
+            </div>
+         </div>
       </div>
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
