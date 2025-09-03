@@ -18,6 +18,8 @@ import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { DataValidationForm } from '@/components/data-validation-form';
+import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
+import { extractData } from '@/ai/flows/extract-data-from-documents';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -43,6 +45,7 @@ export default function MyDocumentsPage() {
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
    useEffect(() => {
@@ -74,17 +77,90 @@ export default function MyDocumentsPage() {
     }
   }, [documents])
 
+  const createNotification = (doc: Document, message: string) => {
+    const newNotification: Notification = {
+      id: crypto.randomUUID(),
+      documentId: doc.id,
+      documentName: doc.name,
+      message,
+      date: new Date().toISOString(),
+      isRead: false
+    };
+    const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
+    localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
+    window.dispatchEvent(new Event('storage')); // Notify header
+  };
+
+  const addAuditEvent = useCallback((docId: string, action: string): AuditEvent[] => {
+    const event: AuditEvent = {
+        action,
+        date: new Date().toISOString(),
+        user: getCurrentUser(),
+    };
+    let currentTrail: AuditEvent[] = [];
+    setDocuments(prev => {
+        const doc = prev.find(d => d.id === docId);
+        if (doc) currentTrail = doc.auditTrail;
+        return prev;
+    });
+    return [...currentTrail, event];
+  }, []);
+
+  const updateDocumentState = (id: string, updates: Partial<Document>) => {
+    setDocuments(prevDocs => 
+      prevDocs.map(d => (d.id === id ? { ...d, ...updates } : d))
+    );
+  };
+  
+  const handleProcessDocument = useCallback(async (docToProcess: Document) => {
+    let trail = addAuditEvent(docToProcess.id, 'Traitement IA initié par le client');
+    updateDocumentState(docToProcess.id, { status: 'processing', auditTrail: trail });
+    
+    try {
+      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
+      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
+      trail = addAuditEvent(docToProcess.id, 'Traitement IA terminé');
+      
+      const finalUpdates: Partial<Document> = {
+          status: 'reviewing',
+          extractedData: extracted,
+          type: recognition.documentType,
+          confidence: recognition.confidence,
+          auditTrail: trail
+      }
+      updateDocumentState(docToProcess.id, finalUpdates);
+
+      toast({
+        title: `Traitement de ${docToProcess.name} terminé`,
+        description: `Le document est prêt pour être examiné par votre comptable.`,
+      });
+      
+      const finalDoc = { ...docToProcess, ...finalUpdates };
+      createNotification(finalDoc, 'est prêt pour examen.');
+
+    } catch (error) {
+      console.error("Error processing document:", error);
+      trail = addAuditEvent(docToProcess.id, 'Erreur de traitement IA');
+      updateDocumentState(docToProcess.id, { status: 'error', auditTrail: trail });
+      toast({
+        variant: "destructive",
+        title: "Le traitement a échoué",
+        description: `Impossible de traiter ${docToProcess.name}.`,
+      });
+      const finalDoc = { ...docToProcess, status: 'error' as const };
+      createNotification(finalDoc, 'a échoué lors du traitement.');
+    }
+  }, [toast, addAuditEvent]);
+
   const handleFileDrop = async (files: File[]) => {
     if (!clientId) {
-         toast({
-          variant: "destructive",
-          title: "Erreur interne",
-          description: `Votre identifiant client n'est pas défini.`,
-        });
-        return;
+         toast({ variant: "destructive", title: "Erreur interne", description: `Votre identifiant client n'est pas défini.`});
+         return;
     }
+    
     const newDocuments: Document[] = [];
     const existingFileNames = new Set(documents.map(d => d.name));
+    setIsLoading(true);
 
     for (const file of files) {
         if (existingFileNames.has(file.name)) {
@@ -119,9 +195,12 @@ export default function MyDocumentsPage() {
       setDocuments(prev => [...newDocuments, ...prev]);
       toast({
         title: "Fichiers téléversés",
-        description: `${newDocuments.length} nouveau(x) document(s) ajoutés. Votre comptable sera notifié.`,
+        description: `${newDocuments.length} nouveau(x) document(s) sont en cours de traitement.`,
       });
+      // Process all new documents automatically
+      newDocuments.forEach(doc => handleProcessDocument(doc));
     }
+    setIsLoading(false);
   };
 
   const handleAddComment = (docId: string, commentText: string) => {
@@ -327,7 +406,7 @@ export default function MyDocumentsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-1 space-y-6">
-            <FileUploader onFileDrop={handleFileDrop} isLoading={false} />
+            <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
             <Card>
                 <CardHeader>
                     <CardTitle>Comment ça marche ?</CardTitle>
