@@ -138,20 +138,20 @@ export default function AnalyticsPage() {
                 docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a >= minAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
             }
             if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a <= maxAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
@@ -179,7 +179,7 @@ export default function AnalyticsPage() {
     }, [documents, searchQuery, searchCriteria, selectedClientId]);
 
     const analyticsData = useMemo(() => {
-        const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);
+        const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
