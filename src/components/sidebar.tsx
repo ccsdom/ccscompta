@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -16,12 +16,14 @@ const accountantNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
+  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 const clientNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/documents', icon: FileText, label: 'Mes documents' },
+  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -63,8 +65,10 @@ export function Sidebar() {
             href={item.href}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
-              // Highlight parent routes as well. e.g. /dashboard/documents should highlight /dashboard/documents
-              (pathname.startsWith(item.href)) && 'bg-muted text-primary'
+              // Exact match for accountant and client dashboards
+              pathname === item.href ? 'bg-muted text-primary' : 
+              // Highlight parent routes for others, but not for the root dashboard when viewing sub-pages
+              (item.href !== '/dashboard' && pathname.startsWith(item.href)) ? 'bg-muted text-primary' : ''
             )}
           >
             <item.icon className="h-4 w-4" />
