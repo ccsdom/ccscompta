@@ -3,12 +3,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
+
+const adminNavItems = [
+  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
+  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
+  { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
+  { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
+  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+];
 
 const accountantNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
@@ -26,21 +35,25 @@ const clientNavItems = [
   { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
 ];
 
+const roleConfig = {
+    admin: { items: adminNavItems, label: 'Espace Admin' },
+    accountant: { items: accountantNavItems, label: 'Espace Comptable' },
+    client: { items: clientNavItems, label: 'Espace Client' }
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const [navItems, setNavItems] = useState(clientNavItems);
-  const [currentRole, setCurrentRole] = useState('client');
+  const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin'>('client');
 
    useEffect(() => {
     setMounted(true);
-    const role = localStorage.getItem('userRole');
-    if (role === 'accountant') {
-      setNavItems(accountantNavItems);
-      setCurrentRole('accountant');
+    const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | null;
+    
+    if (role === 'admin' || role === 'accountant') {
+      setCurrentRole(role);
       document.body.classList.add('accountant-theme');
     } else {
-      setNavItems(clientNavItems);
       setCurrentRole('client');
       document.body.classList.remove('accountant-theme');
     }
@@ -54,8 +67,10 @@ export function Sidebar() {
   }
   
   const getDashboardHomeLink = () => {
-    return currentRole === 'accountant' ? '/dashboard/accountant' : '/dashboard';
+    return currentRole === 'client' ? '/dashboard' : '/dashboard/accountant';
   }
+
+  const { items: navItems, label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
 
   if (!mounted) {
       return (
@@ -94,11 +109,11 @@ export function Sidebar() {
 
       <div className="p-4 border-b space-y-4 mb-4">
         <div className="text-center">
-            <span className={cn("text-sm font-semibold uppercase", currentRole === 'accountant' ? 'text-primary' : 'text-primary')}>
-                {currentRole === 'accountant' ? 'Espace Comptable' : 'Espace Client'}
+            <span className={cn("text-sm font-semibold uppercase", currentRole !== 'client' ? 'text-primary' : 'text-primary')}>
+                {roleLabel}
             </span>
         </div>
-        {currentRole === 'accountant' && <ClientSwitcher />}
+        {currentRole !== 'client' && <ClientSwitcher />}
       </div>
 
 

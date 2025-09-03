@@ -43,12 +43,17 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("demo@ccs-compta.com");
+  const [email, setEmail] = useState("admin@ccs-compta.com");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // Simulate role-based redirect
-    if (email === 'demo@ccs-compta.com') {
+    if (email === 'admin@ccs-compta.com') {
+        localStorage.setItem('userRole', 'admin');
+        localStorage.setItem('userName', 'Admin Comptable');
+        localStorage.setItem('userEmail', 'admin@ccs-compta.com');
+        router.push('/dashboard/accountant');
+    } else if (email === 'demo@ccs-compta.com') {
         localStorage.setItem('userRole', 'accountant');
         localStorage.setItem('userName', 'Comptable Démo');
         localStorage.setItem('userEmail', 'demo@ccs-compta.com');
@@ -57,6 +62,8 @@ export default function LoginPage() {
         localStorage.setItem('userRole', 'client');
         localStorage.setItem('userName', 'Client Démo');
         localStorage.setItem('userEmail', email);
+        // Default client 'alpha' on login
+        localStorage.setItem('selectedClientId', 'alpha');
         router.push('/dashboard');
     }
   }
@@ -68,6 +75,8 @@ export default function LoginPage() {
     localStorage.setItem('userRole', 'client');
     localStorage.setItem('userName', 'Client Démo (Google)');
     localStorage.setItem('userEmail', 'client.demo@gmail.com');
+     // Default client 'alpha' on login
+    localStorage.setItem('selectedClientId', 'alpha');
     router.push('/dashboard');
   }
 

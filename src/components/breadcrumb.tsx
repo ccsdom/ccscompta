@@ -20,6 +20,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'my-settings': 'Paramètres',
   'billing': 'Facturation',
   'my-invoices': 'Mes Factures',
+  'reporting': 'Rapports',
 };
 
 const mockClients = [
