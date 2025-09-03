@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
-import type { Document } from '../documents/page'; 
+import type { Document } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 
 
 // Mock data - In a real app, this would come from a shared state or API
@@ -556,12 +556,12 @@ export default function AnalyticsPage() {
                                     )
                                 })}
                             </TableBody>
-                             <CardFooter className="font-bold text-lg">
-                                <TableRow>
+                             <TableFooter>
+                                <TableRow className="font-bold text-base bg-muted/50">
                                     <TableCell colSpan={5} className="text-right">Total TVA Déductible</TableCell>
                                     <TableCell className="text-right">{analyticsData.totalVat.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
                                 </TableRow>
-                            </CardFooter>
+                            </TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
