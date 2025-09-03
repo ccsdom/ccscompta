@@ -13,10 +13,11 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'new': 'Nouveau Client',
   'documents': 'Documents',
   'analytics': 'Analyse Détaillée',
-  'settings': 'Paramètres',
+  'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord Global',
   'my-documents': 'Mes Documents',
   'my-analytics': 'Mon Analyse',
+  'my-settings': 'Paramètres',
 };
 
 const mockClients = [

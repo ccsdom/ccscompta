@@ -22,7 +22,7 @@ const clientNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes documents' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+  { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
 ];
 
 export function Sidebar() {
