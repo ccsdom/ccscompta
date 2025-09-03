@@ -1,7 +1,6 @@
 
 'use server';
 
-import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
@@ -11,44 +10,38 @@ import { MOCK_DOCUMENTS } from '@/data/mock-data';
 
 const getDocumentsCollectionRef = () => collection(db, 'documents').withConverter(documentConverter);
 
-export const getDocuments = ai.defineFlow(
-    { name: 'getDocuments', inputSchema: z.string(), outputSchema: z.array(z.any()) },
-    async (clientId) => {
-        try {
-            const q = query(getDocumentsCollectionRef(), where("clientId", "==", clientId));
-            let snapshot = await getDocs(q);
+export async function getDocuments(clientId: string): Promise<Document[]> {
+    try {
+        const q = query(getDocumentsCollectionRef(), where("clientId", "==", clientId));
+        let snapshot = await getDocs(q);
 
-            if (snapshot.empty && MOCK_DOCUMENTS[clientId]) {
-                console.log(`No documents found for client ${clientId}. Seeding with mock data...`);
-                for (const docData of MOCK_DOCUMENTS[clientId]) {
-                    await addDoc(getDocumentsCollectionRef(), docData);
-                }
-                snapshot = await getDocs(q);
+        if (snapshot.empty && MOCK_DOCUMENTS[clientId]) {
+            console.log(`No documents found for client ${clientId}. Seeding with mock data...`);
+            for (const docData of MOCK_DOCUMENTS[clientId]) {
+                await addDoc(getDocumentsCollectionRef(), docData);
             }
-
-            return snapshot.docs.map(doc => doc.data());
-        } catch (error) {
-            console.error("Error fetching documents:", error);
-            return [];
+            snapshot = await getDocs(q);
         }
-    }
-);
 
-export const getDocumentById = ai.defineFlow(
-    { name: 'getDocumentById', inputSchema: z.string(), outputSchema: z.any().nullable() },
-    async (docId) => {
-        try {
-            const snapshot = await getDoc(doc(db, 'documents', docId).withConverter(documentConverter));
-            if (snapshot.exists()) {
-                return snapshot.data();
-            }
-            return null;
-        } catch (error) {
-            console.error("Error fetching document by ID:", error);
-            return null;
-        }
+        return snapshot.docs.map(doc => doc.data());
+    } catch (error) {
+        console.error("Error fetching documents:", error);
+        return [];
     }
-);
+}
+
+export async function getDocumentById(docId: string): Promise<Document | null> {
+    try {
+        const snapshot = await getDoc(doc(db, 'documents', docId).withConverter(documentConverter));
+        if (snapshot.exists()) {
+            return snapshot.data();
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching document by ID:", error);
+        return null;
+    }
+}
 
 const DocumentSchemaForAdd = z.object({
     name: z.string(),
@@ -64,48 +57,41 @@ const DocumentSchemaForAdd = z.object({
     clientId: z.string(),
 });
 
-export const addDocument = ai.defineFlow(
-    { name: 'addDocument', inputSchema: DocumentSchemaForAdd, outputSchema: z.any() },
-    async (docData) => {
-        try {
-            const docRef = await addDoc(getDocumentsCollectionRef(), docData);
-            return {
-                id: docRef.id,
-                ...docData
-            };
-        } catch (error) {
-            console.error("Error adding document:", error);
-            throw error;
-        }
+export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>): Promise<Document> {
+    const validatedData = DocumentSchemaForAdd.parse(docData);
+    try {
+        const docRef = await addDoc(getDocumentsCollectionRef(), validatedData);
+        return {
+            id: docRef.id,
+            ...validatedData
+        };
+    } catch (error) {
+        console.error("Error adding document:", error);
+        throw new Error("Failed to add document to Firestore.");
     }
-);
+}
 
 const UpdateDocumentInputSchema = z.object({
     id: z.string(),
     updates: DocumentSchemaForAdd.partial(),
 });
 
-export const updateDocument = ai.defineFlow(
-    { name: 'updateDocument', inputSchema: UpdateDocumentInputSchema, outputSchema: z.void() },
-    async ({ id, updates }) => {
-        try {
-            const docRef = doc(db, 'documents', id).withConverter(documentConverter);
-            await updateDoc(docRef, updates);
-        } catch (error) {
-            console.error("Error updating document:", error);
-            throw error;
-        }
+export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocumentInputSchema>): Promise<void> {
+    const validatedData = UpdateDocumentInputSchema.parse({ id, updates });
+    try {
+        const docRef = doc(db, 'documents', validatedData.id).withConverter(documentConverter);
+        await updateDoc(docRef, validatedData.updates);
+    } catch (error) {
+        console.error("Error updating document:", error);
+        throw new Error("Failed to update document.");
     }
-);
+}
 
-export const deleteDocument = ai.defineFlow(
-    { name: 'deleteDocument', inputSchema: z.string(), outputSchema: z.void() },
-    async (docId) => {
-        try {
-            await deleteDoc(doc(db, 'documents', docId));
-        } catch (error) {
-            console.error("Error deleting document:", error);
-            throw error;
-        }
+export async function deleteDocument(docId: string): Promise<void> {
+    try {
+        await deleteDoc(doc(db, 'documents', docId));
+    } catch (error) {
+        console.error("Error deleting document:", error);
+        throw new Error("Failed to delete document.");
     }
-);
+}
