@@ -3,9 +3,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, FileText, BarChart, PieChart as PieChartIcon } from "lucide-react";
+import { DollarSign, FileText, Users, BarChart as BarChartIcon, PieChart as PieChartIcon } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
 
@@ -25,6 +25,10 @@ const chartConfig = {
   total: {
     label: "Total (€)",
     color: "hsl(var(--chart-1))",
+  },
+   average: {
+    label: "Moyenne (€)",
+    color: "hsl(var(--chart-2))",
   },
   "Fournitures de bureau": { label: "Fournitures", color: "hsl(var(--chart-1))" },
   "Transport": { label: "Transport", color: "hsl(var(--chart-2))" },
@@ -71,9 +75,10 @@ export default function MyAnalyticsPage() {
 
 
     const analyticsData = useMemo(() => {
-        const approvedDocs = clientDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);
+        const approvedDocs = clientDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
+        const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
             const date = new Date(doc.extractedData!.dates[0]);
@@ -112,11 +117,28 @@ export default function MyAnalyticsPage() {
             fill: (chartConfig[name as keyof typeof chartConfig] || chartConfig['Autre'])?.color 
         }));
 
+        const expensesByVendor = approvedDocs.reduce((acc, doc) => {
+            const vendor = doc.extractedData!.vendorNames[0] || 'Inconnu';
+            const amount = doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+             if (!acc[vendor]) {
+                acc[vendor] = 0;
+            }
+            acc[vendor] += amount;
+            return acc;
+        }, {} as Record<string, number>);
+        
+        const vendorChartData = Object.entries(expensesByVendor)
+            .map(([name, total]) => ({ name, total }))
+            .sort((a,b) => b.total - a.total).slice(0, 5);
+
         return {
             totalSpent,
+            averageSpent,
+            vendorChartData,
             monthlyChartData,
             categoryChartData,
-            approvedDocsCount: approvedDocs.length
+            approvedDocsCount: approvedDocs.length,
+            mainVendor: vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A'
         };
     }, [clientDocuments]);
 
@@ -138,14 +160,24 @@ export default function MyAnalyticsPage() {
               <p className="text-xs text-muted-foreground">Basé sur {analyticsData.approvedDocsCount} documents</p>
             </CardContent>
           </Card>
-          <Card>
+           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Documents Traités</CardTitle>
+              <CardTitle className="text-sm font-medium">Dépense Moyenne / Document</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.approvedDocsCount}</div>
-               <p className="text-xs text-muted-foreground">Nombre de factures et reçus validés</p>
+              <div className="text-2xl font-bold">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
+               <p className="text-xs text-muted-foreground">Moyenne sur {analyticsData.approvedDocsCount} documents</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Fournisseur Principal</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analyticsData.mainVendor}</div>
+              <p className="text-xs text-muted-foreground">Le plus grand volume de dépenses</p>
             </CardContent>
           </Card>
         </div>
@@ -204,6 +236,62 @@ export default function MyAnalyticsPage() {
                             </Pie>
                             <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
                         </RePieChart>
+                        </ResponsiveContainer>
+                    </ChartContainer>
+                </CardContent>
+            </Card>
+        </div>
+         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Card className="lg:col-span-3">
+                <CardHeader>
+                    <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
+                    <CardDescription>Classement de vos fournisseurs par montant total dépensé.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ReBarChart layout="vertical" data={analyticsData.vendorChartData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
+                                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent 
+                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
+                                        indicator="dot" 
+                                    />}
+                                />
+                                <Bar dataKey="total" fill="var(--color-total)" radius={4} layout="vertical">
+                                    <LabelList dataKey="total" position="right" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}`} />
+                                </Bar>
+                            </ReBarChart>
+                        </ResponsiveContainer>
+                    </ChartContainer>
+                </CardContent>
+            </Card>
+            <Card className="lg:col-span-2">
+                <CardHeader>
+                    <CardTitle>Dépense Moyenne par Type</CardTitle>
+                    <CardDescription>Montant moyen pour chaque type de document.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ReBarChart data={[]} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent 
+                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
+                                        indicator="dot" 
+                                    />}
+                                />
+                                <Bar dataKey="average" fill="var(--color-average)" radius={4}>
+                                     <LabelList dataKey="average" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value).toLocaleString('fr-FR')}€`} />
+                                </Bar>
+                            </ReBarChart>
                         </ResponsiveContainer>
                     </ChartContainer>
                 </CardContent>

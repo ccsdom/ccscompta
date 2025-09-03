@@ -8,7 +8,7 @@ import { fileToDataUri } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2 } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '../documents/page';
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,6 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { DataValidationForm } from '@/components/data-validation-form';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 
@@ -368,23 +367,33 @@ export default function MyDocumentsPage() {
      <SheetContent side="right" className="p-0 w-full sm:max-w-xl flex flex-col">
         {activeDocument ? (
             <>
-                <div className="p-6 border-b">
-                    <SheetTitle className="sr-only">{activeDocument.name}</SheetTitle>
-                    <h2 className="text-lg font-semibold truncate" title={activeDocument.name}>{activeDocument.name}</h2>
-                    <p className="text-sm text-muted-foreground">Téléversé le {activeDocument.uploadDate}</p>
-                    <div className="mt-2">{getStatusBadge(activeDocument.status)}</div>
-                </div>
+                <SheetHeader className="p-6 border-b">
+                  <SheetTitle>{activeDocument.name}</SheetTitle>
+                  <SheetDescription>
+                    Téléversé le {activeDocument.uploadDate} - {getStatusBadge(activeDocument.status)}
+                  </SheetDescription>
+                </SheetHeader>
+
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
                     <div className="h-full flex flex-col">
-                       <DataValidationForm
-                          document={activeDocument}
-                          onUpdate={() => {}}
-                          onSendToCegid={() => {}}
-                          isLoading={false}
-                          onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
-                          isSheet
-                          isClientView
-                        />
+                        <div className="flex-1 p-6">
+                            <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto mb-4">
+                                <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
+                            </div>
+                            <h3 className="font-semibold text-lg mb-4">Données validées</h3>
+                            {activeDocument.status === 'approved' && activeDocument.extractedData ? (
+                                <div className="space-y-3 text-sm">
+                                    <div className="flex justify-between"><span>Fournisseur:</span><span className="font-medium">{activeDocument.extractedData.vendorNames?.join(', ')}</span></div>
+                                    <div className="flex justify-between"><span>Date:</span><span className="font-medium">{activeDocument.extractedData.dates?.[0]}</span></div>
+                                    <div className="flex justify-between"><span>Montant:</span><span className="font-medium">{activeDocument.extractedData.amounts?.[0].toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</span></div>
+                                    <div className="flex justify-between"><span>Catégorie:</span><span className="font-medium">{activeDocument.extractedData.category}</span></div>
+                                </div>
+                            ) : (
+                                <div className="text-center text-sm text-muted-foreground py-8">
+                                    <p>Les données du document n'ont pas encore été validées par votre comptable.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="h-full flex flex-col border-l bg-muted/20">
                          <CommentsSectionClient comments={activeDocument.comments} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
