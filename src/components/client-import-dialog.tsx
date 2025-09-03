@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { FileUp, File, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
-import type { Client } from '@/lib/client-data';
+import { type Client, addClient } from '@/lib/client-data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 
 interface ClientImportDialogProps {
-    onClientsImported: (newClients: Client[]) => void;
+    onClientsImported: () => void;
 }
 
 type ParsedClient = Omit<Client, 'id' | 'newDocuments' | 'lastActivity' | 'status'>;
@@ -80,7 +80,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         });
     };
     
-    const handleImport = () => {
+    const handleImport = async () => {
         if (parsedData.length === 0 || errors.length > 0) {
             toast({
                 variant: 'destructive',
@@ -90,25 +90,37 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
             return;
         }
 
-        const newClients: Client[] = parsedData.map(clientData => ({
-            ...clientData,
-            id: `client_${crypto.randomUUID()}`,
-            newDocuments: 0,
-            lastActivity: new Date().toISOString().split('T')[0],
-            status: 'onboarding'
-        }));
+        setIsLoading(true);
+        try {
+            for (const clientData of parsedData) {
+                await addClient({
+                    ...clientData,
+                    status: 'onboarding',
+                });
+            }
 
-        onClientsImported(newClients);
-        toast({
-            title: 'Importation réussie',
-            description: `${newClients.length} clients ont été ajoutés avec succès.`
-        });
+            toast({
+                title: 'Importation réussie',
+                description: `${parsedData.length} clients ont été ajoutés avec succès.`
+            });
 
-        // Reset state and close dialog
-        setFile(null);
-        setParsedData([]);
-        setErrors([]);
-        setIsOpen(false);
+            onClientsImported();
+            
+            // Reset state and close dialog
+            setFile(null);
+            setParsedData([]);
+            setErrors([]);
+            setIsOpen(false);
+
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Erreur d\'importation',
+                description: 'Une erreur est survenue lors de l\'ajout des clients à la base de données.'
+            });
+        } finally {
+            setIsLoading(false);
+        }
     }
     
     const resetState = () => {
@@ -168,7 +180,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                             <Button variant="ghost" size="sm" onClick={resetState}>Changer de fichier</Button>
                         </div>
 
-                        {isLoading ? (
+                        {isLoading && !parsedData.length ? (
                             <div className="h-64 flex flex-col items-center justify-center">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 <p className="mt-4 text-muted-foreground">Analyse du fichier...</p>
@@ -218,7 +230,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                         <Button variant="ghost">Annuler</Button>
                     </DialogClose>
                     <Button onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isLoading}>
-                        Importer {parsedData.length > 0 && `(${parsedData.length} clients)`}
+                         {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Importation...</> : `Importer ${parsedData.length > 0 ? `(${parsedData.length} clients)`:''}`}
                     </Button>
                 </DialogFooter>
             </DialogContent>

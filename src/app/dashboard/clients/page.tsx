@@ -81,7 +81,7 @@ export default function ClientsPage() {
         setClientToDelete(null);
     }
     
-    const handleClientsImported = (newClients: Client[]) => {
+    const handleClientsImported = () => {
         fetchClients();
     }
     
