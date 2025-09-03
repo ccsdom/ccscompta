@@ -10,7 +10,6 @@ import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Separator } from './ui/separator';
-import { useToast } from '@/hooks/use-toast';
 
 const adminNavItems = [
   { href: '/dashboard/admin', icon: ShieldCheck, label: 'Tableau de bord Admin' },
@@ -53,7 +52,6 @@ const roleConfig = {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin'>('client');
 
@@ -87,7 +85,7 @@ export function Sidebar() {
     return '/dashboard/admin';
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     localStorage.clear();
     router.push('/login');
   };
