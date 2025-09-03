@@ -83,7 +83,7 @@ export default function ClientsPage() {
              <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Gestion des clients</h1>
-                    <p className="text-muted-foreground mt-1">Affichez, ajoutez et gérez vos dossiers clients.</p>
+                    <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                 <Button onClick={() => router.push('/dashboard/clients/new')}>
                     <PlusCircle className="mr-2 h-4 w-4" />
