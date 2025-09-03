@@ -18,6 +18,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -50,38 +52,31 @@ export default function LoginPage() {
   const [password, setPassword] = useState("demodemo");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    // Mock authentication logic
-    setTimeout(() => {
+  const handleRedirect = (userEmail: string) => {
       let role = 'client';
       let name = 'Client Démo';
       let clientId = 'alpha';
 
-      if (email === 'demo@ccs-compta.com' && password === 'demodemo') {
+      if (userEmail === 'demo@ccs-compta.com') {
         role = 'accountant';
         name = 'Comptable Démo';
         clientId = 'alpha'; // Accountants can have a default view
-      } else if (email === 'admin@ccs-compta.com' && password === 'demodemo') {
+      } else if (userEmail === 'admin@ccs-compta.com') {
         role = 'admin';
         name = 'Super Admin';
-      } else if (email.endsWith('@client.com')) {
+      } else if (userEmail.endsWith('@client.com')) {
         role = 'client'
-        name = email.split('@')[0];
+        name = userEmail.split('@')[0];
         clientId = 'beta';
       }
 
       localStorage.setItem('userRole', role);
       localStorage.setItem('userName', name);
-      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userEmail', userEmail);
       
       if (role === 'client' || role === 'accountant') {
         localStorage.setItem('selectedClientId', clientId);
       }
-      
-      setIsLoading(false);
       
       if (role === 'admin') {
           router.push('/dashboard/admin');
@@ -90,15 +85,44 @@ export default function LoginPage() {
       } else {
           router.push('/dashboard');
       }
-    }, 1000);
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      handleRedirect(userCredential.user.email || email);
+    } catch (error: any) {
+        console.error("Firebase Auth Error:", error);
+        toast({
+            variant: "destructive",
+            title: "Erreur de connexion",
+            description: "Email ou mot de passe incorrect. Veuillez réessayer.",
+        })
+    } finally {
+        setIsLoading(false);
+    }
   };
   
-  const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
-      toast({
-          title: "Fonctionnalité non disponible",
-          description: "La connexion Google n'est pas disponible en mode démo. Utilisez les identifiants fournis.",
-      })
+      setIsLoading(true);
+      const provider = new GoogleAuthProvider();
+      try {
+          const result = await signInWithPopup(auth, provider);
+          handleRedirect(result.user.email || '');
+      } catch (error: any) {
+          console.error("Google Sign-In Error:", error);
+          toast({
+              variant: "destructive",
+              title: "Erreur de connexion Google",
+              description: "Impossible de se connecter avec Google. Veuillez réessayer.",
+          })
+      } finally {
+          setIsLoading(false);
+      }
   }
 
   return (
