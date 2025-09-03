@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2, LayoutGrid } from "lucide-react";
+import { DollarSign, Users, FileText, LayoutGrid } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
@@ -21,14 +22,14 @@ import {
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
-  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], category: 'Déplacements', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], category: 'Repas et divertissement', otherInformation: '' }, auditTrail: [], comments:[] },
   { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'bank statement', auditTrail: [], comments:[] },
-  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], category: 'Fournitures de bureau', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
 ];
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -42,28 +43,18 @@ const chartConfig = {
     label: "Moyenne (€)",
     color: "hsl(var(--chart-2))",
   },
-  invoice: {
-    label: "Factures",
-    color: "hsl(var(--chart-1))",
-  },
-  receipt: {
-    label: "Reçus",
-    color: "hsl(var(--chart-2))",
-  },
-  'bank statement': {
-    label: "Relevés",
-    color: "hsl(var(--chart-3))",
-  },
-  other: {
-    label: "Autres",
-    color: "hsl(var(--chart-4))",
-  }
+  "Fournitures de bureau": { label: "Fournitures", color: "hsl(var(--chart-1))" },
+  "Transport": { label: "Transport", color: "hsl(var(--chart-2))" },
+  "Repas et divertissement": { label: "Repas", color: "hsl(var(--chart-3))" },
+  "Services informatiques": { label: "IT", color: "hsl(var(--chart-4))" },
+  "Déplacements": { label: "Déplacements", color: "hsl(var(--chart-5))" },
+  "Autre": { label: "Autre", color: "hsl(var(--chart-1))" }, // Fallback color
 } satisfies ChartConfig
 
 const defaultVisibleComponents = {
     keyStats: true,
     expensesByMonth: true,
-    distributionByType: true,
+    distributionByCategory: true,
     expensesByVendor: true,
     averageSpendByType: true,
 }
@@ -219,16 +210,20 @@ export default function AnalyticsPage() {
         
         const mainVendor = vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A';
 
-        const docsByType = filteredDocuments.reduce((acc, doc) => {
-            const type = doc.type || 'other';
-             if (!acc[type]) {
-                acc[type] = 0;
+        const expensesByCategory = approvedDocs.reduce((acc, doc) => {
+            const category = doc.extractedData?.category || 'Autre';
+             if (!acc[category]) {
+                acc[category] = 0;
             }
-            acc[type]++;
+            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
             return acc;
         }, {} as Record<string, number>);
 
-        const typeChartData = Object.entries(docsByType).map(([name, value]) => ({ name, value, fill: chartConfig[name as keyof typeof chartConfig]?.color  }));
+        const categoryChartData = Object.entries(expensesByCategory).map(([name, value]) => ({ 
+            name, 
+            value, 
+            fill: (chartConfig[name as keyof typeof chartConfig] || chartConfig['Autre'])?.color 
+        }));
         
         const spendByType = approvedDocs.reduce((acc, doc) => {
             const type = doc.type || 'other';
@@ -254,8 +249,9 @@ export default function AnalyticsPage() {
             mainVendor,
             monthlyChartData,
             vendorChartData,
-            typeChartData,
-            averageSpendByTypeChartData
+            categoryChartData,
+            averageSpendByTypeChartData,
+            approvedDocsCount: approvedDocs.length
         };
     }, [filteredDocuments]);
 
@@ -268,13 +264,14 @@ export default function AnalyticsPage() {
 
     const PieCenterLabel = ({ viewBox }: any) => {
         const { cx, cy } = viewBox;
+        const total = analyticsData.categoryChartData.reduce((acc, entry) => acc + entry.value, 0);
         return (
             <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
                 <tspan x={cx} y={cy} className="text-3xl font-bold fill-foreground">
-                    {filteredDocuments.length.toLocaleString()}
+                    {total.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                 </tspan>
                 <tspan x={cx} y={cy + 20} className="text-sm text-muted-foreground">
-                    Documents
+                    Total Dépenses
                 </tspan>
             </text>
         );
@@ -285,7 +282,7 @@ export default function AnalyticsPage() {
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Analyse des Dépenses</h1>
-                <p className="text-muted-foreground mt-1">Visualisez les données extraites de vos documents.</p>
+                <p className="text-muted-foreground mt-1">Visualisez les données extraites des documents approuvés.</p>
             </div>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -296,7 +293,7 @@ export default function AnalyticsPage() {
                     <DropdownMenuSeparator />
                     <DropdownMenuCheckboxItem checked={visibleComponents.keyStats} onCheckedChange={(checked) => handleVisibilityChange('keyStats', !!checked)}>Statistiques Clés</DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem checked={visibleComponents.expensesByMonth} onCheckedChange={(checked) => handleVisibilityChange('expensesByMonth', !!checked)}>Dépenses par Mois</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleComponents.distributionByType} onCheckedChange={(checked) => handleVisibilityChange('distributionByType', !!checked)}>Répartition par Type</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.distributionByCategory} onCheckedChange={(checked) => handleVisibilityChange('distributionByCategory', !!checked)}>Dépenses par Catégorie</DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem checked={visibleComponents.expensesByVendor} onCheckedChange={(checked) => handleVisibilityChange('expensesByVendor', !!checked)}>Dépenses par Fournisseur</DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem checked={visibleComponents.averageSpendByType} onCheckedChange={(checked) => handleVisibilityChange('averageSpendByType', !!checked)}>Dépense Moyenne par Type</DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
@@ -312,7 +309,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">Basé sur {filteredDocuments.filter(d=>d.status === 'approved').length} documents approuvés</p>
+              <p className="text-xs text-muted-foreground">Basé sur {analyticsData.approvedDocsCount} documents approuvés</p>
             </CardContent>
           </Card>
           <Card>
@@ -360,7 +357,7 @@ export default function AnalyticsPage() {
                                     />}
                                 />
                                 <Bar dataKey="total" fill="var(--color-total)" radius={4}>
-                                     <LabelList dataKey="total" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR')}€`} />
+                                     <LabelList dataKey="total" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value)}€`} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -369,33 +366,33 @@ export default function AnalyticsPage() {
             </Card>
             )}
 
-            {visibleComponents.distributionByType && (
+            {visibleComponents.distributionByCategory && (
             <Card>
                 <CardHeader>
-                    <CardTitle>Répartition par Type</CardTitle>
-                    <CardDescription>Distribution des documents par type.</CardDescription>
+                    <CardTitle>Répartition par Catégorie</CardTitle>
+                    <CardDescription>Distribution des dépenses par catégorie comptable.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center">
-                     <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[250px]">
+                     <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(_, name, payload) => <>{chartConfig[payload.name as keyof typeof chartConfig]?.label} ({payload.value})</>}/>} />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value, name, payload) => <div className="flex flex-col"><span className="font-semibold">{chartConfig[payload.name as keyof typeof chartConfig]?.label}</span><span className="text-muted-foreground">{Number(payload.value).toLocaleString('fr-FR', {style:'currency', currency: 'EUR'})}</span></div>}/>} />
                             <Pie
-                                data={analyticsData.typeChartData}
+                                data={analyticsData.categoryChartData}
                                 dataKey="value"
                                 nameKey="name"
                                 cx="50%"
                                 cy="50%"
-                                outerRadius={80}
-                                innerRadius={50}
+                                outerRadius={100}
+                                innerRadius={60}
                                 labelLine={false}
                             >
                                 <Label content={<PieCenterLabel />} />
-                                {analyticsData.typeChartData.map((entry, index) => (
+                                {analyticsData.categoryChartData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.fill} />
                                 ))}
                             </Pie>
-                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value, entry) => <>{chartConfig[entry.payload?.name as keyof typeof chartConfig]?.label} ({entry.payload?.value})</>}/>} className="flex-wrap" />
+                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
                         </PieChart>
                         </ResponsiveContainer>
                     </ChartContainer>
@@ -426,7 +423,7 @@ export default function AnalyticsPage() {
                                     />}
                                 />
                                 <Bar dataKey="total" fill="var(--color-total)" radius={4} layout="vertical">
-                                    <LabelList dataKey="total" position="right" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR')}€`} />
+                                    <LabelList dataKey="total" position="right" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}`} />
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
