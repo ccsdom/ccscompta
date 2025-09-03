@@ -16,8 +16,6 @@ import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { auth } from '@/lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -52,67 +50,55 @@ export default function LoginPage() {
   const [password, setPassword] = useState("demodemo");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSuccessfulLogin = (user: User) => {
-    const userEmail = user.email || "";
-    // Simulate role-based redirect based on email
-    if (userEmail === 'admin@ccs-compta.com') {
-        localStorage.setItem('userRole', 'admin');
-        localStorage.setItem('userName', user.displayName || 'Super Admin');
-        localStorage.setItem('userEmail', userEmail);
-        router.push('/dashboard/accountant');
-    } else if (userEmail === 'demo@ccs-compta.com') {
-        localStorage.setItem('userRole', 'accountant');
-        localStorage.setItem('userName', user.displayName || 'Comptable Démo');
-        localStorage.setItem('userEmail', userEmail);
-        router.push('/dashboard/accountant');
-    } else {
-        localStorage.setItem('userRole', 'client');
-        localStorage.setItem('userName', user.displayName || 'Client Démo');
-        localStorage.setItem('userEmail', userEmail);
-        localStorage.setItem('selectedClientId', 'alpha'); // Default client 'alpha' on login
-        router.push('/dashboard');
-    }
-  }
-  
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        handleSuccessfulLogin(userCredential.user);
-    } catch (error: any) {
-        console.error("Firebase login error:", error);
-        let description = "Une erreur inconnue est survenue.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            description = "L'adresse email ou le mot de passe est incorrect.";
-        }
-        toast({
-            variant: "destructive",
-            title: "Échec de la connexion",
-            description,
-        });
-    } finally {
-        setIsLoading(false);
-    }
-  }
+
+    // Mock authentication logic
+    setTimeout(() => {
+      let role = 'client';
+      let name = 'Client Démo';
+      let clientId = 'alpha';
+
+      if (email === 'demo@ccs-compta.com' && password === 'demodemo') {
+        role = 'accountant';
+        name = 'Comptable Démo';
+        clientId = 'alpha'; // Accountants can have a default view
+      } else if (email === 'admin@ccs-compta.com' && password === 'demodemo') {
+        role = 'admin';
+        name = 'Super Admin';
+      } else if (email.endsWith('@client.com')) {
+        role = 'client'
+        name = email.split('@')[0];
+        clientId = 'beta';
+      }
+
+      localStorage.setItem('userRole', role);
+      localStorage.setItem('userName', name);
+      localStorage.setItem('userEmail', email);
+      
+      if (role === 'client' || role === 'accountant') {
+        localStorage.setItem('selectedClientId', clientId);
+      }
+      
+      setIsLoading(false);
+      
+      if (role === 'admin') {
+          router.push('/dashboard/admin');
+      } else if (role === 'accountant') {
+          router.push('/dashboard/accountant');
+      } else {
+          router.push('/dashboard');
+      }
+    }, 1000);
+  };
   
-  const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-        const result = await signInWithPopup(auth, provider);
-        handleSuccessfulLogin(result.user);
-    } catch (error: any) {
-        console.error("Google login error:", error);
-         toast({
-            variant: "destructive",
-            title: "Échec de la connexion Google",
-            description: "Impossible de se connecter avec Google. Veuillez réessayer.",
-        });
-    } finally {
-        setIsLoading(false);
-    }
+  const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      toast({
+          title: "Fonctionnalité non disponible",
+          description: "La connexion Google n'est pas disponible en mode démo. Utilisez les identifiants fournis.",
+      })
   }
 
   return (

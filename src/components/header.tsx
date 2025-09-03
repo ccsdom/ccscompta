@@ -36,8 +36,6 @@ import type { Notification } from '@/app/dashboard/documents/page';
 import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
-import { auth } from '@/lib/firebase';
-import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 export function Header() {
@@ -123,20 +121,9 @@ export function Header() {
     }
   }
   
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      // Clear local storage and redirect to login
-      localStorage.clear();
-      router.push('/login');
-    } catch (error) {
-      console.error("Error signing out:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de déconnexion",
-        description: "Impossible de se déconnecter. Veuillez réessayer."
-      });
-    }
+  const handleLogout = () => {
+    localStorage.clear();
+    router.push('/login');
   };
 
   const handleAiSearch = async () => {
