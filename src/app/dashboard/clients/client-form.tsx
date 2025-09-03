@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 const formSchema = z.object({
   name: z.string().min(2, { message: "Le nom de l'entreprise doit contenir au moins 2 caractères." }),
   siret: z.string().length(14, { message: "Le SIRET doit contenir 14 chiffres." }).regex(/^\d+$/, { message: "Le SIRET ne doit contenir que des chiffres."}),
+  email: z.string().email({ message: "Adresse email invalide." }),
+  phone: z.string().min(10, { message: "Le numéro de téléphone doit contenir au moins 10 chiffres." }),
   legalRepresentative: z.string().min(2, { message: "Le nom du représentant doit contenir au moins 2 caractères." }),
   address: z.string().min(10, { message: "L'adresse doit contenir au moins 10 caractères." }),
   fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, { message: "Format de date invalide. Utilisez JJ/MM." }),
@@ -37,6 +39,8 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
         defaultValues: {
             name: client?.name || "",
             siret: client?.siret || "",
+            email: client?.email || "",
+            phone: client?.phone || "",
             legalRepresentative: client?.legalRepresentative || "",
             address: client?.address || "",
             fiscalYearEndDate: client?.fiscalYearEndDate || "",
@@ -75,6 +79,34 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                     <FormLabel>SIRET</FormLabel>
                                     <FormControl>
                                         <Input placeholder="14 chiffres" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <FormField
+                                control={form.control}
+                                name="email"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Adresse Email</FormLabel>
+                                    <FormControl>
+                                        <Input type="email" placeholder="contact@entreprise.com" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                             <FormField
+                                control={form.control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Téléphone</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="01 23 45 67 89" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                     </FormItem>
