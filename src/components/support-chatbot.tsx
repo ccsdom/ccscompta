@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -24,7 +25,7 @@ export function SupportChatbot() {
     useEffect(() => {
         if (isOpen && messages.length === 0) {
             setIsLoading(true);
-            supportChat({ question: "Bonjour", history: [] })
+            supportChat({ question: "Bonjour" })
                 .then(response => {
                     setMessages([{ role: 'model', content: [{ text: response }] }]);
                 })

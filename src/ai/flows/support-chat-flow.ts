@@ -81,7 +81,7 @@ ${documentation}`
     });
     
     // Add existing conversation history
-    if (input.history && input.history.length > 0) {
+    if (input.history) {
         messages.push(...input.history);
     }
     
