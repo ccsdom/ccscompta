@@ -21,15 +21,15 @@ const plans = [
         price: "79€",
         description: "Pour les entreprises en développement avec des besoins croissants.",
         features: ["Jusqu'à 200 documents/mois", "Extraction et validation IA", "Analyses détaillées", "Support prioritaire"],
-        isCurrent: true,
-        isPopular: true,
+        isCurrent: false,
     },
     {
         name: "Performance",
         price: "Sur devis",
         description: "Pour les grandes entreprises et les besoins personnalisés.",
         features: ["Documents illimités", "Automatisation avancée", "API & Intégrations", "Support dédié"],
-        isCurrent: false,
+        isCurrent: true,
+        isPopular: true,
     }
 ];
 
@@ -37,6 +37,8 @@ const plans = [
 export default function BillingPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    // Simulate different billing models. 'alpha' is on a custom annual plan.
+    const [billingModel, setBillingModel] = useState<'subscription' | 'custom'>('subscription');
 
      useEffect(() => {
         const loadState = () => {
@@ -48,6 +50,15 @@ export default function BillingPage() {
              const storedClientId = localStorage.getItem('selectedClientId');
              if (storedClientId) {
                 setSelectedClientId(storedClientId);
+                // Demo logic: Client 'alpha' has a custom plan included in their annual fee
+                if (storedClientId === 'alpha') {
+                    setBillingModel('custom');
+                } else {
+                    setBillingModel('subscription');
+                    // For other clients, we can simulate they have the 'Croissance' plan
+                    plans.find(p => p.name === 'Croissance')!.isCurrent = true;
+                    plans.find(p => p.name === 'Performance')!.isCurrent = false;
+                }
              }
         };
         loadState();
@@ -57,7 +68,10 @@ export default function BillingPage() {
 
     const currentMonthDocs = documents.filter(doc => {
         if (doc.clientId !== selectedClientId) return false;
-        const uploadDate = new Date(doc.uploadDate.split('/').reverse().join('-'));
+        // A more robust date parsing would be needed in a real app
+        const [day, month, year] = doc.uploadDate.split('/').map(Number);
+        if (!day || !month || !year) return false;
+        const uploadDate = new Date(year, month - 1, day);
         const today = new Date();
         return uploadDate.getMonth() === today.getMonth() && uploadDate.getFullYear() === today.getFullYear();
     }).length;
@@ -65,13 +79,25 @@ export default function BillingPage() {
     const docLimit = 200; // Based on "Croissance" plan
     const usagePercentage = Math.min((currentMonthDocs / docLimit) * 100, 100);
 
-    return (
-        <div className="space-y-6 max-w-5xl mx-auto">
-             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Facturation et Forfait</h1>
-                <p className="text-muted-foreground mt-1">Gérez votre abonnement et suivez votre consommation.</p>
-            </div>
-            
+    const CurrentPlanCard = () => {
+        if (billingModel === 'custom') {
+            return (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Forfait Annuel sur Mesure</CardTitle>
+                        <CardDescription>Votre plan actuel est inclus dans vos honoraires de tenue comptable.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center gap-4 text-sm">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                            <CheckCircle className="h-6 w-6 text-primary" />
+                        </div>
+                        <p className="text-muted-foreground">L'utilisation de la plateforme, incluant le traitement des documents et l'analyse, est comprise dans votre bilan annuel. Vous bénéficiez de toutes les fonctionnalités sans limite de volume.</p>
+                    </CardContent>
+                </Card>
+            )
+        }
+        
+        return (
             <Card>
                 <CardHeader>
                     <CardTitle>Consommation actuelle</CardTitle>
@@ -91,41 +117,54 @@ export default function BillingPage() {
                     </div>
                 </CardContent>
             </Card>
+        )
+    }
+
+    return (
+        <div className="space-y-6 max-w-5xl mx-auto">
+             <div>
+                <h1 className="text-3xl font-bold tracking-tight">Facturation et Forfait</h1>
+                <p className="text-muted-foreground mt-1">Gérez votre abonnement et suivez votre consommation.</p>
+            </div>
+            
+            <CurrentPlanCard />
 
             <div className="space-y-4">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold tracking-tight">Choisissez le forfait qui vous convient</h2>
-                    <p className="text-muted-foreground mt-1">Passez à un forfait supérieur à tout moment.</p>
+                <div className="text-center pt-8">
+                    <h2 className="text-2xl font-bold tracking-tight">Découvrez nos autres forfaits</h2>
+                    <p className="text-muted-foreground mt-1">Passez à un forfait supérieur à tout moment pour débloquer plus de fonctionnalités.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   {plans.map(plan => (
-                       <Card key={plan.name} className={`flex flex-col ${plan.isCurrent ? 'border-primary ring-2 ring-primary' : ''} ${plan.isPopular ? 'relative' : ''}`}>
-                            {plan.isPopular && <div className="absolute top-0 -translate-y-1/2 w-full flex justify-center"><div className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1"><Star className="h-3 w-3"/> Populaire</div></div>}
-                            <CardHeader className="pt-8">
-                                <CardTitle>{plan.name}</CardTitle>
-                                <CardDescription>{plan.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-1 space-y-6">
-                                <div className="text-4xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/mois</span></div>
-                                <ul className="space-y-3">
-                                    {plan.features.map(feature => (
-                                        <li key={feature} className="flex items-start gap-2">
-                                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                                            <span className="text-muted-foreground">{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                            <CardFooter>
-                                <Button className="w-full" disabled={plan.isCurrent}>
-                                    {plan.isCurrent ? 'Votre forfait actuel' : 'Choisir ce forfait'}
-                                </Button>
-                            </CardFooter>
-                       </Card>
-                   ))}
+                   {plans.map(plan => {
+                       const isCurrentPlan = billingModel === 'custom' ? plan.name === 'Performance' : plan.name === 'Croissance';
+                       return (
+                           <Card key={plan.name} className={`flex flex-col ${isCurrentPlan ? 'border-primary ring-2 ring-primary' : ''} ${plan.isPopular ? 'relative' : ''}`}>
+                                {plan.isPopular && !isCurrentPlan && <div className="absolute top-0 -translate-y-1/2 w-full flex justify-center"><div className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1"><Star className="h-3 w-3"/> Populaire</div></div>}
+                                <CardHeader className="pt-8">
+                                    <CardTitle>{plan.name}</CardTitle>
+                                    <CardDescription>{plan.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1 space-y-6">
+                                    <div className="text-4xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.name !== 'Performance' && '/mois'}</span></div>
+                                    <ul className="space-y-3">
+                                        {plan.features.map(feature => (
+                                            <li key={feature} className="flex items-start gap-2">
+                                                <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
+                                                <span className="text-muted-foreground">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button className="w-full" disabled={isCurrentPlan}>
+                                        {isCurrentPlan ? 'Votre forfait actuel' : 'Choisir ce forfait'}
+                                    </Button>
+                                </CardFooter>
+                           </Card>
+                       )
+                   })}
                 </div>
             </div>
         </div>
     );
 }
-
