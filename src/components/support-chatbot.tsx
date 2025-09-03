@@ -8,14 +8,15 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card'
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { supportChat, type SupportHistory } from '@/ai/flows/support-chat-flow';
+import { supportChat } from '@/ai/flows/support-chat-flow';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import type { Message } from 'genkit';
 
 
 export function SupportChatbot() {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<SupportHistory>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [documentation, setDocumentation] = useState<string | null>(null);
@@ -55,22 +56,21 @@ export function SupportChatbot() {
         e.preventDefault();
         if (!input.trim() || isLoading || documentation === null) return;
 
-        const userMessage = { role: 'user' as const, content: [{ text: input }] };
-        const newMessages = [...messages, userMessage];
+        const userMessage: Message = { role: 'user', content: [{ text: input }] };
+        const newMessages: Message[] = [...messages, userMessage];
         setMessages(newMessages);
         setInput('');
         setIsLoading(true);
 
         try {
             const response = await supportChat({
-                question: input,
-                history: messages, // Pass the history before the new user message
+                history: newMessages, // Pass the full, updated history
                 documentation: documentation,
             });
             setMessages([...newMessages, { role: 'model', content: [{ text: response }] }]);
         } catch (error) {
             console.error("Chatbot error:", error);
-            const errorMessage = { role: 'model' as const, content: [{ text: "Désolé, une erreur est survenue. Veuillez réessayer plus tard." }] };
+            const errorMessage: Message = { role: 'model', content: [{ text: "Désolé, une erreur est survenue. Veuillez réessayer plus tard." }] };
             setMessages([...newMessages, errorMessage]);
         } finally {
             setIsLoading(false);

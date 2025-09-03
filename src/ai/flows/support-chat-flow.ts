@@ -9,19 +9,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import {Message, Role} from 'genkit';
-
-// Define the schema for the conversation history
-const SupportHistorySchema = z.array(z.object({
-  role: z.nativeEnum(Role),
-  content: z.array(z.object({ text: z.string() })),
-}));
-export type SupportHistory = z.infer<typeof SupportHistorySchema>;
+import {Message} from 'genkit';
 
 // Define the input schema for the chat flow
 const SupportChatInputSchema = z.object({
-  question: z.string().describe('The user\'s question.'),
-  history: SupportHistorySchema.optional().describe('The conversation history.'),
+  history: z.array(Message).describe("The conversation history."),
   documentation: z.string().describe('The content of the documentation file.'),
 });
 export type SupportChatInput = z.infer<typeof SupportChatInputSchema>;
@@ -45,10 +37,7 @@ const supportChatFlow = ai.defineFlow(
   },
   async (input) => {
     
-    const messages: Message[] = [];
-
-    // Add a system message to set the context for the entire conversation
-    messages.push({
+    const systemMessage: Message = {
       role: 'system',
       content: [{ text: `You are an expert support agent for the "CCS Compta" software. Your name is 'ComptaBot'.
 Your ONLY source of information is the official documentation provided.
@@ -60,16 +49,9 @@ Never mention that you are an AI or that you are working from a document. Just p
 Official Documentation:
 ${input.documentation}`
       }]
-    });
+    };
     
-    // Add existing conversation history if it exists
-    if (input.history && Array.isArray(input.history)) {
-        messages.push(...input.history);
-    }
-    
-    // Add the new user question
-    messages.push({ role: 'user', content: [{ text: input.question }] });
-
+    const messages: Message[] = [systemMessage, ...input.history];
 
     const { text } = await ai.generate({
         model: 'googleai/gemini-2.5-flash',
