@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Upload } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -31,6 +31,8 @@ import { ClientImportDialog } from '@/components/client-import-dialog';
 import { getClients, deleteClient, type Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import Papa from 'papaparse';
+
 
 export const mockAccountants = [
     { id: 'acc_1', name: 'Marie Dubois' },
@@ -82,6 +84,43 @@ export default function ClientsPage() {
     const handleClientsImported = (newClients: Client[]) => {
         fetchClients();
     }
+    
+    const handleExportClients = async () => {
+        try {
+            const allClients = await getClients();
+            if (allClients.length === 0) {
+                toast({
+                    title: "Aucun client à exporter",
+                    description: "La base de données est vide.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            const csv = Papa.unparse(allClients);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            const date = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `export-clients-${date}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            toast({
+              title: "Exportation réussie",
+              description: `${allClients.length} clients ont été exportés.`,
+            });
+        } catch (error) {
+            console.error("Failed to export clients:", error);
+            toast({
+                title: "Erreur d'exportation",
+                description: "Une erreur est survenue lors de l'exportation des clients.",
+                variant: "destructive"
+            });
+        }
+    }
 
 
     const getStatusBadge = (status: string) => {
@@ -108,6 +147,10 @@ export default function ClientsPage() {
                 </div>
                  <div className="flex items-center gap-2">
                     <ClientImportDialog onClientsImported={handleClientsImported} />
+                     <Button variant="outline" onClick={handleExportClients}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exporter en CSV
+                    </Button>
                     <Button onClick={() => router.push('/dashboard/clients/new')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nouveau Client

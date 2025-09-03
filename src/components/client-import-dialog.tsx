@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload, File, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { FileUp, File, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import type { Client } from '@/lib/client-data';
@@ -124,7 +124,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         }}>
             <DialogTrigger asChild>
                 <Button variant="outline">
-                    <Upload className="mr-2 h-4 w-4" />
+                    <FileUp className="mr-2 h-4 w-4" />
                     Importer des clients
                 </Button>
             </DialogTrigger>
