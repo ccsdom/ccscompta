@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -27,11 +27,12 @@ const clientNavItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [navItems, setNavItems] = useState(clientNavItems);
   const [currentRole, setCurrentRole] = useState('client');
 
   useEffect(() => {
-    // Simulate role-based navigation by reading from local storage
+    setMounted(true);
     const role = localStorage.getItem('userRole');
     if (role === 'accountant') {
       setNavItems(accountantNavItems);
@@ -42,19 +43,43 @@ export function Sidebar() {
       setCurrentRole('client');
       document.body.classList.remove('accountant-theme');
     }
-  }, [pathname]); // Rerun on path change to ensure correct state
+  }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
-    // Exact match for root dashboards
     if (itemHref === '/dashboard' || itemHref === '/dashboard/accountant') {
         return pathname === itemHref;
     }
-    // Starts with for parent routes, but not for the root dashboard
     return pathname.startsWith(itemHref) && itemHref !== '/dashboard' && itemHref !== '/dashboard/accountant';
   }
   
   const getDashboardHomeLink = () => {
     return currentRole === 'accountant' ? '/dashboard/accountant' : '/dashboard';
+  }
+
+  if (!mounted) {
+      return (
+        <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col hidden md:flex">
+            <div className="flex items-center justify-center h-16 border-b">
+                <Link href="/dashboard" className="flex items-center space-x-2">
+                    <Logo className="h-6 w-6 text-primary" />
+                    <span className="font-bold text-lg">CCS Compta</span>
+                </Link>
+            </div>
+            <div className="p-4 border-b h-[92px] animate-pulse bg-muted/50" />
+            <nav className="flex-1 px-4 py-4 space-y-2">
+                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
+                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
+                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
+                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
+            </nav>
+            <div className="mt-auto p-4 border-t">
+                <Button variant="ghost" className="w-full justify-start">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Déconnexion
+                </Button>
+            </div>
+        </aside>
+      )
   }
 
   return (
@@ -67,18 +92,12 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 border-b space-y-4">
-        {currentRole === 'accountant' ? (
-          <>
-            <div className="text-center">
-              <span className="text-sm font-semibold uppercase text-primary">Espace Comptable</span>
-            </div>
-            <ClientSwitcher />
-          </>
-        ) : (
-           <div className="text-center">
-             <span className="text-sm font-semibold uppercase text-primary">Espace Client</span>
-           </div>
-        )}
+        <div className="text-center">
+            <span className="text-sm font-semibold uppercase text-primary">
+                {currentRole === 'accountant' ? 'Espace Comptable' : 'Espace Client'}
+            </span>
+        </div>
+        {currentRole === 'accountant' && <ClientSwitcher />}
       </div>
 
 

@@ -35,14 +35,16 @@ import { QuickUpload } from "./quick-upload";
 import type { Notification } from '@/app/dashboard/documents/page';
 import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from './ui/skeleton';
 
 export function Header() {
+  const [mounted, setMounted] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAiSearching, setIsAiSearching] = useState(false);
-  const [userName, setUserName] = useState("Utilisateur Démo");
-  const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
+  const [userName, setUserName] = useState("Utilisateur");
+  const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("client");
   const { toast } = useToast();
 
@@ -60,44 +62,31 @@ export function Header() {
   }, []);
 
   const loadUserData = useCallback(() => {
-    const storedName = localStorage.getItem('userName');
-    if (storedName) setUserName(storedName);
-
-    const storedEmail = localStorage.getItem('userEmail');
-    if (storedEmail) setUserEmail(storedEmail);
-
-    const storedRole = localStorage.getItem('userRole');
-    if (storedRole) setUserRole(storedRole);
+    setUserName(localStorage.getItem('userName') || "Utilisateur");
+    setUserEmail(localStorage.getItem('userEmail') || "");
+    setUserRole(localStorage.getItem('userRole') || "client");
   }, []);
 
   const loadSearchQuery = useCallback(() => {
     const storedQuery = localStorage.getItem('searchQuery');
-    if (storedQuery) {
-        setSearchQuery(storedQuery);
-    }
-     const storedCriteria = localStorage.getItem('searchCriteria');
-    if (!storedCriteria && storedQuery) {
-      setSearchQuery(storedQuery);
-    } else if (storedCriteria) {
+    const storedCriteria = localStorage.getItem('searchCriteria');
+    if (storedCriteria) {
       setSearchQuery(JSON.parse(storedCriteria).originalQuery);
+    } else if (storedQuery) {
+        setSearchQuery(storedQuery);
     }
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     loadNotifications();
     loadSearchQuery();
     loadUserData();
     
     const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === 'notifications') {
-            loadNotifications();
-        }
-        if (e.key === 'searchQuery' || e.key === 'searchCriteria') {
-            loadSearchQuery();
-        }
-        if (e.key === 'userName' || e.key === 'userEmail' || e.key === 'userRole') {
-            loadUserData();
-        }
+        if (e.key === 'notifications') loadNotifications();
+        if (e.key === 'searchQuery' || e.key === 'searchCriteria') loadSearchQuery();
+        if (e.key === 'userName' || e.key === 'userEmail' || e.key === 'userRole') loadUserData();
     }
     
     window.addEventListener('storage', handleStorageChange);
@@ -115,7 +104,6 @@ export function Header() {
     const query = e.target.value;
     setSearchQuery(query);
     if (!query) {
-        // Clear search
         localStorage.removeItem('searchQuery');
         localStorage.removeItem('searchCriteria');
         window.dispatchEvent(new Event('storage'));
@@ -126,7 +114,7 @@ export function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
         localStorage.setItem('searchQuery', searchQuery);
-        localStorage.removeItem('searchCriteria'); // Prioritize simple search
+        localStorage.removeItem('searchCriteria');
         window.dispatchEvent(new Event('storage'));
     }
   }
@@ -143,7 +131,7 @@ export function Header() {
             currentDate: new Date().toISOString()
         });
         localStorage.setItem('searchCriteria', JSON.stringify(criteria));
-        localStorage.removeItem('searchQuery'); // Prioritize AI search
+        localStorage.removeItem('searchQuery');
         window.dispatchEvent(new Event('storage'));
         toast({
           title: 'Recherche intelligente terminée',
@@ -165,6 +153,21 @@ export function Header() {
       return <FileWarning className="h-8 w-8 text-yellow-500" />;
     }
     return <FileWarning className="h-8 w-8 text-red-500" />;
+  }
+
+  if (!mounted) {
+    return (
+        <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
+                <Skeleton className="h-10 md:w-2/3 lg:w-1/2" />
+                <div className="flex items-center space-x-1 md:space-x-2">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                </div>
+            </div>
+        </header>
+    )
   }
 
   return (
