@@ -13,7 +13,7 @@ import {
   SheetContent,
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, X, FilterX } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -533,6 +533,53 @@ export default function DocumentsPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const SearchCriteriaDisplay = () => {
+    if (!searchCriteria) return null;
+
+    const criteria = Object.entries(searchCriteria)
+        .filter(([key, value]) => key !== 'originalQuery' && value && (!Array.isArray(value) || value.length > 0))
+        .map(([key, value]) => {
+            let label = key;
+            let val = value;
+            if (key === 'documentTypes') label = 'Type';
+            if (key === 'startDate') {
+                label = 'Après le';
+                val = new Date(value).toLocaleDateString('fr-FR');
+            }
+            if (key === 'endDate') {
+                label = 'Avant le';
+                 val = new Date(value).toLocaleDateString('fr-FR');
+            }
+            if (key === 'minAmount') label = 'Montant min';
+            if (key === 'maxAmount') label = 'Montant max';
+            if (key === 'vendor') label = 'Fournisseur';
+            if (key === 'keywords') label = 'Mots-clés';
+            return <Badge key={key} variant="secondary" className="gap-1">{label}: <span className="font-semibold">{Array.isArray(val) ? val.join(', ') : val}</span></Badge>
+        });
+    
+    const handleClearSearch = () => {
+        setSearchCriteria(null);
+        setSearchQuery("");
+        localStorage.removeItem('searchCriteria');
+        localStorage.removeItem('searchQuery');
+        window.dispatchEvent(new Event('storage'));
+    }
+
+    if (criteria.length === 0) return null;
+
+    return (
+      <div className="flex items-center gap-2 mb-4 p-2 bg-muted rounded-md border">
+        <span className="text-sm font-medium text-muted-foreground pl-2">Filtres actifs :</span>
+        <div className="flex flex-wrap gap-1">
+            {criteria}
+        </div>
+        <Button variant="ghost" size="icon" className="ml-auto h-6 w-6" onClick={handleClearSearch}>
+            <FilterX className="h-4 w-4" />
+        </Button>
+      </div>
+    )
+  }
+
   const BulkActionsToolbar = () => (
     <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4">
         <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
@@ -626,6 +673,7 @@ export default function DocumentsPage() {
       <div className="flex flex-col gap-6 h-full">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
+        <SearchCriteriaDisplay />
         <DocumentHistory
           documents={filteredDocuments}
           onProcess={(doc) => handleProcessDocument(doc.id)}

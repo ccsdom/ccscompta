@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Receipt, Landmark, FileQuestion, Play, MoreHorizontal, FileClock, Eye, Trash2 } from "lucide-react";
+import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock } from "lucide-react";
 import type { Document } from "@/app/dashboard/documents/page";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React from 'react';
@@ -50,10 +50,11 @@ const getStatusBadge = (status: Document['status']) => {
 
 const getDocIcon = (type?: string) => {
     const docType = type?.toLowerCase() ?? '';
-    if (docType.includes('invoice')) return <FileText className="h-5 w-5 text-muted-foreground" />;
-    if (docType.includes('receipt')) return <Receipt className="h-5 w-5 text-muted-foreground" />;
-    if (docType.includes('bank statement')) return <Landmark className="h-5 w-5 text-muted-foreground" />;
-    return <FileQuestion className="h-5 w-5 text-muted-foreground" />;
+    const className = "h-5 w-5 text-muted-foreground";
+    if (docType.includes('invoice')) return <TooltipContent>Facture</TooltipContent> && <FileText className={className} />;
+    if (docType.includes('receipt')) return <TooltipContent>Reçu</TooltipContent> && <Receipt className={className} />;
+    if (docType.includes('bank statement')) return <TooltipContent>Relevé bancaire</TooltipContent> && <Landmark className={className} />;
+    return <TooltipContent>Autre</TooltipContent> && <FileQuestion className={className} />;
 }
 
 export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
@@ -93,7 +94,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                 aria-label="Tout sélectionner"
                             />
                         </TableHead>
-                        <TableHead className="w-[50px] p-2 text-center"></TableHead>
+                        <TableHead className="w-[50px] p-2 text-center">Type</TableHead>
                         <TableHead>Nom du fichier</TableHead>
                         <TableHead className="hidden md:table-cell">Date</TableHead>
                         <TableHead>Statut</TableHead>
@@ -116,7 +117,18 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                     aria-label={`Sélectionner ${doc.name}`}
                                 />
                             </TableCell>
-                            <TableCell className="p-2 text-center">{getDocIcon(doc.type)}</TableCell>
+                            <TableCell className="p-2 text-center">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex justify-center items-center h-full">{getDocIcon(doc.type)}</div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right">
+                                            <p>{doc.type ? doc.type.charAt(0).toUpperCase() + doc.type.slice(1) : 'Type inconnu'}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </TableCell>
                             <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
                             <TableCell className="hidden md:table-cell text-muted-foreground">{doc.uploadDate}</TableCell>
                             <TableCell>{getStatusBadge(doc.status)}</TableCell>
