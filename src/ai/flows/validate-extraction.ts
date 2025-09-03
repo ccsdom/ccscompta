@@ -9,8 +9,14 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { type ExtractDataOutput } from './extract-data-from-documents';
 
+const TransactionSchema = z.object({
+  date: z.string().describe('The date of the transaction.'),
+  description: z.string().describe('The description or label of the transaction.'),
+  amount: z.number().describe('The amount of the transaction. Use positive for credits, negative for debits.'),
+  vendor: z.string().optional().describe('The identified vendor.'),
+  category: z.string().optional().describe('The suggested accounting category.'),
+});
 
 const ValidateExtractionInputSchema = z.object({
   documentDataUri: z
@@ -19,12 +25,13 @@ const ValidateExtractionInputSchema = z.object({
       "The accounting document as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   extractedData: z.object({
-      dates: z.array(z.string()).describe('Dates found in the document.'),
-      amounts: z.array(z.number()).describe('Amounts found in the document.'),
-      vendorNames: z.array(z.string()).describe('Vendor names found in the document.'),
+      dates: z.array(z.string()).optional().describe('Dates found in the document.'),
+      amounts: z.array(z.number()).optional().describe('Amounts found in the document.'),
+      vendorNames: z.array(z.string()).optional().describe('Vendor names found in the document.'),
       category: z.string().optional().describe('The suggested accounting category.'),
-      otherInformation: z.string().describe('Other relevant information extracted.'),
+      otherInformation: z.string().optional().describe('Other relevant information extracted.'),
       anomalies: z.array(z.string()).optional().describe('Potential anomalies detected.'),
+      transactions: z.array(TransactionSchema).optional().describe('List of transactions for bank statements.')
   }),
 });
 type ValidateExtractionInput = z.infer<typeof ValidateExtractionInputSchema>;
@@ -53,7 +60,7 @@ const prompt = ai.definePrompt({
 You will be given the document and the JSON data that was extracted.
 Your task is to meticulously compare the extracted JSON data with the provided document image.
 
-1.  **Verify Every Field**: Check if the extracted vendor names, dates, and amounts are clearly and accurately present in the document image.
+1.  **Verify Every Field**: Check if the extracted vendor names, dates, and amounts (or individual transactions for a bank statement) are clearly and accurately present in the document image.
 2.  **Check for Hallucinations**: Ensure no data has been imagined or incorrectly inferred.
 3.  **Assess Confidence**: Based on your verification, determine a confidence score (from 0.0 to 1.0) of the extraction's accuracy. A score of 1.0 means you are 100% certain every piece of data is correct and visible in the document. A score below 0.9 suggests potential issues.
 4.  **Set Flag**: If your confidence score is 0.95 or higher and there are no anomalies, set \`isConfident\` to true. Otherwise, set it to false.

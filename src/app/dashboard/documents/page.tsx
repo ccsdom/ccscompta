@@ -12,11 +12,11 @@ import { fileToDataUri } from '@/lib/utils';
 import {
   Sheet,
   SheetContent,
-  SheetTitle,
-  SheetHeader
+  SheetHeader,
+  SheetTitle
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, X, FilterX } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -251,7 +251,7 @@ export default function DocumentsPage() {
       };
 
       // Auto-approval logic
-      if (automationSettings.isEnabled) {
+      if (automationSettings.isEnabled && recognition.documentType !== 'bank statement') { // Don't auto-approve bank statements for now
           trail = addAuditEvent(docId, 'Validation automatique initiée');
           const validation = await validateExtraction({ documentDataUri: docToProcess.dataUrl, extractedData: extracted });
           
@@ -450,9 +450,9 @@ export default function DocumentsPage() {
         doc.uploadDate,
         doc.status,
         doc.type || '',
-        data.vendorNames.join('; '),
-        data.dates.join('; '),
-        data.amounts.join('; '),
+        data.vendorNames?.join('; '),
+        data.dates?.join('; '),
+        data.amounts?.join('; '),
         data.category || '',
         `"${(data.otherInformation || '').replace(/"/g, '""')}"` // Escape quotes
       ];
@@ -491,24 +491,24 @@ export default function DocumentsPage() {
                 filteredByAI = true;
             }
             if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a >= minAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
                 filteredByAI = true;
             }
             if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a <= maxAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
                 filteredByAI = true;
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
                 filteredByAI = true;
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
                 filteredByAI = true;
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
                 filteredByAI = true;
             }
             if (keywords && keywords.length > 0) {
@@ -721,7 +721,9 @@ export default function DocumentsPage() {
           {activeDocument ? (
             <>
             <SheetHeader className="p-6">
-              <SheetTitle className="sr-only">{activeDocument.name}</SheetTitle>
+              <SheetTitle>
+                <span className="sr-only">{activeDocument.name}</span>
+              </SheetTitle>
             </SheetHeader>
             <DataValidationForm
               key={activeDocument.id}
