@@ -15,9 +15,11 @@ const fromFirestore = (firestoreDoc: DocumentData): Client => {
     const data = firestoreDoc.data();
     
     let lastActivity = data.lastActivity;
+    // Firestore stores dates as Timestamps, so we need to convert them.
     if (lastActivity instanceof Timestamp) {
         lastActivity = lastActivity.toDate().toISOString().split('T')[0];
     } else if (typeof lastActivity !== 'string') {
+        // Provide a sensible default if the field is missing or not a string.
         lastActivity = new Date().toISOString().split('T')[0];
     }
 
@@ -29,7 +31,7 @@ const fromFirestore = (firestoreDoc: DocumentData): Client => {
         legalRepresentative: data.legalRepresentative,
         fiscalYearEndDate: data.fiscalYearEndDate,
         status: data.status,
-        newDocuments: data.newDocuments ?? 0,
+        newDocuments: data.newDocuments ?? 0, // Use nullish coalescing for a safe default
         lastActivity: lastActivity,
         email: data.email,
         phone: data.phone,
@@ -89,7 +91,6 @@ const AddClientInputSchema = z.object({
 export async function addClient(newClientData: z.infer<typeof AddClientInputSchema>): Promise<Client> {
     const validatedData = AddClientInputSchema.parse(newClientData);
     
-    // Check for duplicate SIRET
     const q = query(clientsCollection, where("siret", "==", validatedData.siret));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -101,11 +102,11 @@ export async function addClient(newClientData: z.infer<typeof AddClientInputSche
         const dataToSave = {
             ...validatedData,
             newDocuments: 0,
-            lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
         };
         const docRef = await addDoc(clientsCollection, dataToSave);
-        const newDoc = await getDoc(docRef);
-        return fromFirestore(newDoc);
+        const newDocSnap = await getDoc(docRef);
+        return fromFirestore(newDocSnap);
         
     } catch (error) {
         console.error("Error adding client to Firestore:", error);
