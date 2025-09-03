@@ -266,7 +266,7 @@ export default function MyDocumentsPage() {
                             <div className="flex items-center gap-4 flex-1 min-w-0" onClick={() => handleSetActive(doc)}>
                                 <div>
                                     <p className="font-medium truncate" title={doc.name}>{doc.name}</p>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 mt-1">
                                         <p className="text-sm text-muted-foreground">Le {doc.uploadDate}</p>
                                         {getStatusBadge(doc.status)}
                                     </div>
@@ -369,9 +369,13 @@ export default function MyDocumentsPage() {
             <>
                 <SheetHeader className="p-6 border-b">
                   <SheetTitle>{activeDocument.name}</SheetTitle>
-                  <SheetDescription>
-                    Téléversé le {activeDocument.uploadDate} - {getStatusBadge(activeDocument.status)}
-                  </SheetDescription>
+                   <div className="flex items-center gap-x-3">
+                    <SheetDescription>
+                        Téléversé le {activeDocument.uploadDate}
+                    </SheetDescription>
+                    -
+                    {getStatusBadge(activeDocument.status)}
+                   </div>
                 </SheetHeader>
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
