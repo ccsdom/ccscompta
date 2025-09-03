@@ -3,34 +3,41 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
-import { DocumentHistory } from '@/components/document-history';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2 } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '../documents/page';
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet"
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { DataValidationForm } from '@/components/data-validation-form';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
-// This is a simplified version of the documents page for the client view.
-// It reuses some logic but has a much simpler interface.
+const getStatusBadge = (status: Document['status']) => {
+  switch (status) {
+    case 'pending':
+      return <Badge variant="outline">En attente</Badge>;
+    case 'processing':
+      return <Badge variant="secondary">En traitement...</Badge>;
+    case 'reviewing':
+      return <Badge className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100/80">En examen</Badge>;
+    case 'approved':
+      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80">Approuvé</Badge>;
+    case 'error':
+      return <Badge variant="destructive">Erreur</Badge>;
+    default:
+      return <Badge variant="outline">Inconnu</Badge>;
+  }
+};
+
 export default function MyDocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
@@ -43,7 +50,7 @@ export default function MyDocumentsPage() {
         try {
             const storedDocs = localStorage.getItem('documents');
             if (storedDocs) {
-                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [] }));
+                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [], comments: d.comments || [] }));
                 setDocuments(parsedDocs);
             }
             const storedClientId = localStorage.getItem('selectedClientId');
@@ -110,8 +117,6 @@ export default function MyDocumentsPage() {
     
     if (newDocuments.length > 0) {
       setDocuments(prev => [...newDocuments, ...prev]);
-      setActiveDocument(newDocuments[0]);
-      setIsSheetOpen(true);
       toast({
         title: "Fichiers téléversés",
         description: `${newDocuments.length} nouveau(x) document(s) ajoutés. Votre comptable sera notifié.`,
@@ -119,10 +124,29 @@ export default function MyDocumentsPage() {
     }
   };
 
+  const handleAddComment = (docId: string, commentText: string) => {
+    if (!commentText.trim()) return;
+    const newComment: Comment = {
+      id: crypto.randomUUID(),
+      text: commentText,
+      user: getCurrentUser(),
+      date: new Date().toISOString(),
+    };
+    
+    setDocuments(prev => prev.map(d => {
+        if (d.id === docId) {
+            const trail = [...(d.auditTrail || []), { action: `Commentaire ajouté: "${commentText.substring(0, 20)}..."`, date: new Date().toISOString(), user: getCurrentUser()}];
+            return { ...d, comments: [...(d.comments || []), newComment], auditTrail: trail };
+        }
+        return d;
+    }));
+  };
+
   const handleDelete = (docId: string) => {
      setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
       if (activeDocument?.id === docId) {
         setActiveDocument(null);
+        setIsSheetOpen(false);
       }
      toast({
         variant: 'destructive',
@@ -155,18 +179,21 @@ export default function MyDocumentsPage() {
             {clientDocuments.length > 0 ? (
                 <ul className="space-y-3">
                     {clientDocuments.map(doc => (
-                        <li key={doc.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/20">
-                            <div className="flex items-center gap-4">
+                        <li key={doc.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/20 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-4 flex-1 min-w-0" onClick={() => handleSetActive(doc)}>
                                 <div>
-                                    <p className="font-medium">{doc.name}</p>
-                                    <p className="text-sm text-muted-foreground">Téléversé le {doc.uploadDate}</p>
+                                    <p className="font-medium truncate" title={doc.name}>{doc.name}</p>
+                                    <div className="flex items-center gap-4">
+                                        <p className="text-sm text-muted-foreground">Le {doc.uploadDate}</p>
+                                        {getStatusBadge(doc.status)}
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+                                        <Button variant="destructive" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
@@ -196,20 +223,92 @@ export default function MyDocumentsPage() {
     </Card>
   )
 
-  const DocumentPreviewSheet = () => (
-     <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-        {activeDocument ? (
-            <div className="h-full flex flex-col gap-4 py-6">
-                <h2 className="text-lg font-semibold truncate">{activeDocument.name}</h2>
-                 <div className="flex-1 aspect-w-1 aspect-h-1 bg-muted rounded-md">
-                     <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
-                 </div>
-                 <div>
-                    <h3 className="font-semibold mb-2">Statut</h3>
-                     <p className="text-sm text-muted-foreground">Le document est en cours de traitement par votre comptable.</p>
-                 </div>
-                 <Button onClick={() => setIsSheetOpen(false)}>Fermer</Button>
+  const CommentsSectionClient = ({ comments, onAddComment }: { comments: Comment[], onAddComment: (text: string) => void }) => {
+    const [newComment, setNewComment] = useState("");
+
+    const handleSubmit = () => {
+        if (newComment.trim()) {
+            onAddComment(newComment.trim());
+            setNewComment("");
+        }
+    }
+    
+    return (
+        <div className="flex flex-col h-full">
+            <h3 className="font-semibold text-lg px-6 pt-6 pb-2">Commentaires</h3>
+            <ScrollArea className="flex-1 px-6">
+                <div className="space-y-4 py-4">
+                    {comments.length > 0 ? (
+                        comments.slice().reverse().map((comment) => (
+                            <div key={comment.id} className="flex items-start gap-3 text-sm">
+                                <Avatar className="h-8 w-8 border shrink-0">
+                                    <AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 bg-muted rounded-md p-3">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold">{comment.user}</p>
+                                        <p className="text-xs text-muted-foreground">{format(new Date(comment.date), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p>
+                                    </div>
+                                    <p className="mt-1 text-foreground/90">{comment.text}</p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                         <div className="text-center text-sm text-muted-foreground py-10">
+                            <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                            <p>Aucun commentaire pour l'instant.</p>
+                         </div>
+                    )}
+                </div>
+            </ScrollArea>
+             <div className="flex items-start gap-3 p-6 border-t">
+                <Avatar className="h-8 w-8 border shrink-0">
+                    <AvatarFallback>Moi</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <Textarea 
+                        placeholder="Répondre ou poser une question..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        rows={2}
+                        className="bg-transparent border"
+                    />
+                    <Button size="sm" className="mt-2" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
+                </div>
             </div>
+        </div>
+    )
+}
+
+  const DocumentPreviewSheet = () => (
+     <SheetContent side="right" className="p-0 w-full sm:max-w-xl flex flex-col">
+        {activeDocument ? (
+            <>
+                <div className="p-6 border-b">
+                    <h2 className="text-lg font-semibold truncate" title={activeDocument.name}>{activeDocument.name}</h2>
+                    <p className="text-sm text-muted-foreground">Téléversé le {activeDocument.uploadDate}</p>
+                    <div className="mt-2">{getStatusBadge(activeDocument.status)}</div>
+                </div>
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
+                    <div className="h-full flex flex-col">
+                       <DataValidationForm
+                          document={activeDocument}
+                          onUpdate={() => {}}
+                          onSendToCegid={() => {}}
+                          isLoading={false}
+                          onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
+                          isSheet
+                          isClientView
+                        />
+                    </div>
+                    <div className="h-full flex flex-col border-l bg-muted/20">
+                         <CommentsSectionClient comments={activeDocument.comments} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
+                    </div>
+                </div>
+                 <div className="p-6 border-t">
+                    <Button onClick={() => setIsSheetOpen(false)} className="w-full">Fermer</Button>
+                 </div>
+            </>
         ) : (
             <div className="h-full flex items-center justify-center">
                 <p>Sélectionnez un document.</p>
@@ -237,6 +336,7 @@ export default function MyDocumentsPage() {
                     <p>1. Déposez vos fichiers (factures, reçus, etc.) dans la zone ci-dessus.</p>
                     <p>2. Nous notifions votre comptable automatiquement.</p>
                     <p>3. Suivez le statut de vos documents dans la liste à droite.</p>
+                    <p>4. Cliquez sur un document pour voir les détails et communiquer avec votre comptable.</p>
                 </CardContent>
             </Card>
         </div>

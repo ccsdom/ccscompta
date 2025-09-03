@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,6 +29,7 @@ interface DataValidationFormProps {
   isLoading: boolean;
   onAddComment: (commentText: string) => void;
   isSheet?: boolean;
+  isClientView?: boolean;
 }
 
 const initialFormState: ExtractDataOutput = {
@@ -194,7 +196,7 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
 }
 
 
-export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false, isClientView = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSent, setIsSent] = useState(false);
   const { toast } = useToast();
@@ -224,16 +226,48 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     if(document) onUpdate(formData);
   }
 
-  const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
+  const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing' || isClientView;
 
-  const CardWrapper = ({ children }: { children: React.ReactNode }) => (
-    <Card className={`flex-1 rounded-none border-0 lg:rounded-lg lg:border h-full flex flex-col ${isSheet ? '' : 'mt-[-24px]'}`}>
-        {children}
-    </Card>
-  );
+  const CardWrapper = ({ children }: { children: React.ReactNode }) => {
+    if (isClientView) {
+      return <div className="h-full flex flex-col">{children}</div>;
+    }
+    return (
+        <Card className={`flex-1 rounded-none border-0 lg:rounded-lg lg:border h-full flex flex-col ${isSheet ? '' : 'mt-[-24px]'}`}>
+            {children}
+        </Card>
+    );
+  };
 
   if (!document) {
     return null;
+  }
+  
+  if (isClientView) {
+      return (
+          <div className="h-full flex flex-col">
+              <div className="flex-1 p-6">
+                  {isSheet && (
+                      <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto mb-4">
+                          <iframe src={document.dataUrl} className="w-full h-full" title="Aperçu du document" />
+                      </div>
+                  )}
+                  <h3 className="font-semibold text-lg mb-4">Données validées</h3>
+                   {document.status === 'approved' && document.extractedData ? (
+                     <div className="space-y-3 text-sm">
+                        <div className="flex justify-between"><span>Fournisseur:</span><span className="font-medium">{document.extractedData.vendorNames.join(', ')}</span></div>
+                        <div className="flex justify-between"><span>Date:</span><span className="font-medium">{document.extractedData.dates[0]}</span></div>
+                        <div className="flex justify-between"><span>Montant:</span><span className="font-medium">{document.extractedData.amounts[0].toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</span></div>
+                        <div className="flex justify-between"><span>Catégorie:</span><span className="font-medium">{document.extractedData.category}</span></div>
+                     </div>
+                   ) : (
+                     <div className="text-center text-sm text-muted-foreground py-8">
+                        <p>Les données du document n'ont pas encore été validées par votre comptable.</p>
+                     </div>
+                   )}
+              </div>
+          </div>
+      )
   }
 
   const hasAnomalies = formData.anomalies && formData.anomalies.length > 0;
@@ -250,7 +284,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                 {document.name}
               </CardDescription>
             </div>
-            {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({(document.confidence ?? 0).toFixed(0)}%)</Badge>}
+            {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({(document.confidence ?? 0) * 100}%)</Badge>}
           </div>
         </CardHeader>
         <CardContent className="flex-1 p-0 lg:p-6 lg:pt-0 flex flex-col gap-4">
@@ -334,13 +368,13 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
         <CardFooter className="flex justify-end gap-2 p-4 lg:p-6 border-t">
           {document.status === 'reviewing' && (
             <>
-              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="h-4 w-4" />Annuler</Button>
-              <Button type="submit"><Check className="h-4 w-4" />Approuver</Button>
+              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="h-4 w-4 mr-2" />Annuler</Button>
+              <Button type="submit"><Check className="h-4 w-4 mr-2" />Approuver</Button>
             </>
           )}
           {document.status === 'approved' && (
             <Button type="button" onClick={() => { onSendToCegid(document); setIsSent(true); }} disabled={isSent}>
-              {isSent ? <><Check className="h-4 w-4" />Envoyé</> : <><Send className="h-4 w-4" />Envoyer à Cegid</>}
+              {isSent ? <><Check className="h-4 w-4 mr-2" />Envoyé</> : <><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</>}
             </Button>
           )}
         </CardFooter>
