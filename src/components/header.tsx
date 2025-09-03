@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from "next/link"
@@ -11,7 +12,8 @@ import {
   CheckCircle,
   FileWarning,
   Wand2,
-  Loader2
+  Loader2,
+  PlusCircle
 } from "lucide-react"
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -196,7 +198,7 @@ export function Header() {
         </div>
         
         <div className="flex items-center space-x-1 md:space-x-2">
-            {userRole === 'accountant' && <QuickUpload />}
+            {userRole === 'client' && <QuickUpload />}
 
              <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
               <DropdownMenuTrigger asChild>
