@@ -97,11 +97,9 @@ export function Sidebar() {
       return (
         <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col hidden md:flex">
             <div className="flex items-center justify-center h-16 border-b">
-                <Link href="/dashboard" passHref legacyBehavior>
-                    <a className="flex items-center space-x-2">
-                        <Logo className="h-6 w-6 text-primary" />
-                        <span className="font-bold text-lg">CCS Compta</span>
-                    </a>
+                <Link href="/dashboard" className="flex items-center space-x-2">
+                    <Logo className="h-6 w-6 text-primary" />
+                    <span className="font-bold text-lg">CCS Compta</span>
                 </Link>
             </div>
             <div className="p-4 border-b h-[116px]">
@@ -124,11 +122,9 @@ export function Sidebar() {
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col hidden md:flex">
       <div className="flex items-center justify-center h-16 border-b">
-        <Link href={getDashboardHomeLink()} passHref legacyBehavior>
-            <a className="flex items-center space-x-2">
-                <Logo className="h-6 w-6 text-primary" />
-                <span className="font-bold text-lg">CCS Compta</span>
-            </a>
+        <Link href={getDashboardHomeLink()} className="flex items-center space-x-2">
+            <Logo className="h-6 w-6 text-primary" />
+            <span className="font-bold text-lg">CCS Compta</span>
         </Link>
       </div>
 
@@ -147,16 +143,12 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
-            passHref
-            legacyBehavior
-          >
-            <a className={cn(
+            className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
               isNavItemActive(item.href) ? 'bg-muted text-primary' : ''
             )}>
               <item.icon className="h-4 w-4" />
               {item.label}
-            </a>
           </Link>
         ))}
       </nav>
@@ -165,16 +157,12 @@ export function Sidebar() {
              <Link
                 key={item.href}
                 href={item.href}
-                passHref
-                legacyBehavior
-            >
-                <a className={cn(
+                className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
                 isNavItemActive(item.href) ? 'bg-muted text-primary' : ''
                 )}>
                     <item.icon className="h-4 w-4" />
                     {item.label}
-                </a>
             </Link>
         ))}
         <Separator className="my-2"/>
