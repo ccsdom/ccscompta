@@ -267,7 +267,7 @@ export default function MyDocumentsPage() {
                 </Avatar>
                 <div className="flex-1">
                     <Textarea 
-                        placeholder="Répondre ou poser une question..."
+                        placeholder="Répondre ou poser une question... Mentionnez quelqu'un avec @"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         rows={2}
