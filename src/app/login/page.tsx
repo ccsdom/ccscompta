@@ -62,7 +62,7 @@ export default function LoginPage() {
             alt="Image"
             fill
             className="object-cover"
-            data-ai-hint="accounting finance"
+            data-ai-hint="accounting office"
         />
          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/0" />
          <div className="relative h-full flex flex-col justify-between p-12 text-white">
