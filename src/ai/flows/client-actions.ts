@@ -14,12 +14,17 @@ const clientsCollection = collection(db, 'clients');
 const fromFirestore = (firestoreDoc: DocumentData): Client => {
     const data = firestoreDoc.data();
     
-    let lastActivity = data.lastActivity;
-    // Firestore stores dates as Timestamps, so we need to convert them.
-    if (lastActivity instanceof Timestamp) {
-        lastActivity = lastActivity.toDate().toISOString().split('T')[0];
-    } else if (typeof lastActivity !== 'string') {
-        // Provide a sensible default if the field is missing or not a string.
+    let lastActivity: string;
+    const activityData = data.lastActivity;
+
+    if (activityData instanceof Timestamp) {
+        // Convert Firestore Timestamp to 'YYYY-MM-DD' string
+        lastActivity = activityData.toDate().toISOString().split('T')[0];
+    } else if (typeof activityData === 'string' && activityData.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Already a 'YYYY-MM-DD' string (from mock data)
+        lastActivity = activityData;
+    } else {
+        // Fallback for missing or unknown format
         lastActivity = new Date().toISOString().split('T')[0];
     }
 
@@ -46,6 +51,8 @@ export async function getClients(): Promise<Client[]> {
             console.log("No clients found in Firestore. Seeding with mock data...");
             for (const client of MOCK_CLIENTS) {
                 const { id, ...clientData } = client as any;
+                // When seeding mock data, ensure `lastActivity` is written in a consistent format if needed.
+                // The current mock data uses strings, which our robust `fromFirestore` can now handle.
                 await addDoc(clientsCollection, { ...clientData });
             }
             const seededSnapshot = await getDocs(clientsCollection);
@@ -103,10 +110,15 @@ export async function addClient(newClientData: z.infer<typeof AddClientInputSche
         const dataToSave = {
             ...validatedData,
             newDocuments: 0,
-            lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+            lastActivity: Timestamp.fromDate(new Date()), // Use Firestore Timestamp for new entries
         };
         const docRef = await addDoc(clientsCollection, dataToSave);
         const newDocSnap = await getDoc(docRef);
+        
+        if (!newDocSnap.exists()) {
+           throw new Error("Failed to create and then fetch the new client document.");
+        }
+        
         const newClient = fromFirestore(newDocSnap);
         
         return { success: true, data: newClient };
@@ -129,7 +141,7 @@ export async function updateClient({ id, updates }: z.infer<typeof UpdateClientI
         const docRef = doc(db, 'clients', validatedUpdates.id);
         const updatesWithActivity = {
             ...validatedUpdates.updates,
-            lastActivity: new Date().toISOString().split('T')[0],
+            lastActivity: Timestamp.fromDate(new Date()),
         };
         await updateDoc(docRef, updatesWithActivity);
         
