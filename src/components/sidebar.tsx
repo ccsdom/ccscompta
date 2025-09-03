@@ -1,13 +1,15 @@
+
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2 } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2, LifeBuoy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
+import { Separator } from './ui/separator';
 
 const adminNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -16,7 +18,6 @@ const adminNavItems = [
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 const accountantNavItems = [
@@ -24,7 +25,6 @@ const accountantNavItems = [
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
 const clientNavItems = [
@@ -32,13 +32,23 @@ const clientNavItems = [
   { href: '/dashboard/my-documents', icon: FileUp, label: 'Mes documents' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
-  { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
 ];
 
+const commonBottomNavItems = [
+    { href: '/dashboard/support', icon: LifeBuoy, label: 'Aide & Support' },
+]
+
+const accountantBottomNavItems = [
+    { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+]
+const clientBottomNavItems = [
+    { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
+]
+
 const roleConfig = {
-    admin: { items: adminNavItems, label: 'Espace Super-Admin' },
-    accountant: { items: accountantNavItems, label: 'Espace Comptable' },
-    client: { items: clientNavItems, label: 'Espace Client' }
+    admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Super-Admin' },
+    accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
+    client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
 }
 
 export function Sidebar() {
@@ -70,7 +80,7 @@ export function Sidebar() {
     return currentRole === 'client' ? '/dashboard' : '/dashboard/accountant';
   }
 
-  const { items: navItems, label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
+  const { items: navItems, bottomItems, label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
 
   if (!mounted) {
       return (
@@ -132,7 +142,21 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="mt-auto p-4 border-t">
+      <div className="mt-auto p-4 border-t space-y-2">
+         {bottomItems.map((item) => (
+             <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
+                isNavItemActive(item.href) ? 'bg-muted text-primary' : ''
+                )}
+            >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+            </Link>
+        ))}
+        <Separator className="my-2"/>
         <Link href="/login">
             <Button variant="ghost" className="w-full justify-start">
                 <LogOut className="mr-2 h-4 w-4" />

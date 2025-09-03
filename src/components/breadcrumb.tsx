@@ -14,7 +14,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'documents': 'Documents',
   'analytics': 'Analyse Détaillée',
   'settings': 'Paramètres (Comptable)',
-  'accountant': 'Tableau de Bord Global',
+  'accountant': 'Tableau de Bord',
   'my-documents': 'Mes Documents',
   'my-analytics': 'Mon Analyse',
   'my-settings': 'Paramètres',
@@ -22,6 +22,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'my-invoices': 'Mes Factures',
   'reporting': 'Rapports',
   'cabinets': 'Gestion des Cabinets',
+  'support': 'Aide & Support',
 };
 
 const mockClients = [
