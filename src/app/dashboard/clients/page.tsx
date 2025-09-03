@@ -89,6 +89,12 @@ export default function ClientsPage() {
             default: return <Badge variant="outline">{status}</Badge>
         }
     }
+    
+    const getAccountantInitial = (accountantId?: string) => {
+        if (!accountantId) return '';
+        const accountant = mockAccountants.find(a => a.id === accountantId);
+        return accountant ? accountant.name.split(' ').map(n => n[0]).join('') : '';
+    }
 
     return (
         <div className="space-y-6">
@@ -152,7 +158,7 @@ export default function ClientsPage() {
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Avatar className="h-8 w-8">
-                                                            <AvatarFallback>{mockAccountants.find(a => a.id === client.assignedAccountantId)?.name.charAt(0)}</AvatarFallback>
+                                                            <AvatarFallback>{getAccountantInitial(client.assignedAccountantId)}</AvatarFallback>
                                                         </Avatar>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
@@ -227,5 +233,3 @@ export default function ClientsPage() {
         </div>
     )
 }
-
-    

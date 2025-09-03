@@ -47,12 +47,16 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
             address: client?.address || "",
             fiscalYearEndDate: client?.fiscalYearEndDate || "",
             status: client?.status || 'onboarding',
-            assignedAccountantId: client?.assignedAccountantId || undefined,
+            assignedAccountantId: client?.assignedAccountantId || "unassigned",
         },
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        onSave(values);
+        const dataToSave = {
+            ...values,
+            assignedAccountantId: values.assignedAccountantId === "unassigned" ? undefined : values.assignedAccountantId,
+        }
+        onSave(dataToSave);
     }
 
     return (
@@ -196,7 +200,7 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                             </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="">Non attribué</SelectItem>
+                                                <SelectItem value="unassigned">Non attribué</SelectItem>
                                                 {mockAccountants.map(acc => (
                                                     <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
                                                 ))}
@@ -220,5 +224,3 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
         </Form>
     );
 }
-
-    
