@@ -1,3 +1,4 @@
+
 'use client'
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Client } from './page';
+import { type Client, mockAccountants } from './page';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -23,6 +24,7 @@ const formSchema = z.object({
   address: z.string().min(10, { message: "L'adresse doit contenir au moins 10 caractères." }),
   fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, { message: "Format de date invalide. Utilisez JJ/MM." }),
   status: z.enum(['active', 'inactive', 'onboarding']),
+  assignedAccountantId: z.string().optional(),
 });
 
 
@@ -45,6 +47,7 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
             address: client?.address || "",
             fiscalYearEndDate: client?.fiscalYearEndDate || "",
             status: client?.status || 'onboarding',
+            assignedAccountantId: client?.assignedAccountantId || undefined,
         },
     });
 
@@ -157,28 +160,56 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                 )}
                                 />
                         </div>
-                        <FormField
-                                control={form.control}
-                                name="status"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Statut du dossier</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Sélectionner un statut" />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="onboarding">Intégration</SelectItem>
-                                            <SelectItem value="active">Actif</SelectItem>
-                                            <SelectItem value="inactive">Inactif</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField
+                                    control={form.control}
+                                    name="status"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Statut du dossier</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Sélectionner un statut" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="onboarding">Intégration</SelectItem>
+                                                <SelectItem value="active">Actif</SelectItem>
+                                                <SelectItem value="inactive">Inactif</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            <FormField
+                                    control={form.control}
+                                    name="assignedAccountantId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Comptable Attribué</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Sélectionner un comptable" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="">Non attribué</SelectItem>
+                                                {mockAccountants.map(acc => (
+                                                    <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                         <FormDescription>
+                                            Laissez vide pour ne pas attribuer de comptable.
+                                        </FormDescription>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                        </div>
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">
                         <Button variant="ghost" type="button" onClick={() => router.push('/dashboard/clients')}>Annuler</Button>
@@ -189,3 +220,5 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
         </Form>
     );
 }
+
+    

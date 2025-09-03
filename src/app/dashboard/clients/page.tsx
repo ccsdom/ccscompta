@@ -25,6 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
 
 export interface Client {
     id: string;
@@ -38,13 +41,21 @@ export interface Client {
     lastActivity: string;
     email: string;
     phone: string;
+    assignedAccountantId?: string;
 }
 
+export const mockAccountants = [
+    { id: 'acc_1', name: 'Marie Dubois' },
+    { id: 'acc_2', name: 'Pierre Martin' },
+    { id: 'acc_3', name: 'Sophie Lambert' },
+    { id: 'acc_4', name: 'Julien Petit' },
+];
+
 const mockClients: Client[] = [
-    { id: 'alpha', name: 'Entreprise Alpha', siret: '12345678901234', address: '123 Rue de la Paix, 75001 Paris', legalRepresentative: 'Jean Dupont', fiscalYearEndDate: '31/12', status: 'active', newDocuments: 3, lastActivity: '2024-07-16', email: 'contact@alpha.com', phone: '0123456789' },
-    { id: 'beta', name: 'Bêta SARL', siret: '23456789012345', address: '45 Avenue des Champs-Élysées, 75008 Paris', legalRepresentative: 'Marie Curie', fiscalYearEndDate: '30/06', status: 'active', newDocuments: 0, lastActivity: '2024-07-15', email: 'compta@beta.eu', phone: '0987654321' },
-    { id: 'gamma', name: 'Gamma Inc.', siret: '34567890123456', address: '67 Boulevard Saint-Germain, 75005 Paris', legalRepresentative: 'Louis Pasteur', fiscalYearEndDate: '31/03', status: 'onboarding', newDocuments: 1, lastActivity: '2024-07-17', email: 'factures@gamma.io', phone: '0112233445' },
-    { id: 'delta', name: 'Delta Industries', siret: '45678901234567', address: '89 Rue de Rivoli, 75004 Paris', legalRepresentative: 'Simone Veil', fiscalYearEndDate: '30/09', status: 'active', newDocuments: 5, lastActivity: '2024-07-16', email: 'admin@delta-industries.fr', phone: '0655443322' },
+    { id: 'alpha', name: 'Entreprise Alpha', siret: '12345678901234', address: '123 Rue de la Paix, 75001 Paris', legalRepresentative: 'Jean Dupont', fiscalYearEndDate: '31/12', status: 'active', newDocuments: 3, lastActivity: '2024-07-16', email: 'contact@alpha.com', phone: '0123456789', assignedAccountantId: 'acc_1' },
+    { id: 'beta', name: 'Bêta SARL', siret: '23456789012345', address: '45 Avenue des Champs-Élysées, 75008 Paris', legalRepresentative: 'Marie Curie', fiscalYearEndDate: '30/06', status: 'active', newDocuments: 0, lastActivity: '2024-07-15', email: 'compta@beta.eu', phone: '0987654321', assignedAccountantId: 'acc_2' },
+    { id: 'gamma', name: 'Gamma Inc.', siret: '34567890123456', address: '67 Boulevard Saint-Germain, 75005 Paris', legalRepresentative: 'Louis Pasteur', fiscalYearEndDate: '31/03', status: 'onboarding', newDocuments: 1, lastActivity: '2024-07-17', email: 'factures@gamma.io', phone: '0112233445', assignedAccountantId: 'acc_1' },
+    { id: 'delta', name: 'Delta Industries', siret: '45678901234567', address: '89 Rue de Rivoli, 75004 Paris', legalRepresentative: 'Simone Veil', fiscalYearEndDate: '30/09', status: 'active', newDocuments: 5, lastActivity: '2024-07-16', email: 'admin@delta-industries.fr', phone: '0655443322', assignedAccountantId: 'acc_3' },
     { id: 'epsilon', name: 'Epsilon Global', siret: '56789012345678', address: '101 Avenue Victor Hugo, 75116 Paris', legalRepresentative: 'Charles de Gaulle', fiscalYearEndDate: '31/12', status: 'inactive', newDocuments: 0, lastActivity: '2024-05-20', email: 'support@epsilon.com', phone: '0788990011' },
 ];
 
@@ -119,6 +130,7 @@ export default function ClientsPage() {
                                 <TableHead className="w-[50px]"></TableHead>
                                 <TableHead>Nom de l'entreprise</TableHead>
                                 <TableHead>Statut</TableHead>
+                                <TableHead className="hidden md:table-cell">Comptable Attribué</TableHead>
                                 <TableHead>Documents en attente</TableHead>
                                 <TableHead>Dernière activité</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -134,6 +146,24 @@ export default function ClientsPage() {
                                     </TableCell>
                                     <TableCell className="font-medium">{client.name}</TableCell>
                                     <TableCell>{getStatusBadge(client.status)}</TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                        {client.assignedAccountantId ? (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarFallback>{mockAccountants.find(a => a.id === client.assignedAccountantId)?.name.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{mockAccountants.find(a => a.id === client.assignedAccountantId)?.name}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : (
+                                            <Badge variant="outline">Non attribué</Badge>
+                                        )}
+                                    </TableCell>
                                     <TableCell>
                                         {client.newDocuments > 0 ? (
                                             <Badge variant="destructive">{client.newDocuments}</Badge>
@@ -170,7 +200,7 @@ export default function ClientsPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         Aucun client trouvé.
                                     </TableCell>
                                 </TableRow>
@@ -197,3 +227,5 @@ export default function ClientsPage() {
         </div>
     )
 }
+
+    
