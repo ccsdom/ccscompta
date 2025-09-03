@@ -7,7 +7,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
-import { Label } from '@/components/ui/label';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,6 +66,35 @@ const defaultVisibleComponents = {
     distributionByType: true,
     expensesByVendor: true,
     averageSpendByType: true,
+}
+
+const DonutLabel = ({viewBox, value, label}: any) => {
+    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+        return (
+            <text
+            x={viewBox.cx}
+            y={viewBox.cy}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            >
+            <tspan
+                x={viewBox.cx}
+                y={viewBox.cy}
+                className="text-3xl font-bold fill-foreground"
+            >
+                {value}
+            </tspan>
+            <tspan
+                x={viewBox.cx}
+                y={(viewBox.cy || 0) + 16}
+                className="text-sm text-muted-foreground"
+            >
+                {label}
+            </tspan>
+            </text>
+        )
+    }
+    return null;
 }
 
 export default function AnalyticsPage() {
@@ -366,40 +394,11 @@ export default function AnalyticsPage() {
                                 outerRadius={80}
                                 innerRadius={50}
                                 labelLine={false}
+                                label={<DonutLabel value={filteredDocuments.length.toLocaleString()} label="Documents" />}
                             >
                                 {analyticsData.typeChartData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.fill} />
                                 ))}
-                                <Label
-                                    content={({ viewBox }) => {
-                                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                                        return (
-                                            <text
-                                            x={viewBox.cx}
-                                            y={viewBox.cy}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                            >
-                                            <tspan
-                                                x={viewBox.cx}
-                                                y={viewBox.cy}
-                                                className="text-3xl font-bold fill-foreground"
-                                            >
-                                                {filteredDocuments.length.toLocaleString()}
-                                            </tspan>
-                                            <tspan
-                                                x={viewBox.cx}
-                                                y={(viewBox.cy || 0) + 16}
-                                                className="text-sm text-muted-foreground"
-                                            >
-                                                Documents
-                                            </tspan>
-                                            </text>
-                                        )
-                                        }
-                                        return null;
-                                    }}
-                                    />
                             </Pie>
                             <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value, entry) => <>{chartConfig[entry.payload?.name as keyof typeof chartConfig]?.label} ({entry.payload?.value})</>}/>} className="flex-wrap" />
                         </PieChart>
