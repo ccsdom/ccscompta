@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from "react";
@@ -10,12 +11,15 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
+import { Copy } from "lucide-react";
 
 export default function SettingsPage() {
     const { toast } = useToast();
     const { theme, setTheme } = useTheme();
     const [userName, setUserName] = useState("Utilisateur Démo");
     const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
+
+    const uploadEmail = `uploads-${userEmail.replace(/[@.]/g, '-')}@ccs-compta-in.com`;
 
     useEffect(() => {
         const storedName = localStorage.getItem('userName');
@@ -48,6 +52,14 @@ export default function SettingsPage() {
         toast({
             title: "Préférences enregistrées",
             description: "Vos préférences ont été mises à jour.",
+        });
+    }
+    
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(uploadEmail);
+        toast({
+            title: "Copié !",
+            description: "L'adresse email a été copiée dans le presse-papiers.",
         });
     }
 
@@ -88,6 +100,29 @@ export default function SettingsPage() {
                 <Button onClick={handleProfileSave}>Enregistrer</Button>
             </CardFooter>
         </form>
+      </Card>
+      
+      {/* Email Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Téléversement par Email</CardTitle>
+          <CardDescription>
+            Transférez vos documents directement dans l'application en les envoyant à votre adresse email dédiée.
+            <span className="font-semibold block mt-1 text-orange-500">Note : Ceci est une démonstration. La fonctionnalité n'est pas active.</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+             <div className="space-y-2">
+                <Label htmlFor="upload-email">Votre adresse de téléversement unique</Label>
+                <div className="flex items-center gap-2">
+                    <Input id="upload-email" value={uploadEmail} readOnly />
+                    <Button variant="outline" size="icon" type="button" onClick={copyToClipboard}>
+                        <Copy className="h-4 w-4" />
+                        <span className="sr-only">Copier</span>
+                    </Button>
+                </div>
+            </div>
+        </CardContent>
       </Card>
 
       {/* Password Section */}
