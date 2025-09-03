@@ -130,7 +130,7 @@ export default function DocumentsPage() {
     window.dispatchEvent(new Event('storage')); // Notify header
   };
 
-  const addAuditEvent = (docId: string, action: string): AuditEvent[] => {
+  const addAuditEvent = useCallback((docId: string, action: string): AuditEvent[] => {
     const event: AuditEvent = {
         action,
         date: new Date().toISOString(),
@@ -143,7 +143,7 @@ export default function DocumentsPage() {
         return prev;
     });
     return [...currentTrail, event];
-  }
+  }, []);
 
 
   const handleFileDrop = async (files: File[]) => {
@@ -213,9 +213,13 @@ export default function DocumentsPage() {
     updateDocumentState(docId, { status: 'processing', auditTrail: trail });
     
     try {
-      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
+      // Need to find the doc again from state as it might have been updated
+      const currentDoc = documents.find(d => d.id === docId);
+      if (!currentDoc) throw new Error("Document not found after state update");
+
+      const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
       
-      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
+      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType });
       trail = addAuditEvent(docId, 'Traitement IA terminé');
       
       const finalUpdates: Partial<Document> = {
@@ -232,7 +236,7 @@ export default function DocumentsPage() {
         description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
       });
       
-      const finalDoc = { ...docToProcess, ...finalUpdates };
+      const finalDoc = { ...currentDoc, ...finalUpdates };
       createNotification(finalDoc, 'est prêt pour examen.');
 
     } catch (error) {
@@ -249,8 +253,7 @@ export default function DocumentsPage() {
     } finally {
       if (docId === activeDocumentId) setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents, activeDocumentId, toast]);
+  }, [documents, activeDocumentId, toast, addAuditEvent]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
@@ -282,7 +285,7 @@ export default function DocumentsPage() {
     const trail = addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
     setDocuments(prev => prev.map(d => {
         if (d.id === docId) {
-            return { ...d, comments: [...d.comments, newComment], auditTrail: trail };
+            return { ...d, comments: [...(d.comments || []), newComment], auditTrail: trail };
         }
         return d;
     }));
@@ -396,11 +399,15 @@ export default function DocumentsPage() {
       return;
     }
 
-    const headers = ['Nom du fichier', 'Fournisseur', 'Date', 'Montant', 'Catégorie', 'Autres informations'];
+    const headers = ['ID du document', 'Nom du fichier', 'Date de téléversement', 'Statut', 'Type de document', 'Fournisseur(s)', 'Date(s) de la pièce', 'Montant(s)', 'Catégorie', 'Autres informations'];
     const rows = docsToExport.map(doc => {
       const data = doc.extractedData!;
       const row = [
+        doc.id,
         doc.name.replace(/,/g, ''), // Escape commas in file name
+        doc.uploadDate,
+        doc.status,
+        doc.type || '',
         data.vendorNames.join('; '),
         data.dates.join('; '),
         data.amounts.join('; '),
@@ -418,7 +425,7 @@ export default function DocumentsPage() {
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     const date = new Date().toISOString().slice(0,10);
-    link.setAttribute("download", `export-ccs-compta-${date}.csv`);
+    link.setAttribute("download", `export-comptable-${date}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -487,7 +494,12 @@ export default function DocumentsPage() {
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
-        return docs.sort((a,b) => new Date(b.auditTrail[0].date).getTime() - new Date(a.auditTrail[0].date).getTime());
+        // Ensure auditTrail exists and is an array before sorting
+        return docs.sort((a,b) => {
+            const dateA = (a.auditTrail && a.auditTrail.length > 0) ? new Date(a.auditTrail[0].date).getTime() : 0;
+            const dateB = (b.auditTrail && b.auditTrail.length > 0) ? new Date(b.auditTrail[0].date).getTime() : 0;
+            return dateB - dateA;
+        });
   }, [documents, searchQuery, searchCriteria]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
@@ -515,7 +527,7 @@ export default function DocumentsPage() {
         <div className="flex-grow" />
         <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
         <Button variant="outline" size="sm" onClick={handleBulkSend}><Send className="h-4 w-4 mr-2" />Envoyer</Button>
-        <Button variant="outline" size="sm" onClick={handleBulkExport}><Download className="h-4 w-4 mr-2" />Exporter</Button>
+        <Button variant="outline" size="sm" onClick={handleBulkExport}><Download className="h-4 w-4 mr-2" />Export Comptable</Button>
         <AlertDialog>
             <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
