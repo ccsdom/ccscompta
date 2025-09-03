@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare } from 'lucide-react';
+import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2 } from 'lucide-react';
 import { type Document, type AuditEvent, type Comment } from "@/app/dashboard/documents/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Separator } from './ui/separator';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
 interface DataValidationFormProps {
@@ -39,18 +40,18 @@ const initialFormState: ExtractDataOutput = {
 };
 
 const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
-  if (!trail || trail.length === 0) return null;
+  if (!trail || trail.length === 0) return (
+      <div className="text-center text-sm text-muted-foreground py-10">
+        <ListOrdered className="h-8 w-8 mx-auto mb-2" />
+        <p>Aucun événement d'historique pour ce document.</p>
+      </div>
+  );
 
   return (
-    <div>
-      <Label className="flex items-center gap-2 mb-2">
-        <ListOrdered className="h-4 w-4" />
-        Historique du document
-      </Label>
-      <div className="space-y-3">
+    <div className="space-y-4">
         {trail.slice().reverse().map((event, index) => (
           <div key={index} className="flex items-start gap-3 text-sm">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted mt-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted mt-1 shrink-0">
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="flex-1">
@@ -65,7 +66,7 @@ const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(event.date), "PPP à HH:mm", { locale: fr })}</span>
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(event.date), "PPP 'à' HH:mm", { locale: fr })}</span>
                             </TooltipTrigger>
                             <TooltipContent><p>Date et heure</p></TooltipContent>
                         </Tooltip>
@@ -75,7 +76,6 @@ const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
           </div>
         ))}
       </div>
-    </div>
   );
 };
 
@@ -90,44 +90,104 @@ const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAd
     }
     
     return (
-        <div>
-            <Label className="flex items-center gap-2 mb-2">
-                <MessageSquare className="h-4 w-4" />
-                Commentaires
-            </Label>
-            <div className="space-y-4">
-                {comments.length > 0 ? (
-                     comments.slice().reverse().map((comment) => (
-                        <div key={comment.id} className="flex items-start gap-3 text-sm">
-                            <Avatar className="h-8 w-8 border">
-                                <AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 bg-muted rounded-md p-3">
-                                <div className="flex items-center justify-between">
-                                    <p className="font-semibold">{comment.user}</p>
-                                    <p className="text-xs text-muted-foreground">{format(new Date(comment.date), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p>
+        <div className="flex flex-col h-full">
+            <ScrollArea className="flex-1 -mx-4 px-4">
+                <div className="space-y-4 py-4">
+                    {comments.length > 0 ? (
+                        comments.slice().reverse().map((comment) => (
+                            <div key={comment.id} className="flex items-start gap-3 text-sm">
+                                <Avatar className="h-8 w-8 border shrink-0">
+                                    <AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 bg-muted rounded-md p-3">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold">{comment.user}</p>
+                                        <p className="text-xs text-muted-foreground">{format(new Date(comment.date), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p>
+                                    </div>
+                                    <p className="mt-1 text-foreground/90">{comment.text}</p>
                                 </div>
-                                <p className="mt-1 text-foreground/90">{comment.text}</p>
                             </div>
-                        </div>
-                    ))
-                ) : (
-                    <p className="text-xs text-muted-foreground text-center py-2">Aucun commentaire pour l'instant.</p>
-                )}
-                 <div className="flex items-start gap-3">
-                    <Avatar className="h-8 w-8 border">
-                        <AvatarFallback>Moi</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                        <Textarea 
-                            placeholder="Ajouter un commentaire... Mentionnez quelqu'un avec @"
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            rows={2}
-                        />
-                        <Button size="sm" className="mt-2" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
-                    </div>
+                        ))
+                    ) : (
+                         <div className="text-center text-sm text-muted-foreground py-10">
+                            <MessageSquare className="h-8 w-8 mx-auto mb-2" />
+                            <p>Aucun commentaire pour l'instant.</p>
+                            <p className="text-xs">Soyez le premier à en ajouter un !</p>
+                         </div>
+                    )}
                 </div>
+            </ScrollArea>
+             <div className="flex items-start gap-3 pt-4 border-t">
+                <Avatar className="h-8 w-8 border shrink-0">
+                    <AvatarFallback>Moi</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <Textarea 
+                        placeholder="Ajouter un commentaire... Mentionnez quelqu'un avec @"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        rows={2}
+                        className="bg-transparent border"
+                    />
+                    <Button size="sm" className="mt-2" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean }) => {
+    
+    const handleInputChange = (field: keyof ExtractDataOutput, value: string) => {
+        setFormData(prev => ({...prev, [field]: value}));
+    }
+
+    const handleArrayInputChange = (field: 'dates' | 'vendorNames', index: number, value: string) => {
+        setFormData(prev => {
+        const newArray = [...prev[field]];
+        newArray[index] = value;
+        return { ...prev, [field]: newArray };
+        });
+    };
+
+    const handleAmountsChange = (index: number, value: string) => {
+        const newAmounts = [...formData.amounts];
+        newAmounts[index] = parseFloat(value) || 0;
+        setFormData(prev => ({ ...prev, amounts: newAmounts }));
+    }
+
+    const handleOtherInfoChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setFormData(prev => ({ ...prev, otherInformation: e.target.value }));
+    }
+    
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                <Label>Noms des vendeurs</Label>
+                {formData.vendorNames.map((vendor, index) => <Input key={index} value={vendor} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
+                {formData.vendorNames.length === 0 && <Input value="-" readOnly disabled />}
+                </div>
+                <div className="space-y-2">
+                <Label>Dates</Label>
+                {formData.dates.map((date, index) => <Input key={index} value={date} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
+                {formData.dates.length === 0 && <Input value="-" readOnly disabled />}
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label>Catégorie</Label>
+                <Input value={formData.category || ''} onChange={(e) => handleInputChange('category', e.target.value)} readOnly={isReadOnly} placeholder="Catégorie suggérée par l'IA" />
+            </div>
+            <div className="space-y-2">
+                <Label>Montants</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {formData.amounts.map((amount, index) => <Input type="number" key={index} value={amount} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
+                {formData.amounts.length === 0 && <Input value="-" readOnly disabled />}
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label>Autres informations</Label>
+                <Textarea value={formData.otherInformation} onChange={handleOtherInfoChange} readOnly={isReadOnly} rows={4} />
             </div>
         </div>
     )
@@ -148,28 +208,6 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
      // Reset sent state when document changes
     setIsSent(false);
   }, [document]);
-
-  const handleInputChange = (field: keyof ExtractDataOutput, value: string) => {
-    setFormData(prev => ({...prev, [field]: value}));
-  }
-
-  const handleArrayInputChange = (field: 'dates' | 'vendorNames', index: number, value: string) => {
-    setFormData(prev => {
-      const newArray = [...prev[field]];
-      newArray[index] = value;
-      return { ...prev, [field]: newArray };
-    });
-  };
-
-  const handleAmountsChange = (index: number, value: string) => {
-    const newAmounts = [...formData.amounts];
-    newAmounts[index] = parseFloat(value) || 0;
-    setFormData(prev => ({ ...prev, amounts: newAmounts }));
-  }
-
-  const handleOtherInfoChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setFormData(prev => ({ ...prev, otherInformation: e.target.value }));
-  }
 
   const handleDiscard = () => {
     if (document?.extractedData) {
@@ -195,11 +233,11 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
   );
 
   if (!document) {
-    // This case is now handled on the parent page
     return null;
   }
 
   const hasAnomalies = formData.anomalies && formData.anomalies.length > 0;
+  const hasExtractedData = document.extractedData && !isLoading;
 
   return (
     <CardWrapper>
@@ -207,9 +245,9 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
         <CardHeader className="p-4 lg:p-6">
           <div className="flex justify-between items-start gap-4">
             <div>
-              <CardTitle className="text-xl">Validation des Données</CardTitle>
+              <CardTitle className="text-xl">Détails du Document</CardTitle>
               <CardDescription className="truncate max-w-[250px] md:max-w-sm" title={document.name}>
-                Examen de : {document.name}
+                {document.name}
               </CardDescription>
             </div>
             {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({(document.confidence ?? 0).toFixed(0)}%)</Badge>}
@@ -227,100 +265,82 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                     )}
                 </div>
             )}
+            
+            {isLoading && (
+                <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="mt-4 text-sm font-medium">Analyse par l'IA en cours...</p>
+                </div>
+            )}
 
-          <ScrollArea className="flex-1 px-4 lg:px-0">
-            <div className="space-y-6">
-                {isLoading && (
-                    <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="mt-4 text-sm font-medium">Analyse par l'IA en cours...</p>
-                    </div>
-                )}
-                {document.status === 'error' && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-center gap-4 text-destructive">
-                    <AlertCircle className="h-6 w-6" />
-                    <div>
-                        <h3 className="font-semibold">Erreur de traitement</h3>
-                        <p className="text-sm">Impossible d'extraire les données. Essayez de retraiter ou utilisez un autre fichier.</p>
-                    </div>
-                    </div>
-                )}
-                {document.status === 'pending' && !isLoading && (
-                    <div className="rounded-lg border border-primary/50 bg-primary/10 p-4 flex items-center gap-4 text-primary-foreground">
-                    <Info className="h-6 w-6 text-primary" />
-                    <div>
-                        <h3 className="font-semibold text-primary">Document en attente</h3>
-                        <p className="text-sm text-primary/80">Cliquez sur "Traiter" pour lancer l'extraction des données par l'IA.</p>
-                    </div>
-                    </div>
-                )}
-
-                {hasAnomalies && (
-                  <Alert variant="destructive">
-                    <ShieldAlert className="h-4 w-4" />
-                    <AlertTitle>Anomalies Détectées !</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc pl-4 mt-1">
-                        {formData.anomalies!.map((anomaly, index) => (
-                          <li key={index}>{anomaly}</li>
-                        ))}
-                      </ul>
-                      <p className="mt-2">Veuillez vérifier attentivement les données extraites avant d'approuver.</p>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-
-                {(document.extractedData && !isLoading) ? (
-                    <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                        <Label>Noms des vendeurs</Label>
-                        {formData.vendorNames.map((vendor, index) => <Input key={index} value={vendor} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
-                        {formData.vendorNames.length === 0 && <Input value="-" readOnly disabled />}
-                        </div>
-                        <div className="space-y-2">
-                        <Label>Dates</Label>
-                        {formData.dates.map((date, index) => <Input key={index} value={date} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
-                        {formData.dates.length === 0 && <Input value="-" readOnly disabled />}
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Catégorie</Label>
-                        <Input value={formData.category || ''} onChange={(e) => handleInputChange('category', e.target.value)} readOnly={isReadOnly} placeholder="Catégorie suggérée par l'IA" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Montants</Label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {formData.amounts.map((amount, index) => <Input type="number" key={index} value={amount} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
-                        {formData.amounts.length === 0 && <Input value="-" readOnly disabled />}
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Autres informations</Label>
-                        <Textarea value={formData.otherInformation} onChange={handleOtherInfoChange} readOnly={isReadOnly} rows={4} />
-                    </div>
-                    </div>
-                ) : (
-                    !isLoading && document.status !== 'error' && document.status !== 'pending' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
-                )}
-                 <Separator className="my-6" />
-                 <CommentsSection comments={document.comments} onAddComment={onAddComment} />
-                 <Separator className="my-6" />
-                 <AuditTrail trail={document.auditTrail} />
+            <div className="flex-1 px-4 lg:px-0 flex flex-col">
+                <Tabs defaultValue="data" className="flex-1 flex flex-col">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="data" className="gap-1"><FileJson2 className="h-4 w-4" />Données</TabsTrigger>
+                        <TabsTrigger value="comments" className="gap-1">
+                            <MessageSquare className="h-4 w-4" />
+                            Commentaires {document.comments.length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{document.comments.length}</span>}
+                        </TabsTrigger>
+                        <TabsTrigger value="history" className="gap-1"><ListOrdered className="h-4 w-4" />Historique</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="data" className="flex-1 mt-4">
+                        <ScrollArea className="h-[calc(100vh-450px)] lg:h-auto">
+                            {hasAnomalies && (
+                                <Alert variant="destructive" className="mb-4">
+                                    <ShieldAlert className="h-4 w-4" />
+                                    <AlertTitle>Anomalies Détectées !</AlertTitle>
+                                    <AlertDescription>
+                                    <ul className="list-disc pl-4 mt-1">
+                                        {formData.anomalies!.map((anomaly, index) => (
+                                        <li key={index}>{anomaly}</li>
+                                        ))}
+                                    </ul>
+                                    <p className="mt-2">Veuillez vérifier attentivement les données extraites avant d'approuver.</p>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            
+                            {hasExtractedData ? (
+                                <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
+                            ) : (
+                                <div className="text-center text-sm text-muted-foreground py-10">
+                                    {document.status === 'pending' && <Info className="h-8 w-8 mx-auto mb-2" />}
+                                    {document.status === 'error' && <AlertCircle className="h-8 w-8 mx-auto mb-2" />}
+                                    
+                                    <h3 className="font-semibold text-foreground mb-1">
+                                        {document.status === 'pending' && "Document en attente"}
+                                        {document.status === 'error' && "Erreur de traitement"}
+                                    </h3>
+                                    <p>
+                                        {document.status === 'pending' && "Cliquez sur 'Traiter' pour lancer l'extraction des données."}
+                                        {document.status === 'error' && "Impossible d'extraire les données de ce document."}
+                                    </p>
+                                </div>
+                            )}
+                         </ScrollArea>
+                    </TabsContent>
+                    <TabsContent value="comments" className="flex-1 mt-0">
+                         <CommentsSection comments={document.comments} onAddComment={onAddComment} />
+                    </TabsContent>
+                    <TabsContent value="history" className="flex-1 mt-4">
+                        <ScrollArea className="h-[calc(100vh-450px)] lg:h-auto pr-4">
+                           <AuditTrail trail={document.auditTrail} />
+                        </ScrollArea>
+                    </TabsContent>
+                </Tabs>
             </div>
-          </ScrollArea>
+          
         </CardContent>
         <CardFooter className="flex justify-end gap-2 p-4 lg:p-6 border-t">
           {document.status === 'reviewing' && (
             <>
-              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw />Annuler</Button>
-              <Button type="submit"><Check />Approuver</Button>
+              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="h-4 w-4" />Annuler</Button>
+              <Button type="submit"><Check className="h-4 w-4" />Approuver</Button>
             </>
           )}
           {document.status === 'approved' && (
             <Button type="button" onClick={() => { onSendToCegid(document); setIsSent(true); }} disabled={isSent}>
-              {isSent ? <><Check />Envoyé</> : <><Send />Envoyer à Cegid</>}
+              {isSent ? <><Check className="h-4 w-4" />Envoyé</> : <><Send className="h-4 w-4" />Envoyer à Cegid</>}
             </Button>
           )}
         </CardFooter>
