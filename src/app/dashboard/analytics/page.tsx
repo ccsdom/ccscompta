@@ -65,6 +65,7 @@ export default function AnalyticsPage() {
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const [clientName, setClientName] = useState<string>('');
 
     useEffect(() => {
         const loadState = () => {
@@ -95,6 +96,15 @@ export default function AnalyticsPage() {
                 const storedClientId = localStorage.getItem('selectedClientId');
                 if (storedClientId) {
                     setSelectedClientId(storedClientId);
+                    // This is a mock, in a real app you'd fetch the client's name.
+                    const client = [
+                        { id: 'alpha', name: 'Entreprise Alpha'},
+                        { id: 'beta', name: 'Bêta SARL'},
+                        { id: 'gamma', name: 'Gamma Inc.'},
+                        { id: 'delta', name: 'Delta Industries'},
+                        { id: 'epsilon', name: 'Epsilon Global'},
+                    ].find(c => c.id === storedClientId);
+                    setClientName(client ? `pour ${client.name}` : '');
                 }
 
             } catch (e) {
@@ -118,6 +128,8 @@ export default function AnalyticsPage() {
     const filteredDocuments = useMemo(() => {
         let docs = [...documents].filter(d => d.clientId === selectedClientId);
         
+        if (!selectedClientId) return [];
+
         if (searchCriteria) {
             // AI Search Logic
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
@@ -147,11 +159,11 @@ export default function AnalyticsPage() {
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
-            if (originalQuery) {
+            if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = docs.filter(doc => 
+                 docs = [...documents].filter(d => d.clientId === selectedClientId).filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
                 );
             }
 
@@ -277,12 +289,27 @@ export default function AnalyticsPage() {
         );
     };
 
+    if (!selectedClientId) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader>
+                        <CardTitle>Aucun client sélectionné</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Veuillez sélectionner un client dans le menu en haut à gauche pour afficher ses analyses détaillées.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Analyse des Dépenses</h1>
-                <p className="text-muted-foreground mt-1">Visualisez les données extraites des documents approuvés.</p>
+                <h1 className="text-3xl font-bold tracking-tight">Analyse des Dépenses {clientName}</h1>
+                <p className="text-muted-foreground mt-1">Visualisez les données extraites des documents approuvés pour le client sélectionné.</p>
             </div>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -464,5 +491,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-    
