@@ -260,22 +260,22 @@ export function Header() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                         <Link href="/dashboard/settings">
-                            <User /> Profil
+                         <Link href={userRole === 'accountant' ? "/dashboard/settings" : "/dashboard/my-settings"}>
+                            <User className="mr-2 h-4 w-4" /> Profil
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
-                        <CreditCard /> Facturation
+                        <CreditCard className="mr-2 h-4 w-4" /> Facturation
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/settings">
-                            <Settings /> Paramètres
+                        <Link href={userRole === 'accountant' ? "/dashboard/settings" : "/dashboard/my-settings"}>
+                            <Settings className="mr-2 h-4 w-4" /> Paramètres
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                          <Link href="/login">
-                            <LogOut /> Déconnexion
+                            <LogOut className="mr-2 h-4 w-4" /> Déconnexion
                         </Link>
                     </DropdownMenuItem>
                 </DropdownMenuContent>

@@ -19,7 +19,6 @@ const accountantNavItems = [
 ];
 
 const clientNavItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes documents' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
@@ -53,7 +52,7 @@ export function Sidebar() {
   }
   
   const getDashboardHomeLink = () => {
-    return currentRole === 'accountant' ? '/dashboard/accountant' : '/dashboard';
+    return currentRole === 'accountant' ? '/dashboard/accountant' : '/dashboard/my-documents';
   }
 
   if (!mounted) {

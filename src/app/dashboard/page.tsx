@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -46,7 +47,13 @@ export default function Dashboard() {
     }, []);
 
     const filteredDocuments = useMemo(() => {
-        let docs = [...documents].filter(d => d.clientId === selectedClientId);
+        // In client view, default to the logged-in user's client ID if not set.
+        const role = localStorage.getItem('userRole');
+        const clientId = role === 'client' 
+            ? localStorage.getItem('selectedClientId') || 'alpha' // Mock: defaulting to 'alpha' for demo
+            : selectedClientId;
+
+        let docs = [...documents].filter(d => d.clientId === clientId);
         
         if (searchCriteria) {
             // AI Search Logic
@@ -58,24 +65,24 @@ export default function Dashboard() {
                 filteredByAI = true;
             }
             if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a >= minAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
                 filteredByAI = true;
             }
             if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts.some(a => a <= maxAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
                 filteredByAI = true;
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
                 filteredByAI = true;
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
                 filteredByAI = true;
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
                 filteredByAI = true;
             }
             if (keywords && keywords.length > 0) {
@@ -107,11 +114,11 @@ export default function Dashboard() {
 
     const stats = useMemo(() => {
         const approved = filteredDocuments.filter(d => d.status === 'approved').length;
-        const pending = filteredDocuments.filter(d => d.status === 'reviewing' || d.status === 'pending').length;
+        const pending = filteredDocuments.filter(d => ['reviewing', 'pending', 'processing'].includes(d.status)).length;
         const totalAmount = filteredDocuments
-            .filter(d => d.status === 'approved' && d.extractedData)
+            .filter(d => d.status === 'approved' && d.extractedData?.amounts)
             .flatMap(d => d.extractedData!.amounts)
-            .reduce((sum, amount) => sum + amount, 0);
+            .reduce((sum, amount) => sum + (amount ?? 0), 0);
 
         return {
             total: filteredDocuments.length,

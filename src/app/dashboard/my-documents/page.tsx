@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
+import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -50,6 +51,8 @@ export default function MyDocumentsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
   const { toast } = useToast();
 
    useEffect(() => {
@@ -63,6 +66,14 @@ export default function MyDocumentsPage() {
             const storedClientId = localStorage.getItem('selectedClientId');
             if (storedClientId) {
                 setClientId(storedClientId);
+            }
+            const storedQuery = localStorage.getItem('searchQuery');
+            if (storedQuery) {
+               setSearchQuery(storedQuery);
+            }
+            const storedCriteria = localStorage.getItem('searchCriteria');
+            if (storedCriteria) {
+                setSearchCriteria(JSON.parse(storedCriteria));
             }
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -157,7 +168,8 @@ export default function MyDocumentsPage() {
   }, [toast, addAuditEvent]);
 
   const handleFileDrop = async (files: File[]) => {
-    if (!clientId) {
+    const currentClientId = clientId || localStorage.getItem('selectedClientId');
+    if (!currentClientId) {
          toast({ variant: "destructive", title: "Erreur interne", description: `Votre identifiant client n'est pas défini.`});
          return;
     }
@@ -180,7 +192,7 @@ export default function MyDocumentsPage() {
                 status: 'pending',
                 file,
                 dataUrl,
-                clientId: clientId,
+                clientId: currentClientId,
                 auditTrail: [{
                     action: 'Document téléversé par le client',
                     date: new Date().toISOString(),
@@ -243,14 +255,58 @@ export default function MyDocumentsPage() {
   }
   
   const clientDocuments = useMemo(() => {
-        return documents
-            .filter(d => d.clientId === clientId)
-            .sort((a,b) => {
-                const dateA = a.uploadDate.split('/').reverse().join('-');
-                const dateB = b.uploadDate.split('/').reverse().join('-');
-                return new Date(dateB).getTime() - new Date(dateA).getTime();
-            });
-  }, [documents, clientId]);
+        const currentClientId = clientId || localStorage.getItem('selectedClientId');
+        let docs = [...documents].filter(d => d.clientId === currentClientId);
+
+        if (searchCriteria) {
+            const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
+
+            if (documentTypes && documentTypes.length > 0) {
+                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+            }
+            if (minAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
+            }
+            if (maxAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
+            }
+            if (startDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+            }
+            if (endDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+            }
+            if (vendor) {
+                const lowerVendor = vendor.toLowerCase();
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+            }
+            if (keywords && keywords.length > 0) {
+                docs = docs.filter(d => {
+                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
+                    return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
+                });
+            }
+            if (!docs.length && originalQuery) {
+                 const lowercasedQuery = originalQuery.toLowerCase();
+                 docs = [...documents].filter(d => d.clientId === currentClientId).filter(doc => 
+                    doc.name.toLowerCase().includes(lowercasedQuery) ||
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
+                );
+            }
+        } else if (searchQuery) {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            docs = docs.filter(doc => 
+                doc.name.toLowerCase().includes(lowercasedQuery) ||
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+            );
+        }
+
+        return docs.sort((a,b) => {
+            const dateA = a.uploadDate.split('/').reverse().join('-');
+            const dateB = b.uploadDate.split('/').reverse().join('-');
+            return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
+  }, [documents, clientId, searchQuery, searchCriteria]);
 
   const SimpleDocumentHistory = () => (
      <Card className="flex-1">
