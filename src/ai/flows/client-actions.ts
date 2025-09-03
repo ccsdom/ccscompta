@@ -3,7 +3,7 @@
 
 import { z } from 'genkit';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData } from 'firebase/firestore';
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData, Timestamp } from 'firebase/firestore';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 
@@ -13,6 +13,14 @@ const clientsCollection = collection(db, 'clients');
 // Helper to convert Firestore doc to Client type
 const fromFirestore = (firestoreDoc: DocumentData): Client => {
     const data = firestoreDoc.data();
+    
+    let lastActivity = data.lastActivity;
+    if (lastActivity instanceof Timestamp) {
+        lastActivity = lastActivity.toDate().toISOString().split('T')[0];
+    } else if (typeof lastActivity !== 'string') {
+        lastActivity = new Date().toISOString().split('T')[0];
+    }
+
     return {
         id: firestoreDoc.id,
         name: data.name,
@@ -22,7 +30,7 @@ const fromFirestore = (firestoreDoc: DocumentData): Client => {
         fiscalYearEndDate: data.fiscalYearEndDate,
         status: data.status,
         newDocuments: data.newDocuments,
-        lastActivity: data.lastActivity,
+        lastActivity: lastActivity,
         email: data.email,
         phone: data.phone,
         assignedAccountantId: data.assignedAccountantId,
@@ -106,7 +114,11 @@ export async function updateClient({ id, updates }: z.infer<typeof UpdateClientI
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
     try {
         const docRef = doc(db, 'clients', validatedUpdates.id);
-        await updateDoc(docRef, validatedUpdates.updates);
+        const updatesWithActivity = {
+            ...validatedUpdates.updates,
+            lastActivity: new Date().toISOString().split('T')[0],
+        };
+        await updateDoc(docRef, updatesWithActivity);
         
         const updatedDoc = await getDoc(docRef);
         if (updatedDoc.exists()) {
