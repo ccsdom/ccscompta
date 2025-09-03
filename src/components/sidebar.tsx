@@ -10,6 +10,7 @@ import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Separator } from './ui/separator';
+import { Skeleton } from './ui/skeleton';
 
 const adminNavItems = [
   { href: '/dashboard/admin', icon: ShieldCheck, label: 'Tableau de bord Admin' },
@@ -55,6 +56,7 @@ export function Sidebar() {
   const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin'>('client');
 
    useEffect(() => {
+    // This effect runs only on the client side
     setMounted(true);
     const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | null;
     
@@ -100,18 +102,18 @@ export function Sidebar() {
                     <span className="font-bold text-lg">CCS Compta</span>
                 </Link>
             </div>
-            <div className="p-4 border-b h-[92px] animate-pulse bg-muted/50" />
+            <div className="p-4 border-b h-[116px]">
+                <Skeleton className="h-6 w-3/4 mx-auto mb-4"/>
+                <Skeleton className="h-10 w-full" />
+            </div>
             <nav className="flex-1 px-4 py-4 space-y-2">
-                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
-                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
-                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
-                <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
             </nav>
             <div className="mt-auto p-4 border-t">
-                <Button variant="ghost" className="w-full justify-start">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Déconnexion
-                </Button>
+                <Skeleton className="h-10 w-full" />
             </div>
         </aside>
       )

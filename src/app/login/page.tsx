@@ -15,7 +15,7 @@ import { Logo } from "@/components/logo";
 import { useRouter } from 'next/navigation';
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -49,6 +49,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("demo@ccs-compta.com");
   const [password, setPassword] = useState("demodemo");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // This will run on client side only, after mount
+  useEffect(() => {
+    // Clear any previous session data on login page load
+    localStorage.clear();
+  }, []);
 
   const handleRedirect = (userEmail: string) => {
       let role = 'client';

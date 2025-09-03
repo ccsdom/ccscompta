@@ -10,7 +10,7 @@ export default function DashboardRedirect() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only perform redirection if we are on the exact '/dashboard' path
+    // This effect runs only on the client side
     if (pathname === '/dashboard') {
       const role = localStorage.getItem('userRole');
       

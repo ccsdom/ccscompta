@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input"
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { QuickUpload } from "./quick-upload";
-import type { Notification } from '@/app/dashboard/documents/page';
+import type { Notification } from '@/lib/types';
 import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
@@ -49,51 +49,49 @@ export function Header() {
   const [userRole, setUserRole] = useState("client");
   const { toast } = useToast();
   const router = useRouter();
-
-  const loadNotifications = useCallback(() => {
-    try {
-      const storedNotifications = localStorage.getItem('notifications');
-      if (storedNotifications) {
-        const parsed = JSON.parse(storedNotifications) as Notification[];
-        setNotifications(parsed);
-        setHasUnread(parsed.some(n => !n.isRead));
-      }
-    } catch (e) {
-      console.error("Failed to load notifications", e);
-    }
-  }, []);
-
-  const loadUserData = useCallback(() => {
-    setUserName(localStorage.getItem('userName') || "Utilisateur");
-    setUserEmail(localStorage.getItem('userEmail') || "");
-    setUserRole(localStorage.getItem('userRole') || "client");
-  }, []);
-
-  const loadSearchQuery = useCallback(() => {
-    const storedQuery = localStorage.getItem('searchQuery');
-    const storedCriteria = localStorage.getItem('searchCriteria');
-    if (storedCriteria) {
-      setSearchQuery(JSON.parse(storedCriteria).originalQuery);
-    } else if (storedQuery) {
-        setSearchQuery(storedQuery);
-    }
-  }, []);
-
+  
   useEffect(() => {
+    // This effect runs only on the client side
     setMounted(true);
-    loadNotifications();
-    loadSearchQuery();
-    loadUserData();
     
+    const loadStateFromLocalStorage = () => {
+        try {
+          const storedNotifications = localStorage.getItem('notifications');
+          if (storedNotifications) {
+            const parsed = JSON.parse(storedNotifications) as Notification[];
+            setNotifications(parsed);
+            setHasUnread(parsed.some(n => !n.isRead));
+          }
+
+          const storedQuery = localStorage.getItem('searchQuery');
+          const storedCriteria = localStorage.getItem('searchCriteria');
+          if (storedCriteria) {
+            setSearchQuery(JSON.parse(storedCriteria).originalQuery);
+          } else if (storedQuery) {
+            setSearchQuery(storedQuery);
+          }
+          
+          setUserName(localStorage.getItem('userName') || "Utilisateur");
+          setUserEmail(localStorage.getItem('userEmail') || "");
+          setUserRole(localStorage.getItem('userRole') || "client");
+
+        } catch (e) {
+          console.error("Failed to load state from localStorage", e);
+        }
+    };
+    
+    loadStateFromLocalStorage();
+
     const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === 'notifications') loadNotifications();
-        if (e.key === 'searchQuery' || e.key === 'searchCriteria') loadSearchQuery();
-        if (e.key === 'userName' || e.key === 'userEmail' || e.key === 'userRole') loadUserData();
+        // We only need to reload if the key we care about changes.
+        if (['notifications', 'searchQuery', 'searchCriteria', 'userName', 'userEmail', 'userRole'].includes(e.key || '')) {
+            loadStateFromLocalStorage();
+        }
     }
     
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadNotifications, loadSearchQuery, loadUserData]);
+  }, []);
 
   const handleMarkAsRead = () => {
     const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
