@@ -32,6 +32,7 @@ import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
 import { FileUploader } from '@/components/file-uploader';
+import Papa from 'papaparse';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -419,27 +420,23 @@ export default function DocumentsPage() {
       return;
     }
 
-    const headers = ['ID du document', 'Nom du fichier', 'Date de téléversement', 'Statut', 'Type de document', 'Fournisseur(s)', 'Date(s) de la pièce', 'Montant(s)', 'Catégorie', 'Autres informations'];
-    const rows = docsToExport.map(doc => {
+    const dataToUnparse = docsToExport.map(doc => {
       const data = doc.extractedData!;
-      const row = [
-        doc.id,
-        doc.name.replace(/,/g, ''), // Escape commas in file name
-        doc.uploadDate,
-        doc.status,
-        doc.type || '',
-        data.vendorNames?.join('; '),
-        data.dates?.join('; '),
-        data.amounts?.join('; '),
-        data.category || '',
-        `"${(data.otherInformation || '').replace(/"/g, '""')}"` // Escape quotes
-      ];
-      return row.join(',');
+      return {
+        'ID du document': doc.id,
+        'Nom du fichier': doc.name,
+        'Date de téléversement': doc.uploadDate,
+        'Statut': doc.status,
+        'Type de document': doc.type || '',
+        'Fournisseur(s)': data.vendorNames?.join('; '),
+        'Date(s) de la pièce': data.dates?.join('; '),
+        'Montant(s)': data.amounts?.join('; '),
+        'Catégorie': data.category || '',
+        'Autres informations': data.otherInformation || ''
+      };
     });
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(',') + "\n" 
-      + rows.join("\n");
+    
+    const csvContent = "data:text/csv;charset=utf-8," + Papa.unparse(dataToUnparse);
       
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");

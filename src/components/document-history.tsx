@@ -57,10 +57,32 @@ const getStatusBadge = (status: Document['status']) => {
 const getDocIcon = (type?: string) => {
     const docType = type?.toLowerCase() ?? '';
     const className = "h-5 w-5 text-muted-foreground";
-    if (docType.includes('invoice')) return <TooltipContent>Facture</TooltipContent> && <FileText className={className} />;
-    if (docType.includes('receipt')) return <TooltipContent>Reçu</TooltipContent> && <Receipt className={className} />;
-    if (docType.includes('bank statement')) return <TooltipContent>Relevé bancaire</TooltipContent> && <Landmark className={className} />;
-    return <TooltipContent>Autre</TooltipContent> && <FileQuestion className={className} />;
+
+    let icon: React.ReactNode;
+    let tooltipContent: string;
+
+    if (docType.includes('invoice')) {
+        icon = <FileText className={className} />;
+        tooltipContent = 'Facture';
+    } else if (docType.includes('receipt')) {
+        icon = <Receipt className={className} />;
+        tooltipContent = 'Reçu';
+    } else if (docType.includes('bank statement')) {
+        icon = <Landmark className={className} />;
+        tooltipContent = 'Relevé bancaire';
+    } else {
+        icon = <FileQuestion className={className} />;
+        tooltipContent = 'Autre';
+    }
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <div className="flex justify-center items-center h-full">{icon}</div>
+            </TooltipTrigger>
+            <TooltipContent side="right"><p>{tooltipContent}</p></TooltipContent>
+        </Tooltip>
+    );
 }
 
 export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
@@ -135,14 +157,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                 </TableCell>
                                 <TableCell className="p-2 text-center">
                                     <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className="flex justify-center items-center h-full">{getDocIcon(doc.type)}</div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="right">
-                                                <p>{doc.type ? doc.type.charAt(0).toUpperCase() + doc.type.slice(1) : 'Type inconnu'}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        {getDocIcon(doc.type)}
                                     </TooltipProvider>
                                 </TableCell>
                                 <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
