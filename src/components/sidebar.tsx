@@ -2,58 +2,44 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BarChart3, Settings, LogOut, FileText, ChevronDown, Building } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useState, useEffect } from 'react';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { ClientSwitcher } from './client-switcher';
 
+// In a real app, this would come from a user session
+const USER_ROLE = 'accountant'; // or 'client'
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
-  { href: '/dashboard/documents', icon: FileText, label: 'Mes documents' },
-  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analyse' },
+const accountantNavItems = [
+  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
+  { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
+  { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
-const mockClients = [
-    { id: 'alpha', name: 'Entreprise Alpha'},
-    { id: 'beta', name: 'Bêta SARL'},
-    { id: 'gamma', name: 'Gamma Inc.'},
-]
+const clientNavItems = [
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { href: '/dashboard/documents', icon: FileText, label: 'Mes documents' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [selectedClient, setSelectedClient] = useState(mockClients[0]);
+  const [navItems, setNavItems] = useState(clientNavItems);
+  const [showClientSwitcher, setShowClientSwitcher] = useState(false);
 
   useEffect(() => {
-    const storedClientId = localStorage.getItem('selectedClientId');
-    if (storedClientId) {
-        const client = mockClients.find(c => c.id === storedClientId);
-        if (client) {
-            setSelectedClient(client);
-        }
+    // Simulate role-based navigation
+    if (USER_ROLE === 'accountant') {
+      setNavItems(accountantNavItems);
+      setShowClientSwitcher(true);
     } else {
-        // Set default on first load
-        localStorage.setItem('selectedClientId', mockClients[0].id);
+      setNavItems(clientNavItems);
+      setShowClientSwitcher(false);
     }
-  }, [])
-
-
-  const handleClientChange = (client: typeof mockClients[0]) => {
-      setSelectedClient(client);
-      localStorage.setItem('selectedClientId', client.id);
-      window.dispatchEvent(new Event('storage')); // Notify other components
-  }
+  }, []);
 
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col hidden md:flex">
@@ -64,44 +50,21 @@ export function Sidebar() {
         </Link>
       </div>
 
-        <div className="p-4">
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                   <Button variant="outline" className="w-full justify-between">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            <Avatar className="h-6 w-6">
-                                <AvatarFallback>{selectedClient.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-sm truncate">{selectedClient.name}</span>
-                        </div>
-                       <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                    <DropdownMenuLabel>Changer de client</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {mockClients.map(client => (
-                         <DropdownMenuItem key={client.id} onClick={() => handleClientChange(client)}>
-                            <Building className="mr-2 h-4 w-4" />
-                            <span>{client.name}</span>
-                        </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                        Gérer les clients
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+      {showClientSwitcher && (
+        <div className="p-4 border-b">
+            <ClientSwitcher />
         </div>
+      )}
 
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 py-4 space-y-2">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
-              (pathname === item.href) && 'bg-muted text-primary'
+              // Highlight parent routes as well. e.g. /dashboard/documents should highlight /dashboard/documents
+              (pathname.startsWith(item.href)) && 'bg-muted text-primary'
             )}
           >
             <item.icon className="h-4 w-4" />
