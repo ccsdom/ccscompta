@@ -1,33 +1,86 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Users, FileUp, FileCheck, FileClock } from "lucide-react";
-import { BarChart } from "recharts";
+import { Users, FileUp, FileCheck, FileClock, Building } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import type { Document, AuditEvent } from '../documents/page';
+import type { Client } from '../clients/page';
 
-const mockAccountantData = {
-    totalClients: 12,
-    docsUploadedToday: 45,
-    docsPendingReview: 12,
-    docsApprovedToday: 78,
-    activityByClient: [
-        { name: 'Epsilon Global', docs: 30 },
-        { name: 'Gamma Inc.', docs: 22 },
-        { name: 'Alpha', docs: 15 },
-        { name: 'Bêta', docs: 8 },
-        { name: 'Delta', docs: 5 },
-    ].sort((a, b) => b.docs - a.docs),
-    recentActivities: [
-        { client: 'Epsilon Global', action: '3 documents en attente', time: 'il y a 5 minutes' },
-        { client: 'Entreprise Alpha', action: 'A approuvé 2 factures', time: 'il y a 15 minutes' },
-        { client: 'Gamma Inc.', action: 'A téléversé 1 relevé bancaire', time: 'il y a 1 heure' },
-    ]
-}
+const MOCK_CLIENTS: Client[] = [
+    { id: 'alpha', name: 'Entreprise Alpha', siret: '12345678901234', address: '123 Rue de la Paix, 75001 Paris', legalRepresentative: 'Jean Dupont', fiscalYearEndDate: '31/12', status: 'active', newDocuments: 3, lastActivity: '2024-07-16', email: 'contact@alpha.com', phone: '0123456789' },
+    { id: 'beta', name: 'Bêta SARL', siret: '23456789012345', address: '45 Avenue des Champs-Élysées, 75008 Paris', legalRepresentative: 'Marie Curie', fiscalYearEndDate: '30/06', status: 'active', newDocuments: 0, lastActivity: '2024-07-15', email: 'compta@beta.eu', phone: '0987654321' },
+    { id: 'gamma', name: 'Gamma Inc.', siret: '34567890123456', address: '67 Boulevard Saint-Germain, 75005 Paris', legalRepresentative: 'Louis Pasteur', fiscalYearEndDate: '31/03', status: 'onboarding', newDocuments: 1, lastActivity: '2024-07-17', email: 'factures@gamma.io', phone: '0112233445' },
+    { id: 'delta', name: 'Delta Industries', siret: '45678901234567', address: '89 Rue de Rivoli, 75004 Paris', legalRepresentative: 'Simone Veil', fiscalYearEndDate: '30/09', status: 'active', newDocuments: 5, lastActivity: '2024-07-16', email: 'admin@delta-industries.fr', phone: '0655443322' },
+    { id: 'epsilon', name: 'Epsilon Global', siret: '56789012345678', address: '101 Avenue Victor Hugo, 75116 Paris', legalRepresentative: 'Charles de Gaulle', fiscalYearEndDate: '31/12', status: 'inactive', newDocuments: 0, lastActivity: '2024-05-20', email: 'support@epsilon.com', phone: '0788990011' },
+];
 
 export default function AccountantDashboard() {
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
+
+    useEffect(() => {
+        const loadState = () => {
+            try {
+                const storedDocs = localStorage.getItem('documents');
+                if (storedDocs) {
+                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [], comments: d.comments || [] }));
+                    setDocuments(parsedDocs);
+                }
+            } catch (error) {
+                console.error("Failed to load documents from localStorage", error);
+            }
+        };
+        loadState();
+        window.addEventListener('storage', loadState);
+        return () => window.removeEventListener('storage', loadState);
+    }, []);
+
+    const dashboardData = useMemo(() => {
+        const today = new Date();
+        const todayStr = today.toLocaleDateString('fr-FR');
+        const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+        const docsUploadedToday = documents.filter(d => d.uploadDate === todayStr).length;
+        const docsPendingReview = documents.filter(d => ['pending', 'reviewing'].includes(d.status)).length;
+        
+        const docsApprovedToday = documents.filter(doc => {
+            const approvalEvent = doc.auditTrail.find(e => e.action.includes('approuvé'));
+            return approvalEvent && new Date(approvalEvent.date) >= twentyFourHoursAgo;
+        }).length;
+        
+        const activityByClient = clients.map(client => {
+            const clientDocsToday = documents.filter(d => 
+                d.clientId === client.id && new Date(d.auditTrail[0]?.date) >= twentyFourHoursAgo
+            ).length;
+            return { name: client.name, docs: clientDocsToday };
+        }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
+
+        const recentActivities = documents
+            .flatMap(doc => {
+                const client = clients.find(c => c.id === doc.clientId);
+                return doc.auditTrail.map(event => ({
+                    ...event,
+                    clientName: client?.name || 'Inconnu',
+                    documentName: doc.name,
+                }));
+            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5); // Get top 5 most recent events across all documents
+
+
+        return {
+            totalClients: clients.filter(c => c.status === 'active').length,
+            docsUploadedToday,
+            docsPendingReview,
+            docsApprovedToday,
+            activityByClient,
+            recentActivities
+        };
+    }, [documents, clients]);
 
     return (
         <div className="space-y-6">
@@ -42,7 +95,7 @@ export default function AccountantDashboard() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{mockAccountantData.totalClients}</div>
+                        <div className="text-2xl font-bold">{dashboardData.totalClients}</div>
                         <p className="text-xs text-muted-foreground">Total des dossiers gérés</p>
                     </CardContent>
                 </Card>
@@ -52,7 +105,7 @@ export default function AccountantDashboard() {
                         <FileUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">+{mockAccountantData.docsUploadedToday}</div>
+                        <div className="text-2xl font-bold">+{dashboardData.docsUploadedToday}</div>
                         <p className="text-xs text-muted-foreground">Téléversés par les clients aujourd'hui</p>
                     </CardContent>
                 </Card>
@@ -62,7 +115,7 @@ export default function AccountantDashboard() {
                         <FileClock className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{mockAccountantData.docsPendingReview}</div>
+                        <div className="text-2xl font-bold">{dashboardData.docsPendingReview}</div>
                         <p className="text-xs text-muted-foreground">Tous clients confondus</p>
                     </CardContent>
                 </Card>
@@ -72,7 +125,7 @@ export default function AccountantDashboard() {
                         <FileCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{mockAccountantData.docsApprovedToday}</div>
+                        <div className="text-2xl font-bold">{dashboardData.docsApprovedToday}</div>
                         <p className="text-xs text-muted-foreground">Documents approuvés par vos soins</p>
                     </CardContent>
                 </Card>
@@ -85,20 +138,26 @@ export default function AccountantDashboard() {
                         <CardDescription>Nombre de documents téléversés par les clients les plus actifs.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ChartContainer config={{ docs: { label: "Documents", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
-                            <BarChart data={mockAccountantData.activityByClient} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} layout="vertical">
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
-                                <XAxis dataKey="docs" type="number" hide />
-                                 <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${value} docs`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="docs" fill="var(--color-docs)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+                        {dashboardData.activityByClient.length > 0 ? (
+                            <ChartContainer config={{ docs: { label: "Documents", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
+                                <BarChart data={dashboardData.activityByClient} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} layout="vertical">
+                                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={120} />
+                                    <XAxis dataKey="docs" type="number" hide />
+                                     <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent 
+                                            formatter={(value) => `${value} docs`}
+                                            indicator="dot" 
+                                        />}
+                                    />
+                                    <Bar dataKey="docs" fill="var(--color-docs)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        ) : (
+                             <div className="h-[250px] w-full flex items-center justify-center text-muted-foreground text-sm">
+                                Aucune activité de téléversement dans les dernières 24 heures.
+                             </div>
+                        )}
                     </CardContent>
                 </Card>
                 <Card>
@@ -108,18 +167,22 @@ export default function AccountantDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {mockAccountantData.recentActivities.map((activity, index) => (
+                            {dashboardData.recentActivities.length > 0 ? dashboardData.recentActivities.map((activity, index) => (
                                 <div key={index} className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted mt-1">
-                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted mt-1 shrink-0">
+                                        <Building className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-sm">{activity.client}</p>
+                                        <p className="font-medium text-sm">{activity.clientName}</p>
                                         <p className="text-sm text-muted-foreground">{activity.action}</p>
-                                        <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                        <p className="text-xs text-muted-foreground">{new Date(activity.date).toLocaleString('fr-FR')}</p>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-10">
+                                    Aucune activité récente.
+                                </div>
+                            )}
                         </div>
                         <Button variant="outline" className="w-full mt-4" asChild>
                             <Link href="/dashboard/clients">Voir tous les clients</Link>
