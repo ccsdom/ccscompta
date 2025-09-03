@@ -322,7 +322,7 @@ export default function DocumentsPage() {
       id: crypto.randomUUID(),
       text: commentText,
       user: getCurrentUser(),
-      date: new Date().toISOString(),
+      date: new date().toISOString(),
     };
     const trail = addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
     setDocuments(prev => prev.map(d => {
