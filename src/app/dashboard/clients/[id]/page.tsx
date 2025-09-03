@@ -2,7 +2,7 @@
 
 import { ClientForm } from "../client-form";
 import type { Client } from '../page';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 
 // Mock data fetching function
 const getClientById = (id: string): Client | undefined => {
@@ -17,7 +17,8 @@ const getClientById = (id: string): Client | undefined => {
 }
 
 
-export default function EditClientPage({ params }: { params: { id: string } }) {
+export default function EditClientPage() {
+    const params = useParams<{ id: string }>();
     const client = getClientById(params.id);
 
     if (!client) {
