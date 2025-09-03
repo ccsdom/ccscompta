@@ -32,19 +32,33 @@ export function ClientSwitcher() {
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
   const [clients, setClients] = useState<PopoverClient[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAndSetClients = async () => {
         const clientsData = await getClients();
-        setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
+        const role = localStorage.getItem('userRole');
+        setUserRole(role);
 
-        const storedClientId = localStorage.getItem('selectedClientId');
-        if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
-          setSelectedValue(storedClientId);
-        } else if (clientsData.length > 0) {
-          const firstClientId = clientsData[0].id;
-          setSelectedValue(firstClientId);
-          localStorage.setItem('selectedClientId', firstClientId);
+        if (role === 'client') {
+            const userEmail = localStorage.getItem('userEmail');
+            const clientName = localStorage.getItem('userName');
+            const client = clientsData.find(c => c.name === clientName || c.email === userEmail);
+            if(client) {
+                setClients([{ value: client.id, label: client.name }]);
+                setSelectedValue(client.id);
+                localStorage.setItem('selectedClientId', client.id);
+            }
+        } else {
+            setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
+            const storedClientId = localStorage.getItem('selectedClientId');
+            if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
+              setSelectedValue(storedClientId);
+            } else if (clientsData.length > 0) {
+              const firstClientId = clientsData[0].id;
+              setSelectedValue(firstClientId);
+              localStorage.setItem('selectedClientId', firstClientId);
+            }
         }
     };
     fetchAndSetClients();
@@ -80,7 +94,7 @@ export function ClientSwitcher() {
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
-          disabled={!clients || clients.length === 0}
+          disabled={!clients || clients.length === 0 || userRole === 'client'}
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-6 w-6">

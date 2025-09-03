@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   // Hide breadcrumbs on root dashboard pages
-  const showBreadcrumb = !['/dashboard', '/dashboard/accountant', '/dashboard/admin'].includes(pathname);
+  const showBreadcrumb = !['/dashboard/my-documents', '/dashboard/accountant', '/dashboard/admin'].includes(pathname);
 
   return (
     <div className="flex h-screen bg-background">

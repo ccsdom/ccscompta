@@ -1,132 +1,52 @@
 
 'use client';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DocumentHistory } from "@/components/document-history";
-import { FileUp, FileCheck, FileClock, CircleDollarSign } from "lucide-react";
-import { useState, useMemo, useEffect } from 'react';
-import type { Document } from "./documents/page"; // Re-using type from documents page
+export default function DashboardRedirect() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [loading, setLoading] = useState(true);
 
-export default function Dashboard() {
-    const [documents, setDocuments] = useState<Document[]>([]);
-    const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-    const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
-    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-
-
-    useEffect(() => {
-        const loadState = () => {
-            try {
-                const storedDocs = localStorage.getItem('documents');
-                if (storedDocs) {
-                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-                    setDocuments(parsedDocs);
-                }
-                const clientId = localStorage.getItem('selectedClientId');
-                if (clientId) {
-                    setSelectedClientId(clientId);
-                }
-            } catch (error) {
-                console.error("Failed to load documents from localStorage", error)
-            }
-        };
-        loadState();
-        window.addEventListener('storage', loadState);
-        return () => window.removeEventListener('storage', loadState);
-    }, []);
-
-    const filteredDocuments = useMemo(() => {
-        return [...documents].filter(d => d.clientId === selectedClientId);
-    }, [documents, selectedClientId]);
-
-    const stats = useMemo(() => {
-        const approved = filteredDocuments.filter(d => d.status === 'approved').length;
-        const pending = filteredDocuments.filter(d => ['reviewing', 'pending', 'processing'].includes(d.status)).length;
-        const totalAmount = filteredDocuments
-            .filter(d => d.status === 'approved' && d.extractedData?.amounts)
-            .flatMap(d => d.extractedData!.amounts)
-            .reduce((sum, amount) => sum + (amount ?? 0), 0);
-
-        return {
-            total: filteredDocuments.length,
-            approved,
-            pending,
-            totalAmount: totalAmount.toFixed(2),
-        }
-    }, [filteredDocuments]);
-
-    // These handlers are placeholders. They would be implemented with global state management.
-    const handleProcessDocument = (doc: Document) => {
-        console.log("Processing document from dashboard:", doc.name);
-    };
-
-    const handleDeleteDocument = (docId: string) => {
-        setDocuments(prev => prev.filter(d => d.id !== docId));
+  useEffect(() => {
+    // Only perform redirection if we are on the exact '/dashboard' path
+    if (pathname === '/dashboard') {
+      const role = localStorage.getItem('userRole');
+      
+      let targetPath = '/login';
+      if (role === 'admin') {
+        targetPath = '/dashboard/admin';
+      } else if (role === 'accountant') {
+        targetPath = '/dashboard/accountant';
+      } else if (role === 'client') {
+        targetPath = '/dashboard/my-documents';
+      }
+      
+      router.replace(targetPath);
+    } else {
+        setLoading(false);
     }
+  }, [router, pathname]);
 
-    const handleSetActiveDocument = (doc: Document) => {
-        setActiveDocumentId(doc.id);
-        // In a real app, you might want to navigate to the documents page
-        // For now, we just log it.
-        console.log("Setting active document from dashboard:", doc.name);
-    };
-
-    return (
+  // Display a loader to avoid flashing content or showing a blank page during redirection.
+  if (loading) {
+      return (
         <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Documents affichés</CardTitle>
-                        <FileUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.total}</div>
-                        <p className="text-xs text-muted-foreground">Total des fichiers pour ce client</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Documents approuvés</CardTitle>
-                        <FileCheck className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.approved}</div>
-                        <p className="text-xs text-muted-foreground">Validés et prêts à être envoyés</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">En attente d'examen</CardTitle>
-                        <FileClock className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.pending}</div>
-                        <p className="text-xs text-muted-foreground">À traiter ou à valider</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Montant Total Approuvé</CardTitle>
-                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalAmount} €</div>
-                        <p className="text-xs text-muted-foreground">Somme des documents validés</p>
-                    </CardContent>
-                </Card>
+                <Skeleton className="h-32" />
+                <Skeleton className="h-32" />
+                <Skeleton className="h-32" />
+                <Skeleton className="h-32" />
             </div>
-            
             <div className="grid grid-cols-1 gap-6">
-                <DocumentHistory
-                    documents={filteredDocuments}
-                    onProcess={handleProcessDocument}
-                    onDelete={handleDeleteDocument}
-                    activeDocumentId={activeDocumentId}
-                    setActiveDocument={handleSetActiveDocument}
-                    selectedDocumentIds={selectedDocumentIds}
-                    setSelectedDocumentIds={setSelectedDocumentIds}
-                />
+                 <Skeleton className="h-96" />
             </div>
         </div>
-    );
+      )
+  }
+
+  // This will be rendered if the path is not '/dashboard' and loading is complete,
+  // though the layout structure means this component is primarily for redirection.
+  return null;
 }

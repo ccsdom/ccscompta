@@ -26,7 +26,6 @@ const accountantNavItems = [
 ];
 
 const clientNavItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord'},
   { href: '/dashboard/my-documents', icon: FileUp, label: 'Mes documents' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
@@ -80,7 +79,7 @@ export function Sidebar() {
   }
   
   const getDashboardHomeLink = () => {
-    if (currentRole === 'client') return '/dashboard';
+    if (currentRole === 'client') return '/dashboard/my-documents';
     if (currentRole === 'accountant') return '/dashboard/accountant';
     return '/dashboard/admin';
   }
@@ -133,7 +132,7 @@ export function Sidebar() {
                 {roleLabel}
             </span>
         </div>
-        {currentRole === 'accountant' && <ClientSwitcher />}
+        {(currentRole === 'accountant' || currentRole === 'client') && <ClientSwitcher />}
       </div>
 
 

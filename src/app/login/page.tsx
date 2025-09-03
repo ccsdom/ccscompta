@@ -81,7 +81,7 @@ export default function LoginPage() {
       } else if (role === 'accountant') {
           router.push('/dashboard/accountant');
       } else {
-          router.push('/dashboard');
+          router.push('/dashboard/my-documents');
       }
   }
 
