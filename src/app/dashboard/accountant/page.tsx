@@ -14,11 +14,11 @@ const mockAccountantData = {
     docsPendingReview: 12,
     docsApprovedToday: 78,
     activityByClient: [
+        { name: 'Epsilon Global', docs: 30 },
+        { name: 'Gamma Inc.', docs: 22 },
         { name: 'Alpha', docs: 15 },
         { name: 'Bêta', docs: 8 },
-        { name: 'Gamma', docs: 22 },
         { name: 'Delta', docs: 5 },
-        { name: 'Epsilon', docs: 30 },
     ].sort((a, b) => b.docs - a.docs),
     recentActivities: [
         { client: 'Epsilon Global', action: '3 documents en attente', time: 'il y a 5 minutes' },
@@ -86,7 +86,7 @@ export default function AccountantDashboard() {
                     </CardHeader>
                     <CardContent>
                         <ChartContainer config={{ docs: { label: "Documents", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
-                            <BarChart data={mockAccountantData.activityByClient} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                            <BarChart data={mockAccountantData.activityByClient} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} layout="vertical">
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
                                 <XAxis dataKey="docs" type="number" hide />
                                  <ChartTooltip
@@ -96,7 +96,7 @@ export default function AccountantDashboard() {
                                         indicator="dot" 
                                     />}
                                 />
-                                <Bar dataKey="docs" fill="var(--color-docs)" radius={4} layout="vertical" />
+                                <Bar dataKey="docs" fill="var(--color-docs)" radius={4} />
                             </BarChart>
                         </ChartContainer>
                     </CardContent>

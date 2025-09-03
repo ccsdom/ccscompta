@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2, LayoutGrid } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart, Label } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
@@ -266,9 +266,27 @@ export default function AnalyticsPage() {
         }));
     }
 
+    const PieCenterLabel = ({ viewBox }: any) => {
+        const { cx, cy } = viewBox;
+        return (
+            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                <tspan x={cx} y={cy} className="text-3xl font-bold fill-foreground">
+                    {filteredDocuments.length.toLocaleString()}
+                </tspan>
+                <tspan x={cx} y={cy + 20} className="text-sm text-muted-foreground">
+                    Documents
+                </tspan>
+            </text>
+        );
+    };
+
   return (
     <div className="space-y-6">
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Analyse des Dépenses</h1>
+                <p className="text-muted-foreground mt-1">Visualisez les données extraites de vos documents.</p>
+            </div>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="outline"><LayoutGrid className="mr-2 h-4 w-4" />Personnaliser</Button>
@@ -372,36 +390,7 @@ export default function AnalyticsPage() {
                                 innerRadius={50}
                                 labelLine={false}
                             >
-                                <Label
-                                    content={({ viewBox }) => {
-                                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                                        return (
-                                            <text
-                                            x={viewBox.cx}
-                                            y={viewBox.cy}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                            >
-                                            <tspan
-                                                x={viewBox.cx}
-                                                y={viewBox.cy}
-                                                className="text-3xl font-bold fill-foreground"
-                                            >
-                                                {filteredDocuments.length.toLocaleString()}
-                                            </tspan>
-                                            <tspan
-                                                x={viewBox.cx}
-                                                y={(viewBox.cy || 0) + 16}
-                                                className="text-sm text-muted-foreground"
-                                            >
-                                                Documents
-                                            </tspan>
-                                            </text>
-                                        )
-                                        }
-                                        return null;
-                                    }}
-                                    />
+                                <Label content={<PieCenterLabel />} />
                                 {analyticsData.typeChartData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.fill} />
                                 ))}
