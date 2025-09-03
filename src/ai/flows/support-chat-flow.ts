@@ -80,7 +80,7 @@ ${documentation}`
       }]
     });
     
-    // Add existing conversation history
+    // Add existing conversation history if it exists
     if (input.history) {
         messages.push(...input.history);
     }
