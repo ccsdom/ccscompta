@@ -1,35 +1,81 @@
-'use client'
 
-import { ClientForm } from "../client-form";
+'use client';
+
+import { ClientForm, formSchema } from "../client-form";
 import type { Client } from '../page';
-import { notFound, useParams } from 'next/navigation';
-
-// Mock data fetching function
-const getClientById = (id: string): Client | undefined => {
-     const mockClients: Client[] = [
-        { id: 'alpha', name: 'Entreprise Alpha', siret: '12345678901234', address: '123 Rue de la Paix, 75001 Paris', legalRepresentative: 'Jean Dupont', fiscalYearEndDate: '31/12', status: 'active', newDocuments: 3, lastActivity: '2024-07-16', email: 'contact@alpha.com', phone: '0123456789' },
-        { id: 'beta', name: 'Bêta SARL', siret: '23456789012345', address: '45 Avenue des Champs-Élysées, 75008 Paris', legalRepresentative: 'Marie Curie', fiscalYearEndDate: '30/06', status: 'active', newDocuments: 0, lastActivity: '2024-07-15', email: 'compta@beta.eu', phone: '0987654321' },
-        { id: 'gamma', name: 'Gamma Inc.', siret: '34567890123456', address: '67 Boulevard Saint-Germain, 75005 Paris', legalRepresentative: 'Louis Pasteur', fiscalYearEndDate: '31/03', status: 'onboarding', newDocuments: 1, lastActivity: '2024-07-17', email: 'factures@gamma.io', phone: '0112233445' },
-        { id: 'delta', name: 'Delta Industries', siret: '45678901234567', address: '89 Rue de Rivoli, 75004 Paris', legalRepresentative: 'Simone Veil', fiscalYearEndDate: '30/09', status: 'active', newDocuments: 5, lastActivity: '2024-07-16', email: 'admin@delta-industries.fr', phone: '0655443322' },
-        { id: 'epsilon', name: 'Epsilon Global', siret: '56789012345678', address: '101 Avenue Victor Hugo, 75116 Paris', legalRepresentative: 'Charles de Gaulle', fiscalYearEndDate: '31/12', status: 'inactive', newDocuments: 0, lastActivity: '2024-05-20', email: 'support@epsilon.com', phone: '0788990011' },
-    ];
-    return mockClients.find(c => c.id === id);
-}
+import { notFound, useParams, useRouter } from 'next/navigation';
+import { getClientById, updateClient } from "@/lib/client-data";
+import { useEffect, useState } from "react";
+import type * as z from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 
 export default function EditClientPage() {
     const params = useParams<{ id: string }>();
-    const client = getClientById(params.id);
+    const router = useRouter();
+    const { toast } = useToast();
+    const [client, setClient] = useState<Client | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (params.id) {
+            const fetchClient = async () => {
+                const clientData = await getClientById(params.id);
+                if (clientData) {
+                    setClient(clientData);
+                }
+                setLoading(false);
+            };
+            fetchClient();
+        }
+    }, [params.id]);
+
+    const handleSave = async (data: z.infer<typeof formSchema>) => {
+        try {
+            await updateClient(params.id, data);
+            toast({
+                title: "Modifications enregistrées",
+                description: `Les informations de ${data.name} ont été mises à jour.`
+            });
+            router.push('/dashboard/clients');
+            router.refresh(); // To refetch the list on the clients page
+        } catch (error) {
+             console.error("Failed to update client:", error);
+            toast({
+                variant: 'destructive',
+                title: "Erreur",
+                description: "Impossible de mettre à jour le client."
+            });
+        }
+    }
+
+    if (loading) {
+        return (
+             <div>
+                <div className="mb-6">
+                    <Skeleton className="h-9 w-1/2" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <Card>
+                    <CardContent className="p-6 space-y-6">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </CardContent>
+                    <CardFooter className="border-t p-6 flex justify-end gap-2">
+                        <Skeleton className="h-10 w-24" />
+                        <Skeleton className="h-10 w-24" />
+                    </CardFooter>
+                </Card>
+            </div>
+        )
+    }
 
     if (!client) {
         notFound();
-    }
-    
-    const handleSave = (data: any) => {
-        // In a real app, you would save this data to your backend
-        console.log(`Saving client ${params.id}:`, data);
-        alert("Modifications enregistrées (voir console) ! Redirection vers la liste des clients.");
-        window.location.href = '/dashboard/clients';
     }
 
     return (

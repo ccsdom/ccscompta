@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,7 +28,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-
+import { getClients, deleteClient } from '@/lib/client-data';
+import { useToast } from '@/hooks/use-toast';
 
 export interface Client {
     id: string;
@@ -52,19 +53,20 @@ export const mockAccountants = [
     { id: 'acc_4', name: 'Julien Petit' },
 ];
 
-const mockClients: Client[] = [
-    { id: 'alpha', name: 'Entreprise Alpha', siret: '12345678901234', address: '123 Rue de la Paix, 75001 Paris', legalRepresentative: 'Jean Dupont', fiscalYearEndDate: '31/12', status: 'active', newDocuments: 3, lastActivity: '2024-07-16', email: 'contact@alpha.com', phone: '0123456789', assignedAccountantId: 'acc_1' },
-    { id: 'beta', name: 'Bêta SARL', siret: '23456789012345', address: '45 Avenue des Champs-Élysées, 75008 Paris', legalRepresentative: 'Marie Curie', fiscalYearEndDate: '30/06', status: 'active', newDocuments: 0, lastActivity: '2024-07-15', email: 'compta@beta.eu', phone: '0987654321', assignedAccountantId: 'acc_2' },
-    { id: 'gamma', name: 'Gamma Inc.', siret: '34567890123456', address: '67 Boulevard Saint-Germain, 75005 Paris', legalRepresentative: 'Louis Pasteur', fiscalYearEndDate: '31/03', status: 'onboarding', newDocuments: 1, lastActivity: '2024-07-17', email: 'factures@gamma.io', phone: '0112233445', assignedAccountantId: 'acc_1' },
-    { id: 'delta', name: 'Delta Industries', siret: '45678901234567', address: '89 Rue de Rivoli, 75004 Paris', legalRepresentative: 'Simone Veil', fiscalYearEndDate: '30/09', status: 'active', newDocuments: 5, lastActivity: '2024-07-16', email: 'admin@delta-industries.fr', phone: '0655443322', assignedAccountantId: 'acc_3' },
-    { id: 'epsilon', name: 'Epsilon Global', siret: '56789012345678', address: '101 Avenue Victor Hugo, 75116 Paris', legalRepresentative: 'Charles de Gaulle', fiscalYearEndDate: '31/12', status: 'inactive', newDocuments: 0, lastActivity: '2024-05-20', email: 'support@epsilon.com', phone: '0788990011' },
-];
-
 export default function ClientsPage() {
-    const [clients, setClients] = useState<Client[]>(mockClients);
+    const [clients, setClients] = useState<Client[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const router = useRouter();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchClients = async () => {
+            const clientsData = await getClients();
+            setClients(clientsData);
+        };
+        fetchClients();
+    }, []);
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -76,13 +78,24 @@ export default function ClientsPage() {
         router.push('/dashboard/documents');
     }
     
-    const handleDeleteClient = (client: Client) => {
-        setClients(prev => prev.filter(c => c.id !== client.id));
+    const handleDeleteClient = async (client: Client) => {
+        const success = await deleteClient(client.id);
+        if (success) {
+            setClients(prev => prev.filter(c => c.id !== client.id));
+            toast({ title: 'Client supprimé', description: `Le client ${client.name} a été supprimé.` });
+        } else {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de supprimer le client.' });
+        }
         setClientToDelete(null);
     }
     
     const handleClientsImported = (newClients: Client[]) => {
-        setClients(prev => [...prev, ...newClients]);
+        // For simplicity, we refetch all clients to get the updated list
+        const fetchClients = async () => {
+            const clientsData = await getClients();
+            setClients(clientsData);
+        };
+        fetchClients();
     }
 
 

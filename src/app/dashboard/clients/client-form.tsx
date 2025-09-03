@@ -15,7 +15,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useRouter } from "next/navigation";
 
 
-const formSchema = z.object({
+export const formSchema = z.object({
   name: z.string().min(2, { message: "Le nom de l'entreprise doit contenir au moins 2 caractères." }),
   siret: z.string().length(14, { message: "Le SIRET doit contenir 14 chiffres." }).regex(/^\d+$/, { message: "Le SIRET ne doit contenir que des chiffres."}),
   email: z.string().email({ message: "Adresse email invalide." }),
