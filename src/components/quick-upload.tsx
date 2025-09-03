@@ -93,7 +93,7 @@ export function QuickUpload() {
           doc.extractedData = extracted;
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA');
 
-          if (automationSettings.isEnabled) {
+          if (automationSettings.isEnabled && recognition.documentType !== 'bank statement') {
               doc.auditTrail = addAuditEvent(doc.auditTrail, 'Validation automatique initiée');
               const validation = await validateExtraction({ documentDataUri: doc.dataUrl, extractedData: extracted });
               
@@ -193,7 +193,7 @@ export function QuickUpload() {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                 <Button variant="ghost" size="icon" className="hidden md:inline-flex" disabled={!selectedClientId}>
+                 <Button variant="ghost" size="icon" className="md:inline-flex" disabled={!selectedClientId}>
                     <PlusCircle className="h-5 w-5" />
                     <span className="sr-only">Ajout Rapide</span>
                 </Button>
