@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,15 +10,36 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound } from "lucide-react";
+import { Copy, KeyRound, Bot } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsProfileSecurity } from "@/components/settings-profile-security";
+import { Slider } from "@/components/ui/slider";
 
 export default function SettingsPage() {
     const { toast } = useToast();
     const { theme, setTheme } = useTheme();
-    const [userName, setUserName] = useState("Utilisateur Démo");
-    const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
+    const [automationSettings, setAutomationSettings] = useState({
+        isEnabled: true,
+        confidenceThreshold: 0.95,
+        autoSend: false,
+    });
+
+    useEffect(() => {
+        const storedSettings = localStorage.getItem('automationSettings');
+        if (storedSettings) {
+            setAutomationSettings(JSON.parse(storedSettings));
+        }
+    }, []);
+
+    const handleAutomationSave = () => {
+        localStorage.setItem('automationSettings', JSON.stringify(automationSettings));
+        toast({
+            title: "Paramètres d'automatisation enregistrés",
+            description: "Les nouvelles règles d'automatisation ont été appliquées.",
+        });
+        window.dispatchEvent(new Event('storage'));
+    }
+
 
     const uploadEmail = `uploads-{ID_CLIENT}@ccs-compta-in.com`;
 
@@ -47,15 +68,75 @@ export default function SettingsPage() {
       </div>
 
        <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="profile">Profil</TabsTrigger>
             <TabsTrigger value="security">Sécurité</TabsTrigger>
+            <TabsTrigger value="automation">Automatisation</TabsTrigger>
             <TabsTrigger value="integrations">Intégrations</TabsTrigger>
             <TabsTrigger value="email-upload">Téléversement par Email</TabsTrigger>
             <TabsTrigger value="preferences">Préférences</TabsTrigger>
         </TabsList>
         
         <SettingsProfileSecurity />
+
+        <TabsContent value="automation">
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Bot className="h-6 w-6" /> Automatisation IA</CardTitle>
+                    <CardDescription>
+                        Activez l'approbation automatique des documents lorsque l'IA est suffisamment confiante dans la qualité de l'extraction.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-background">
+                        <div>
+                            <Label htmlFor="enable-automation" className="font-semibold">Activer l'auto-approbation</Label>
+                            <p className="text-sm text-muted-foreground">Si activé, les documents seront automatiquement approuvés s'ils respectent le seuil de confiance.</p>
+                        </div>
+                        <Switch
+                            id="enable-automation"
+                            checked={automationSettings.isEnabled}
+                            onCheckedChange={(checked) => setAutomationSettings(prev => ({ ...prev, isEnabled: checked }))}
+                        />
+                    </div>
+                    <div className={`space-y-4 ${!automationSettings.isEnabled ? 'opacity-50' : ''}`}>
+                         <Separator />
+                        <div>
+                            <div className="flex justify-between items-center mb-2">
+                                <Label htmlFor="confidence-threshold">Seuil de confiance</Label>
+                                <span className="text-sm font-medium text-primary">{Math.round(automationSettings.confidenceThreshold * 100)}%</span>
+                            </div>
+                            <Slider
+                                id="confidence-threshold"
+                                min={0.8}
+                                max={1}
+                                step={0.01}
+                                value={[automationSettings.confidenceThreshold]}
+                                onValueChange={(value) => setAutomationSettings(prev => ({ ...prev, confidenceThreshold: value[0] }))}
+                                disabled={!automationSettings.isEnabled}
+                            />
+                            <p className="text-xs text-muted-foreground mt-2">Seuil de confiance minimum requis de la part de l'IA pour approuver un document automatiquement.</p>
+                        </div>
+                         <Separator />
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <Label htmlFor="auto-send">Envoi automatique vers Cegid</Label>
+                                <p className="text-sm text-muted-foreground">Si activé, les documents auto-approuvés seront immédiatement envoyés à Cegid.</p>
+                            </div>
+                            <Switch
+                                id="auto-send"
+                                checked={automationSettings.autoSend}
+                                onCheckedChange={(checked) => setAutomationSettings(prev => ({ ...prev, autoSend: checked }))}
+                                disabled={!automationSettings.isEnabled}
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+                 <CardFooter className="border-t px-6 py-4 justify-end">
+                    <Button onClick={handleAutomationSave}>Enregistrer les automatisations</Button>
+                </CardFooter>
+            </Card>
+        </TabsContent>
 
         <TabsContent value="integrations">
             <Card>

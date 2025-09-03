@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
+import { validateExtraction } from '@/ai/flows/validate-extraction';
 import type { Document, Notification, AuditEvent } from '@/app/dashboard/documents/page';
 import { PlusCircle, CheckCircle, File as FileIcon } from 'lucide-react';
 
@@ -20,6 +21,7 @@ export function QuickUpload() {
     const [processedFiles, setProcessedFiles] = useState<File[]>([]);
     const [filesToProcess, setFilesToProcess] = useState<File[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
     const { toast } = useToast();
 
     useEffect(() => {
@@ -32,23 +34,25 @@ export function QuickUpload() {
     }, [isOpen]);
 
     useEffect(() => {
-        const clientId = localStorage.getItem('selectedClientId');
-        setSelectedClientId(clientId);
-
-        const handleStorageChange = () => {
+        const loadSettings = () => {
             const clientId = localStorage.getItem('selectedClientId');
             setSelectedClientId(clientId);
+            const automation = localStorage.getItem('automationSettings');
+            if (automation) {
+                setAutomationSettings(JSON.parse(automation));
+            }
         };
 
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        loadSettings();
+        window.addEventListener('storage', loadSettings);
+        return () => window.removeEventListener('storage', loadSettings);
     }, []);
 
-    const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
+    const addAuditEvent = (trail: AuditEvent[], action: string, user?: string): AuditEvent[] => {
         const event: AuditEvent = {
             action,
             date: new Date().toISOString(),
-            user: getCurrentUser(),
+            user: user || 'Système',
         };
         return [...trail, event];
     }
@@ -67,17 +71,49 @@ export function QuickUpload() {
         window.dispatchEvent(new Event('storage')); // Notify header
     };
 
+    const handleSendToCegid = (doc: Document, trail: AuditEvent[]): AuditEvent[] => {
+        console.log("Auto-sending to Cegid:", doc);
+        toast({
+          title: "Envoi automatique",
+          description: `${doc.name} a été envoyé à CEGID.`,
+        });
+        createNotification(doc, 'a été envoyé automatiquement à Cegid.');
+        return addAuditEvent(trail, 'Document envoyé à Cegid (Auto-envoi)');
+    };
+
     const processDocument = useCallback(async (doc: Document) => {
         try {
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA initié');
           const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl });
           doc.type = recognition.documentType;
           doc.confidence = recognition.confidence;
+          doc.auditTrail = addAuditEvent(doc.auditTrail, `Type reconnu: ${doc.type} (Confiance: ${Math.round(doc.confidence * 100)}%)`);
     
           const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
           doc.extractedData = extracted;
-          doc.status = 'reviewing';
-          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA terminé');
+          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA');
+
+          if (automationSettings.isEnabled) {
+              doc.auditTrail = addAuditEvent(doc.auditTrail, 'Validation automatique initiée');
+              const validation = await validateExtraction({ documentDataUri: doc.dataUrl, extractedData: extracted });
+              
+              if (validation.isConfident && validation.confidenceScore >= automationSettings.confidenceThreshold) {
+                  doc.status = 'approved';
+                  doc.auditTrail = addAuditEvent(doc.auditTrail, `Validation IA réussie (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Document auto-approuvé.`);
+                  createNotification(doc, 'a été approuvé automatiquement.');
+
+                  if (automationSettings.autoSend) {
+                     doc.auditTrail = handleSendToCegid(doc, doc.auditTrail);
+                  }
+              } else {
+                  doc.status = 'reviewing';
+                   doc.auditTrail = addAuditEvent(doc.auditTrail, `Validation IA requiert une revue (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Raison: ${validation.mismatchReason || 'N/A'}`);
+                  createNotification(doc, 'est prêt pour examen.');
+              }
+          } else {
+             doc.status = 'reviewing';
+             createNotification(doc, 'est prêt pour examen.');
+          }
     
         } catch (error) {
           console.error("Error processing document:", error);
@@ -90,7 +126,7 @@ export function QuickUpload() {
           });
         }
         return doc;
-    }, [toast]);
+    }, [toast, automationSettings]);
     
     const handleFileDrop = async (files: File[]) => {
         if (!selectedClientId) {
@@ -122,21 +158,11 @@ export function QuickUpload() {
                 dataUrl,
                 clientId: selectedClientId,
                 comments: [],
-                auditTrail: [{
-                    action: 'Document téléversé (ajout rapide)',
-                    date: new Date().toISOString(),
-                    user: getCurrentUser(),
-                }]
+                auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)', getCurrentUser()),
               };
               
               const processedDoc = await processDocument(newDoc) as Document;
               newDocuments.push(processedDoc);
-
-              if (processedDoc.status === 'reviewing') {
-                createNotification(processedDoc, 'est prêt pour examen.');
-              } else if (processedDoc.status === 'error') {
-                createNotification(processedDoc, 'a échoué lors du traitement.');
-              }
             }
 
             const allDocs = [...newDocuments.map(d => ({...d, file: undefined})), ...storedDocs];

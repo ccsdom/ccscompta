@@ -6,6 +6,7 @@ import { DataValidationForm } from '@/components/data-validation-form';
 import { DocumentHistory } from '@/components/document-history';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
+import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import {
@@ -81,6 +82,7 @@ export default function DocumentsPage() {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
   const { toast } = useToast();
 
 
@@ -104,6 +106,10 @@ export default function DocumentsPage() {
              const storedClientId = localStorage.getItem('selectedClientId');
              if (storedClientId) {
                 setSelectedClientId(storedClientId);
+             }
+             const storedAutomation = localStorage.getItem('automationSettings');
+             if (storedAutomation) {
+                setAutomationSettings(JSON.parse(storedAutomation));
              }
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -141,7 +147,7 @@ export default function DocumentsPage() {
     const event: AuditEvent = {
         action,
         date: new Date().toISOString(),
-        user: getCurrentUser(),
+        user: 'Système',
     };
     let currentTrail: AuditEvent[] = [];
     setDocuments(prev => {
@@ -231,26 +237,48 @@ export default function DocumentsPage() {
     
     try {
       const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
+      trail = addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
       const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
-      trail = addAuditEvent(docId, 'Traitement IA terminé');
-      
-      const finalUpdates: Partial<Document> = {
+      trail = addAuditEvent(docId, 'Données extraites par IA');
+
+      let finalUpdates: Partial<Document> = {
           status: 'reviewing',
           extractedData: extracted,
           type: recognition.documentType,
           confidence: recognition.confidence,
           auditTrail: trail
-      }
-      updateDocumentState(docId, finalUpdates);
+      };
 
-      toast({
-        title: "Traitement terminé",
-        description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
-      });
-      
-      const finalDoc = { ...docToProcess, ...finalUpdates };
-      createNotification(finalDoc, 'est prêt pour examen.');
+      // Auto-approval logic
+      if (automationSettings.isEnabled) {
+          trail = addAuditEvent(docId, 'Validation automatique initiée');
+          const validation = await validateExtraction({ documentDataUri: docToProcess.dataUrl, extractedData: extracted });
+          
+          if (validation.isConfident && validation.confidenceScore >= automationSettings.confidenceThreshold) {
+              trail = addAuditEvent(docId, `Validation IA réussie (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Document auto-approuvé.`);
+              finalUpdates.status = 'approved';
+              toast({ title: "Document auto-approuvé", description: `${docToProcess.name} a été traité et approuvé automatiquement.` });
+              
+              const finalDoc = { ...docToProcess, ...finalUpdates };
+              createNotification(finalDoc, 'a été approuvé automatiquement.');
+
+              if (automationSettings.autoSend) {
+                  handleSendToCegid(finalDoc, true);
+              }
+          } else {
+              trail = addAuditEvent(docId, `Validation IA requiert une revue (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Raison: ${validation.mismatchReason || 'N/A'}`);
+              toast({ title: "Traitement terminé", description: `Données extraites de ${docToProcess.name}. Prêt pour examen.` });
+              const finalDoc = { ...docToProcess, ...finalUpdates };
+              createNotification(finalDoc, 'est prêt pour examen.');
+          }
+      } else {
+         toast({ title: "Traitement terminé", description: `Données extraites de ${docToProcess.name}. Prêt pour examen.` });
+         const finalDoc = { ...docToProcess, ...finalUpdates };
+         createNotification(finalDoc, 'est prêt pour examen.');
+      }
+
+      updateDocumentState(docId, finalUpdates);
 
     } catch (error) {
       console.error("Error processing document:", error);
@@ -266,11 +294,11 @@ export default function DocumentsPage() {
     } finally {
       if (docId === activeDocumentId) setIsLoading(false);
     }
-  }, [documents, activeDocumentId, toast, addAuditEvent]);
+  }, [documents, activeDocumentId, toast, addAuditEvent, automationSettings]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
-    const trail = addAuditEvent(docId, 'Document approuvé');
+    const trail = addAuditEvent(docId, 'Document approuvé manuellement');
     setDocuments(prev => prev.map(d => {
       if (d.id === docId) {
         updatedDoc = { ...d, status: 'approved', extractedData: updatedData, auditTrail: trail };
@@ -304,8 +332,9 @@ export default function DocumentsPage() {
     }));
   };
 
-  const handleSendToCegid = (doc: Document) => {
-    const trail = addAuditEvent(doc.id, 'Document envoyé à Cegid');
+  const handleSendToCegid = (doc: Document, isAuto: boolean = false) => {
+    const user = isAuto ? 'Système (Auto-envoi)' : getCurrentUser();
+    const trail = [...doc.auditTrail, { action: 'Document envoyé à Cegid', date: new Date().toISOString(), user }];
     updateDocumentState(doc.id, { auditTrail: trail });
     console.log("Sending to Cegid:", doc);
     toast({
@@ -593,14 +622,14 @@ export default function DocumentsPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Cette action est irréversible. Les documents sélectionnés seront définitivement supprimés.
-                </AlertDialogDescription>
+                    <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Cette action est irréversible. Les documents sélectionnés seront définitivement supprimés.
+                    </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -649,7 +678,7 @@ export default function DocumentsPage() {
             key={activeDocument.id}
             document={activeDocument}
             onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-            onSendToCegid={handleSendToCegid}
+            onSendToCegid={() => handleSendToCegid(activeDocument)}
             isLoading={isLoading && activeDocument.id === activeDocumentId}
             onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
           />
@@ -698,7 +727,7 @@ export default function DocumentsPage() {
               key={activeDocument.id}
               document={activeDocument}
               onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-              onSendToCegid={handleSendToCegid}
+              onSendToCegid={() => handleSendToCegid(activeDocument)}
               isLoading={isLoading && activeDocument.id === activeDocumentId}
               onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
               isSheet
