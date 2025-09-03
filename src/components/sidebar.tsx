@@ -1,9 +1,8 @@
-
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -12,6 +11,7 @@ import { ClientSwitcher } from './client-switcher';
 
 const adminNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
+  { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
   { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
@@ -36,7 +36,7 @@ const clientNavItems = [
 ];
 
 const roleConfig = {
-    admin: { items: adminNavItems, label: 'Espace Admin' },
+    admin: { items: adminNavItems, label: 'Espace Super-Admin' },
     accountant: { items: accountantNavItems, label: 'Espace Comptable' },
     client: { items: clientNavItems, label: 'Espace Client' }
 }

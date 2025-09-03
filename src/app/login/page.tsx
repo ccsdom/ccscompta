@@ -50,7 +50,7 @@ export default function LoginPage() {
     // Simulate role-based redirect
     if (email === 'admin@ccs-compta.com') {
         localStorage.setItem('userRole', 'admin');
-        localStorage.setItem('userName', 'Admin Comptable');
+        localStorage.setItem('userName', 'Super Admin');
         localStorage.setItem('userEmail', 'admin@ccs-compta.com');
         router.push('/dashboard/accountant');
     } else if (email === 'demo@ccs-compta.com') {
