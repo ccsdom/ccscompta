@@ -3,6 +3,7 @@
 
 import { db } from './firebase';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData } from 'firebase/firestore';
+import { MOCK_CLIENTS } from '@/data/mock-data';
 
 // Central definition for the Client type
 export interface Client {
@@ -47,7 +48,6 @@ export async function getClients(): Promise<Client[]> {
         const snapshot = await getDocs(clientsCollection);
         if (snapshot.empty) {
             console.log("No clients found in Firestore. Seeding with mock data...");
-            const { MOCK_CLIENTS } = await import('@/data/mock-data');
             for (const client of MOCK_CLIENTS) {
                 // Ensure no conflicting fields like 'id' are spread
                 const { id, ...clientData } = client as any;
