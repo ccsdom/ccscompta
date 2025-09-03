@@ -128,8 +128,8 @@ export default function MyDocumentsPage() {
     setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'processing', auditTrail: currentDoc.auditTrail} : d));
     
     try {
-      const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
-      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType, clientId: currentDoc.clientId });
+      const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl! });
+      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl!, documentType: recognition.documentType, clientId: currentDoc.clientId });
       
       const trail = addAuditEvent(currentDoc.auditTrail, 'Traitement IA terminé');
       

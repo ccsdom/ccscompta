@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle, Zap, Star, FileText } from 'lucide-react';
 import type { Document } from '@/lib/types';
-import { getDocuments } from '@/lib/document-data';
+import { getDocuments } from '@/ai/flows/document-actions';
 
 
 const plans = [

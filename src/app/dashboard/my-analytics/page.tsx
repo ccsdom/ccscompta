@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -7,7 +8,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
 import type { Document } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
-import { getDocuments } from '@/lib/document-data';
+import { getDocuments } from '@/ai/flows/document-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const chartConfig = {

@@ -12,7 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { findMatchingDocumentTool } from '../tools/find-matching-document';
 import type { Document } from '@/lib/types';
-import { getDocuments } from '@/lib/document-data';
+import { getDocuments } from '@/ai/flows/document-actions';
 
 
 const DocumentSchemaForTool = z.object({
@@ -160,5 +160,3 @@ const extractDataFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    

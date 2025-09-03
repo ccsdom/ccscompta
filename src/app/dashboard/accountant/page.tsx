@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { Document, AuditEvent } from '@/lib/types';
 import type { Client } from '@/lib/client-data';
-import { getClients } from '@/lib/client-data';
-import { getDocuments } from '@/lib/document-data';
+import { getClients } from '@/ai/flows/client-actions';
+import { getDocuments } from '@/ai/flows/document-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AccountantDashboard() {

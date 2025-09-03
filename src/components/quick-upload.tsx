@@ -71,12 +71,12 @@ export function QuickUpload() {
     const processDocumentForClient = useCallback(async (doc: Document) => {
         try {
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA initié par le client');
-          const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl });
+          const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl! });
           doc.type = recognition.documentType;
           doc.confidence = recognition.confidence;
           doc.auditTrail = addAuditEvent(doc.auditTrail, `Type reconnu: ${doc.type}`);
     
-          const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType, clientId: doc.clientId });
+          const extracted = await extractData({ documentDataUri: doc.dataUrl!, documentType: recognition.documentType, clientId: doc.clientId });
           doc.extractedData = extracted;
           doc.status = 'reviewing'; // Always set to reviewing for the accountant
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA, en attente de validation comptable');
