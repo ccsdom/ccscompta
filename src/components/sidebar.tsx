@@ -2,10 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BarChart3, Settings, LogOut, FileText } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Settings, LogOut, FileText, ChevronDown, Building } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useState } from 'react';
+import { Avatar, AvatarFallback } from './ui/avatar';
+
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -14,8 +25,15 @@ const navItems = [
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
+const mockClients = [
+    { id: 'alpha', name: 'Entreprise Alpha'},
+    { id: 'beta', name: 'Bêta SARL'},
+    { id: 'gamma', name: 'Gamma Inc.'},
+]
+
 export function Sidebar() {
   const pathname = usePathname();
+  const [selectedClient, setSelectedClient] = useState(mockClients[0]);
 
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col">
@@ -25,7 +43,38 @@ export function Sidebar() {
             <span className="font-bold text-lg">CCS Compta</span>
         </Link>
       </div>
-      <nav className="flex-1 px-4 py-6 space-y-2">
+
+        <div className="p-4">
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                   <Button variant="outline" className="w-full justify-between">
+                        <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                                <AvatarFallback>{selectedClient.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-sm truncate">{selectedClient.name}</span>
+                        </div>
+                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                   </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Changer de client</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {mockClients.map(client => (
+                         <DropdownMenuItem key={client.id} onClick={() => setSelectedClient(client)}>
+                            <Building className="mr-2 h-4 w-4" />
+                            <span>{client.name}</span>
+                        </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                        Gérer les clients
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+
+      <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => (
           <Link
             key={item.href}
