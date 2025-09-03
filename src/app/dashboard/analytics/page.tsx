@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, FileText, LayoutGrid } from "lucide-react";
+import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
@@ -43,6 +43,9 @@ const chartConfig = {
     label: "Moyenne (€)",
     color: "hsl(var(--chart-2))",
   },
+  invoice: { label: "Facture"},
+  receipt: { label: "Reçu"},
+  "bank statement": { label: "Relevé"},
   "Fournitures de bureau": { label: "Fournitures", color: "hsl(var(--chart-1))" },
   "Transport": { label: "Transport", color: "hsl(var(--chart-2))" },
   "Repas et divertissement": { label: "Repas", color: "hsl(var(--chart-3))" },
@@ -65,7 +68,7 @@ export default function AnalyticsPage() {
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-    const [clientName, setClientName] = useState<string>('');
+    const [clientName, setClientName] = useState<string>('Vue d\'ensemble');
 
     useEffect(() => {
         const loadState = () => {
@@ -94,17 +97,19 @@ export default function AnalyticsPage() {
                     setVisibleComponents(JSON.parse(storedVisibility));
                 }
                 const storedClientId = localStorage.getItem('selectedClientId');
+                setSelectedClientId(storedClientId);
+                
                 if (storedClientId) {
-                    setSelectedClientId(storedClientId);
-                    // This is a mock, in a real app you'd fetch the client's name.
-                    const client = [
+                     const client = [
                         { id: 'alpha', name: 'Entreprise Alpha'},
                         { id: 'beta', name: 'Bêta SARL'},
                         { id: 'gamma', name: 'Gamma Inc.'},
                         { id: 'delta', name: 'Delta Industries'},
                         { id: 'epsilon', name: 'Epsilon Global'},
                     ].find(c => c.id === storedClientId);
-                    setClientName(client ? `pour ${client.name}` : '');
+                    setClientName(client ? `Analyse pour ${client.name}` : 'Vue d\'ensemble');
+                } else {
+                    setClientName('Analyse Globale (tous clients)');
                 }
 
             } catch (e) {
@@ -126,9 +131,11 @@ export default function AnalyticsPage() {
     }, [visibleComponents]);
     
     const filteredDocuments = useMemo(() => {
-        let docs = [...documents].filter(d => d.clientId === selectedClientId);
+        let docs = [...documents];
         
-        if (!selectedClientId) return [];
+        if (selectedClientId) {
+            docs = docs.filter(d => d.clientId === selectedClientId);
+        }
 
         if (searchCriteria) {
             // AI Search Logic
@@ -180,6 +187,10 @@ export default function AnalyticsPage() {
 
     const analyticsData = useMemo(() => {
         const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
+
+        if (approvedDocs.length === 0) {
+            return null;
+        }
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
@@ -275,6 +286,7 @@ export default function AnalyticsPage() {
     }
 
     const PieCenterLabel = ({ viewBox }: any) => {
+        if (!analyticsData) return null;
         const { cx, cy } = viewBox;
         const total = analyticsData.categoryChartData.reduce((acc, entry) => acc + entry.value, 0);
         return (
@@ -289,27 +301,28 @@ export default function AnalyticsPage() {
         );
     };
 
-    if (!selectedClientId) {
+    if (!analyticsData) {
         return (
-            <div className="flex items-center justify-center h-full">
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
                 <Card className="w-full max-w-md text-center">
-                    <CardHeader>
-                        <CardTitle>Aucun client sélectionné</CardTitle>
+                     <CardHeader>
+                        <BarChartIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Pas de données à afficher</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">Veuillez sélectionner un client dans le menu en haut à gauche pour afficher ses analyses détaillées.</p>
+                        <p className="text-muted-foreground">Aucun document approuvé ne correspond aux critères actuels. Essayez de modifier votre sélection de client ou vos filtres de recherche.</p>
                     </CardContent>
                 </Card>
             </div>
-        );
+        )
     }
 
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Analyse Détaillée {clientName}</h1>
-                <p className="text-muted-foreground mt-1">Visualisez les données extraites des documents approuvés pour le client sélectionné.</p>
+                <h1 className="text-3xl font-bold tracking-tight">{clientName}</h1>
+                <p className="text-muted-foreground mt-1">Visualisez les données extraites des documents approuvés.</p>
             </div>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>

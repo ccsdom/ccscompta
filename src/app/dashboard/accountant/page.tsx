@@ -85,7 +85,7 @@ export default function AccountantDashboard() {
     return (
         <div className="space-y-6">
              <div>
-                <h1 className="text-3xl font-bold tracking-tight">Tableau de bord global</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
                 <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activité de tous vos clients.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -154,8 +154,10 @@ export default function AccountantDashboard() {
                                 </BarChart>
                             </ChartContainer>
                         ) : (
-                             <div className="h-[250px] w-full flex items-center justify-center text-muted-foreground text-sm">
-                                Aucune activité de téléversement dans les dernières 24 heures.
+                             <div className="h-[250px] w-full flex flex-col items-center justify-center text-center p-4">
+                                <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
+                                <h3 className="font-semibold text-foreground">Peu d'activité aujourd'hui</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Aucun document n'a été téléversé par vos clients dans les dernières 24 heures.</p>
                              </div>
                         )}
                     </CardContent>
