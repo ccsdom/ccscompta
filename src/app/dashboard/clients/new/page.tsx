@@ -2,10 +2,9 @@
 'use client'
 
 import { ClientForm } from "../client-form";
-import { addClient } from '@/lib/client-data';
+import { addClient, type Client } from '@/lib/client-data';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import type { Client } from "../page";
 import type * as z from "zod";
 import { type formSchema } from '../client-form';
 

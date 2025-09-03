@@ -28,25 +28,9 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, deleteClient } from '@/lib/client-data';
+import { getClients, deleteClient, type Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-
-
-export interface Client {
-    id: string;
-    name: string;
-    siret: string;
-    address: string;
-    legalRepresentative: string;
-    fiscalYearEndDate: string;
-    status: 'active' | 'inactive' | 'onboarding';
-    newDocuments: number;
-    lastActivity: string;
-    email: string;
-    phone: string;
-    assignedAccountantId?: string;
-}
 
 export const mockAccountants = [
     { id: 'acc_1', name: 'Marie Dubois' },

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, File, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
-import type { Client } from '@/app/dashboard/clients/page';
+import type { Client } from '@/lib/client-data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 

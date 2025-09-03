@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { getClients } from "@/lib/client-data";
-import type { Client } from "@/app/dashboard/clients/page";
+import type { Client } from "@/lib/client-data";
 
 type PopoverClient = {
   value: string;

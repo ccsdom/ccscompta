@@ -1,10 +1,24 @@
 
 'use server';
 
-import type { Client } from '@/app/dashboard/clients/page';
 import { db } from './firebase';
 import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData } from 'firebase/firestore';
 
+// Central definition for the Client type
+export interface Client {
+    id: string;
+    name: string;
+    siret: string;
+    address: string;
+    legalRepresentative: string;
+    fiscalYearEndDate: string;
+    status: 'active' | 'inactive' | 'onboarding';
+    newDocuments: number;
+    lastActivity: string;
+    email: string;
+    phone: string;
+    assignedAccountantId?: string;
+}
 
 const clientsCollection = collection(db, 'clients');
 
@@ -35,7 +49,9 @@ export async function getClients(): Promise<Client[]> {
             console.log("No clients found in Firestore. Seeding with mock data...");
             const { MOCK_CLIENTS } = await import('@/data/mock-data');
             for (const client of MOCK_CLIENTS) {
-                await addDoc(clientsCollection, { ...client });
+                // Ensure no conflicting fields like 'id' are spread
+                const { id, ...clientData } = client as any;
+                await addDoc(clientsCollection, { ...clientData });
             }
             const seededSnapshot = await getDocs(clientsCollection);
             return seededSnapshot.docs.map(fromFirestore);
