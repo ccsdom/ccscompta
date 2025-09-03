@@ -1,8 +1,10 @@
+
 'use server';
 
 import { db } from './firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import type { Document } from './types';
+import { MOCK_DOCUMENTS } from '@/data/mock-data';
 
 // Firestore data converter
 const documentConverter = {
@@ -29,23 +31,6 @@ const documentConverter = {
     }
 };
 
-const documentsCollection = (clientId: string) => collection(db, 'clients', clientId, 'documents').withConverter(documentConverter);
-const singleDocumentRef = (docId: string) => {
-    // This is a bit of a hack as we don't know the clientID here.
-    // In a real multi-tenant app, this would be handled with security rules
-    // or by passing the clientId through. For this demo, we assume a flat
-    // 'documents' collection at the root for single-doc operations.
-     const parts = docId.split('/');
-     if (parts.length > 2) {
-        return doc(db, 'clients', parts[0], 'documents', parts[1]).withConverter(documentConverter);
-     }
-     // Fallback for old format or direct ID - requires searching, which is inefficient.
-     // This part is a simplification for the demo.
-     // A robust solution would always include the client context.
-     console.warn("Document ID does not contain client context. This is inefficient.");
-     return doc(db, 'documents', docId).withConverter(documentConverter);
-}
-
 const getDocumentsCollectionRef = () => collection(db, 'documents').withConverter(documentConverter);
 
 
@@ -53,7 +38,18 @@ const getDocumentsCollectionRef = () => collection(db, 'documents').withConverte
 export async function getDocuments(clientId: string): Promise<Document[]> {
     try {
         const q = query(getDocumentsCollectionRef(), where("clientId", "==", clientId));
-        const snapshot = await getDocs(q);
+        let snapshot = await getDocs(q);
+
+        // If no documents found for this client, seed them
+        if (snapshot.empty && MOCK_DOCUMENTS[clientId]) {
+            console.log(`No documents found for client ${clientId}. Seeding with mock data...`);
+            for (const docData of MOCK_DOCUMENTS[clientId]) {
+                 await addDoc(getDocumentsCollectionRef(), docData);
+            }
+            // Re-fetch after seeding
+            snapshot = await getDocs(q);
+        }
+
         return snapshot.docs.map(doc => doc.data());
     } catch (error) {
         console.error("Error fetching documents:", error);
@@ -64,7 +60,6 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
 // Get a single document by its ID
 export async function getDocumentById(docId: string): Promise<Document | null> {
     try {
-        // This is simplified. In a real app, you'd need the clientId to find the doc.
         const snapshot = await getDoc(doc(db, 'documents', docId).withConverter(documentConverter));
         if(snapshot.exists()) {
             return snapshot.data();
