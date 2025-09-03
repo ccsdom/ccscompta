@@ -23,7 +23,6 @@ const accountantNavItems = [
 const clientNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes documents' },
-  { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
