@@ -8,7 +8,7 @@ import { fileToDataUri } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileUp, Eye, Trash2, MessageSquare } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '../documents/page';
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
@@ -364,6 +364,7 @@ export default function MyDocumentsPage() {
         {activeDocument ? (
             <>
                 <div className="p-6 border-b">
+                    <SheetTitle className="sr-only">{activeDocument.name}</SheetTitle>
                     <h2 className="text-lg font-semibold truncate" title={activeDocument.name}>{activeDocument.name}</h2>
                     <p className="text-sm text-muted-foreground">Téléversé le {activeDocument.uploadDate}</p>
                     <div className="mt-2">{getStatusBadge(activeDocument.status)}</div>

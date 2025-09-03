@@ -11,6 +11,8 @@ import { fileToDataUri } from '@/lib/utils';
 import {
   Sheet,
   SheetContent,
+  SheetTitle,
+  SheetHeader
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, X, FilterX } from 'lucide-react';
@@ -688,6 +690,10 @@ export default function DocumentsPage() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
           {activeDocument ? (
+            <>
+            <SheetHeader className="p-6">
+              <SheetTitle className="sr-only">{activeDocument.name}</SheetTitle>
+            </SheetHeader>
             <DataValidationForm
               key={activeDocument.id}
               document={activeDocument}
@@ -697,6 +703,7 @@ export default function DocumentsPage() {
               onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
               isSheet
             />
+            </>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center p-8">
               <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
@@ -708,5 +715,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
