@@ -31,7 +31,7 @@ export function Sidebar() {
   const [navItems, setNavItems] = useState(clientNavItems);
   const [currentRole, setCurrentRole] = useState('client');
 
-  useEffect(() => {
+   useEffect(() => {
     setMounted(true);
     const role = localStorage.getItem('userRole');
     if (role === 'accountant') {
@@ -91,9 +91,9 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="p-4 border-b space-y-4">
+      <div className="p-4 border-b space-y-4 mb-4">
         <div className="text-center">
-            <span className="text-sm font-semibold uppercase text-primary">
+            <span className={cn("text-sm font-semibold uppercase", currentRole === 'accountant' ? 'text-primary' : 'text-primary')}>
                 {currentRole === 'accountant' ? 'Espace Comptable' : 'Espace Client'}
             </span>
         </div>
