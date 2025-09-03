@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase';
 import { ref, getDownloadURL, deleteObject } from "firebase/storage";
-import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/lib/document-data';
+import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import {
   Sheet,
   SheetContent,
@@ -198,7 +198,7 @@ export default function DocumentsPage() {
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
-    await updateDocument(docId, { status: 'processing', auditTrail: trail });
+    await updateDocument({id: docId, updates: { status: 'processing', auditTrail: trail }});
     setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'processing', auditTrail: trail} : d));
     
     try {
@@ -240,7 +240,7 @@ export default function DocumentsPage() {
          createNotification({ ...docToProcess, ...finalUpdates }, 'est prêt pour examen.');
       }
 
-      await updateDocument(docId, finalUpdates);
+      await updateDocument({ id: docId, updates: finalUpdates });
       setDocuments(docs => docs.map(d => d.id === docId ? {...d, ...finalUpdates} : d));
       // Also update the active document if it's the one being processed
       if(activeDocumentId === docId) {
@@ -251,7 +251,7 @@ export default function DocumentsPage() {
     } catch (error) {
       console.error("Error processing document:", error);
       trail = await addAuditEvent(docId, 'Erreur de traitement IA');
-      await updateDocument(docId, { status: 'error', auditTrail: trail });
+      await updateDocument({ id: docId, updates: { status: 'error', auditTrail: trail } });
       setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'error', auditTrail: trail} : d));
       toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${docToProcess.name}.` });
       createNotification({ ...docToProcess, status: 'error' }, 'a échoué lors du traitement.');
@@ -263,7 +263,7 @@ export default function DocumentsPage() {
   const handleUpdateDocumentData = async (docId: string, updatedData: ExtractDataOutput) => {
     const trail = await addAuditEvent(docId, 'Document approuvé manuellement');
     const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
-    await updateDocument(docId, updates);
+    await updateDocument({ id: docId, updates });
     const doc = documents.find(d => d.id === docId);
     if(doc) {
         const updatedDoc = {...doc, ...updates};
@@ -288,14 +288,14 @@ export default function DocumentsPage() {
     const trail = await addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
     const doc = documents.find(d => d.id === docId);
     const updatedComments = [...(doc?.comments || []), newComment];
-    await updateDocument(docId, { comments: updatedComments, auditTrail: trail });
+    await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
     setDocuments(docs => docs.map(d => d.id === docId ? {...d, comments: updatedComments, auditTrail: trail} : d));
   };
 
   const handleSendToCegid = async (doc: Document, isAuto: boolean = false) => {
     const user = isAuto ? 'Système (Auto-envoi)' : getCurrentUser();
     const trail = [...doc.auditTrail, { action: 'Document envoyé à Cegid', date: new Date().toISOString(), user }];
-    await updateDocument(doc.id, { auditTrail: trail });
+    await updateDocument({ id: doc.id, updates: { auditTrail: trail } });
     setDocuments(docs => docs.map(d => d.id === doc.id ? {...d, auditTrail: trail} : d));
     console.log("Sending to Cegid:", doc);
     toast({ title: "Données envoyées", description: `${doc.name} a été envoyé à CEGID avec succès.` });
@@ -334,7 +334,7 @@ export default function DocumentsPage() {
       const doc = documents.find(d => d.id === docId);
       if (doc && doc.status === 'reviewing') {
         const trail = await addAuditEvent(docId, 'Document approuvé (en masse)');
-        await updateDocument(docId, { status: 'approved', auditTrail: trail });
+        await updateDocument({ id: docId, updates: { status: 'approved', auditTrail: trail } });
         createNotification(doc, 'a été approuvé.');
         approvedCount++;
       }

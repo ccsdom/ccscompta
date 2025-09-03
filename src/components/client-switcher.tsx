@@ -20,7 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { getClients } from "@/lib/client-data";
+import { getClients } from "@/ai/flows/client-actions";
 import type { Client } from "@/lib/client-data";
 
 type PopoverClient = {

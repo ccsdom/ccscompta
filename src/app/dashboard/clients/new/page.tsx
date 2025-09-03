@@ -2,7 +2,7 @@
 'use client'
 
 import { ClientForm } from "../client-form";
-import { addClient, type Client } from '@/lib/client-data';
+import { addClient } from '@/ai/flows/client-actions';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";

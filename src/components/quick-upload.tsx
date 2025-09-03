@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -6,9 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
-import { storage } from '@/lib/firebase';
 import { ref, uploadBytes } from 'firebase/storage';
-import { addDocument, updateDocument } from '@/lib/document-data';
+import { storage } from '@/lib/firebase';
+import { addDocument, updateDocument } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, Notification, AuditEvent } from '@/lib/types';
@@ -75,17 +76,20 @@ export function QuickUpload() {
           doc.confidence = recognition.confidence;
           doc.auditTrail = addAuditEvent(doc.auditTrail, `Type reconnu: ${doc.type}`);
     
-          const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
+          const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType, clientId: doc.clientId });
           doc.extractedData = extracted;
           doc.status = 'reviewing'; // Always set to reviewing for the accountant
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA, en attente de validation comptable');
           
-          await updateDocument(doc.id, {
+          await updateDocument({
+            id: doc.id,
+            updates: {
               status: 'reviewing',
               extractedData: extracted,
               type: recognition.documentType,
               confidence: recognition.confidence,
               auditTrail: doc.auditTrail
+            }
           });
 
           createNotification(doc, 'est prêt pour examen.');
@@ -94,7 +98,7 @@ export function QuickUpload() {
           console.error("Error processing document:", error);
           doc.status = 'error';
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
-          await updateDocument(doc.id, { status: 'error', auditTrail: doc.auditTrail });
+          await updateDocument({ id: doc.id, updates: { status: 'error', auditTrail: doc.auditTrail }});
           toast({
             variant: "destructive",
             title: "Le traitement a échoué",

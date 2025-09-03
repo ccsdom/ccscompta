@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -5,8 +6,8 @@ import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/lib/document-data';
+import { ref, getDownloadURL, deleteObject } from "firebase/storage";
+import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2 } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
@@ -123,12 +124,12 @@ export default function MyDocumentsPage() {
   const handleProcessDocument = useCallback(async (doc: Document) => {
     let currentDoc = doc;
     currentDoc.auditTrail = addAuditEvent(currentDoc.auditTrail, 'Traitement IA initié par le client');
-    await updateDocument(currentDoc.id, { status: 'processing', auditTrail: currentDoc.auditTrail });
+    await updateDocument({id: currentDoc.id, updates: { status: 'processing', auditTrail: currentDoc.auditTrail }});
     setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'processing', auditTrail: currentDoc.auditTrail} : d));
     
     try {
       const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
-      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType });
+      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType, clientId: currentDoc.clientId });
       
       const trail = addAuditEvent(currentDoc.auditTrail, 'Traitement IA terminé');
       
@@ -139,7 +140,7 @@ export default function MyDocumentsPage() {
           confidence: recognition.confidence,
           auditTrail: trail
       }
-      await updateDocument(currentDoc.id, finalUpdates);
+      await updateDocument({ id: currentDoc.id, updates: finalUpdates });
       setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, ...finalUpdates} : d));
 
       toast({ title: `Traitement de ${currentDoc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
@@ -148,7 +149,7 @@ export default function MyDocumentsPage() {
     } catch (error) {
       console.error("Error processing document:", error);
       const trail = addAuditEvent(currentDoc.auditTrail, 'Erreur de traitement IA');
-      await updateDocument(currentDoc.id, { status: 'error', auditTrail: trail });
+      await updateDocument({ id: currentDoc.id, updates: { status: 'error', auditTrail: trail } });
       setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'error', auditTrail: trail} : d));
       toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${currentDoc.name}.` });
       createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
@@ -162,6 +163,7 @@ export default function MyDocumentsPage() {
     }
     
     setIsProcessing(true);
+    // In a real app, you might want to check against a server-side list of filenames.
     const existingFileNames = new Set(documents.map(d => d.name));
 
     for (const file of files) {
@@ -171,16 +173,14 @@ export default function MyDocumentsPage() {
         }
         try {
             const dataUrl = await fileToDataUri(file);
-            const storagePath = `${clientId}/${file.name}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, file);
-
+            // Don't upload to storage here, just add to DB with dataUrl for processing.
+            // A server-side function would later handle the upload to a permanent bucket.
             const newDocData: Omit<Document, 'id'> = {
                 name: file.name,
                 uploadDate: new Date().toISOString(),
                 status: 'pending',
-                dataUrl,
-                storagePath,
+                dataUrl, // For immediate processing
+                storagePath: `${clientId}/${file.name}`, // Future storage path
                 clientId: clientId,
                 auditTrail: addAuditEvent([], 'Document téléversé par le client'),
                 comments: []
@@ -203,7 +203,7 @@ export default function MyDocumentsPage() {
     if(doc){
         const trail = addAuditEvent(doc.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
         const updatedComments = [...(doc.comments || []), newComment];
-        await updateDocument(docId, { comments: updatedComments, auditTrail: trail });
+        await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
         setDocuments(docs => docs.map(d => d.id === docId ? {...d, comments: updatedComments, auditTrail: trail} : d));
         setActiveDocument(doc => doc ? {...doc, comments: updatedComments, auditTrail: trail} : null);
     }

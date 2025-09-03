@@ -3,7 +3,8 @@
 
 import { ClientForm, formSchema } from "../client-form";
 import { notFound, useParams, useRouter } from 'next/navigation';
-import { getClientById, updateClient, type Client } from "@/lib/client-data";
+import { getClientById, updateClient } from "@/ai/flows/client-actions";
+import type { Client } from "@/lib/client-data";
 import { useEffect, useState } from "react";
 import type * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +34,7 @@ export default function EditClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         try {
-            await updateClient(params.id, data);
+            await updateClient({id: params.id, updates: data});
             toast({
                 title: "Modifications enregistrées",
                 description: `Les informations de ${data.name} ont été mises à jour.`
