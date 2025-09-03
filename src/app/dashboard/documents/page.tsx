@@ -731,7 +731,7 @@ export default function DocumentsPage() {
               onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
               onSendToCegid={() => handleSendToCegid(activeDocument)}
               isLoading={isLoading && activeDocument.id === activeDocumentId}
-              onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
+              onAddComment={(commentText) => handleAddComment(active_document.id, commentText)}
               isSheet
             />
             </>
