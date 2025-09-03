@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -19,15 +18,28 @@ export function SupportChatbot() {
     const [messages, setMessages] = useState<SupportHistory>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [documentation, setDocumentation] = useState<string | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
 
     useEffect(() => {
-        if (isOpen && messages.length === 0) {
-            // Start with a predefined welcome message
-            setMessages([{ role: 'model', content: [{ text: "Bonjour ! Je suis ComptaBot, votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?" }] }]);
+        if (isOpen) {
+             // Start with a predefined welcome message
+            if (messages.length === 0) {
+                setMessages([{ role: 'model', content: [{ text: "Bonjour ! Je suis ComptaBot, votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?" }] }]);
+            }
+            // Fetch documentation when chat opens
+            if (documentation === null) {
+                fetch('/DOCUMENTATION.html')
+                    .then(response => response.text())
+                    .then(text => setDocumentation(text))
+                    .catch(error => {
+                        console.error("Failed to fetch documentation:", error);
+                        setDocumentation("Documentation not available.");
+                    });
+            }
         }
-    }, [isOpen, messages.length]);
+    }, [isOpen, messages.length, documentation]);
 
     useEffect(() => {
         // Auto-scroll to bottom
@@ -41,7 +53,7 @@ export function SupportChatbot() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isLoading || documentation === null) return;
 
         const userMessage = { role: 'user' as const, content: [{ text: input }] };
         const newMessages = [...messages, userMessage];
@@ -53,6 +65,7 @@ export function SupportChatbot() {
             const response = await supportChat({
                 question: input,
                 history: messages, // Pass the history before the new user message
+                documentation: documentation,
             });
             setMessages([...newMessages, { role: 'model', content: [{ text: response }] }]);
         } catch (error) {
@@ -128,9 +141,9 @@ export function SupportChatbot() {
                                         onChange={(e) => setInput(e.target.value)}
                                         placeholder="Posez votre question..."
                                         autoComplete="off"
-                                        disabled={isLoading}
+                                        disabled={isLoading || documentation === null}
                                     />
-                                    <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+                                    <Button type="submit" size="icon" disabled={isLoading || !input.trim() || documentation === null}>
                                         <Send className="h-4 w-4" />
                                     </Button>
                                 </form>

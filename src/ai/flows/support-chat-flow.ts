@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview An AI agent that acts as a support chatbot.
@@ -11,8 +10,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {Message, Role} from 'genkit';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 // Define the schema for the conversation history
 const SupportHistorySchema = z.array(z.object({
@@ -25,6 +22,7 @@ export type SupportHistory = z.infer<typeof SupportHistorySchema>;
 const SupportChatInputSchema = z.object({
   question: z.string().describe('The user\'s question.'),
   history: SupportHistorySchema.optional().describe('The conversation history.'),
+  documentation: z.string().describe('The content of the documentation file.'),
 });
 export type SupportChatInput = z.infer<typeof SupportChatInputSchema>;
 
@@ -32,20 +30,6 @@ export type SupportChatInput = z.infer<typeof SupportChatInputSchema>;
 const SupportChatOutputSchema = z.string().describe('The AI\'s response.');
 export type SupportChatOutput = z.infer<typeof SupportChatOutputSchema>;
 
-
-let documentationContent: string | null = null;
-async function getDocumentation(): Promise<string> {
-    if (documentationContent === null) {
-        try {
-            const docPath = path.join(process.cwd(), 'public', 'DOCUMENTATION.html');
-            documentationContent = await fs.readFile(docPath, 'utf-8');
-        } catch (error) {
-            console.error("Error reading documentation file:", error);
-            documentationContent = "Documentation not available.";
-        }
-    }
-    return documentationContent;
-}
 
 // Export a wrapper function to be called from the client
 export async function supportChat(input: SupportChatInput): Promise<SupportChatOutput> {
@@ -60,7 +44,6 @@ const supportChatFlow = ai.defineFlow(
     outputSchema: SupportChatOutputSchema,
   },
   async (input) => {
-    const documentation = await getDocumentation();
     
     const messages: Message[] = [];
 
@@ -75,7 +58,7 @@ When you answer, be concise and clear. Format your answers with markdown for bet
 Never mention that you are an AI or that you are working from a document. Just provide the answer directly.
 
 Official Documentation:
-${documentation}`
+${input.documentation}`
       }]
     });
     
