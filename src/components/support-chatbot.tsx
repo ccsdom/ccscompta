@@ -63,8 +63,11 @@ export function SupportChatbot() {
         setIsLoading(true);
 
         try {
+            // The history sent to the AI must not include the initial welcome message from the bot.
+            const historyForAI = newMessages.slice(1);
+
             const response = await supportChat({
-                history: newMessages, // Pass the full, updated history
+                history: historyForAI,
                 documentation: documentation,
             });
             setMessages([...newMessages, { role: 'model', content: [{ text: response }] }]);
