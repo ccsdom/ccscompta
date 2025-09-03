@@ -1,77 +1,103 @@
 
 'use server';
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import type { Client } from '@/app/dashboard/clients/page';
+import { db } from './firebase'; // Assuming you have a firebase config file
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, DocumentData } from 'firebase/firestore';
 
-const jsonFilePath = path.join(process.cwd(), 'src', 'data', 'clients.json');
 
-async function readClients(): Promise<Client[]> {
-    try {
-        const fileContent = await fs.readFile(jsonFilePath, 'utf-8');
-        return JSON.parse(fileContent);
-    } catch (error) {
-        // If the file doesn't exist, return an empty array
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            return [];
-        }
-        throw error;
-    }
+const clientsCollection = collection(db, 'clients');
+
+// Helper to convert Firestore doc to Client type
+const fromFirestore = (doc: DocumentData): Client => {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        name: data.name,
+        siret: data.siret,
+        address: data.address,
+        legalRepresentative: data.legalRepresentative,
+        fiscalYearEndDate: data.fiscalYearEndDate,
+        status: data.status,
+        newDocuments: data.newDocuments,
+        lastActivity: data.lastActivity,
+        email: data.email,
+        phone: data.phone,
+        assignedAccountantId: data.assignedAccountantId,
+    };
 }
 
-async function writeClients(clients: Client[]): Promise<void> {
-    await fs.writeFile(jsonFilePath, JSON.stringify(clients, null, 4), 'utf-8');
-}
 
 export async function getClients(): Promise<Client[]> {
-    return await readClients();
+    try {
+        const snapshot = await getDocs(clientsCollection);
+        return snapshot.docs.map(doc => fromFirestore(doc));
+    } catch (error) {
+        console.error("Error fetching clients from Firestore:", error);
+        return [];
+    }
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
-    const clients = await readClients();
-    return clients.find(client => client.id === id);
+   try {
+        const docRef = doc(db, 'clients', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            return fromFirestore(docSnap);
+        } else {
+            console.log("No such document!");
+            return undefined;
+        }
+    } catch (error) {
+        console.error("Error fetching client from Firestore:", error);
+        return undefined;
+    }
 }
 
 export async function addClient(newClientData: Omit<Client, 'id' | 'newDocuments' | 'lastActivity'>): Promise<Client> {
-    const clients = await readClients();
-    const newClient: Client = {
-        ...newClientData,
-        id: crypto.randomUUID(),
-        newDocuments: 0,
-        lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-    };
-    const updatedClients = [...clients, newClient];
-    await writeClients(updatedClients);
-    return newClient;
+    try {
+        const dataToSave = {
+            ...newClientData,
+            newDocuments: 0,
+            lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        }
+        const docRef = await addDoc(clientsCollection, dataToSave);
+        return {
+            id: docRef.id,
+            ...dataToSave
+        };
+    } catch (error) {
+        console.error("Error adding client to Firestore:", error);
+        throw error; // Re-throw the error to be handled by the caller
+    }
 }
 
 export async function updateClient(id: string, updatedData: Partial<Omit<Client, 'id'>>): Promise<Client | null> {
-    const clients = await readClients();
-    const clientIndex = clients.findIndex(client => client.id === id);
+    try {
+        const docRef = doc(db, 'clients', id);
+        await updateDoc(docRef, updatedData);
+        
+        // Return the updated client data
+        const updatedDoc = await getDoc(docRef);
+        if (updatedDoc.exists()) {
+            return fromFirestore(updatedDoc)
+        }
+        return null
 
-    if (clientIndex === -1) {
+    } catch (error) {
+        console.error("Error updating client in Firestore:", error);
         return null;
     }
-
-    const updatedClient = {
-        ...clients[clientIndex],
-        ...updatedData,
-    };
-
-    clients[clientIndex] = updatedClient;
-    await writeClients(clients);
-    return updatedClient;
 }
 
 export async function deleteClient(id: string): Promise<boolean> {
-    const clients = await readClients();
-    const updatedClients = clients.filter(client => client.id !== id);
-
-    if (clients.length === updatedClients.length) {
-        return false; // Client not found
+     try {
+        const docRef = doc(db, 'clients', id);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error("Error deleting client from Firestore:", error);
+        return false;
     }
-
-    await writeClients(updatedClients);
-    return true;
 }

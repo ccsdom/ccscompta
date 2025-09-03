@@ -1,8 +1,102 @@
+'use server';
 
-[
-    { "id": "alpha", "name": "Entreprise Alpha", "siret": "12345678901234", "address": "123 Rue de la Paix, 75001 Paris", "legalRepresentative": "Jean Dupont", "fiscalYearEndDate": "31/12", "status": "active", "newDocuments": 3, "lastActivity": "2024-07-16", "email": "contact@alpha.com", "phone": "0123456789", "assignedAccountantId": "acc_1" },
-    { "id": "beta", "name": "Bêta SARL", "siret": "23456789012345", "address": "45 Avenue des Champs-Élysées, 75008 Paris", "legalRepresentative": "Marie Curie", "fiscalYearEndDate": "30/06", "status": "active", "newDocuments": 0, "lastActivity": "2024-07-15", "email": "compta@beta.eu", "phone": "0987654321", "assignedAccountantId": "acc_2" },
-    { "id": "gamma", "name": "Gamma Inc.", "siret": "34567890123456", "address": "67 Boulevard Saint-Germain, 75005 Paris", "legalRepresentative": "Louis Pasteur", "fiscalYearEndDate": "31/03", "status": "onboarding", "newDocuments": 1, "lastActivity": "2024-07-17", "email": "factures@gamma.io", "phone": "0112233445", "assignedAccountantId": "acc_1" },
-    { "id": "delta", "name": "Delta Industries", "siret": "45678901234567", "address": "89 Rue de Rivoli, 75004 Paris", "legalRepresentative": "Simone Veil", "fiscalYearEndDate": "30/09", "status": "active", "newDocuments": 5, "lastActivity": "2024-07-16", "email": "admin@delta-industries.fr", "phone": "0655443322", "assignedAccountantId": "acc_3" },
-    { "id": "epsilon", "name": "Epsilon Global", "siret": "56789012345678", "address": "101 Avenue Victor Hugo, 75116 Paris", "legalRepresentative": "Charles de Gaulle", "fiscalYearEndDate": "31/12", "status": "inactive", "newDocuments": 0, "lastActivity": "2024-05-20", "email": "support@epsilon.com", "phone": "0788990011" }
-]
+import type { Client } from '@/app/dashboard/clients/page';
+import { db } from './firebase'; // Assuming you have a firebase config file
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, DocumentData } from 'firebase/firestore';
+
+
+const clientsCollection = collection(db, 'clients');
+
+// Helper to convert Firestore doc to Client type
+const fromFirestore = (doc: DocumentData): Client => {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        name: data.name,
+        siret: data.siret,
+        address: data.address,
+        legalRepresentative: data.legalRepresentative,
+        fiscalYearEndDate: data.fiscalYearEndDate,
+        status: data.status,
+        newDocuments: data.newDocuments,
+        lastActivity: data.lastActivity,
+        email: data.email,
+        phone: data.phone,
+        assignedAccountantId: data.assignedAccountantId,
+    };
+}
+
+
+export async function getClients(): Promise<Client[]> {
+    try {
+        const snapshot = await getDocs(clientsCollection);
+        return snapshot.docs.map(doc => fromFirestore(doc));
+    } catch (error) {
+        console.error("Error fetching clients from Firestore:", error);
+        return [];
+    }
+}
+
+export async function getClientById(id: string): Promise<Client | undefined> {
+   try {
+        const docRef = doc(db, 'clients', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            return fromFirestore(docSnap);
+        } else {
+            console.log("No such document!");
+            return undefined;
+        }
+    } catch (error) {
+        console.error("Error fetching client from Firestore:", error);
+        return undefined;
+    }
+}
+
+export async function addClient(newClientData: Omit<Client, 'id' | 'newDocuments' | 'lastActivity'>): Promise<Client> {
+    try {
+        const dataToSave = {
+            ...newClientData,
+            newDocuments: 0,
+            lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        }
+        const docRef = await addDoc(clientsCollection, dataToSave);
+        return {
+            id: docRef.id,
+            ...dataToSave
+        };
+    } catch (error) {
+        console.error("Error adding client to Firestore:", error);
+        throw error; // Re-throw the error to be handled by the caller
+    }
+}
+
+export async function updateClient(id: string, updatedData: Partial<Omit<Client, 'id'>>): Promise<Client | null> {
+    try {
+        const docRef = doc(db, 'clients', id);
+        await updateDoc(docRef, updatedData);
+        
+        // Return the updated client data
+        const updatedDoc = await getDoc(docRef);
+        if (updatedDoc.exists()) {
+            return fromFirestore(updatedDoc)
+        }
+        return null
+
+    } catch (error) {
+        console.error("Error updating client in Firestore:", error);
+        return null;
+    }
+}
+
+export async function deleteClient(id: string): Promise<boolean> {
+     try {
+        const docRef = doc(db, 'clients', id);
+        await deleteDoc(docRef);
+        return true;
+    } catch (error) {
+        console.error("Error deleting client from Firestore:", error);
+        return false;
+    }
+}
