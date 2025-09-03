@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 
 const adminNavItems = [
-  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
+  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
   { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
@@ -20,7 +20,7 @@ const adminNavItems = [
 ];
 
 const accountantNavItems = [
-  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord global' },
+  { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
