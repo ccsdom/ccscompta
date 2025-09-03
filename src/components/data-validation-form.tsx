@@ -17,7 +17,6 @@ import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Separator } from './ui/separator';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -29,7 +28,6 @@ interface DataValidationFormProps {
   isLoading: boolean;
   onAddComment: (commentText: string) => void;
   isSheet?: boolean;
-  isClientView?: boolean;
 }
 
 const initialFormState: ExtractDataOutput = {
@@ -234,7 +232,7 @@ const BankStatementView = ({ formData, setFormData, isReadOnly }: { formData: Ex
 }
 
 
-export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false, isClientView = false }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSent, setIsSent] = useState(false);
   const { toast } = useToast();
@@ -245,7 +243,6 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     } else {
       setFormData(initialFormState);
     }
-     // Reset sent state when document changes
     setIsSent(false);
   }, [document]);
 
@@ -264,13 +261,10 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     if(document) onUpdate(formData);
   }
 
-  const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing' || isClientView;
+  const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
   const isBankStatement = document?.type === 'bank statement';
 
   const CardWrapper = ({ children }: { children: React.ReactNode }) => {
-    if (isClientView) {
-      return <div className="h-full flex flex-col">{children}</div>;
-    }
     return (
         <Card className={`flex-1 rounded-none border-0 lg:rounded-lg lg:border h-full flex flex-col ${isSheet ? '' : 'mt-[-24px]'}`}>
             {children}
@@ -282,33 +276,6 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     return null;
   }
   
-  if (isClientView) {
-      return (
-          <div className="h-full flex flex-col">
-              <div className="flex-1 p-6">
-                  {isSheet && (
-                      <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto mb-4">
-                          <iframe src={document.dataUrl} className="w-full h-full" title="Aperçu du document" />
-                      </div>
-                  )}
-                  <h3 className="font-semibold text-lg mb-4">Données validées</h3>
-                   {document.status === 'approved' && document.extractedData ? (
-                     <div className="space-y-3 text-sm">
-                        <div className="flex justify-between"><span>Fournisseur:</span><span className="font-medium">{document.extractedData.vendorNames?.join(', ')}</span></div>
-                        <div className="flex justify-between"><span>Date:</span><span className="font-medium">{document.extractedData.dates?.[0]}</span></div>
-                        <div className="flex justify-between"><span>Montant:</span><span className="font-medium">{document.extractedData.amounts?.[0].toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</span></div>
-                        <div className="flex justify-between"><span>Catégorie:</span><span className="font-medium">{document.extractedData.category}</span></div>
-                     </div>
-                   ) : (
-                     <div className="text-center text-sm text-muted-foreground py-8">
-                        <p>Les données du document n'ont pas encore été validées par votre comptable.</p>
-                     </div>
-                   )}
-              </div>
-          </div>
-      )
-  }
-
   const hasAnomalies = formData.anomalies && formData.anomalies.length > 0;
   const hasExtractedData = (document.extractedData && !isLoading) && ((formData.amounts && formData.amounts.length > 0) || (formData.transactions && formData.transactions.length > 0));
 
@@ -430,3 +397,5 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     </CardWrapper>
   );
 }
+
+    
