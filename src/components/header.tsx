@@ -41,6 +41,7 @@ export function Header() {
   const [isAiSearching, setIsAiSearching] = useState(false);
   const [userName, setUserName] = useState("Utilisateur Démo");
   const [userEmail, setUserEmail] = useState("demo@ccs-compta.com");
+  const [userRole, setUserRole] = useState("client");
   const { toast } = useToast();
 
   const loadNotifications = useCallback(() => {
@@ -62,6 +63,9 @@ export function Header() {
 
     const storedEmail = localStorage.getItem('userEmail');
     if (storedEmail) setUserEmail(storedEmail);
+
+    const storedRole = localStorage.getItem('userRole');
+    if (storedRole) setUserRole(storedRole);
   }, []);
 
   const loadSearchQuery = useCallback(() => {
@@ -89,7 +93,7 @@ export function Header() {
         if (e.key === 'searchQuery' || e.key === 'searchCriteria') {
             loadSearchQuery();
         }
-        if (e.key === 'userName' || e.key === 'userEmail') {
+        if (e.key === 'userName' || e.key === 'userEmail' || e.key === 'userRole') {
             loadUserData();
         }
     }
@@ -192,7 +196,7 @@ export function Header() {
         </div>
         
         <div className="flex items-center space-x-1 md:space-x-2">
-            <QuickUpload />
+            {userRole === 'accountant' && <QuickUpload />}
 
              <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
               <DropdownMenuTrigger asChild>
