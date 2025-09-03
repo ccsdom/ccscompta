@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A tool for finding matching documents in the system.
@@ -88,9 +89,7 @@ export const findMatchingDocumentTool = ai.defineTool(
             amount: z.number().describe('The transaction amount (can be negative for debits).'),
             vendor: z.string().describe('The cleaned vendor name from the transaction.'),
             date: z.string().describe('The date of the transaction (ISO format).'),
-            // In a real app, this would not be passed from the client,
-            // the tool would have access to the database.
-            allClientDocuments: z.array(DocumentSchema).describe('The full list of documents for the client.'),
+            allClientDocuments: z.array(DocumentSchema).describe('The full list of documents (invoices and receipts) for the client.'),
         }),
         outputSchema: z.string().optional(),
     },
@@ -99,3 +98,5 @@ export const findMatchingDocumentTool = ai.defineTool(
        return matchId || undefined;
     }
 );
+
+    

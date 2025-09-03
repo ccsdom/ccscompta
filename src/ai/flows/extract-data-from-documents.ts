@@ -12,6 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { findMatchingDocumentTool } from '../tools/find-matching-document';
 import type { Document } from '@/lib/types';
+import { getDocuments } from '@/lib/document-data';
 
 
 const DocumentSchemaForTool = z.object({
@@ -42,9 +43,7 @@ const ExtractDataInputSchema = z.object({
       "The accounting document (invoice, receipt, bank statement, etc.) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
   documentType: z.string().describe('The type of the accounting document (e.g., "invoice", "receipt", "bank statement").'),
-  // In a real app, this would be retrieved from a database by the tool itself.
-  // For this demo, we pass it from the client, but only when needed.
-  allClientDocuments: z.array(DocumentSchemaForTool).optional().describe("A list of all other documents for the same client. Only used for bank statement reconciliation."),
+  clientId: z.string().describe("The ID of the client to whom the document belongs."),
 });
 export type ExtractDataInput = z.infer<typeof ExtractDataInputSchema>;
 
@@ -111,7 +110,11 @@ You are also a vigilant financial controller. For ALL document types, you must s
 
 const prompt = ai.definePrompt({
   name: 'extractDataPrompt',
-  input: {schema: ExtractDataInputSchema},
+  input: {schema: z.object({
+      documentDataUri: z.string(),
+      documentType: z.string(),
+      allClientDocuments: z.array(DocumentSchemaForTool).optional(),
+  })},
   output: {schema: ExtractDataOutputSchema},
   tools: [findMatchingDocumentTool],
   prompt: `You are an expert and vigilant accounting data extraction specialist. Your behavior depends on the documentType.
@@ -137,9 +140,25 @@ const extractDataFlow = ai.defineFlow(
     inputSchema: ExtractDataInputSchema,
     outputSchema: ExtractDataOutputSchema,
   },
-  async input => {
-    // Pass the allClientDocuments to the prompt context only if it's a bank statement.
-    const {output} = await prompt(input);
+  async (input) => {
+    
+    let allClientDocsForAI: Document[] = [];
+    if (input.documentType === 'bank statement') {
+        // If it's a bank statement, we fetch other documents for reconciliation.
+        // We filter to only include invoices and receipts as they are the only ones needed for matching.
+        allClientDocsForAI = (await getDocuments(input.clientId)).filter(
+            doc => doc.type === 'invoice' || doc.type === 'receipt'
+        );
+    }
+    
+    const {output} = await prompt({
+        documentDataUri: input.documentDataUri,
+        documentType: input.documentType,
+        allClientDocuments: allClientDocsForAI.length > 0 ? allClientDocsForAI.map(({ dataUrl, ...rest}) => rest) : undefined
+    });
+
     return output!;
   }
 );
+
+    

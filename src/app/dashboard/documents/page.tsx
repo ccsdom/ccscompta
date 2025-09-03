@@ -10,7 +10,7 @@ import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, getDownloadURL, deleteObject } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/lib/document-data';
 import {
   Sheet,
@@ -178,7 +178,7 @@ export default function DocumentsPage() {
   
   const handleProcessDocument = async (docId: string) => {
     const docToProcess = documents.find(d => d.id === docId) ?? await getDocumentById(docId);
-    if (!docToProcess || docToProcess.status === 'processing') return;
+    if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
 
     // Ensure dataUrl is present for processing
     if (!docToProcess.dataUrl) {
@@ -205,12 +205,10 @@ export default function DocumentsPage() {
       const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       trail = await addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
-      const allClientDocsForAI = documents.filter(d => d.id !== docId).map(({ dataUrl, ...rest}) => rest);
-
       const extracted = await extractData({
         documentDataUri: docToProcess.dataUrl,
         documentType: recognition.documentType,
-        allClientDocuments: recognition.documentType === 'bank statement' ? allClientDocsForAI : undefined,
+        clientId: docToProcess.clientId
       });
 
       trail = await addAuditEvent(docId, 'Données extraites par IA');
@@ -472,7 +470,7 @@ export default function DocumentsPage() {
     <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
         <TooltipProvider>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom avant</p></TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={()={() => setZoom(z => z / 1.2)}}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Pivoter</p></TooltipContent></Tooltip>
             {activeDocumentId && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(activeDocumentId)} disabled={isProcessing}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Relancer le traitement</p></TooltipContent></Tooltip>}
         </TooltipProvider>
@@ -573,7 +571,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
 
     
