@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
-import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 
 export interface AuditEvent {
@@ -128,8 +128,13 @@ export default function DocumentsPage() {
         date: new Date().toISOString(),
         user: getCurrentUser(),
     };
-    const doc = documents.find(d => d.id === docId);
-    return [...(doc?.auditTrail || []), event];
+    let currentTrail: AuditEvent[] = [];
+    setDocuments(prev => {
+        const doc = prev.find(d => d.id === docId);
+        if (doc) currentTrail = doc.auditTrail;
+        return prev;
+    });
+    return [...currentTrail, event];
   }
 
 
@@ -191,55 +196,52 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    let docToProcess = documents.find(d => d.id === docId);
-    // Use a function with setDocuments to ensure we have the latest state
-    setDocuments(currentDocs => {
-      docToProcess = currentDocs.find(d => d.id === docId);
-      if (!docToProcess || docToProcess.status === 'processing') return currentDocs;
+    const docToProcess = documents.find(d => d.id === docId);
+    if (!docToProcess || docToProcess.status === 'processing') return;
+
+    if (docId === activeDocumentId) setIsLoading(true);
+    let trail = addAuditEvent(docId, 'Traitement IA initié');
+    updateDocumentState(docId, { status: 'processing', auditTrail: trail });
+    
+    try {
+      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       
-      if (docId === activeDocumentId) setIsLoading(true);
-      let trail = addAuditEvent(docId, 'Traitement IA initié');
+      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
+      trail = addAuditEvent(docId, 'Traitement IA terminé');
       
-      const docsWithStatus = currentDocs.map(d => (d.id === docId ? { ...d, status: 'processing', auditTrail: trail } as Document : d));
+      const finalUpdates: Partial<Document> = {
+          status: 'reviewing',
+          extractedData: extracted,
+          type: recognition.documentType,
+          confidence: recognition.confidence,
+          auditTrail: trail
+      }
+      updateDocumentState(docId, finalUpdates);
 
-      (async () => {
-        try {
-          const recognition = await recognizeDocumentType({ documentDataUri: docToProcess!.dataUrl });
-          
-          const extracted = await extractData({ documentDataUri: docToProcess!.dataUrl, documentType: recognition.documentType });
-          trail = addAuditEvent(docId, 'Traitement IA terminé');
-          
-          setDocuments(prev => prev.map(d => d.id === docId ? {...d, status: 'reviewing', extractedData: extracted, type: recognition.documentType, confidence: recognition.confidence, auditTrail: trail } : d));
+      toast({
+        title: "Traitement terminé",
+        description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
+      });
+      
+      const finalDoc = { ...docToProcess, ...finalUpdates };
+      createNotification(finalDoc, 'est prêt pour examen.');
 
-          toast({
-            title: "Traitement terminé",
-            description: `Données extraites de ${docToProcess!.name}. Prêt pour examen.`,
-          });
-          
-          const finalDoc = documents.find(d => d.id === docId) || { ...docToProcess!, status: 'reviewing', extractedData: extracted };
-          createNotification(finalDoc, 'est prêt pour examen.');
-
-        } catch (error) {
-          console.error("Error processing document:", error);
-          trail = addAuditEvent(docId, 'Erreur de traitement IA');
-          setDocuments(prev => prev.map(d => d.id === docId ? {...d, status: 'error', auditTrail: trail } : d));
-          toast({
-            variant: "destructive",
-            title: "Le traitement a échoué",
-            description: `Impossible de traiter ${docToProcess!.name}.`,
-          });
-          const finalDoc = documents.find(d => d.id === docId) || {...docToProcess!, status: 'error'};
-          createNotification(finalDoc, 'a échoué lors du traitement.');
-        } finally {
-          if (docId === activeDocumentId) setIsLoading(false);
-        }
-      })();
-
-      return docsWithStatus;
-    });
-
+    } catch (error) {
+      console.error("Error processing document:", error);
+      trail = addAuditEvent(docId, 'Erreur de traitement IA');
+      updateDocumentState(docId, { status: 'error', auditTrail: trail });
+      toast({
+        variant: "destructive",
+        title: "Le traitement a échoué",
+        description: `Impossible de traiter ${docToProcess.name}.`,
+      });
+      const finalDoc = { ...docToProcess, status: 'error' as const };
+      createNotification(finalDoc, 'a échoué lors du traitement.');
+    } finally {
+      if (docId === activeDocumentId) setIsLoading(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDocumentId, toast]);
+  }, [documents, activeDocumentId, toast]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
@@ -609,5 +611,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
