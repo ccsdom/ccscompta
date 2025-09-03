@@ -10,8 +10,6 @@ import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Separator } from './ui/separator';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 const adminNavItems = [
@@ -90,18 +88,8 @@ export function Sidebar() {
   }
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      localStorage.clear();
-      router.push('/login');
-    } catch (error) {
-      console.error("Error signing out:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de déconnexion",
-        description: "Impossible de se déconnecter. Veuillez réessayer."
-      });
-    }
+    localStorage.clear();
+    router.push('/login');
   };
 
   const { items: navItems, bottomItems, label: roleLabel } = roleConfig[currentRole] || roleConfig.client;

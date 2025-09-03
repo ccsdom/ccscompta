@@ -18,8 +18,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { auth } from '@/lib/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -91,38 +89,31 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      handleRedirect(userCredential.user.email || email);
-    } catch (error: any) {
-        console.error("Firebase Auth Error:", error);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Basic validation for demo purposes
+    if ((email === "demo@ccs-compta.com" && password === "demodemo") || (email === 'admin@ccs-compta.com' && password === "demodemo")) {
+        handleRedirect(email);
+    } else if (email.endsWith('@client.com') && password === 'demodemo') {
+        handleRedirect(email);
+    }
+    else {
         toast({
             variant: "destructive",
             title: "Erreur de connexion",
             description: "Email ou mot de passe incorrect. Veuillez réessayer.",
         })
-    } finally {
-        setIsLoading(false);
     }
+    setIsLoading(false);
   };
   
   const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
-      setIsLoading(true);
-      const provider = new GoogleAuthProvider();
-      try {
-          const result = await signInWithPopup(auth, provider);
-          handleRedirect(result.user.email || '');
-      } catch (error: any) {
-          console.error("Google Sign-In Error:", error);
-          toast({
-              variant: "destructive",
-              title: "Erreur de connexion Google",
-              description: "Impossible de se connecter avec Google. Veuillez réessayer.",
-          })
-      } finally {
-          setIsLoading(false);
-      }
+      toast({
+          title: "Fonctionnalité non disponible",
+          description: "La connexion via Google sera bientôt disponible.",
+      })
   }
 
   return (
