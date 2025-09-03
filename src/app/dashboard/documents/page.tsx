@@ -13,7 +13,7 @@ import {
   SheetContent,
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
+import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 export interface AuditEvent {
   action: string;
@@ -66,6 +68,8 @@ export default function DocumentsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
 
   const { toast } = useToast();
 
@@ -170,8 +174,7 @@ export default function DocumentsPage() {
     }
     
     if (newDocuments.length > 0) {
-      const updatedDocs = [...newDocuments, ...documents];
-      setDocuments(updatedDocs);
+      setDocuments(prev => [...newDocuments, ...prev]);
       handleSetActiveDocument(newDocuments[0]);
       toast({
         title: "Fichiers téléversés",
@@ -192,7 +195,7 @@ export default function DocumentsPage() {
     // Use a function with setDocuments to ensure we have the latest state
     setDocuments(currentDocs => {
       docToProcess = currentDocs.find(d => d.id === docId);
-      if (!docToProcess) return currentDocs;
+      if (!docToProcess || docToProcess.status === 'processing') return currentDocs;
       
       if (docId === activeDocumentId) setIsLoading(true);
       let trail = addAuditEvent(docId, 'Traitement IA initié');
@@ -213,9 +216,8 @@ export default function DocumentsPage() {
             description: `Données extraites de ${docToProcess!.name}. Prêt pour examen.`,
           });
           
-          // Use the latest version of the doc for notification
-          const finalDoc = documents.find(d => d.id === docId) || docToProcess;
-          createNotification({...finalDoc!, status: 'reviewing', extractedData: extracted}, 'est prêt pour examen.');
+          const finalDoc = documents.find(d => d.id === docId) || { ...docToProcess!, status: 'reviewing', extractedData: extracted };
+          createNotification(finalDoc, 'est prêt pour examen.');
 
         } catch (error) {
           console.error("Error processing document:", error);
@@ -226,8 +228,8 @@ export default function DocumentsPage() {
             title: "Le traitement a échoué",
             description: `Impossible de traiter ${docToProcess!.name}.`,
           });
-          const finalDoc = documents.find(d => d.id === docId) || docToProcess;
-          createNotification({...finalDoc!, status: 'error'}, 'a échoué lors du traitement.');
+          const finalDoc = documents.find(d => d.id === docId) || {...docToProcess!, status: 'error'};
+          createNotification(finalDoc, 'a échoué lors du traitement.');
         } finally {
           if (docId === activeDocumentId) setIsLoading(false);
         }
@@ -271,6 +273,8 @@ export default function DocumentsPage() {
   
   const handleSetActiveDocument = (doc: Document | null) => {
     if (doc) {
+        setZoom(1);
+        setRotation(0);
         setActiveDocumentId(doc.id);
         if (window.innerWidth < 1024) {
             setIsSheetOpen(true);
@@ -503,13 +507,44 @@ export default function DocumentsPage() {
         </AlertDialog>
     </div>
   )
+  
+  const PreviewControls = () => (
+     <div className="absolute top-2 right-2 z-10 bg-background/50 backdrop-blur-sm rounded-md p-1 flex items-center gap-1">
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger>
+                <TooltipContent><p>Zoom avant</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger>
+                <TooltipContent><p>Zoom arrière</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger>
+                <TooltipContent><p>Pivoter</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => {setZoom(1); setRotation(0);}}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger>
+                <TooltipContent><p>Réinitialiser</p></TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    </div>
+  )
 
   const renderContent = () => {
     if (activeDocument) {
       return (
         <div className="flex flex-col h-full gap-6">
-          <Card className="flex-1 aspect-square w-full bg-muted overflow-hidden">
-            <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
+          <Card className="flex-1 aspect-square w-full bg-muted overflow-hidden relative">
+            <PreviewControls />
+            <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
+                <iframe 
+                    src={activeDocument.dataUrl} 
+                    className="w-full h-full border-0 transition-transform duration-300"
+                    style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
+                    title="Aperçu du document" 
+                />
+            </div>
           </Card>
           <DataValidationForm
             key={activeDocument.id}
@@ -574,3 +609,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
