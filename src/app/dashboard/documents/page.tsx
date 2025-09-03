@@ -36,6 +36,13 @@ export interface AuditEvent {
   user: string;
 }
 
+export interface Comment {
+    id: string;
+    text: string;
+    user: string;
+    date: string;
+}
+
 export interface Document {
   id: string;
   name: string;
@@ -47,6 +54,7 @@ export interface Document {
   confidence?: number;
   extractedData?: ExtractDataOutput;
   auditTrail: AuditEvent[];
+  comments: Comment[];
 }
 
 export type Notification = {
@@ -79,7 +87,7 @@ export default function DocumentsPage() {
             const storedDocs = localStorage.getItem('documents');
             if (storedDocs) {
                 // We need to reconstruct File objects as they are not serializable
-                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [] }));
+                const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [], comments: d.comments || [] }));
                 setDocuments(parsedDocs);
             }
              const storedQuery = localStorage.getItem('searchQuery');
@@ -164,7 +172,8 @@ export default function DocumentsPage() {
             action: 'Document téléversé',
             date: new Date().toISOString(),
             user: getCurrentUser(),
-          }]
+          }],
+          comments: []
         };
         newDocuments.push(newDoc);
         existingFileNames.add(file.name); // Add to set to prevent duplicate uploads in the same batch
@@ -260,6 +269,23 @@ export default function DocumentsPage() {
     if (updatedDoc) {
       createNotification(updatedDoc, 'a été approuvé.');
     }
+  };
+
+   const handleAddComment = (docId: string, commentText: string) => {
+    if (!commentText.trim()) return;
+    const newComment: Comment = {
+      id: crypto.randomUUID(),
+      text: commentText,
+      user: getCurrentUser(),
+      date: new Date().toISOString(),
+    };
+    const trail = addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
+    setDocuments(prev => prev.map(d => {
+        if (d.id === docId) {
+            return { ...d, comments: [...d.comments, newComment], auditTrail: trail };
+        }
+        return d;
+    }));
   };
 
   const handleSendToCegid = (doc: Document) => {
@@ -554,6 +580,7 @@ export default function DocumentsPage() {
             onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
             onSendToCegid={handleSendToCegid}
             isLoading={isLoading && activeDocument.id === activeDocumentId}
+            onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
           />
         </div>
       );
@@ -598,6 +625,7 @@ export default function DocumentsPage() {
               onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
               onSendToCegid={handleSendToCegid}
               isLoading={isLoading && activeDocument.id === activeDocumentId}
+              onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
               isSheet
             />
           ) : (

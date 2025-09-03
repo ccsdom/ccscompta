@@ -8,20 +8,24 @@ import { Label } from "@/components/ui/label";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert } from 'lucide-react';
-import { type Document, type AuditEvent } from "@/app/dashboard/documents/page";
+import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare } from 'lucide-react';
+import { type Document, type AuditEvent, type Comment } from "@/app/dashboard/documents/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Separator } from './ui/separator';
+import { Avatar, AvatarFallback } from './ui/avatar';
+
 
 interface DataValidationFormProps {
   document: Document | null;
   onUpdate: (updatedData: ExtractDataOutput) => void;
   onSendToCegid: (doc: Document) => void;
   isLoading: boolean;
+  onAddComment: (commentText: string) => void;
   isSheet?: boolean;
 }
 
@@ -75,8 +79,62 @@ const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
   );
 };
 
+const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAddComment: (text: string) => void }) => {
+    const [newComment, setNewComment] = useState("");
 
-export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, isSheet = false }: DataValidationFormProps) {
+    const handleSubmit = () => {
+        if (newComment.trim()) {
+            onAddComment(newComment.trim());
+            setNewComment("");
+        }
+    }
+    
+    return (
+        <div>
+            <Label className="flex items-center gap-2 mb-2">
+                <MessageSquare className="h-4 w-4" />
+                Commentaires
+            </Label>
+            <div className="space-y-4">
+                {comments.length > 0 ? (
+                     comments.slice().reverse().map((comment) => (
+                        <div key={comment.id} className="flex items-start gap-3 text-sm">
+                            <Avatar className="h-8 w-8 border">
+                                <AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 bg-muted rounded-md p-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="font-semibold">{comment.user}</p>
+                                    <p className="text-xs text-muted-foreground">{format(new Date(comment.date), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p>
+                                </div>
+                                <p className="mt-1 text-foreground/90">{comment.text}</p>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">Aucun commentaire pour l'instant.</p>
+                )}
+                 <div className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8 border">
+                        <AvatarFallback>Moi</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                        <Textarea 
+                            placeholder="Ajouter un commentaire... Mentionnez quelqu'un avec @"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            rows={2}
+                        />
+                        <Button size="sm" className="mt-2" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+
+export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSent, setIsSent] = useState(false);
   const { toast } = useToast();
@@ -246,6 +304,9 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                 ) : (
                     !isLoading && document.status !== 'error' && document.status !== 'pending' && <p className="text-sm text-muted-foreground text-center py-10">Traitez ce document pour extraire ses données.</p>
                 )}
+                 <Separator className="my-6" />
+                 <CommentsSection comments={document.comments} onAddComment={onAddComment} />
+                 <Separator className="my-6" />
                  <AuditTrail trail={document.auditTrail} />
             </div>
           </ScrollArea>
