@@ -399,7 +399,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                         </TabsTrigger>
                         <TabsTrigger value="comments" className="gap-1">
                             <MessageSquare className="h-4 w-4" />
-                            Commentaires {document.comments.length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{document.comments.length}</span>}
+                            Commentaires {(document.comments || []).length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{(document.comments || []).length}</span>}
                         </TabsTrigger>
                         <TabsTrigger value="history" className="gap-1"><ListOrdered className="h-4 w-4" />Historique</TabsTrigger>
                     </TabsList>
@@ -407,7 +407,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                         <DataView />
                     </TabsContent>
                     <TabsContent value="comments" className="flex-1 mt-0">
-                         <CommentsSection comments={document.comments} onAddComment={onAddComment} />
+                         <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
                     </TabsContent>
                     <TabsContent value="history" className="flex-1 mt-4">
                         <ScrollArea className="h-[calc(100vh-450px)] lg:h-auto pr-4">
@@ -435,3 +435,5 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     </CardWrapper>
   );
 }
+
+    

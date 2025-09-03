@@ -79,6 +79,8 @@ export default function DocumentsPage() {
              if (storedAutomation) {
                 setAutomationSettings(JSON.parse(storedAutomation));
              }
+            // Reset active document on page load to prevent hydration errors
+            setActiveDocumentId(null);
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
         }
@@ -744,3 +746,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
