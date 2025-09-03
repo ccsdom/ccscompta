@@ -168,8 +168,7 @@ export default function MyDocumentsPage() {
   }, [toast, addAuditEvent]);
 
   const handleFileDrop = async (files: File[]) => {
-    const currentClientId = clientId || localStorage.getItem('selectedClientId');
-    if (!currentClientId) {
+    if (!clientId) {
          toast({ variant: "destructive", title: "Erreur interne", description: `Votre identifiant client n'est pas défini.`});
          return;
     }
@@ -192,7 +191,7 @@ export default function MyDocumentsPage() {
                 status: 'pending',
                 file,
                 dataUrl,
-                clientId: currentClientId,
+                clientId: clientId,
                 auditTrail: [{
                     action: 'Document téléversé par le client',
                     date: new Date().toISOString(),
@@ -255,8 +254,8 @@ export default function MyDocumentsPage() {
   }
   
   const clientDocuments = useMemo(() => {
-        const currentClientId = clientId || localStorage.getItem('selectedClientId');
-        let docs = [...documents].filter(d => d.clientId === currentClientId);
+        if (!clientId) return [];
+        let docs = [...documents].filter(d => d.clientId === clientId);
 
         if (searchCriteria) {
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
@@ -288,7 +287,7 @@ export default function MyDocumentsPage() {
             }
             if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = [...documents].filter(d => d.clientId === currentClientId).filter(doc => 
+                 docs = [...documents].filter(d => d.clientId === clientId).filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
                 );
@@ -505,3 +504,5 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    
