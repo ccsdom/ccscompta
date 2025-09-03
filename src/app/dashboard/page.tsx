@@ -6,13 +6,10 @@ import { DocumentHistory } from "@/components/document-history";
 import { FileUp, FileCheck, FileClock, CircleDollarSign } from "lucide-react";
 import { useState, useMemo, useEffect } from 'react';
 import type { Document } from "./documents/page"; // Re-using type from documents page
-import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 
 export default function Dashboard() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
@@ -25,15 +22,6 @@ export default function Dashboard() {
                     const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
                     setDocuments(parsedDocs);
                 }
-                 const storedQuery = localStorage.getItem('searchQuery');
-                 if (storedQuery) {
-                    setSearchQuery(storedQuery);
-                 }
-                const storedCriteria = localStorage.getItem('searchCriteria');
-                if (storedCriteria) {
-                    setSearchCriteria(JSON.parse(storedCriteria));
-                }
-                // For client dashboard, we always use their own ID.
                 const clientId = localStorage.getItem('selectedClientId');
                 if (clientId) {
                     setSelectedClientId(clientId);
@@ -48,64 +36,8 @@ export default function Dashboard() {
     }, []);
 
     const filteredDocuments = useMemo(() => {
-        let docs = [...documents].filter(d => d.clientId === selectedClientId);
-        
-        if (searchCriteria) {
-            // AI Search Logic
-            let filteredByAI = false;
-            const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
-
-            if (documentTypes && documentTypes.length > 0) {
-                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
-                filteredByAI = true;
-            }
-            if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
-                filteredByAI = true;
-            }
-            if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
-                filteredByAI = true;
-            }
-            if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
-                filteredByAI = true;
-            }
-            if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
-                filteredByAI = true;
-            }
-            if (vendor) {
-                const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
-                filteredByAI = true;
-            }
-            if (keywords && keywords.length > 0) {
-                docs = docs.filter(d => {
-                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
-                    return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
-                });
-                filteredByAI = true;
-            }
-            
-            if (!filteredByAI && originalQuery) {
-                 const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = docs.filter(doc => 
-                    doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
-                );
-            }
-
-        } else if (searchQuery) {
-             // Fallback to simple search
-            const lowercasedQuery = searchQuery.toLowerCase();
-            docs = docs.filter(doc => 
-                doc.name.toLowerCase().includes(lowercasedQuery) ||
-                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
-            );
-        }
-        return docs;
-    }, [documents, searchQuery, searchCriteria, selectedClientId]);
+        return [...documents].filter(d => d.clientId === selectedClientId);
+    }, [documents, selectedClientId]);
 
     const stats = useMemo(() => {
         const approved = filteredDocuments.filter(d => d.status === 'approved').length;
