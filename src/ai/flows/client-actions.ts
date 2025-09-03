@@ -3,7 +3,7 @@
 
 import { z } from 'genkit';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData, Timestamp, query, where } from 'firebase/firestore';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 
@@ -88,6 +88,15 @@ const AddClientInputSchema = z.object({
 
 export async function addClient(newClientData: z.infer<typeof AddClientInputSchema>): Promise<Client> {
     const validatedData = AddClientInputSchema.parse(newClientData);
+    
+    // Check for duplicate SIRET
+    const q = query(clientsCollection, where("siret", "==", validatedData.siret));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        const existingClient = fromFirestore(querySnapshot.docs[0]);
+        throw new Error(`Un client avec le SIRET ${validatedData.siret} existe déjà : ${existingClient.name}.`);
+    }
+
     try {
         const dataToSave = {
             ...validatedData,

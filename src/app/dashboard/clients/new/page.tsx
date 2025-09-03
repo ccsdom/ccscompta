@@ -22,10 +22,11 @@ export default function NewClientPage() {
             router.push('/dashboard/clients');
         } catch (error) {
             console.error("Failed to add client:", error);
+            const errorMessage = (error instanceof Error) ? error.message : "Impossible d'ajouter le nouveau client.";
             toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: "Impossible d'ajouter le nouveau client."
+                description: errorMessage
             });
         }
     }
