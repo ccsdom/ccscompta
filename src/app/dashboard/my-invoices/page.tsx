@@ -70,7 +70,6 @@ export default function MyInvoicesPage() {
                     <CardTitle>Historique de facturation</CardTitle>
                     <CardDescription>Retrouvez ici toutes les factures émises par notre cabinet.</CardDescription>
                 </CardHeader>
-                <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -128,7 +127,6 @@ export default function MyInvoicesPage() {
                             )}
                         </TableBody>
                     </Table>
-                </CardContent>
                  <CardFooter className="text-xs text-muted-foreground">
                     <p>Pour toute question concernant une facture, veuillez contacter directement votre gestionnaire de dossier.</p>
                 </CardFooter>
