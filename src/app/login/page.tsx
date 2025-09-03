@@ -43,7 +43,7 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@ccs-compta.com");
+  const [email, setEmail] = useState("demo@ccs-compta.com");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
