@@ -54,27 +54,23 @@ export function ClientSwitcher() {
             const storedClientId = localStorage.getItem('selectedClientId');
             if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
               setSelectedValue(storedClientId);
-            } else if (clientsData.length > 0) {
-              const firstClientId = clientsData[0].id;
-              setSelectedValue(firstClientId);
-              localStorage.setItem('selectedClientId', firstClientId);
             }
         }
     };
     fetchAndSetClients();
-  }, []);
-  
-  useEffect(() => {
-      const handleStorageChange = () => {
+    
+    const handleStorageChange = () => {
           const storedClientId = localStorage.getItem('selectedClientId');
           if (storedClientId) {
               setSelectedValue(storedClientId);
           }
       };
-      window.addEventListener('storage', handleStorageChange);
-      return () => {
-          window.removeEventListener('storage', handleStorageChange);
-      };
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+
   }, []);
 
   const handleClientChange = (value: string) => {
