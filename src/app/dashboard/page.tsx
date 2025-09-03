@@ -33,9 +33,10 @@ export default function Dashboard() {
                 if (storedCriteria) {
                     setSearchCriteria(JSON.parse(storedCriteria));
                 }
-                 const storedClientId = localStorage.getItem('selectedClientId');
-                if (storedClientId) {
-                    setSelectedClientId(storedClientId);
+                // For client dashboard, we always use their own ID.
+                const clientId = localStorage.getItem('selectedClientId');
+                if (clientId) {
+                    setSelectedClientId(clientId);
                 }
             } catch (error) {
                 console.error("Failed to load documents from localStorage", error)
@@ -47,13 +48,7 @@ export default function Dashboard() {
     }, []);
 
     const filteredDocuments = useMemo(() => {
-        // In client view, default to the logged-in user's client ID if not set.
-        const role = localStorage.getItem('userRole');
-        const clientId = role === 'client' 
-            ? localStorage.getItem('selectedClientId') || 'alpha' // Mock: defaulting to 'alpha' for demo
-            : selectedClientId;
-
-        let docs = [...documents].filter(d => d.clientId === clientId);
+        let docs = [...documents].filter(d => d.clientId === selectedClientId);
         
         if (searchCriteria) {
             // AI Search Logic
