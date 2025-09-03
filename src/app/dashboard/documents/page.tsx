@@ -30,45 +30,8 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
 
-
-export interface AuditEvent {
-  action: string;
-  date: string;
-  user: string;
-}
-
-export interface Comment {
-    id: string;
-    text: string;
-    user: string;
-    date: string;
-}
-
-export interface Document {
-  id: string;
-  name: string;
-  uploadDate: string;
-  status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
-  file: File;
-  dataUrl: string;
-  clientId: string; 
-  type?: string;
-  confidence?: number;
-  extractedData?: ExtractDataOutput;
-  auditTrail: AuditEvent[];
-  comments: Comment[];
-  vatAmount?: number;
-}
-
-export type Notification = {
-  id: string;
-  documentId: string;
-  documentName: string;
-  message: string;
-  date: string;
-  isRead: boolean;
-};
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
 
@@ -240,7 +203,16 @@ export default function DocumentsPage() {
       const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       trail = addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
-      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
+      // Get all other client documents for reconciliation context
+      const allClientDocuments = documents
+        .filter(d => d.clientId === docToProcess.clientId && d.id !== docToProcess.id)
+        .map(({ file, ...rest }) => rest); // Remove the File object before passing to the AI flow
+      
+      const extracted = await extractData({ 
+          documentDataUri: docToProcess.dataUrl, 
+          documentType: recognition.documentType,
+          allClientDocuments: allClientDocuments
+      });
       trail = addAuditEvent(docId, 'Données extraites par IA');
 
       let finalUpdates: Partial<Document> = {
@@ -322,7 +294,7 @@ export default function DocumentsPage() {
       id: crypto.randomUUID(),
       text: commentText,
       user: getCurrentUser(),
-      date: new date().toISOString(),
+      date: new Date().toISOString(),
     };
     const trail = addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
     setDocuments(prev => prev.map(d => {
@@ -747,3 +719,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    

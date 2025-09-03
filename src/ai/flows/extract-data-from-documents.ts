@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Data extraction from accounting documents using OCR and AI.
@@ -10,17 +11,20 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { findMatchingDocumentTool } from '../tools/find-matching-document';
+import type { Document } from '@/lib/types';
+
 
 const DocumentSchemaForTool = z.object({
     id: z.string(),
     name: z.string(),
-    type: z.string(),
+    type: z.string().optional(),
     extractedData: z.object({
         amounts: z.array(z.number()).optional(),
         vendorNames: z.array(z.string()).optional(),
         dates: z.array(z.string()).optional(),
     }).optional(),
 });
+
 
 const TransactionSchema = z.object({
   date: z.string().describe('The date of the transaction.'),
@@ -143,3 +147,5 @@ const extractDataFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
