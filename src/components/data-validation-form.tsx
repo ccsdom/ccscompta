@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark } from 'lucide-react';
+import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark, Link2 } from 'lucide-react';
 import { type Document, type AuditEvent, type Comment } from "@/app/dashboard/documents/page";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
@@ -195,11 +195,23 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
 }
 
 const BankStatementView = ({ formData, setFormData, isReadOnly }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean }) => {
+    const [allDocs, setAllDocs] = useState<Document[]>([]);
+
+    useEffect(() => {
+        const storedDocs = localStorage.getItem('documents');
+        if (storedDocs) {
+            setAllDocs(JSON.parse(storedDocs));
+        }
+    }, []);
 
     const handleTransactionChange = (index: number, field: string, value: string | number) => {
         const updatedTransactions = [...(formData.transactions || [])];
         (updatedTransactions[index] as any)[field] = value;
         setFormData(prev => ({ ...prev, transactions: updatedTransactions }));
+    }
+
+    const getMatchedDocName = (docId: string): string | undefined => {
+        return allDocs.find(d => d.id === docId)?.name;
     }
 
     return (
@@ -213,6 +225,7 @@ const BankStatementView = ({ formData, setFormData, isReadOnly }: { formData: Ex
                         <TableHead className="h-10 px-2">Fournisseur</TableHead>
                         <TableHead className="h-10 px-2">Catégorie</TableHead>
                         <TableHead className="h-10 px-2 text-right">Montant</TableHead>
+                        <TableHead className="h-10 w-10 p-1"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -223,6 +236,21 @@ const BankStatementView = ({ formData, setFormData, isReadOnly }: { formData: Ex
                             <TableCell className="p-1"><Input value={tx.vendor || ''} onChange={(e) => handleTransactionChange(index, 'vendor', e.target.value)} readOnly={isReadOnly} className="h-8"/></TableCell>
                             <TableCell className="p-1"><Input value={tx.category || ''} onChange={(e) => handleTransactionChange(index, 'category', e.target.value)} readOnly={isReadOnly} className="h-8"/></TableCell>
                             <TableCell className="p-1"><Input type="number" value={tx.amount} onChange={(e) => handleTransactionChange(index, 'amount', parseFloat(e.target.value))} readOnly={isReadOnly} className="h-8 text-right"/></TableCell>
+                            <TableCell className="p-1 text-center">
+                                {tx.matchingDocumentId && (
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Link2 className="h-4 w-4 text-primary" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Rapproché avec :</p>
+                                                <p className="font-medium">{getMatchedDocName(tx.matchingDocumentId)}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -397,5 +425,3 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     </CardWrapper>
   );
 }
-
-    

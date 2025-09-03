@@ -35,7 +35,7 @@ const ExtractDataInputSchema = z.object({
   documentDataUri: z
     .string()
     .describe(
-      "The accounting document (invoice, receipt, bank statement, etc.) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The accounting document (invoice, receipt, bank statement, etc.) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
   documentType: z.string().describe('The type of the accounting document (e.g., "invoice", "receipt", "bank statement").'),
   // In a real app, this would be retrieved from a database by the tool itself.
