@@ -3,23 +3,33 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, Notification, AuditEvent } from '@/app/dashboard/documents/page';
-import { PlusCircle, CheckCircle } from 'lucide-react';
+import { PlusCircle, CheckCircle, File as FileIcon } from 'lucide-react';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
 
 export function QuickUpload() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+    const [processedFiles, setProcessedFiles] = useState<File[]>([]);
+    const [filesToProcess, setFilesToProcess] = useState<File[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (!isOpen) {
+            // Reset state when dialog is closed
+            setIsLoading(false);
+            setProcessedFiles([]);
+            setFilesToProcess([]);
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         const clientId = localStorage.getItem('selectedClientId');
@@ -94,7 +104,7 @@ export function QuickUpload() {
         }
 
         setIsLoading(true);
-        setUploadedFiles(files);
+        setFilesToProcess(files);
         
         try {
             const storedDocsRaw = localStorage.getItem('documents');
@@ -131,13 +141,15 @@ export function QuickUpload() {
 
             const allDocs = [...newDocuments.map(d => ({...d, file: undefined})), ...storedDocs];
             localStorage.setItem('documents', JSON.stringify(allDocs));
-            // Dispatch a storage event to notify other components (like the main documents page)
             window.dispatchEvent(new Event('storage'));
 
             toast({
                 title: "Téléversement et traitement terminés",
                 description: `${files.length} document(s) ont été traités et ajoutés à votre historique.`,
             });
+            
+            setProcessedFiles(files);
+            setFilesToProcess([]);
 
         } catch (error) {
             console.error("Error during quick upload:", error);
@@ -148,8 +160,6 @@ export function QuickUpload() {
             });
         } finally {
             setIsLoading(false);
-            setUploadedFiles([]);
-            setTimeout(() => setIsOpen(false), 1000); // Close dialog after a short delay
         }
     };
 
@@ -169,23 +179,40 @@ export function QuickUpload() {
                         Déposez vos documents ici. Ils seront automatiquement traités et ajoutés au dossier du client sélectionné.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-                    <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
-                </div>
-                {uploadedFiles.length > 0 && isLoading && (
-                     <div className="text-sm text-muted-foreground mt-2">
-                        <p>Traitement en cours :</p>
-                        <ul className="list-disc pl-5">
-                            {uploadedFiles.map(f => <li key={f.name}>{f.name}</li>)}
+                
+                {processedFiles.length === 0 ? (
+                    <div className="py-4">
+                        <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
+                    </div>
+                ) : (
+                    <div className="py-4">
+                        <h3 className="text-sm font-medium mb-2">Fichiers traités avec succès :</h3>
+                        <ul className="space-y-2">
+                           {processedFiles.map((file, index) => (
+                               <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-muted/50 rounded-md">
+                                   <CheckCircle className="h-4 w-4 text-green-500" />
+                                   <span className="truncate">{file.name}</span>
+                               </li>
+                           ))}
                         </ul>
                     </div>
                 )}
-                 {!isLoading && uploadedFiles.length > 0 && (
-                     <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
-                        <CheckCircle className="h-4 w-4" />
-                        <p>Traitement terminé !</p>
+
+
+                {filesToProcess.length > 0 && isLoading && (
+                     <div className="text-sm text-muted-foreground mt-2">
+                        <p>Traitement en cours :</p>
+                        <ul className="list-disc pl-5">
+                            {filesToProcess.map(f => <li key={f.name}>{f.name}</li>)}
+                        </ul>
                     </div>
-                 )}
+                )}
+                 
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Fermer</Button>
+                    </DialogClose>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
