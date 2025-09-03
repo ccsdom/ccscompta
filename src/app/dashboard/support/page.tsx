@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Image from 'next/image';
 import { Mail, Phone, HelpCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function SupportPage() {
 
@@ -155,7 +156,9 @@ export default function SupportPage() {
                     <div>
                         <h4 className="font-semibold">Base de connaissances</h4>
                         <p className="text-muted-foreground">Pour une aide détaillée sur toutes les fonctionnalités, consultez notre documentation complète.</p>
-                        <Button variant="outline" className="mt-2">Consulter la documentation</Button>
+                        <Button variant="outline" className="mt-2" asChild>
+                            <Link href="/DOCUMENTATION.md" download>Consulter la documentation</Link>
+                        </Button>
                     </div>
                 </div>
             </CardContent>
