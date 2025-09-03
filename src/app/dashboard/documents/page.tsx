@@ -506,11 +506,11 @@ export default function DocumentsPage() {
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
-        // Ensure auditTrail exists and is an array before sorting
+        // Ensure auditTrail exists and is an array before sorting by upload date
         return docs.sort((a,b) => {
-            const dateA = (a.auditTrail && a.auditTrail.length > 0) ? new Date(a.auditTrail[0].date).getTime() : 0;
-            const dateB = (b.auditTrail && b.auditTrail.length > 0) ? new Date(b.auditTrail[0].date).getTime() : 0;
-            return dateB - dateA;
+            const dateA = a.uploadDate.split('/').reverse().join('-');
+            const dateB = b.uploadDate.split('/').reverse().join('-');
+            return new Date(dateB).getTime() - new Date(dateA).getTime();
         });
   }, [documents, searchQuery, searchCriteria, selectedClientId]);
 
