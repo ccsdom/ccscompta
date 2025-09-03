@@ -66,11 +66,21 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {currentRole === 'accountant' && (
-        <div className="p-4 border-b">
+      <div className="p-4 border-b">
+        {currentRole === 'accountant' ? (
+          <>
             <ClientSwitcher />
-        </div>
-      )}
+            <div className="mt-4 text-center">
+              <span className="text-xs font-semibold uppercase text-muted-foreground">Espace Comptable</span>
+            </div>
+          </>
+        ) : (
+           <div className="text-center">
+             <span className="text-xs font-semibold uppercase text-muted-foreground">Espace Client</span>
+           </div>
+        )}
+      </div>
+
 
       <nav className="flex-1 px-4 py-4 space-y-2">
         {navItems.map((item) => (
