@@ -62,7 +62,7 @@ export default function LoginPage() {
             alt="Image"
             fill
             className="object-cover"
-            data-ai-hint="accounting office"
+            data-ai-hint="accounting computer"
         />
          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/0" />
          <div className="relative h-full flex flex-col justify-between p-12 text-white">
@@ -76,6 +76,7 @@ export default function LoginPage() {
                     Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
                 </p>
             </div>
+             <p className="text-xs text-white/60">&copy; 2024 CCS Compta. Tous droits réservés.</p>
          </div>
       </div>
       <div className="flex items-center justify-center py-12">
