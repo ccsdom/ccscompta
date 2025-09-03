@@ -52,9 +52,19 @@ export default function ClientsPage() {
 
     const fetchClients = async () => {
         setLoading(true);
-        const clientsData = await getClients();
-        setClients(clientsData);
-        setLoading(false);
+        try {
+            const clientsData = await getClients();
+            setClients(clientsData);
+        } catch (error) {
+            console.error("Failed to fetch clients:", error);
+            toast({
+                title: "Erreur de chargement",
+                description: "Impossible de récupérer la liste des clients.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -283,7 +293,7 @@ export default function ClientsPage() {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Cette action est irréversible. Le dossier du client "{clientToDelete?.name}" sera définitivement supprimé, y compris tous ses documents.
+                        Le dossier du client "{clientToDelete?.name}" sera définitivement supprimé, y compris tous ses documents.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

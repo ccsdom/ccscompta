@@ -25,7 +25,7 @@ export default function NewClientPage() {
             console.error("Failed to add client:", result.error);
             toast({
                 variant: 'destructive',
-                title: "Erreur",
+                title: "Erreur lors de l'ajout du client",
                 description: result.error
             });
         }
