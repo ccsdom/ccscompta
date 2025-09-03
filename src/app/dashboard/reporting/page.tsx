@@ -1,14 +1,16 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Banknote, Users, TrendingUp, TrendingDown, FileCheck2, UserCheck } from 'lucide-react';
+import { DollarSign, Banknote, Users, TrendingUp, TrendingDown, FileCheck2, UserCheck, CalendarDays } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, LabelList, ResponsiveContainer, YAxis } from "recharts";
 import {type ChartConfig} from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const chartConfig = {
@@ -41,11 +43,27 @@ const topClientsData = [
 
 
 export default function ReportingPage() {
+    const [timeRange, setTimeRange] = useState('6m');
+
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Rapports & Performance</h1>
-                <p className="text-muted-foreground mt-1">Analyse de la performance financière et opérationnelle du cabinet.</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Rapports & Performance</h1>
+                    <p className="text-muted-foreground mt-1">Analyse de la performance financière et opérationnelle du cabinet.</p>
+                </div>
+                 <div className="w-[180px]">
+                    <Select value={timeRange} onValueChange={setTimeRange}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner une période" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="1m">Ce mois-ci</SelectItem>
+                            <SelectItem value="6m">6 derniers mois</SelectItem>
+                            <SelectItem value="1y">Cette année</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -106,7 +124,7 @@ export default function ReportingPage() {
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Chiffre d'affaires mensuel</CardTitle>
-                        <CardDescription>Évolution du CA facturé sur les 6 derniers mois.</CardDescription>
+                        <CardDescription>Évolution du CA facturé sur la période sélectionnée.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -137,14 +155,14 @@ export default function ReportingPage() {
                  <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Classement des clients</CardTitle>
-                        <CardDescription>Top clients par chiffre d'affaires sur l'année en cours.</CardDescription>
+                        <CardDescription>Top clients par chiffre d'affaires sur la période sélectionnée.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Client</TableHead>
-                                    <TableHead className="text-right">CA facturé (annuel)</TableHead>
+                                    <TableHead className="text-right">CA facturé</TableHead>
                                     <TableHead className="text-center">Statut de paiement</TableHead>
                                 </TableRow>
                             </TableHeader>
