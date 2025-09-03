@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock } from "lucide-react";
+import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import type { Document } from "@/app/dashboard/documents/page";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 
 interface DocumentHistoryProps {
@@ -58,7 +59,17 @@ const getDocIcon = (type?: string) => {
 }
 
 export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
-  
+    const [pageIndex, setPageIndex] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
+
+    const paginatedDocuments = useMemo(() => {
+        const start = pageIndex * pageSize;
+        const end = start + pageSize;
+        return documents.slice(start, end);
+    }, [documents, pageIndex, pageSize]);
+
+    const pageCount = Math.ceil(documents.length / pageSize);
+
     const handleSelectAll = (checked: boolean | string) => {
         if (checked) {
             setSelectedDocumentIds(documents.map(d => d.id));
@@ -75,130 +86,197 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
         }
     }
   
-  return (
-    <Card className="flex-1 flex flex-col">
-        <CardHeader>
-            <CardTitle>Historique des documents</CardTitle>
-            <CardDescription>Consultez et gérez vos documents téléversés.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0 flex-1">
-            <ScrollArea className="h-full max-h-[calc(100vh-350px)]">
-                <Table>
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                        <TableHead className="w-[40px] px-4">
-                             <Checkbox
-                                onCheckedChange={handleSelectAll}
-                                checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
-                                indeterminate={selectedDocumentIds.length > 0 && selectedDocumentIds.length < documents.length}
-                                aria-label="Tout sélectionner"
-                            />
-                        </TableHead>
-                        <TableHead className="w-[50px] p-2 text-center">Type</TableHead>
-                        <TableHead>Nom du fichier</TableHead>
-                        <TableHead className="hidden md:table-cell">Date</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead className="text-right w-[140px]">Actions</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {documents.length > 0 ? (
-                        documents.map((doc) => (
-                        <TableRow 
-                            key={doc.id} 
-                            data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
-                            className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-muted/80' : ''}`}
-                            onClick={() => setActiveDocument(doc)}
-                        >
-                             <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
-                                <Checkbox
-                                    onCheckedChange={(checked) => handleSelectRow(doc.id, !!checked)}
-                                    checked={selectedDocumentIds.includes(doc.id)}
-                                    aria-label={`Sélectionner ${doc.name}`}
-                                />
-                            </TableCell>
-                            <TableCell className="p-2 text-center">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div className="flex justify-center items-center h-full">{getDocIcon(doc.type)}</div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right">
-                                            <p>{doc.type ? doc.type.charAt(0).toUpperCase() + doc.type.slice(1) : 'Type inconnu'}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </TableCell>
-                            <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
-                            <TableCell className="hidden md:table-cell text-muted-foreground">{doc.uploadDate}</TableCell>
-                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                            <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                            <TooltipProvider>
-                                {(doc.status === 'pending' || doc.status === 'error') && (
-                                     <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" onClick={() => onProcess(doc)}>
-                                                <Play className="h-4 w-4" />
-                                                <span className="sr-only">Traiter</span>
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Traiter le document</p></TooltipContent>
-                                    </Tooltip>
-                                )}
-                                {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
-                                                <Eye className="h-4 w-4" />
-                                                <span className="sr-only">Afficher</span>
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Afficher les détails</p></TooltipContent>
-                                    </Tooltip>
-                                )}
-
-                                <AlertDialog>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
-                                                    <span className="sr-only">Supprimer</span>
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="border-destructive text-destructive"><p>Supprimer le document</p></TooltipContent>
-                                    </Tooltip>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Cette action est irréversible. Le document "{doc.name}" sera définitivement supprimé.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                                </TooltipProvider>
-                            </TableCell>
-                        </TableRow>
-                        ))
-                    ) : (
+    return (
+        <Card className="flex-1 flex flex-col">
+            <CardHeader>
+                <CardTitle>Historique des documents</CardTitle>
+                <CardDescription>Consultez et gérez les documents téléversés par le client.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 flex flex-col justify-between">
+                <ScrollArea className="h-full max-h-[calc(100vh-400px)]">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                        <TableCell colSpan={6} className="h-48 text-center">
-                            <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
-                        </TableCell>
+                            <TableHead className="w-[40px] px-4">
+                                <Checkbox
+                                    onCheckedChange={handleSelectAll}
+                                    checked={documents.length > 0 && selectedDocumentIds.length === documents.length}
+                                    indeterminate={selectedDocumentIds.length > 0 && selectedDocumentIds.length < documents.length}
+                                    aria-label="Tout sélectionner"
+                                />
+                            </TableHead>
+                            <TableHead className="w-[50px] p-2 text-center">Type</TableHead>
+                            <TableHead>Nom du fichier</TableHead>
+                            <TableHead className="hidden md:table-cell">Date</TableHead>
+                            <TableHead>Statut</TableHead>
+                            <TableHead className="text-right w-[140px]">Actions</TableHead>
                         </TableRow>
-                    )}
-                    </TableBody>
-                </Table>
-            </ScrollArea>
-        </CardContent>
-    </Card>
-  );
+                        </TableHeader>
+                        <TableBody>
+                        {paginatedDocuments.length > 0 ? (
+                            paginatedDocuments.map((doc) => (
+                            <TableRow 
+                                key={doc.id} 
+                                data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
+                                className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-muted/80' : ''}`}
+                                onClick={() => setActiveDocument(doc)}
+                            >
+                                <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                        onCheckedChange={(checked) => handleSelectRow(doc.id, !!checked)}
+                                        checked={selectedDocumentIds.includes(doc.id)}
+                                        aria-label={`Sélectionner ${doc.name}`}
+                                    />
+                                </TableCell>
+                                <TableCell className="p-2 text-center">
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex justify-center items-center h-full">{getDocIcon(doc.type)}</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right">
+                                                <p>{doc.type ? doc.type.charAt(0).toUpperCase() + doc.type.slice(1) : 'Type inconnu'}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </TableCell>
+                                <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
+                                <TableCell className="hidden md:table-cell text-muted-foreground">{doc.uploadDate}</TableCell>
+                                <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                                <TooltipProvider>
+                                    {(doc.status === 'pending' || doc.status === 'error') && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" onClick={() => onProcess(doc)}>
+                                                    <Play className="h-4 w-4" />
+                                                    <span className="sr-only">Traiter</span>
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Traiter le document</p></TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
+                                                    <Eye className="h-4 w-4" />
+                                                    <span className="sr-only">Afficher</span>
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Afficher les détails</p></TooltipContent>
+                                        </Tooltip>
+                                    )}
+
+                                    <AlertDialog>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span className="sr-only">Supprimer</span>
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="border-destructive text-destructive"><p>Supprimer le document</p></TooltipContent>
+                                        </Tooltip>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                            <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Cette action est irréversible. Le document "{doc.name}" sera définitivement supprimé.
+                                            </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    </TooltipProvider>
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={6} className="h-48 text-center">
+                                <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                <h3 className="text-lg font-semibold">Aucun document pour ce client</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Le client n'a pas encore téléversé de documents.</p>
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+                <div className="flex items-center justify-end space-x-2 md:space-x-6 lg:space-x-8 p-4 border-t">
+                    <div className="flex-1 text-sm text-muted-foreground">
+                        {selectedDocumentIds.length} sur {documents.length} ligne(s) sélectionnée(s).
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium">Lignes par page</p>
+                        <Select
+                        value={`${pageSize}`}
+                        onValueChange={(value) => {
+                            setPageSize(Number(value))
+                            setPageIndex(0)
+                        }}
+                        >
+                        <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue placeholder={pageSize} />
+                        </SelectTrigger>
+                        <SelectContent side="top">
+                            {[10, 20, 30, 40, 50].map((size) => (
+                            <SelectItem key={size} value={`${size}`}>
+                                {size}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                        Page {pageIndex + 1} sur {pageCount}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                            onClick={() => setPageIndex(0)}
+                            disabled={pageIndex === 0}
+                        >
+                            <span className="sr-only">Première page</span>
+                            <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setPageIndex(pageIndex - 1)}
+                            disabled={pageIndex === 0}
+                        >
+                            <span className="sr-only">Page précédente</span>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setPageIndex(pageIndex + 1)}
+                             disabled={pageIndex >= pageCount - 1}
+                        >
+                            <span className="sr-only">Page suivante</span>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                             onClick={() => setPageIndex(pageCount - 1)}
+                             disabled={pageIndex >= pageCount - 1}
+                        >
+                            <span className="sr-only">Dernière page</span>
+                            <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
 }

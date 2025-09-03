@@ -1,7 +1,7 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { FileUploader } from '@/components/file-uploader';
 import { DataValidationForm } from '@/components/data-validation-form';
 import { DocumentHistory } from '@/components/document-history';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
@@ -515,7 +515,6 @@ export default function DocumentsPage() {
   }, [documents, searchQuery, searchCriteria, selectedClientId]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
-  const isProcessingAny = documents.some(d => d.status === 'processing');
 
   useEffect(() => {
     if (activeDocumentId && window.innerWidth < 1024) {
@@ -661,7 +660,7 @@ export default function DocumentsPage() {
         <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
             <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
-            <p className="text-sm text-muted-foreground mt-1">Sélectionnez un document dans la liste ou téléversez-en un nouveau.</p>
+            <p className="text-sm text-muted-foreground mt-1">Sélectionnez un document dans la liste pour voir l'aperçu et valider les données.</p>
         </CardContent>
       </Card>
     );
@@ -669,9 +668,8 @@ export default function DocumentsPage() {
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-10rem)] items-start">
-      <div className="flex flex-col gap-6 h-full">
-        <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
+      <div className="lg:col-span-2 flex flex-col gap-6 h-full">
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
         <SearchCriteriaDisplay />
         <DocumentHistory
