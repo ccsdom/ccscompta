@@ -157,7 +157,7 @@ export default function SupportPage() {
                         <h4 className="font-semibold">Base de connaissances</h4>
                         <p className="text-muted-foreground">Pour une aide détaillée sur toutes les fonctionnalités, consultez notre documentation complète.</p>
                         <Button variant="outline" className="mt-2" asChild>
-                            <Link href="/DOCUMENTATION.md" download>Consulter la documentation</Link>
+                            <Link href="/DOCUMENTATION.html" target="_blank" rel="noopener noreferrer">Consulter la documentation</Link>
                         </Button>
                     </div>
                 </div>
