@@ -201,7 +201,7 @@ export function Header() {
         </div>
         
         <div className="flex items-center space-x-1 md:space-x-2">
-            {userRole === 'accountant' && <QuickUpload />}
+            {userRole === 'client' && <QuickUpload />}
 
              <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
               <DropdownMenuTrigger asChild>

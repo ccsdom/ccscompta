@@ -9,11 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
-import { validateExtraction } from '@/ai/flows/validate-extraction';
 import type { Document, Notification, AuditEvent } from '@/app/dashboard/documents/page';
-import { PlusCircle, CheckCircle, File as FileIcon } from 'lucide-react';
+import { PlusCircle, CheckCircle } from 'lucide-react';
 
-const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
+const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
 export function QuickUpload() {
     const [isOpen, setIsOpen] = useState(false);
@@ -21,7 +20,6 @@ export function QuickUpload() {
     const [processedFiles, setProcessedFiles] = useState<File[]>([]);
     const [filesToProcess, setFilesToProcess] = useState<File[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-    const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
     const { toast } = useToast();
 
     useEffect(() => {
@@ -32,15 +30,11 @@ export function QuickUpload() {
             setFilesToProcess([]);
         }
     }, [isOpen]);
-
+    
     useEffect(() => {
         const loadSettings = () => {
             const clientId = localStorage.getItem('selectedClientId');
             setSelectedClientId(clientId);
-            const automation = localStorage.getItem('automationSettings');
-            if (automation) {
-                setAutomationSettings(JSON.parse(automation));
-            }
         };
 
         loadSettings();
@@ -48,11 +42,11 @@ export function QuickUpload() {
         return () => window.removeEventListener('storage', loadSettings);
     }, []);
 
-    const addAuditEvent = (trail: AuditEvent[], action: string, user?: string): AuditEvent[] => {
+    const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
         const event: AuditEvent = {
             action,
             date: new Date().toISOString(),
-            user: user || 'Système',
+            user: getCurrentUser(),
         };
         return [...trail, event];
     }
@@ -71,49 +65,20 @@ export function QuickUpload() {
         window.dispatchEvent(new Event('storage')); // Notify header
     };
 
-    const handleSendToCegid = (doc: Document, trail: AuditEvent[]): AuditEvent[] => {
-        console.log("Auto-sending to Cegid:", doc);
-        toast({
-          title: "Envoi automatique",
-          description: `${doc.name} a été envoyé à CEGID.`,
-        });
-        createNotification(doc, 'a été envoyé automatiquement à Cegid.');
-        return addAuditEvent(trail, 'Document envoyé à Cegid (Auto-envoi)');
-    };
-
-    const processDocument = useCallback(async (doc: Document) => {
+    const processDocumentForClient = useCallback(async (doc: Document) => {
         try {
-          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA initié');
+          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA initié par le client');
           const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl });
           doc.type = recognition.documentType;
           doc.confidence = recognition.confidence;
-          doc.auditTrail = addAuditEvent(doc.auditTrail, `Type reconnu: ${doc.type} (Confiance: ${Math.round(doc.confidence * 100)}%)`);
+          doc.auditTrail = addAuditEvent(doc.auditTrail, `Type reconnu: ${doc.type}`);
     
           const extracted = await extractData({ documentDataUri: doc.dataUrl, documentType: recognition.documentType });
           doc.extractedData = extracted;
-          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA');
+          doc.status = 'reviewing'; // Always set to reviewing for the accountant
+          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA, en attente de validation comptable');
 
-          if (automationSettings.isEnabled && recognition.documentType !== 'bank statement') {
-              doc.auditTrail = addAuditEvent(doc.auditTrail, 'Validation automatique initiée');
-              const validation = await validateExtraction({ documentDataUri: doc.dataUrl, extractedData: extracted });
-              
-              if (validation.isConfident && validation.confidenceScore >= automationSettings.confidenceThreshold) {
-                  doc.status = 'approved';
-                  doc.auditTrail = addAuditEvent(doc.auditTrail, `Validation IA réussie (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Document auto-approuvé.`);
-                  createNotification(doc, 'a été approuvé automatiquement.');
-
-                  if (automationSettings.autoSend) {
-                     doc.auditTrail = handleSendToCegid(doc, doc.auditTrail);
-                  }
-              } else {
-                  doc.status = 'reviewing';
-                   doc.auditTrail = addAuditEvent(doc.auditTrail, `Validation IA requiert une revue (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Raison: ${validation.mismatchReason || 'N/A'}`);
-                  createNotification(doc, 'est prêt pour examen.');
-              }
-          } else {
-             doc.status = 'reviewing';
-             createNotification(doc, 'est prêt pour examen.');
-          }
+          createNotification(doc, 'est prêt pour examen.');
     
         } catch (error) {
           console.error("Error processing document:", error);
@@ -126,14 +91,14 @@ export function QuickUpload() {
           });
         }
         return doc;
-    }, [toast, automationSettings]);
+    }, [toast]);
     
     const handleFileDrop = async (files: File[]) => {
         if (!selectedClientId) {
             toast({
                 variant: "destructive",
-                title: "Aucun client sélectionné",
-                description: "Veuillez sélectionner un client avant d'utiliser l'ajout rapide.",
+                title: "Erreur client",
+                description: "Votre identifiant client n'est pas configuré. Veuillez vous reconnecter.",
             });
             setIsOpen(false);
             return;
@@ -158,10 +123,10 @@ export function QuickUpload() {
                 dataUrl,
                 clientId: selectedClientId,
                 comments: [],
-                auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)', getCurrentUser()),
+                auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
               };
               
-              const processedDoc = await processDocument(newDoc) as Document;
+              const processedDoc = await processDocumentForClient(newDoc) as Document;
               newDocuments.push(processedDoc);
             }
 
@@ -171,7 +136,7 @@ export function QuickUpload() {
 
             toast({
                 title: "Téléversement et traitement terminés",
-                description: `${files.length} document(s) ont été traités et ajoutés à votre historique.`,
+                description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.`,
             });
             
             setProcessedFiles(files);
@@ -182,7 +147,7 @@ export function QuickUpload() {
             toast({
                 variant: "destructive",
                 title: "Erreur de téléversement",
-                description: "Une erreur est survenue lors du téléversement rapide.",
+                description: "Une erreur est survenue lors du téléversement.",
             });
         } finally {
             setIsLoading(false);
@@ -202,7 +167,7 @@ export function QuickUpload() {
                 <DialogHeader>
                     <DialogTitle>Téléversement Rapide</DialogTitle>
                     <DialogDescription>
-                        Déposez vos documents ici. Ils seront automatiquement traités et ajoutés au dossier du client sélectionné.
+                        Déposez vos documents ici. Ils seront automatiquement traités et envoyés à votre comptable pour examen.
                     </DialogDescription>
                 </DialogHeader>
                 

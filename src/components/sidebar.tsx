@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -20,7 +20,7 @@ const accountantNavItems = [
 
 const clientNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord'},
-  { href: '/dashboard/my-documents', icon: FileText, label: 'Mes documents' },
+  { href: '/dashboard/my-documents', icon: FileUp, label: 'Mes documents' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
   { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
