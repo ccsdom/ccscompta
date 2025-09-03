@@ -7,9 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes } from 'firebase/storage';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
-import type { Document, Notification, AuditEvent } from '@/app/dashboard/documents/page';
+import type { Document, Notification, AuditEvent } from '@/lib/types';
 import { PlusCircle, CheckCircle } from 'lucide-react';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -114,6 +116,10 @@ export function QuickUpload() {
     
             for (const file of files) {
               const dataUrl = await fileToDataUri(file);
+              const storagePath = `${selectedClientId}/${file.name}`;
+              const storageRef = ref(storage, storagePath);
+              await uploadBytes(storageRef, file);
+
               let newDoc: Document = {
                 id: crypto.randomUUID(),
                 name: file.name,
@@ -121,6 +127,7 @@ export function QuickUpload() {
                 status: 'processing' as const,
                 file,
                 dataUrl,
+                storagePath,
                 clientId: selectedClientId,
                 comments: [],
                 auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),

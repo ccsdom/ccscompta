@@ -9,6 +9,8 @@ import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-fro
 import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   Sheet,
   SheetContent,
@@ -148,6 +150,12 @@ export default function DocumentsPage() {
       }
       try {
         const dataUrl = await fileToDataUri(file);
+        
+        // Upload to Firebase Storage
+        const storagePath = `${selectedClientId}/${file.name}`;
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+
         const newDoc: Document = {
           id: crypto.randomUUID(),
           name: file.name,
@@ -155,6 +163,7 @@ export default function DocumentsPage() {
           status: 'pending' as const,
           file,
           dataUrl,
+          storagePath,
           clientId: selectedClientId,
           auditTrail: [{
             action: 'Document téléversé',
@@ -166,11 +175,11 @@ export default function DocumentsPage() {
         newDocuments.push(newDoc);
         existingFileNames.add(file.name); // Add to set to prevent duplicate uploads in the same batch
       } catch (error) {
-        console.error("Error converting file to data URI:", error);
+        console.error("Error during file upload:", error);
         toast({
           variant: "destructive",
-          title: "Erreur de lecture de fichier",
-          description: `Impossible de lire le fichier ${file.name}.`,
+          title: "Erreur de téléversement",
+          description: `Impossible de traiter le fichier ${file.name}.`,
         });
       }
     }
@@ -323,11 +332,26 @@ export default function DocumentsPage() {
      createNotification(doc, 'a été envoyé à Cegid.');
   };
   
-  const handleSetActiveDocument = (doc: Document | null) => {
+  const handleSetActiveDocument = async (doc: Document | null) => {
     if (doc) {
         setZoom(1);
         setRotation(0);
         setActiveDocumentId(doc.id);
+
+        if (!doc.dataUrl && doc.storagePath) {
+            try {
+                const url = await getDownloadURL(ref(storage, doc.storagePath));
+                updateDocumentState(doc.id, { dataUrl: url });
+            } catch (error) {
+                console.error("Failed to get download URL", error);
+                toast({
+                    title: "Erreur de chargement",
+                    description: "Impossible de récupérer l'aperçu du document.",
+                    variant: "destructive"
+                });
+            }
+        }
+
         if (window.innerWidth < 1024) {
             setIsSheetOpen(true);
         }

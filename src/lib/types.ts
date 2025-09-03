@@ -1,4 +1,3 @@
-
 export interface AuditEvent {
     action: string;
     date: string;
@@ -27,7 +26,8 @@ export interface Document {
   uploadDate: string;
   status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
   file: File;
-  dataUrl: string;
+  dataUrl: string; // Kept for immediate preview, but not for long-term storage
+  storagePath?: string; // Path to the file in Firebase Storage
   type?: string;
   confidence?: number;
   extractedData?: {

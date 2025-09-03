@@ -5,9 +5,11 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2 } from 'lucide-react';
-import type { Document, AuditEvent, Comment, Notification } from '../documents/page';
+import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -184,6 +186,11 @@ export default function MyDocumentsPage() {
         }
         try {
             const dataUrl = await fileToDataUri(file);
+             // Upload to Firebase Storage
+            const storagePath = `${clientId}/${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
+
             const newDoc: Document = {
                 id: crypto.randomUUID(),
                 name: file.name,
@@ -191,6 +198,7 @@ export default function MyDocumentsPage() {
                 status: 'pending',
                 file,
                 dataUrl,
+                storagePath,
                 clientId: clientId,
                 auditTrail: [{
                     action: 'Document téléversé par le client',
@@ -248,8 +256,23 @@ export default function MyDocumentsPage() {
      });
   }
 
-  const handleSetActive = (doc: Document) => {
-    setActiveDocument(doc);
+  const handleSetActive = async (doc: Document) => {
+    if (!doc.dataUrl && doc.storagePath) {
+        try {
+            const url = await getDownloadURL(ref(storage, doc.storagePath));
+            updateDocumentState(doc.id, { dataUrl: url });
+            setActiveDocument({ ...doc, dataUrl: url });
+        } catch (error) {
+            console.error("Failed to get download URL", error);
+            toast({
+                title: "Erreur de chargement",
+                description: "Impossible de récupérer l'aperçu du document.",
+                variant: "destructive"
+            });
+        }
+    } else {
+        setActiveDocument(doc);
+    }
     setIsSheetOpen(true);
   }
   
