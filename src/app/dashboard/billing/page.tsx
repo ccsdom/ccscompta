@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,7 +5,9 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle, Zap, Star, FileText } from 'lucide-react';
-import type { Document } from '../documents/page';
+import type { Document } from '@/lib/types';
+import { getDocuments } from '@/lib/document-data';
+
 
 const plans = [
     {
@@ -38,24 +39,24 @@ export default function BillingPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const [billingModel, setBillingModel] = useState<'subscription' | 'custom'>('subscription');
+    const [isLoading, setIsLoading] = useState(true);
 
      useEffect(() => {
-        const loadState = () => {
-            const storedDocs = localStorage.getItem('documents');
-            if (storedDocs) {
-                const parsedDocs = JSON.parse(storedDocs);
-                setDocuments(parsedDocs);
+        const loadState = async () => {
+            setIsLoading(true);
+            const storedClientId = localStorage.getItem('selectedClientId');
+            if (storedClientId) {
+               setSelectedClientId(storedClientId);
+               const clientDocs = await getDocuments(storedClientId);
+               setDocuments(clientDocs);
+               // Demo logic: Client 'alpha' has a custom plan included in their annual fee
+               if (storedClientId === 'alpha') {
+                   setBillingModel('custom');
+               } else {
+                   setBillingModel('subscription');
+               }
             }
-             const storedClientId = localStorage.getItem('selectedClientId');
-             if (storedClientId) {
-                setSelectedClientId(storedClientId);
-                // Demo logic: Client 'alpha' has a custom plan included in their annual fee
-                if (storedClientId === 'alpha') {
-                    setBillingModel('custom');
-                } else {
-                    setBillingModel('subscription');
-                }
-             }
+            setIsLoading(false);
         };
         loadState();
         window.addEventListener('storage', loadState);
@@ -63,16 +64,12 @@ export default function BillingPage() {
     }, []);
 
     const currentMonthDocs = useMemo(() => {
+        const today = new Date();
         return documents.filter(doc => {
-            if (doc.clientId !== selectedClientId) return false;
-            // A more robust date parsing would be needed in a real app
-            const [day, month, year] = doc.uploadDate.split('/').map(Number);
-            if (!day || !month || !year) return false;
-            const uploadDate = new Date(year, month - 1, day);
-            const today = new Date();
+            const uploadDate = new Date(doc.uploadDate); // Assuming YYYY-MM-DD format from Firestore
             return uploadDate.getMonth() === today.getMonth() && uploadDate.getFullYear() === today.getFullYear();
         }).length;
-    }, [documents, selectedClientId]);
+    }, [documents]);
 
     
     const docLimit = 200; // Based on "Croissance" plan for subscription model

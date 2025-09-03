@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -9,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes } from 'firebase/storage';
+import { addDocument, updateDocument } from '@/lib/document-data';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, Notification, AuditEvent } from '@/lib/types';
@@ -79,6 +79,14 @@ export function QuickUpload() {
           doc.extractedData = extracted;
           doc.status = 'reviewing'; // Always set to reviewing for the accountant
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA, en attente de validation comptable');
+          
+          await updateDocument(doc.id, {
+              status: 'reviewing',
+              extractedData: extracted,
+              type: recognition.documentType,
+              confidence: recognition.confidence,
+              auditTrail: doc.auditTrail
+          });
 
           createNotification(doc, 'est prêt pour examen.');
     
@@ -86,6 +94,7 @@ export function QuickUpload() {
           console.error("Error processing document:", error);
           doc.status = 'error';
           doc.auditTrail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
+          await updateDocument(doc.id, { status: 'error', auditTrail: doc.auditTrail });
           toast({
             variant: "destructive",
             title: "Le traitement a échoué",
@@ -97,11 +106,7 @@ export function QuickUpload() {
     
     const handleFileDrop = async (files: File[]) => {
         if (!selectedClientId) {
-            toast({
-                variant: "destructive",
-                title: "Erreur client",
-                description: "Votre identifiant client n'est pas configuré. Veuillez vous reconnecter.",
-            });
+            toast({ variant: "destructive", title: "Erreur client", description: "Votre identifiant client n'est pas configuré." });
             setIsOpen(false);
             return;
         }
@@ -110,22 +115,16 @@ export function QuickUpload() {
         setFilesToProcess(files);
         
         try {
-            const storedDocsRaw = localStorage.getItem('documents');
-            const storedDocs: Document[] = storedDocsRaw ? JSON.parse(storedDocsRaw) : [];
-            const newDocuments: Document[] = [];
-    
             for (const file of files) {
               const dataUrl = await fileToDataUri(file);
               const storagePath = `${selectedClientId}/${file.name}`;
               const storageRef = ref(storage, storagePath);
               await uploadBytes(storageRef, file);
 
-              let newDoc: Document = {
-                id: crypto.randomUUID(),
+              let newDocData: Omit<Document, 'id'> = {
                 name: file.name,
-                uploadDate: new Date().toLocaleDateString('fr-FR'),
+                uploadDate: new Date().toISOString(),
                 status: 'processing' as const,
-                file,
                 dataUrl,
                 storagePath,
                 clientId: selectedClientId,
@@ -133,29 +132,18 @@ export function QuickUpload() {
                 auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
               };
               
-              const processedDoc = await processDocumentForClient(newDoc) as Document;
-              newDocuments.push(processedDoc);
+              const addedDoc = await addDocument(newDocData);
+              await processDocumentForClient({ ...addedDoc, dataUrl });
             }
 
-            const allDocs = [...newDocuments.map(d => ({...d, file: undefined})), ...storedDocs];
-            localStorage.setItem('documents', JSON.stringify(allDocs));
-            window.dispatchEvent(new Event('storage'));
-
-            toast({
-                title: "Téléversement et traitement terminés",
-                description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.`,
-            });
-            
+            window.dispatchEvent(new Event('storage')); // Notify other components to refetch
+            toast({ title: "Téléversement et traitement terminés", description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.` });
             setProcessedFiles(files);
             setFilesToProcess([]);
 
         } catch (error) {
             console.error("Error during quick upload:", error);
-            toast({
-                variant: "destructive",
-                title: "Erreur de téléversement",
-                description: "Une erreur est survenue lors du téléversement.",
-            });
+            toast({ variant: "destructive", title: "Erreur de téléversement" });
         } finally {
             setIsLoading(false);
         }

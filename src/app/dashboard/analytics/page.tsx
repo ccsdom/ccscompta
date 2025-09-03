@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -20,19 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-
-
-// Mock data - In a real app, this would come from a shared state or API
-const MOCK_DOCUMENTS: Document[] = [
-  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], category: 'Services informatiques', otherInformation: '', vatAmount: 200.08, vatRate: 20 }, auditTrail: [], comments:[] },
-  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], category: 'Déplacements', otherInformation: '', vatAmount: 31.82, vatRate: 10 }, auditTrail: [], comments:[] },
-  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], category: 'Services informatiques', otherInformation: '', vatAmount: 75.13, vatRate: 20 }, auditTrail: [], comments:[] },
-  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], category: 'Services informatiques', otherInformation: '', vatAmount: 148.37, vatRate: 20 }, auditTrail: [], comments:[] },
-  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], category: 'Repas et divertissement', otherInformation: '', vatAmount: 10.91, vatRate: 10 }, auditTrail: [], comments:[] },
-  { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'bank statement', auditTrail: [], comments:[] },
-  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], category: 'Fournitures de bureau', otherInformation: '', vatAmount: 125.00, vatRate: 20 }, auditTrail: [], comments:[] },
-  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], category: 'Services informatiques', otherInformation: '', vatAmount: 41.83, vatRate: 20 }, auditTrail: [], comments:[] },
-];
+import { getDocuments } from '@/lib/document-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -66,6 +54,7 @@ const defaultVisibleComponents = {
 
 export default function AnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
@@ -73,36 +62,16 @@ export default function AnalyticsPage() {
     const [clientName, setClientName] = useState<string>('Vue d\'ensemble');
 
     useEffect(() => {
-        const loadState = () => {
+        const loadState = async () => {
+            setIsLoading(true);
             try {
-                const storedDocs = localStorage.getItem('documents');
-                 if (storedDocs) {
-                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-                    const initialDocs = parsedDocs.length > 0 ? parsedDocs : MOCK_DOCUMENTS;
-                    setDocuments(initialDocs);
-                } else {
-                    setDocuments(MOCK_DOCUMENTS);
-                }
-
-                const storedQuery = localStorage.getItem('searchQuery');
-                if (storedQuery) {
-                    setSearchQuery(storedQuery);
-                }
-
-                const storedCriteria = localStorage.getItem('searchCriteria');
-                if (storedCriteria) {
-                    setSearchCriteria(JSON.parse(storedCriteria));
-                }
-
-                const storedVisibility = localStorage.getItem('analyticsVisibility');
-                if (storedVisibility) {
-                    setVisibleComponents(JSON.parse(storedVisibility));
-                }
                 const storedClientId = localStorage.getItem('selectedClientId');
                 setSelectedClientId(storedClientId);
                 
                 if (storedClientId) {
-                     const client = [
+                    const docs = await getDocuments(storedClientId);
+                    setDocuments(docs);
+                    const client = [ // This mock data should be replaced with a proper data source
                         { id: 'alpha', name: 'Entreprise Alpha'},
                         { id: 'beta', name: 'Bêta SARL'},
                         { id: 'gamma', name: 'Gamma Inc.'},
@@ -111,12 +80,22 @@ export default function AnalyticsPage() {
                     ].find(c => c.id === storedClientId);
                     setClientName(client ? `Analyse pour ${client.name}` : 'Vue d\'ensemble');
                 } else {
-                    setClientName('Analyse Globale (tous clients)');
+                    setDocuments([]);
+                    setClientName('Veuillez sélectionner un client');
                 }
 
+                const storedQuery = localStorage.getItem('searchQuery');
+                if (storedQuery) setSearchQuery(storedQuery);
+                const storedCriteria = localStorage.getItem('searchCriteria');
+                if (storedCriteria) setSearchCriteria(JSON.parse(storedCriteria));
+                const storedVisibility = localStorage.getItem('analyticsVisibility');
+                if (storedVisibility) setVisibleComponents(JSON.parse(storedVisibility));
+
             } catch (e) {
-                console.error("Failed to parse documents from local storage", e)
-                setDocuments(MOCK_DOCUMENTS);
+                console.error("Failed to load documents", e);
+                setDocuments([]);
+            } finally {
+                setIsLoading(false);
             }
         }
         loadState();
@@ -135,10 +114,6 @@ export default function AnalyticsPage() {
     const filteredDocuments = useMemo(() => {
         let docs = [...documents];
         
-        if (selectedClientId) {
-            docs = docs.filter(d => d.clientId === selectedClientId);
-        }
-
         if (searchCriteria) {
             // AI Search Logic
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
@@ -170,7 +145,7 @@ export default function AnalyticsPage() {
             }
             if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = [...documents].filter(d => d.clientId === selectedClientId).filter(doc => 
+                 docs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
                 );
@@ -185,7 +160,7 @@ export default function AnalyticsPage() {
             );
         }
         return docs;
-    }, [documents, searchQuery, searchCriteria, selectedClientId]);
+    }, [documents, searchQuery, searchCriteria]);
 
     const analyticsData = useMemo(() => {
         const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
@@ -305,6 +280,27 @@ export default function AnalyticsPage() {
             </text>
         );
     };
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <Skeleton className="h-9 w-64" />
+                        <Skeleton className="h-5 w-80 mt-2" />
+                    </div>
+                    <Skeleton className="h-10 w-32" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" />
+                </div>
+                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+                    <Skeleton className="h-80" />
+                    <Skeleton className="h-80" />
+                 </div>
+            </div>
+        )
+    }
 
     if (!analyticsData) {
         return (

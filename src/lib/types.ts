@@ -23,11 +23,10 @@ export interface Notification {
 export interface Document {
   id: string;
   name: string;
-  uploadDate: string;
+  uploadDate: string; // ISO 8601 string date
   status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
-  file: File;
-  dataUrl: string; // Kept for immediate preview, but not for long-term storage
-  storagePath?: string; // Path to the file in Firebase Storage
+  dataUrl?: string; // Kept for immediate preview, but not stored in Firestore
+  storagePath: string; // Path to the file in Firebase Storage
   type?: string;
   confidence?: number;
   extractedData?: {

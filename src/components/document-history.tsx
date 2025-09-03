@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Skeleton } from "./ui/skeleton";
 
 
 interface DocumentHistoryProps {
@@ -30,6 +31,7 @@ interface DocumentHistoryProps {
   setActiveDocument: (doc: Document) => void;
   selectedDocumentIds: string[];
   setSelectedDocumentIds: React.Dispatch<React.SetStateAction<string[]>>;
+  isLoading: boolean;
 }
 
 const getStatusBadge = (status: Document['status']) => {
@@ -85,7 +87,7 @@ const getDocIcon = (type?: string) => {
     );
 }
 
-export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds }: DocumentHistoryProps) {
+export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds, isLoading }: DocumentHistoryProps) {
     const [pageIndex, setPageIndex] = useState(0);
     const [pageSize, setPageSize] = useState(10);
 
@@ -140,7 +142,18 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {paginatedDocuments.length > 0 ? (
+                        {isLoading ? (
+                             Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell className="px-4"><Skeleton className="h-4 w-4" /></TableCell>
+                                    <TableCell className="p-2 text-center"><Skeleton className="h-5 w-5 rounded-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-28" /></TableCell>
+                                    <TableCell className="text-right space-x-1"><Skeleton className="h-8 w-20 inline-block" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : paginatedDocuments.length > 0 ? (
                             paginatedDocuments.map((doc) => (
                             <TableRow 
                                 key={doc.id} 
@@ -161,7 +174,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                     </TooltipProvider>
                                 </TableCell>
                                 <TableCell className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</TableCell>
-                                <TableCell className="hidden md:table-cell text-muted-foreground">{doc.uploadDate}</TableCell>
+                                <TableCell className="hidden md:table-cell text-muted-foreground">{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
                                 <TableCell>{getStatusBadge(doc.status)}</TableCell>
                                 <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                                 <TooltipProvider>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -8,7 +7,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
 import type { Document } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
-
+import { getDocuments } from '@/lib/document-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const chartConfig = {
   total: {
@@ -33,23 +33,22 @@ const chartConfig = {
 export default function MyAnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadState = () => {
+        const loadState = async () => {
+            setIsLoading(true);
             try {
-                const storedDocs = localStorage.getItem('documents');
-                 if (storedDocs) {
-                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-                    setDocuments(parsedDocs);
-                }
-
                 const storedClientId = localStorage.getItem('selectedClientId');
                 if (storedClientId) {
                     setSelectedClientId(storedClientId);
+                    const docs = await getDocuments(storedClientId);
+                    setDocuments(docs);
                 }
-
             } catch (e) {
-                console.error("Failed to parse documents from local storage", e)
+                console.error("Failed to load documents from local storage", e)
+            } finally {
+                setIsLoading(false);
             }
         }
         loadState();
@@ -153,6 +152,23 @@ export default function MyAnalyticsPage() {
             mainVendor: vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A'
         };
     }, [clientDocuments]);
+    
+  if (isLoading) {
+      return (
+          <div className="space-y-6">
+              <div>
+                  <Skeleton className="h-9 w-1/2" />
+                  <Skeleton className="h-5 w-2/3 mt-2" />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" />
+              </div>
+              <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+                   <Skeleton className="h-80" /><Skeleton className="h-80" />
+              </div>
+          </div>
+      )
+  }
 
   if (!analyticsData) {
         return (

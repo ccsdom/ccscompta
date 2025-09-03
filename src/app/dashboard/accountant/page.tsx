@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,6 +10,7 @@ import Link from "next/link";
 import type { Document, AuditEvent } from '@/lib/types';
 import type { Client } from '@/lib/client-data';
 import { getClients } from '@/lib/client-data';
+import { getDocuments } from '@/lib/document-data';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AccountantDashboard() {
@@ -22,13 +22,13 @@ export default function AccountantDashboard() {
         const loadState = async () => {
             setLoading(true);
             try {
-                const storedDocs = localStorage.getItem('documents');
-                if (storedDocs) {
-                    const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name), auditTrail: d.auditTrail || [], comments: d.comments || [] }));
-                    setDocuments(parsedDocs);
-                }
                 const clientsData = await getClients();
                 setClients(clientsData);
+                // Fetch documents for all clients for the dashboard overview
+                const allDocsPromises = clientsData.map(c => getDocuments(c.id));
+                const allDocsArrays = await Promise.all(allDocsPromises);
+                const allDocs = allDocsArrays.flat();
+                setDocuments(allDocs);
             } catch (error) {
                 console.error("Failed to load data", error);
             } finally {
@@ -36,8 +36,6 @@ export default function AccountantDashboard() {
             }
         };
         loadState();
-        window.addEventListener('storage', loadState);
-        return () => window.removeEventListener('storage', loadState);
     }, []);
 
     const dashboardData = useMemo(() => {
