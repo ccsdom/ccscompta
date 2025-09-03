@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
+import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document } from '../documents/page'; 
@@ -18,18 +18,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
-  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], category: 'Déplacements', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], category: 'Repas et divertissement', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], category: 'Services informatiques', otherInformation: '', vatAmount: 200.08, vatRate: 20 }, auditTrail: [], comments:[] },
+  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], category: 'Déplacements', otherInformation: '', vatAmount: 31.82, vatRate: 10 }, auditTrail: [], comments:[] },
+  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], category: 'Services informatiques', otherInformation: '', vatAmount: 75.13, vatRate: 20 }, auditTrail: [], comments:[] },
+  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], category: 'Services informatiques', otherInformation: '', vatAmount: 148.37, vatRate: 20 }, auditTrail: [], comments:[] },
+  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], category: 'Repas et divertissement', otherInformation: '', vatAmount: 10.91, vatRate: 10 }, auditTrail: [], comments:[] },
   { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'bank statement', auditTrail: [], comments:[] },
-  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], category: 'Fournitures de bureau', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], category: 'Fournitures de bureau', otherInformation: '', vatAmount: 125.00, vatRate: 20 }, auditTrail: [], comments:[] },
+  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], category: 'Services informatiques', otherInformation: '', vatAmount: 41.83, vatRate: 20 }, auditTrail: [], comments:[] },
 ];
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -193,6 +195,7 @@ export default function AnalyticsPage() {
         }
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
+        const totalVat = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.vatAmount ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
@@ -268,12 +271,14 @@ export default function AnalyticsPage() {
 
         return {
             totalSpent,
+            totalVat,
             averageSpent,
             mainVendor,
             monthlyChartData,
             vendorChartData,
             categoryChartData,
             averageSpendByTypeChartData,
+            approvedDocs,
             approvedDocsCount: approvedDocs.length
         };
     }, [filteredDocuments]);
@@ -341,25 +346,25 @@ export default function AnalyticsPage() {
         </div>
 
        {visibleComponents.keyStats && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Dépenses Approuvées</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Dépenses (TTC)</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">Basé sur {analyticsData.approvedDocsCount} documents approuvés</p>
+              <p className="text-xs text-muted-foreground">Basé sur {analyticsData.approvedDocsCount} documents</p>
             </CardContent>
           </Card>
-          <Card>
+           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dépense Moyenne / Document</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">TVA Déductible (Période)</CardTitle>
+              <PercentCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-               <p className="text-xs text-muted-foreground">Moyenne des montants validés</p>
+              <div className="text-2xl font-bold">{analyticsData.totalVat.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
+              <p className="text-xs text-muted-foreground">Total de la TVA sur les documents approuvés</p>
             </CardContent>
           </Card>
           <Card>
@@ -372,135 +377,197 @@ export default function AnalyticsPage() {
               <p className="text-xs text-muted-foreground">Le plus grand volume de dépenses</p>
             </CardContent>
           </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Dépense Moyenne / Doc</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
+               <p className="text-xs text-muted-foreground">Moyenne des montants validés</p>
+            </CardContent>
+          </Card>
         </div>
        )}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
-            {visibleComponents.expensesByMonth && (
-            <Card className="lg:col-span-1">
-                <CardHeader>
-                    <CardTitle>Dépenses par Mois</CardTitle>
-                    <CardDescription>Évolution des dépenses totales approuvées au fil du temps.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.monthlyChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="total" fill="var(--color-total)" radius={4}>
-                                     <LabelList dataKey="total" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value)}€`} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-            )}
+        <Tabs defaultValue="overview">
+            <TabsList>
+                <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+                <TabsTrigger value="vat_analysis">Analyse TVA</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="space-y-6 mt-4">
+                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+                    {visibleComponents.expensesByMonth && (
+                    <Card className="lg:col-span-1">
+                        <CardHeader>
+                            <CardTitle>Dépenses par Mois</CardTitle>
+                            <CardDescription>Évolution des dépenses totales approuvées au fil du temps.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={analyticsData.monthlyChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                        <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                        <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
+                                        <ChartTooltip
+                                            cursor={false}
+                                            content={<ChartTooltipContent 
+                                                formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
+                                                indicator="dot" 
+                                            />}
+                                        />
+                                        <Bar dataKey="total" fill="var(--color-total)" radius={4}>
+                                            <LabelList dataKey="total" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value)}€`} />
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    )}
 
-            {visibleComponents.distributionByCategory && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Répartition par Catégorie</CardTitle>
-                    <CardDescription>Distribution des dépenses par catégorie comptable.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center">
-                     <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value, name, payload) => <div className="flex flex-col"><span className="font-semibold">{chartConfig[payload.name as keyof typeof chartConfig]?.label}</span><span className="text-muted-foreground">{Number(payload.value).toLocaleString('fr-FR', {style:'currency', currency: 'EUR'})}</span></div>}/>} />
-                            <Pie
-                                data={analyticsData.categoryChartData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={100}
-                                innerRadius={60}
-                                labelLine={false}
-                            >
-                                <Label content={<PieCenterLabel />} />
-                                {analyticsData.categoryChartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                ))}
-                            </Pie>
-                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
-                        </PieChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-            )}
-        </div>
-        
-         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {visibleComponents.expensesByVendor && (
-            <Card className="lg:col-span-3">
-                <CardHeader>
-                    <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
-                    <CardDescription>Classement des fournisseurs par montant total dépensé.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart layout="vertical" data={analyticsData.vendorChartData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
-                                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="total" fill="var(--color-total)" radius={4} layout="vertical">
-                                    <LabelList dataKey="total" position="right" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}`} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-            )}
-            {visibleComponents.averageSpendByType && (
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Dépense Moyenne par Type</CardTitle>
-                    <CardDescription>Montant moyen des dépenses pour chaque type de document.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="average" fill="var(--color-average)" radius={4}>
-                                     <LabelList dataKey="average" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value).toLocaleString('fr-FR')}€`} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-            )}
-        </div>
+                    {visibleComponents.distributionByCategory && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Répartition par Catégorie</CardTitle>
+                            <CardDescription>Distribution des dépenses par catégorie comptable.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-center">
+                            <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value, name, payload) => <div className="flex flex-col"><span className="font-semibold">{chartConfig[payload.name as keyof typeof chartConfig]?.label}</span><span className="text-muted-foreground">{Number(payload.value).toLocaleString('fr-FR', {style:'currency', currency: 'EUR'})}</span></div>}/>} />
+                                    <Pie
+                                        data={analyticsData.categoryChartData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={100}
+                                        innerRadius={60}
+                                        labelLine={false}
+                                    >
+                                        <Label content={<PieCenterLabel />} />
+                                        {analyticsData.categoryChartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Pie>
+                                    <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
+                                </PieChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    )}
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    {visibleComponents.expensesByVendor && (
+                    <Card className="lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
+                            <CardDescription>Classement des fournisseurs par montant total dépensé.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart layout="vertical" data={analyticsData.vendorChartData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                                        <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
+                                        <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
+                                        <ChartTooltip
+                                            cursor={false}
+                                            content={<ChartTooltipContent 
+                                                formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
+                                                indicator="dot" 
+                                            />}
+                                        />
+                                        <Bar dataKey="total" fill="var(--color-total)" radius={4} layout="vertical">
+                                            <LabelList dataKey="total" position="right" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}`} />
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    )}
+                    {visibleComponents.averageSpendByType && (
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>Dépense Moyenne par Type</CardTitle>
+                            <CardDescription>Montant moyen des dépenses pour chaque type de document.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                        <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                        <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
+                                        <ChartTooltip
+                                            cursor={false}
+                                            content={<ChartTooltipContent 
+                                                formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
+                                                indicator="dot" 
+                                            />}
+                                        />
+                                        <Bar dataKey="average" fill="var(--color-average)" radius={4}>
+                                            <LabelList dataKey="average" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value).toLocaleString('fr-FR')}€`} />
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    )}
+                </div>
+            </TabsContent>
+            <TabsContent value="vat_analysis" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Détail de la TVA Déductible</CardTitle>
+                        <CardDescription>Liste de tous les documents approuvés avec TVA pour la période sélectionnée.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Document</TableHead>
+                                    <TableHead>Fournisseur</TableHead>
+                                    <TableHead className="text-right">Total HT</TableHead>
+                                    <TableHead className="text-right">Taux TVA</TableHead>
+                                    <TableHead className="text-right">Montant TVA</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {analyticsData.approvedDocs.filter(d => d.extractedData?.vatAmount).map(doc => {
+                                    const ht = (doc.extractedData!.amounts?.[0] || 0) - (doc.extractedData!.vatAmount || 0);
+                                    return (
+                                        <TableRow key={doc.id}>
+                                            <TableCell>{new Date(doc.extractedData!.dates![0]).toLocaleDateString('fr-FR')}</TableCell>
+                                            <TableCell className="font-medium">{doc.name}</TableCell>
+                                            <TableCell>{doc.extractedData!.vendorNames?.[0]}</TableCell>
+                                            <TableCell className="text-right">{ht.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                            <TableCell className="text-right">{doc.extractedData!.vatRate}%</TableCell>
+                                            <TableCell className="text-right font-semibold">{(doc.extractedData!.vatAmount || 0).toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                             <CardFooter className="font-bold text-lg">
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-right">Total TVA Déductible</TableCell>
+                                    <TableCell className="text-right">{analyticsData.totalVat.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                </TableRow>
+                            </CardFooter>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
+       
     </div>
   );
 }

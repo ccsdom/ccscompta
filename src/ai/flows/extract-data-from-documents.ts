@@ -31,8 +31,10 @@ export type ExtractDataInput = z.infer<typeof ExtractDataInputSchema>;
 const ExtractDataOutputSchema = z.object({
   // Fields for single documents like invoices/receipts
   dates: z.array(z.string()).optional().describe('Dates found in the document (for invoices/receipts).'),
-  amounts: z.array(z.number()).optional().describe('Amounts found in the document (for invoices/receipts).'),
+  amounts: z.array(z.number()).optional().describe('Total amounts (TTC) found in the document (for invoices/receipts).'),
   vendorNames: z.array(z.string()).optional().describe('Vendor names found in the document (for invoices/receipts).'),
+  vatAmount: z.number().optional().describe('The total VAT amount found in the document. If multiple VAT rates are present, sum them up.'),
+  vatRate: z.number().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
   
   // Fields for multi-transaction documents like bank statements
   transactions: z.array(TransactionSchema).optional().describe('List of transactions extracted from the document (for bank statements).'),
@@ -52,15 +54,16 @@ const prompt = ai.definePrompt({
   name: 'extractDataPrompt',
   input: {schema: ExtractDataInputSchema},
   output: {schema: ExtractDataOutputSchema},
-  prompt: `You are an expert and vigilant accounting data extraction specialist.
+  prompt: `You are an expert and vigilant accounting data extraction specialist for French documents.
 
 Your behavior depends on the type of the document.
 
 **IF the documentType is 'invoice', 'receipt', or 'other':**
 You will extract key information from the single document.
 - Dates: All dates present in the document.
-- Amounts: All monetary amounts present in the document.
+- Amounts: All total monetary amounts (TTC) present in the document.
 - Vendor Names: The names of the vendors or suppliers.
+- VAT: Meticulously find the total VAT amount (TVA) and the VAT rate (Taux TVA). The rate should be a number (e.g., 20 for 20%). If not explicitly present, do not calculate or infer it, leave the fields empty.
 - Category: Based on the document content, suggest an accounting category. Examples: "Fournitures de bureau", "Transport", "Repas et divertissement", "Services informatiques", "Loyer", "Autre".
 - Other Information: Any other relevant information in the document.
 - The 'transactions' field should be empty.
@@ -71,7 +74,7 @@ You will extract all individual transactions from the statement.
 - For each transaction, extract the date, description, and amount (use negative numbers for debits).
 - For each transaction, try to identify a clean vendor name (e.g., "Prlv Free" -> "Free").
 - For each transaction, suggest a relevant accounting category based on the vendor/description.
-- The top-level 'dates', 'amounts', 'vendorNames', and 'category' fields should be empty.
+- The top-level fields (dates, amounts, vendorNames, category, vatAmount, vatRate) should be empty.
 
 **FOR ALL DOCUMENT TYPES:**
 - Anomalies: Act as a financial controller. Scrutinize the document for any potential red flags or anomalies. For example, check if amounts seem excessively high for the context, if dates are inconsistent, if the document quality is poor, or if anything seems out of the ordinary. If you find any, describe them in the anomalies array. If not, leave the array empty.

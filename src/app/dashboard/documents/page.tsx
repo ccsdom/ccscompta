@@ -58,6 +58,7 @@ export interface Document {
   extractedData?: ExtractDataOutput;
   auditTrail: AuditEvent[];
   comments: Comment[];
+  vatAmount?: number;
 }
 
 export type Notification = {
@@ -731,7 +732,7 @@ export default function DocumentsPage() {
               onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
               onSendToCegid={() => handleSendToCegid(activeDocument)}
               isLoading={isLoading && activeDocument.id === activeDocumentId}
-              onAddComment={(commentText) => handleAddComment(active_document.id, commentText)}
+              onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
               isSheet
             />
             </>
