@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { DollarSign, Users, FileText, PieChart as PieChartIcon, BarChart2, LayoutGrid } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart } from 'recharts';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Pie, Cell, ResponsiveContainer, LabelList, BarChart, PieChart, Label } from 'recharts';
 import type { Document } from '../documents/page'; 
 import {type ChartConfig} from '@/components/ui/chart';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
@@ -21,14 +21,14 @@ import {
 
 // Mock data - In a real app, this would come from a shared state or API
 const MOCK_DOCUMENTS: Document[] = [
-  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], otherInformation: '' }, auditTrail: [] },
-  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], otherInformation: '' }, auditTrail: [] },
-  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], otherInformation: '' }, auditTrail: [] },
-  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], otherInformation: '' }, auditTrail: [] },
-  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], otherInformation: '' }, auditTrail: [] },
-  { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', type: 'bank statement', auditTrail: [] },
-  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], otherInformation: '' }, auditTrail: [] },
-  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], otherInformation: '' }, auditTrail: [] },
+  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'bank statement', auditTrail: [], comments:[] },
+  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], otherInformation: '' }, auditTrail: [], comments:[] },
+  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], otherInformation: '' }, auditTrail: [], comments:[] },
 ];
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -68,40 +68,12 @@ const defaultVisibleComponents = {
     averageSpendByType: true,
 }
 
-const DonutLabel = ({viewBox, value, label}: any) => {
-    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-        return (
-            <text
-            x={viewBox.cx}
-            y={viewBox.cy}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            >
-            <tspan
-                x={viewBox.cx}
-                y={viewBox.cy}
-                className="text-3xl font-bold fill-foreground"
-            >
-                {value}
-            </tspan>
-            <tspan
-                x={viewBox.cx}
-                y={(viewBox.cy || 0) + 16}
-                className="text-sm text-muted-foreground"
-            >
-                {label}
-            </tspan>
-            </text>
-        )
-    }
-    return null;
-}
-
 export default function AnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
+    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
     useEffect(() => {
         const loadState = () => {
@@ -129,6 +101,11 @@ export default function AnalyticsPage() {
                 if (storedVisibility) {
                     setVisibleComponents(JSON.parse(storedVisibility));
                 }
+                const storedClientId = localStorage.getItem('selectedClientId');
+                if (storedClientId) {
+                    setSelectedClientId(storedClientId);
+                }
+
             } catch (e) {
                 console.error("Failed to parse documents from local storage", e)
                 setDocuments(MOCK_DOCUMENTS);
@@ -148,7 +125,7 @@ export default function AnalyticsPage() {
     }, [visibleComponents]);
     
     const filteredDocuments = useMemo(() => {
-        let docs = [...documents];
+        let docs = [...documents].filter(d => d.clientId === selectedClientId);
         
         if (searchCriteria) {
             // AI Search Logic
@@ -196,7 +173,7 @@ export default function AnalyticsPage() {
             );
         }
         return docs;
-    }, [documents, searchQuery, searchCriteria]);
+    }, [documents, searchQuery, searchCriteria, selectedClientId]);
 
     const analyticsData = useMemo(() => {
         const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts.length > 0 && d.extractedData.dates.length > 0);
@@ -381,7 +358,7 @@ export default function AnalyticsPage() {
                     <CardDescription>Distribution des documents par type.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center">
-                    <ChartContainer config={chartConfig} className="h-[250px] w-full max-w-[250px]">
+                     <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(_, name, payload) => <>{chartConfig[payload.name as keyof typeof chartConfig]?.label} ({payload.value})</>}/>} />
@@ -394,8 +371,37 @@ export default function AnalyticsPage() {
                                 outerRadius={80}
                                 innerRadius={50}
                                 labelLine={false}
-                                label={<DonutLabel value={filteredDocuments.length.toLocaleString()} label="Documents" />}
                             >
+                                <Label
+                                    content={({ viewBox }) => {
+                                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                        return (
+                                            <text
+                                            x={viewBox.cx}
+                                            y={viewBox.cy}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            >
+                                            <tspan
+                                                x={viewBox.cx}
+                                                y={viewBox.cy}
+                                                className="text-3xl font-bold fill-foreground"
+                                            >
+                                                {filteredDocuments.length.toLocaleString()}
+                                            </tspan>
+                                            <tspan
+                                                x={viewBox.cx}
+                                                y={(viewBox.cy || 0) + 16}
+                                                className="text-sm text-muted-foreground"
+                                            >
+                                                Documents
+                                            </tspan>
+                                            </text>
+                                        )
+                                        }
+                                        return null;
+                                    }}
+                                    />
                                 {analyticsData.typeChartData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.fill} />
                                 ))}

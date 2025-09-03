@@ -13,6 +13,7 @@ export default function Dashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -31,6 +32,10 @@ export default function Dashboard() {
                 if (storedCriteria) {
                     setSearchCriteria(JSON.parse(storedCriteria));
                 }
+                 const storedClientId = localStorage.getItem('selectedClientId');
+                if (storedClientId) {
+                    setSelectedClientId(storedClientId);
+                }
             } catch (error) {
                 console.error("Failed to load documents from localStorage", error)
             }
@@ -41,7 +46,7 @@ export default function Dashboard() {
     }, []);
 
     const filteredDocuments = useMemo(() => {
-        let docs = [...documents];
+        let docs = [...documents].filter(d => d.clientId === selectedClientId);
         
         if (searchCriteria) {
             // AI Search Logic
@@ -98,7 +103,7 @@ export default function Dashboard() {
             );
         }
         return docs;
-    }, [documents, searchQuery, searchCriteria]);
+    }, [documents, searchQuery, searchCriteria, selectedClientId]);
 
     const stats = useMemo(() => {
         const approved = filteredDocuments.filter(d => d.status === 'approved').length;
@@ -142,7 +147,7 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.total}</div>
-                        <p className="text-xs text-muted-foreground">Total des fichiers correspondants</p>
+                        <p className="text-xs text-muted-foreground">Total des fichiers pour ce client</p>
                     </CardContent>
                 </Card>
                 <Card>

@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 
 
@@ -35,8 +35,28 @@ export function Sidebar() {
   const pathname = usePathname();
   const [selectedClient, setSelectedClient] = useState(mockClients[0]);
 
+  useEffect(() => {
+    const storedClientId = localStorage.getItem('selectedClientId');
+    if (storedClientId) {
+        const client = mockClients.find(c => c.id === storedClientId);
+        if (client) {
+            setSelectedClient(client);
+        }
+    } else {
+        // Set default on first load
+        localStorage.setItem('selectedClientId', mockClients[0].id);
+    }
+  }, [])
+
+
+  const handleClientChange = (client: typeof mockClients[0]) => {
+      setSelectedClient(client);
+      localStorage.setItem('selectedClientId', client.id);
+      window.dispatchEvent(new Event('storage')); // Notify other components
+  }
+
   return (
-    <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col">
+    <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col hidden md:flex">
       <div className="flex items-center justify-center h-16 border-b">
         <Link href="/dashboard" className="flex items-center space-x-2">
             <Logo className="h-6 w-6 text-primary" />
@@ -48,20 +68,20 @@ export function Sidebar() {
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                    <Button variant="outline" className="w-full justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 overflow-hidden">
                             <Avatar className="h-6 w-6">
                                 <AvatarFallback>{selectedClient.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <span className="font-medium text-sm truncate">{selectedClient.name}</span>
                         </div>
-                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                       <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                    </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent className="w-56">
                     <DropdownMenuLabel>Changer de client</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {mockClients.map(client => (
-                         <DropdownMenuItem key={client.id} onClick={() => setSelectedClient(client)}>
+                         <DropdownMenuItem key={client.id} onClick={() => handleClientChange(client)}>
                             <Building className="mr-2 h-4 w-4" />
                             <span>{client.name}</span>
                         </DropdownMenuItem>

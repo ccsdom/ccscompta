@@ -50,6 +50,7 @@ export interface Document {
   status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
   file: File;
   dataUrl: string;
+  clientId: string; // New field
   type?: string;
   confidence?: number;
   extractedData?: ExtractDataOutput;
@@ -78,8 +79,8 @@ export default function DocumentsPage() {
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
-  const { toast } = useToast();
 
    useEffect(() => {
     const loadState = () => {
@@ -97,6 +98,10 @@ export default function DocumentsPage() {
              const storedCriteria = localStorage.getItem('searchCriteria');
              if (storedCriteria) {
                  setSearchCriteria(JSON.parse(storedCriteria));
+             }
+             const storedClientId = localStorage.getItem('selectedClientId');
+             if (storedClientId) {
+                setSelectedClientId(storedClientId);
              }
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -147,6 +152,14 @@ export default function DocumentsPage() {
 
 
   const handleFileDrop = async (files: File[]) => {
+    if (!selectedClientId) {
+         toast({
+          variant: "destructive",
+          title: "Aucun client sélectionné",
+          description: `Veuillez sélectionner un client avant de téléverser.`,
+        });
+        return;
+    }
     const newDocuments: Document[] = [];
     const existingFileNames = new Set(documents.map(d => d.name));
 
@@ -168,6 +181,7 @@ export default function DocumentsPage() {
           status: 'pending' as const,
           file,
           dataUrl,
+          clientId: selectedClientId,
           auditTrail: [{
             action: 'Document téléversé',
             date: new Date().toISOString(),
@@ -205,7 +219,12 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId);
+    let docToProcess = null;
+    setDocuments(currentDocs => {
+      docToProcess = currentDocs.find(d => d.id === docId);
+      return currentDocs;
+    })
+
     if (!docToProcess || docToProcess.status === 'processing') return;
 
     if (docId === activeDocumentId) setIsLoading(true);
@@ -213,8 +232,13 @@ export default function DocumentsPage() {
     updateDocumentState(docId, { status: 'processing', auditTrail: trail });
     
     try {
-      // Need to find the doc again from state as it might have been updated
-      const currentDoc = documents.find(d => d.id === docId);
+      // Re-fetch doc from state to get the latest version.
+      let currentDoc: Document | undefined;
+      setDocuments(docs => {
+        currentDoc = docs.find(d => d.id === docId);
+        return docs;
+      });
+
       if (!currentDoc) throw new Error("Document not found after state update");
 
       const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
@@ -246,14 +270,14 @@ export default function DocumentsPage() {
       toast({
         variant: "destructive",
         title: "Le traitement a échoué",
-        description: `Impossible de traiter ${docToProcess.name}.`,
+        description: `Impossible de traiter ${(docToProcess as Document).name}.`,
       });
-      const finalDoc = { ...docToProcess, status: 'error' as const };
+      const finalDoc = { ...(docToProcess as Document), status: 'error' as const };
       createNotification(finalDoc, 'a échoué lors du traitement.');
     } finally {
       if (docId === activeDocumentId) setIsLoading(false);
     }
-  }, [documents, activeDocumentId, toast, addAuditEvent]);
+  }, [activeDocumentId, toast, addAuditEvent]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
@@ -437,7 +461,7 @@ export default function DocumentsPage() {
   }
   
   const filteredDocuments = useMemo(() => {
-        let docs = [...documents];
+        let docs = [...documents].filter(d => d.clientId === selectedClientId);
         
         if (searchCriteria) {
             // AI Search Logic
@@ -500,7 +524,7 @@ export default function DocumentsPage() {
             const dateB = (b.auditTrail && b.auditTrail.length > 0) ? new Date(b.auditTrail[0].date).getTime() : 0;
             return dateB - dateA;
         });
-  }, [documents, searchQuery, searchCriteria]);
+  }, [documents, searchQuery, searchCriteria, selectedClientId]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
   const isProcessingAny = documents.some(d => d.status === 'processing');
@@ -610,7 +634,7 @@ export default function DocumentsPage() {
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-10rem)] items-start">
       <div className="flex flex-col gap-6 h-full">
         <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessingAny} />
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
@@ -624,7 +648,7 @@ export default function DocumentsPage() {
           setSelectedDocumentIds={setSelectedDocumentIds}
         />
       </div>
-      <div className="hidden lg:block h-full sticky top-0">
+      <div className="hidden lg:block h-full sticky top-[80px]">
         {renderContent()}
       </div>
 
