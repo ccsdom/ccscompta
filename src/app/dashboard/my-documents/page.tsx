@@ -6,7 +6,7 @@ import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2 } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '../documents/page';
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,12 @@ const getStatusBadge = (status: Document['status']) => {
     case 'pending':
       return <Badge variant="outline">En attente</Badge>;
     case 'processing':
-      return <Badge variant="secondary">En traitement...</Badge>;
+      return (
+            <Badge variant="secondary" className="flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                En traitement...
+            </Badge>
+        );
     case 'reviewing':
       return <Badge className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100/80">En examen</Badge>;
     case 'approved':

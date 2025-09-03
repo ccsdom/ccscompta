@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Loader2 } from "lucide-react";
 import type { Document } from "@/app/dashboard/documents/page";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useState, useMemo } from 'react';
@@ -37,7 +37,12 @@ const getStatusBadge = (status: Document['status']) => {
     case 'pending':
       return <Badge variant="outline">En attente</Badge>;
     case 'processing':
-        return <Badge variant="secondary">En traitement...</Badge>;
+        return (
+            <Badge variant="secondary" className="flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                En traitement...
+            </Badge>
+        );
     case 'reviewing':
       return <Badge>Prêt pour examen</Badge>;
     case 'approved':
@@ -280,5 +285,3 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
         </Card>
     );
 }
-
-    
