@@ -61,7 +61,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Connectez-vous</CardTitle>
             <CardDescription>
-              Accédez à votre espace CCS Compta
+              Utilisez l'adresse email enregistrée par votre comptable.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,7 +83,7 @@ export default function LoginPage() {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  OU
+                  Ou si votre compte est une adresse Google
                 </span>
               </div>
             </div>
