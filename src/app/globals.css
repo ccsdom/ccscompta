@@ -68,6 +68,18 @@
     --primary-foreground: 142.1 76.2% 96.3%;
     --ring: 142.1 76.2% 36.3%;
   }
+
+  .admin-theme {
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 262.1 83.3% 97.8%;
+    --ring: 262.1 83.3% 57.8%;
+  }
+
+  .dark .admin-theme {
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 262.1 83.3% 97.8%;
+    --ring: 262.1 83.3% 57.8%;
+  }
 }
 
 @layer base {

@@ -61,12 +61,16 @@ export function Sidebar() {
     setMounted(true);
     const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | null;
     
-    if (role === 'admin' || role === 'accountant') {
-      setCurrentRole(role);
+    document.body.classList.remove('accountant-theme', 'admin-theme');
+
+    if (role === 'admin') {
+      setCurrentRole('admin');
+      document.body.classList.add('admin-theme');
+    } else if (role === 'accountant') {
+      setCurrentRole('accountant');
       document.body.classList.add('accountant-theme');
     } else {
       setCurrentRole('client');
-      document.body.classList.remove('accountant-theme');
     }
   }, [pathname]);
 
