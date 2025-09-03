@@ -62,7 +62,7 @@ const ExtractDataOutputSchema = z.object({
   // Common fields
   category: z.string().optional().describe('The suggested accounting category for the expense (e.g., "Fournitures", "Transport", "Repas"). Not used for bank statements.'),
   otherInformation: z.string().optional().describe('Other relevant information extracted from the document.'),
-  anomalies: zarray(z.string()).optional().describe('Potential anomalies or red flags detected in the document (e.g., "Unusually high amount", "Suspicious date").'),
+  anomalies: z.array(z.string()).optional().describe('Potential anomalies or red flags detected in the document (e.g., "Unusually high amount", "Suspicious date").'),
 });
 export type ExtractDataOutput = z.infer<typeof ExtractDataOutputSchema>;
 
@@ -143,5 +143,3 @@ const extractDataFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    
