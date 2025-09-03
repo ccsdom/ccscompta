@@ -14,7 +14,7 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         try {
-            const newClient = await addClient(data as Omit<Client, 'id' | 'newDocuments' | 'lastActivity'>);
+            const newClient = await addClient(data);
             toast({
                 title: "Client ajouté",
                 description: `Le nouveau client "${newClient.name}" a été créé avec succès.`

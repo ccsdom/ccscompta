@@ -80,13 +80,13 @@ export async function getClientById(id: string): Promise<Client | undefined> {
     }
 }
 
-export async function addClient(newClientData: Omit<Client, 'id' | 'newDocuments' | 'lastActivity'>): Promise<Client> {
+export async function addClient(newClientData: Omit<Client, 'id' | 'newDocuments' | 'lastActivity'> & { assignedAccountantId?: string }): Promise<Client> {
     try {
         const dataToSave = {
             ...newClientData,
             newDocuments: 0,
             lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-        }
+        };
         const docRef = await addDoc(clientsCollection, dataToSave);
         return {
             id: docRef.id,
