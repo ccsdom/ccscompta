@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Upload } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ClientImportDialog } from '@/components/client-import-dialog';
 
 
 export interface Client {
@@ -79,6 +80,10 @@ export default function ClientsPage() {
         setClients(prev => prev.filter(c => c.id !== client.id));
         setClientToDelete(null);
     }
+    
+    const handleClientsImported = (newClients: Client[]) => {
+        setClients(prev => [...prev, ...newClients]);
+    }
 
 
     const getStatusBadge = (status: string) => {
@@ -103,10 +108,13 @@ export default function ClientsPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Gestion des clients</h1>
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
-                <Button onClick={() => router.push('/dashboard/clients/new')}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nouveau Client
-                </Button>
+                 <div className="flex items-center gap-2">
+                    <ClientImportDialog onClientsImported={handleClientsImported} />
+                    <Button onClick={() => router.push('/dashboard/clients/new')}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nouveau Client
+                    </Button>
+                </div>
             </div>
 
             <Card>

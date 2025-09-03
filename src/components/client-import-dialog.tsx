@@ -1,0 +1,227 @@
+
+'use client';
+
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Upload, File, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import Papa from 'papaparse';
+import { useToast } from '@/hooks/use-toast';
+import type { Client } from '@/app/dashboard/clients/page';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { ScrollArea } from './ui/scroll-area';
+
+interface ClientImportDialogProps {
+    onClientsImported: (newClients: Client[]) => void;
+}
+
+type ParsedClient = Omit<Client, 'id' | 'newDocuments' | 'lastActivity' | 'status'>;
+
+export function ClientImportDialog({ onClientsImported }: ClientImportDialogProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [file, setFile] = useState<File | null>(null);
+    const [parsedData, setParsedData] = useState<ParsedClient[]>([]);
+    const [errors, setErrors] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const REQUIRED_HEADERS = ['name', 'siret', 'address', 'legalRepresentative', 'fiscalYearEndDate', 'email', 'phone'];
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            const uploadedFile = event.target.files[0];
+            if (uploadedFile.type !== 'text/csv') {
+                toast({
+                    variant: 'destructive',
+                    title: 'Type de fichier invalide',
+                    description: 'Veuillez sélectionner un fichier CSV.'
+                });
+                return;
+            }
+            setFile(uploadedFile);
+            handleParse(uploadedFile);
+        }
+    };
+
+    const handleParse = (fileToParse: File) => {
+        setParsedData([]);
+        setErrors([]);
+        setIsLoading(true);
+        Papa.parse(fileToParse, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const headers = results.meta.fields || [];
+                const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
+
+                if (missingHeaders.length > 0) {
+                    setErrors([`Les colonnes suivantes sont manquantes dans votre fichier CSV : ${missingHeaders.join(', ')}`]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (results.errors.length > 0) {
+                    setErrors(results.errors.map(e => `Ligne ${e.row}: ${e.message}`));
+                }
+
+                // Filter out any object that doesn't have a name property (likely empty rows)
+                const validData = (results.data as ParsedClient[]).filter(row => row.name && row.name.trim() !== "");
+                setParsedData(validData);
+                setIsLoading(false);
+            },
+            error: (error) => {
+                toast({
+                    variant: 'destructive',
+                    title: 'Erreur de lecture du fichier',
+                    description: error.message
+                });
+                setIsLoading(false);
+            }
+        });
+    };
+    
+    const handleImport = () => {
+        if (parsedData.length === 0 || errors.length > 0) {
+            toast({
+                variant: 'destructive',
+                title: 'Importation impossible',
+                description: 'Le fichier contient des erreurs ou aucune donnée valide à importer.'
+            });
+            return;
+        }
+
+        const newClients: Client[] = parsedData.map(clientData => ({
+            ...clientData,
+            id: `client_${crypto.randomUUID()}`,
+            newDocuments: 0,
+            lastActivity: new Date().toISOString().split('T')[0],
+            status: 'onboarding'
+        }));
+
+        onClientsImported(newClients);
+        toast({
+            title: 'Importation réussie',
+            description: `${newClients.length} clients ont été ajoutés avec succès.`
+        });
+
+        // Reset state and close dialog
+        setFile(null);
+        setParsedData([]);
+        setErrors([]);
+        setIsOpen(false);
+    }
+    
+    const resetState = () => {
+        setFile(null);
+        setParsedData([]);
+        setErrors([]);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            setIsOpen(open);
+            if (!open) resetState();
+        }}>
+            <DialogTrigger asChild>
+                <Button variant="outline">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Importer des clients
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Importer des clients depuis un fichier CSV</DialogTitle>
+                    <DialogDescription>
+                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les colonnes : {REQUIRED_HEADERS.join(', ')}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {!file ? (
+                    <div className="py-8">
+                        <label
+                            htmlFor="csv-upload"
+                            className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors hover:border-primary/50"
+                        >
+                            <input
+                                id="csv-upload"
+                                type="file"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={handleFileChange}
+                                accept=".csv"
+                            />
+                            <div className="flex flex-col items-center justify-center text-center">
+                                <File className="h-10 w-10 text-muted-foreground" />
+                                <p className="mt-4 text-sm font-medium">
+                                    Glissez-déposez ou <span className="font-semibold text-primary">parcourir</span>
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Fichier CSV uniquement
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+                ) : (
+                    <div>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted border mb-4">
+                            <File className="h-5 w-5 shrink-0" />
+                            <span className="font-medium truncate flex-1">{file.name}</span>
+                            <Button variant="ghost" size="sm" onClick={resetState}>Changer de fichier</Button>
+                        </div>
+
+                        {isLoading ? (
+                            <div className="h-64 flex flex-col items-center justify-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                <p className="mt-4 text-muted-foreground">Analyse du fichier...</p>
+                            </div>
+                        ) : errors.length > 0 ? (
+                            <div className="h-64 p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
+                                <h3 className="font-bold flex items-center gap-2"><AlertCircle /> Erreurs détectées</h3>
+                                <ScrollArea className="mt-2 h-[200px] text-sm">
+                                    <ul className="space-y-1 list-disc pl-5">
+                                        {errors.map((error, i) => <li key={i}>{error}</li>)}
+                                    </ul>
+                                </ScrollArea>
+                            </div>
+                        ) : parsedData.length > 0 && (
+                            <div>
+                                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                    Aperçu des données ({parsedData.length} clients détectés)
+                                </h3>
+                                <ScrollArea className="h-64 border rounded-lg">
+                                    <Table>
+                                        <TableHeader className="sticky top-0 bg-background">
+                                            <TableRow>
+                                                <TableHead>Nom</TableHead>
+                                                <TableHead>Email</TableHead>
+                                                <TableHead>SIRET</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {parsedData.map((client, i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell>{client.name}</TableCell>
+                                                    <TableCell>{client.email}</TableCell>
+                                                    <TableCell>{client.siret}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </ScrollArea>
+                            </div>
+                        )}
+                    </div>
+                )}
+                
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="ghost">Annuler</Button>
+                    </DialogClose>
+                    <Button onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isLoading}>
+                        Importer {parsedData.length > 0 && `(${parsedData.length} clients)`}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
