@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Loader2 } from "lucide-react";
-import type { Document } from "@/app/dashboard/documents/page";
+import type { Document } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useState, useMemo } from 'react';
 import {
