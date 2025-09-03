@@ -34,7 +34,7 @@ export function SupportChatbot() {
                 })
                 .finally(() => setIsLoading(false));
         }
-    }, [isOpen]);
+    }, [isOpen, messages.length]);
 
     useEffect(() => {
         // Auto-scroll to bottom

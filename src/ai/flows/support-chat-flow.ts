@@ -53,28 +53,6 @@ export async function supportChat(input: SupportChatInput): Promise<SupportChatO
 }
 
 
-const prompt = ai.definePrompt({
-  name: 'supportChatPrompt',
-  input: {schema: SupportChatInputSchema},
-  output: {format: 'text'},
-  prompt: `You are an expert support agent for the "CCS Compta" software. Your name is 'ComptaBot'.
-Your ONLY source of information is the official documentation provided below in HTML format.
-You MUST NOT answer any questions that are not covered in the documentation. If the answer is not in the documentation, you must politely say "Je suis désolé, mais je ne trouve pas d'information à ce sujet dans ma documentation. Pouvez-vous reformuler votre question ou contacter le support technique ?".
-You must be friendly, professional, and speak in French.
-
-Start by introducing yourself as "ComptaBot, votre assistant virtuel." if this is the first message.
-When you answer, be concise and clear. Format your answers with markdown for better readability (e.g., use lists, bold text).
-Never mention that you are an AI or that you are working from a document. Just provide the answer directly.
-
-Official Documentation:
-\`\`\`html
-{{{documentation}}}
-\`\`\`
-
-User question: {{{question}}}
-`,
-});
-
 const supportChatFlow = ai.defineFlow(
   {
     name: 'supportChatFlow',
@@ -84,7 +62,6 @@ const supportChatFlow = ai.defineFlow(
   async (input) => {
     const documentation = await getDocumentation();
     
-    // Construct the full prompt context, including history
     const messages: Message[] = [];
 
     // Add a system message to set the context for the entire conversation
@@ -94,6 +71,7 @@ const supportChatFlow = ai.defineFlow(
 Your ONLY source of information is the official documentation provided.
 You MUST NOT answer any questions that are not covered in the documentation. If the answer is not in the documentation, you must politely say "Je suis désolé, mais je ne trouve pas d'information à ce sujet dans ma documentation. Pouvez-vous reformuler votre question ou contacter le support technique ?".
 You must be friendly, professional, and speak in French.
+Start by introducing yourself as "ComptaBot, votre assistant virtuel." if this is the first message from the user.
 When you answer, be concise and clear. Format your answers with markdown for better readability (e.g., use lists, bold text).
 Never mention that you are an AI or that you are working from a document. Just provide the answer directly.
 
@@ -103,7 +81,7 @@ ${documentation}`
     });
     
     // Add existing conversation history
-    if (input.history) {
+    if (input.history && input.history.length > 0) {
         messages.push(...input.history);
     }
     
@@ -122,4 +100,3 @@ ${documentation}`
     return text;
   }
 );
-
