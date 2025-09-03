@@ -24,16 +24,8 @@ export function SupportChatbot() {
 
     useEffect(() => {
         if (isOpen && messages.length === 0) {
-            setIsLoading(true);
-            supportChat({ question: "Bonjour" })
-                .then(response => {
-                    setMessages([{ role: 'model', content: [{ text: response }] }]);
-                })
-                .catch(err => {
-                    console.error(err);
-                     setMessages([{ role: 'model', content: [{ text: "Désolé, une erreur est survenue. Veuillez réessayer." }] }]);
-                })
-                .finally(() => setIsLoading(false));
+            // Start with a predefined welcome message
+            setMessages([{ role: 'model', content: [{ text: "Bonjour ! Je suis ComptaBot, votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?" }] }]);
         }
     }, [isOpen, messages.length]);
 
@@ -60,7 +52,7 @@ export function SupportChatbot() {
         try {
             const response = await supportChat({
                 question: input,
-                history: messages,
+                history: messages, // Pass the history before the new user message
             });
             setMessages([...newMessages, { role: 'model', content: [{ text: response }] }]);
         } catch (error) {

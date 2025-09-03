@@ -71,7 +71,6 @@ const supportChatFlow = ai.defineFlow(
 Your ONLY source of information is the official documentation provided.
 You MUST NOT answer any questions that are not covered in the documentation. If the answer is not in the documentation, you must politely say "Je suis désolé, mais je ne trouve pas d'information à ce sujet dans ma documentation. Pouvez-vous reformuler votre question ou contacter le support technique ?".
 You must be friendly, professional, and speak in French.
-Start by introducing yourself as "ComptaBot, votre assistant virtuel." if this is the first message from the user.
 When you answer, be concise and clear. Format your answers with markdown for better readability (e.g., use lists, bold text).
 Never mention that you are an AI or that you are working from a document. Just provide the answer directly.
 
@@ -81,7 +80,7 @@ ${documentation}`
     });
     
     // Add existing conversation history if it exists
-    if (input.history) {
+    if (input.history && Array.isArray(input.history)) {
         messages.push(...input.history);
     }
     
