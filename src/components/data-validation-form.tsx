@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark, Link2 } from 'lucide-react';
-import { type Document, type AuditEvent, type Comment } from "@/app/dashboard/documents/page";
+import { type Document, type AuditEvent, type Comment } from "@/lib/types";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
@@ -139,7 +139,7 @@ const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAd
 
 const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean }) => {
     
-    const handleInputChange = (field: keyof ExtractDataOutput, value: string) => {
+    const handleInputChange = (field: keyof ExtractDataOutput, value: string | number) => {
         setFormData(prev => ({...prev, [field]: value}));
     }
 
@@ -175,6 +175,16 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
                 {(formData.dates || []).length === 0 && <Input value="-" readOnly disabled />}
                 </div>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Montant TVA</Label>
+                    <Input type="number" value={formData.vatAmount || ''} onChange={(e) => handleInputChange('vatAmount', parseFloat(e.target.value))} readOnly={isReadOnly} placeholder="Montant TVA" />
+                </div>
+                 <div className="space-y-2">
+                    <Label>Taux TVA (%)</Label>
+                    <Input type="number" value={formData.vatRate || ''} onChange={(e) => handleInputChange('vatRate', parseFloat(e.target.value))} readOnly={isReadOnly} placeholder="Taux TVA" />
+                </div>
+            </div>
             <div className="space-y-2">
                 <Label>Catégorie</Label>
                 <Input value={formData.category || ''} onChange={(e) => handleInputChange('category', e.target.value)} readOnly={isReadOnly} placeholder="Catégorie suggérée par l'IA" />
@@ -194,15 +204,7 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
     )
 }
 
-const BankStatementView = ({ formData, setFormData, isReadOnly }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean }) => {
-    const [allDocs, setAllDocs] = useState<Document[]>([]);
-
-    useEffect(() => {
-        const storedDocs = localStorage.getItem('documents');
-        if (storedDocs) {
-            setAllDocs(JSON.parse(storedDocs));
-        }
-    }, []);
+const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean, allDocs: Document[] }) => {
 
     const handleTransactionChange = (index: number, field: string, value: string | number) => {
         const updatedTransactions = [...(formData.transactions || [])];
@@ -263,7 +265,15 @@ const BankStatementView = ({ formData, setFormData, isReadOnly }: { formData: Ex
 export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSent, setIsSent] = useState(false);
+  const [allDocs, setAllDocs] = useState<Document[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const storedDocs = localStorage.getItem('documents');
+    if (storedDocs) {
+        setAllDocs(JSON.parse(storedDocs));
+    }
+  }, [document]);
 
   useEffect(() => {
     if (document?.extractedData) {
@@ -326,7 +336,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             )}
             
             {hasExtractedData ? (
-                isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly}/> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
+                isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} allDocs={allDocs} /> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
             ) : (
                 <div className="text-center text-sm text-muted-foreground py-10">
                     {document.status === 'pending' && <Info className="h-8 w-8 mx-auto mb-2" />}

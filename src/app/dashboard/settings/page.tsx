@@ -19,7 +19,7 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const { theme, setTheme } = useTheme();
     const [automationSettings, setAutomationSettings] = useState({
-        isEnabled: true,
+        isEnabled: false,
         confidenceThreshold: 0.95,
         autoSend: false,
     });

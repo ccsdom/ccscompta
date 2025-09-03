@@ -203,10 +203,9 @@ export default function DocumentsPage() {
       const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       trail = addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
-      // Prepare documents for reconciliation context if needed, ensuring they are serializable
       const allClientDocumentsForAI = documents
         .filter(d => d.clientId === docToProcess.clientId && d.id !== docToProcess.id)
-        .map(({ file, dataUrl, ...rest }) => rest); // Remove File and dataUrl objects
+        .map(({ file, ...rest }) => rest);
 
       const extracted = await extractData({
         documentDataUri: docToProcess.dataUrl,
@@ -720,6 +719,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
-    
