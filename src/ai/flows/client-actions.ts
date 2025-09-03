@@ -95,10 +95,9 @@ export async function addClient(newClientData: z.infer<typeof AddClientInputSche
             lastActivity: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         };
         const docRef = await addDoc(clientsCollection, dataToSave);
-        return {
-            id: docRef.id,
-            ...dataToSave
-        };
+        const newDoc = await getDoc(docRef);
+        return fromFirestore(newDoc);
+        
     } catch (error) {
         console.error("Error adding client to Firestore:", error);
         throw new Error("Failed to add client to Firestore.");
