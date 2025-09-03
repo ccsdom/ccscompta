@@ -87,18 +87,19 @@ const AddClientInputSchema = z.object({
   assignedAccountantId: z.string().optional(),
 });
 
+type ServerActionResponse<T> = { success: true; data: T } | { success: false; error: string };
 
-export async function addClient(newClientData: z.infer<typeof AddClientInputSchema>): Promise<Client> {
-    const validatedData = AddClientInputSchema.parse(newClientData);
-    
-    const q = query(clientsCollection, where("siret", "==", validatedData.siret));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        const existingClient = fromFirestore(querySnapshot.docs[0]);
-        throw new Error(`Un client avec le SIRET ${validatedData.siret} existe déjà : ${existingClient.name}.`);
-    }
-
+export async function addClient(newClientData: z.infer<typeof AddClientInputSchema>): Promise<ServerActionResponse<Client>> {
     try {
+        const validatedData = AddClientInputSchema.parse(newClientData);
+        
+        const q = query(clientsCollection, where("siret", "==", validatedData.siret));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const existingClient = fromFirestore(querySnapshot.docs[0]);
+            throw new Error(`Un client avec le SIRET ${validatedData.siret} existe déjà : ${existingClient.name}.`);
+        }
+
         const dataToSave = {
             ...validatedData,
             newDocuments: 0,
@@ -106,11 +107,14 @@ export async function addClient(newClientData: z.infer<typeof AddClientInputSche
         };
         const docRef = await addDoc(clientsCollection, dataToSave);
         const newDocSnap = await getDoc(docRef);
-        return fromFirestore(newDocSnap);
+        const newClient = fromFirestore(newDocSnap);
+        
+        return { success: true, data: newClient };
         
     } catch (error) {
         console.error("Error adding client to Firestore:", error);
-        throw new Error("Failed to add client to Firestore.");
+        const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -119,9 +123,9 @@ const UpdateClientInputSchema = z.object({
     updates: AddClientInputSchema.partial(),
 });
 
-export async function updateClient({ id, updates }: z.infer<typeof UpdateClientInputSchema>): Promise<Client | null> {
-    const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
+export async function updateClient({ id, updates }: z.infer<typeof UpdateClientInputSchema>): Promise<ServerActionResponse<Client>> {
     try {
+        const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
         const docRef = doc(db, 'clients', validatedUpdates.id);
         const updatesWithActivity = {
             ...validatedUpdates.updates,
@@ -131,23 +135,25 @@ export async function updateClient({ id, updates }: z.infer<typeof UpdateClientI
         
         const updatedDoc = await getDoc(docRef);
         if (updatedDoc.exists()) {
-            return fromFirestore(updatedDoc)
+            return { success: true, data: fromFirestore(updatedDoc) };
         }
-        return null;
+        throw new Error("Document not found after update.");
 
     } catch (error) {
         console.error("Error updating client in Firestore:", error);
-        return null;
+        const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
+        return { success: false, error: errorMessage };
     }
 }
 
-export async function deleteClient(id: string): Promise<boolean> {
+export async function deleteClient(id: string): Promise<ServerActionResponse<null>> {
     try {
         const docRef = doc(db, 'clients', id);
         await deleteDoc(docRef);
-        return true;
+        return { success: true, data: null };
     } catch (error) {
         console.error("Error deleting client from Firestore:", error);
-        return false;
+        const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
+        return { success: false, error: errorMessage };
     }
 }

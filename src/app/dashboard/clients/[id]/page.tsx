@@ -33,20 +33,21 @@ export default function EditClientPage() {
     }, [params.id]);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
-        try {
-            await updateClient({id: params.id, updates: data});
+        const result = await updateClient({id: params.id, updates: data});
+        
+        if (result.success) {
             toast({
                 title: "Modifications enregistrées",
                 description: `Les informations de ${data.name} ont été mises à jour.`
             });
             router.push('/dashboard/clients');
             router.refresh(); // To refetch the list on the clients page
-        } catch (error) {
-             console.error("Failed to update client:", error);
+        } else {
+            console.error("Failed to update client:", result.error);
             toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: "Impossible de mettre à jour le client."
+                description: result.error
             });
         }
     }

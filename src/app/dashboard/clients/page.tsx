@@ -72,12 +72,12 @@ export default function ClientsPage() {
     }
     
     const handleDeleteClient = async (client: Client) => {
-        const success = await deleteClient(client.id);
-        if (success) {
+        const result = await deleteClient(client.id);
+        if (result.success) {
             setClients(prev => prev.filter(c => c.id !== client.id));
             toast({ title: 'Client supprimé', description: `Le client ${client.name} a été supprimé.` });
         } else {
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de supprimer le client.' });
+            toast({ variant: 'destructive', title: 'Erreur', description: result.error });
         }
         setClientToDelete(null);
     }
@@ -295,5 +295,3 @@ export default function ClientsPage() {
         </div>
     )
 }
-
-    

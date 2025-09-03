@@ -13,20 +13,20 @@ export default function NewClientPage() {
     const { toast } = useToast();
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
-        try {
-            const newClient = await addClient(data);
+        const result = await addClient(data);
+
+        if (result.success) {
             toast({
                 title: "Client ajouté",
-                description: `Le nouveau client "${newClient.name}" a été créé avec succès.`
+                description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
             router.push('/dashboard/clients');
-        } catch (error) {
-            console.error("Failed to add client:", error);
-            const errorMessage = (error instanceof Error) ? error.message : "Impossible d'ajouter le nouveau client.";
+        } else {
+            console.error("Failed to add client:", result.error);
             toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: errorMessage
+                description: result.error
             });
         }
     }
