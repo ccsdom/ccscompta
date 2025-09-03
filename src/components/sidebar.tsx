@@ -50,7 +50,7 @@ export function Sidebar() {
         return pathname === itemHref;
     }
     // Starts with for parent routes, but not for the root dashboard
-    return pathname.startsWith(itemHref) && itemHref !== '/dashboard';
+    return pathname.startsWith(itemHref) && itemHref !== '/dashboard' && itemHref !== '/dashboard/accountant';
   }
 
   return (
