@@ -6,20 +6,9 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { DollarSign, FileText, Users, BarChart as BarChartIcon, PieChart as PieChartIcon } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
-import type { Document } from '../documents/page'; 
+import type { Document } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
 
-// Mock data - In a real app, this would come from a shared state or API
-const MOCK_DOCUMENTS: Document[] = [
-  { id: '1', name: 'facture-apple.pdf', uploadDate: '15/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'invoice', extractedData: { dates: ['2024-06-15'], amounts: [1200.50], vendorNames: ['Apple'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '2', name: 'recu-hotel.pdf', uploadDate: '10/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-06-10'], amounts: [350.00], vendorNames: ['Hilton Hotels'], category: 'Déplacements', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '3', name: 'facture-google.pdf', uploadDate: '05/06/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-06-05'], amounts: [450.75], vendorNames: ['Google'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '4', name: 'facture-aws.pdf', uploadDate: '22/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-05-22'], amounts: [890.20], vendorNames: ['AWS'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '5', name: 'recu-restaurant.pdf', uploadDate: '18/05/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'alpha', type: 'receipt', extractedData: { dates: ['2024-05-18'], amounts: [120.00], vendorNames: ['Le Fouquet\'s'], category: 'Repas et divertissement', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '6', name: 'releve-bancaire.pdf', uploadDate: '01/05/2024', status: 'reviewing', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'bank statement', auditTrail: [], comments:[] },
-  { id: '7', name: 'facture-microsoft.pdf', uploadDate: '15/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'beta', type: 'invoice', extractedData: { dates: ['2024-04-15'], amounts: [750.00], vendorNames: ['Microsoft'], category: 'Fournitures de bureau', otherInformation: '' }, auditTrail: [], comments:[] },
-  { id: '8', name: 'facture-adobe.pdf', uploadDate: '12/04/2024', status: 'approved', file: new File([], 'f'), dataUrl: '', clientId: 'gamma', type: 'invoice', extractedData: { dates: ['2024-04-12'], amounts: [250.99], vendorNames: ['Adobe'], category: 'Services informatiques', otherInformation: '' }, auditTrail: [], comments:[] },
-];
 
 const chartConfig = {
   total: {
@@ -30,6 +19,9 @@ const chartConfig = {
     label: "Moyenne (€)",
     color: "hsl(var(--chart-2))",
   },
+  invoice: { label: "Facture"},
+  receipt: { label: "Reçu"},
+  "bank statement": { label: "Relevé"},
   "Fournitures de bureau": { label: "Fournitures", color: "hsl(var(--chart-1))" },
   "Transport": { label: "Transport", color: "hsl(var(--chart-2))" },
   "Repas et divertissement": { label: "Repas", color: "hsl(var(--chart-3))" },
@@ -48,10 +40,7 @@ export default function MyAnalyticsPage() {
                 const storedDocs = localStorage.getItem('documents');
                  if (storedDocs) {
                     const parsedDocs = JSON.parse(storedDocs).map((d: any) => ({...d, file: new File([], d.name)}));
-                    const initialDocs = parsedDocs.length > 0 ? parsedDocs : MOCK_DOCUMENTS;
-                    setDocuments(initialDocs);
-                } else {
-                    setDocuments(MOCK_DOCUMENTS);
+                    setDocuments(parsedDocs);
                 }
 
                 const storedClientId = localStorage.getItem('selectedClientId');
@@ -61,7 +50,6 @@ export default function MyAnalyticsPage() {
 
             } catch (e) {
                 console.error("Failed to parse documents from local storage", e)
-                setDocuments(MOCK_DOCUMENTS);
             }
         }
         loadState();
@@ -70,12 +58,17 @@ export default function MyAnalyticsPage() {
     }, [])
 
     const clientDocuments = useMemo(() => {
+        if (!selectedClientId) return [];
         return documents.filter(d => d.clientId === selectedClientId);
     }, [documents, selectedClientId]);
 
 
     const analyticsData = useMemo(() => {
         const approvedDocs = clientDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
+
+        if (approvedDocs.length === 0) {
+            return null;
+        }
 
         const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
@@ -131,16 +124,51 @@ export default function MyAnalyticsPage() {
             .map(([name, total]) => ({ name, total }))
             .sort((a,b) => b.total - a.total).slice(0, 5);
 
+        const spendByType = approvedDocs.reduce((acc, doc) => {
+            const type = doc.type || 'other';
+            const amount = doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+            if (!acc[type]) {
+                acc[type] = { total: 0, count: 0 };
+            }
+            acc[type].total += amount;
+            acc[type].count++;
+            return acc;
+        }, {} as Record<string, { total: number, count: number }>);
+        
+        const averageSpendByTypeChartData = Object.entries(spendByType)
+            .map(([name, { total, count }]) => ({
+                name: chartConfig[name as keyof typeof chartConfig]?.label || name,
+                average: total / count
+            }))
+            .sort((a, b) => b.average - a.average);
+
         return {
             totalSpent,
             averageSpent,
             vendorChartData,
             monthlyChartData,
             categoryChartData,
+            averageSpendByTypeChartData,
             approvedDocsCount: approvedDocs.length,
             mainVendor: vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A'
         };
     }, [clientDocuments]);
+
+  if (!analyticsData) {
+        return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <BarChartIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Pas de données à afficher</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Aucun document n'a encore été approuvé par votre comptable. Les analyses apparaîtront ici une fois les données validées.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
 
   return (
     <div className="space-y-6">
@@ -277,7 +305,7 @@ export default function MyAnalyticsPage() {
                 <CardContent>
                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <ReBarChart data={[]} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+                            <ReBarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />

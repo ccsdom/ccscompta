@@ -31,6 +31,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
+import { FileUploader } from '@/components/file-uploader';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -191,7 +192,11 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId);
+    let docToProcess: Document | undefined;
+    setDocuments(currentDocs => {
+      docToProcess = currentDocs.find(d => d.id === docId);
+      return currentDocs;
+    });
 
     if (!docToProcess || docToProcess.status === 'processing') return;
 
@@ -204,7 +209,7 @@ export default function DocumentsPage() {
       trail = addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
       const allClientDocumentsForAI = documents
-        .filter(d => d.clientId === docToProcess.clientId && d.id !== docToProcess.id)
+        .filter(d => d.clientId === docToProcess?.clientId && d.id !== docToProcess?.id)
         .map(({ file, ...rest }) => rest);
 
       const extracted = await extractData({
@@ -661,9 +666,8 @@ export default function DocumentsPage() {
     return (
       <Card className="h-full">
         <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
-            <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
-            <p className="text-sm text-muted-foreground mt-1">Sélectionnez un document dans la liste pour voir l'aperçu et valider les données.</p>
+            <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
+            <p className="text-sm text-muted-foreground mt-4">Ou sélectionnez un document dans la liste pour voir l'aperçu et valider les données.</p>
         </CardContent>
       </Card>
     );
