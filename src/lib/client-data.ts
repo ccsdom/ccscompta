@@ -2,17 +2,17 @@
 'use server';
 
 import type { Client } from '@/app/dashboard/clients/page';
-import { db } from './firebase'; // Assuming you have a firebase config file
-import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, DocumentData } from 'firebase/firestore';
+import { db } from './firebase';
+import { collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, type DocumentData } from 'firebase/firestore';
 
 
 const clientsCollection = collection(db, 'clients');
 
 // Helper to convert Firestore doc to Client type
-const fromFirestore = (doc: DocumentData): Client => {
-    const data = doc.data();
+const fromFirestore = (firestoreDoc: DocumentData): Client => {
+    const data = firestoreDoc.data();
     return {
-        id: doc.id,
+        id: firestoreDoc.id,
         name: data.name,
         siret: data.siret,
         address: data.address,
@@ -31,7 +31,16 @@ const fromFirestore = (doc: DocumentData): Client => {
 export async function getClients(): Promise<Client[]> {
     try {
         const snapshot = await getDocs(clientsCollection);
-        return snapshot.docs.map(doc => fromFirestore(doc));
+        if (snapshot.empty) {
+            console.log("No clients found in Firestore. Seeding with mock data...");
+            const { MOCK_CLIENTS } = await import('@/data/mock-data');
+            for (const client of MOCK_CLIENTS) {
+                await addDoc(clientsCollection, { ...client });
+            }
+            const seededSnapshot = await getDocs(clientsCollection);
+            return seededSnapshot.docs.map(fromFirestore);
+        }
+        return snapshot.docs.map(fromFirestore);
     } catch (error) {
         console.error("Error fetching clients from Firestore:", error);
         return [];

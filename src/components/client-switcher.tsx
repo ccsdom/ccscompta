@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from "react";
@@ -19,26 +20,47 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
+import { getClients } from "@/lib/client-data";
+import type { Client } from "@/app/dashboard/clients/page";
 
-const mockClients = [
-    { value: 'alpha', label: 'Entreprise Alpha'},
-    { value: 'beta', label: 'Bêta SARL'},
-    { value: 'gamma', label: 'Gamma Inc.'},
-    { value: 'delta', label: 'Delta Industries'},
-    { value: 'epsilon', label: 'Epsilon Global'},
-];
+type PopoverClient = {
+  value: string;
+  label: string;
+}
 
 export function ClientSwitcher() {
   const [open, setOpen] = useState(false);
-  const [selectedValue, setSelectedValue] = useState('alpha');
+  const [selectedValue, setSelectedValue] = useState<string | null>(null);
+  const [clients, setClients] = useState<PopoverClient[]>([]);
 
   useEffect(() => {
-    const storedClientId = localStorage.getItem('selectedClientId');
-    if (storedClientId) {
-      setSelectedValue(storedClientId);
-    } else {
-      localStorage.setItem('selectedClientId', 'alpha');
-    }
+    const fetchAndSetClients = async () => {
+        const clientsData = await getClients();
+        setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
+
+        const storedClientId = localStorage.getItem('selectedClientId');
+        if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
+          setSelectedValue(storedClientId);
+        } else if (clientsData.length > 0) {
+          const firstClientId = clientsData[0].id;
+          setSelectedValue(firstClientId);
+          localStorage.setItem('selectedClientId', firstClientId);
+        }
+    };
+    fetchAndSetClients();
+  }, []);
+  
+  useEffect(() => {
+      const handleStorageChange = () => {
+          const storedClientId = localStorage.getItem('selectedClientId');
+          if (storedClientId) {
+              setSelectedValue(storedClientId);
+          }
+      };
+      window.addEventListener('storage', handleStorageChange);
+      return () => {
+          window.removeEventListener('storage', handleStorageChange);
+      };
   }, []);
 
   const handleClientChange = (value: string) => {
@@ -48,7 +70,7 @@ export function ClientSwitcher() {
       setOpen(false);
   }
 
-  const selectedClient = mockClients.find(c => c.value === selectedValue);
+  const selectedClient = clients.find(c => c.value === selectedValue);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,6 +80,7 @@ export function ClientSwitcher() {
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
+          disabled={!clients || clients.length === 0}
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-6 w-6">
@@ -78,7 +101,7 @@ export function ClientSwitcher() {
           <CommandList>
             <CommandEmpty>Aucun client trouvé.</CommandEmpty>
             <CommandGroup>
-              {mockClients.map((client) => (
+              {clients.map((client) => (
                 <CommandItem
                   key={client.value}
                   value={client.label} // Use label for filtering

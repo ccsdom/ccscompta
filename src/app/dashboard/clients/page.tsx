@@ -30,6 +30,8 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/comp
 import { ClientImportDialog } from '@/components/client-import-dialog';
 import { getClients, deleteClient } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export interface Client {
     id: string;
@@ -57,14 +59,18 @@ export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
     const { toast } = useToast();
 
+    const fetchClients = async () => {
+        setLoading(true);
+        const clientsData = await getClients();
+        setClients(clientsData);
+        setLoading(false);
+    };
+
     useEffect(() => {
-        const fetchClients = async () => {
-            const clientsData = await getClients();
-            setClients(clientsData);
-        };
         fetchClients();
     }, []);
 
@@ -90,11 +96,6 @@ export default function ClientsPage() {
     }
     
     const handleClientsImported = (newClients: Client[]) => {
-        // For simplicity, we refetch all clients to get the updated list
-        const fetchClients = async () => {
-            const clientsData = await getClients();
-            setClients(clientsData);
-        };
         fetchClients();
     }
 
@@ -164,7 +165,19 @@ export default function ClientsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredClients.length > 0 ? filteredClients.map(client => (
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-10 w-10 rounded-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-48" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-8" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-8 w-24" /></TableCell>
+                                </TableRow>
+                                ))
+                            ) : filteredClients.length > 0 ? filteredClients.map(client => (
                                 <TableRow key={client.id} className="group">
                                     <TableCell>
                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
