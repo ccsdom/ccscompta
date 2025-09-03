@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -18,7 +19,7 @@ import {
   SheetTitle
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,11 +82,12 @@ export default function DocumentsPage() {
              if (clientId && clientId !== selectedClientId) {
                 setSelectedClientId(clientId);
                 fetchDocuments(clientId);
+                setActiveDocumentId(null);
              } else if (!clientId) {
                 setDocuments([]);
                 setSelectedClientId(null);
+                setActiveDocumentId(null);
              }
-            setActiveDocumentId(null);
         } catch (error) {
             console.error("Failed to load state from localStorage", error)
         }
@@ -129,7 +131,10 @@ export default function DocumentsPage() {
     }
     setIsProcessing(true);
 
-    const existingFileNames = new Set(documents.map(d => d.name));
+    // This is a temporary fix for state inconsistency.
+    // Ideally, we'd get a fresh list from the server.
+    const currentDocs = await getDocuments(selectedClientId);
+    const existingFileNames = new Set(currentDocs.map(d => d.name));
     const newDocsToProcess: Document[] = [];
 
     for (const file of files) {
@@ -172,8 +177,24 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId);
+    const docToProcess = documents.find(d => d.id === docId) ?? await getDocumentById(docId);
     if (!docToProcess || docToProcess.status === 'processing') return;
+
+    // Ensure dataUrl is present for processing
+    if (!docToProcess.dataUrl) {
+      try {
+        const fileContent = await getDownloadURL(ref(storage, docToProcess.storagePath));
+        // Note: Firebase Storage download URLs are not data URIs.
+        // For Genkit, we'd need to fetch this and convert to Base64, which is complex on the client.
+        // For this demo, we'll assume the dataUrl was cached from upload. This is a limitation.
+        // A robust solution would handle this fetch-and-convert on a server-side function.
+         toast({ variant: "destructive", title: "Erreur de traitement", description: `L'aperçu du document ${docToProcess.name} n'est pas disponible pour le retraitement. Veuillez le re-téléverser.` });
+         return;
+      } catch (e) {
+          toast({ variant: "destructive", title: "Erreur de traitement", description: `Impossible de récupérer le contenu de ${docToProcess.name}.` });
+          return;
+      }
+    }
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
@@ -223,6 +244,11 @@ export default function DocumentsPage() {
 
       await updateDocument(docId, finalUpdates);
       setDocuments(docs => docs.map(d => d.id === docId ? {...d, ...finalUpdates} : d));
+      // Also update the active document if it's the one being processed
+      if(activeDocumentId === docId) {
+        handleSetActiveDocument({...(await getDocumentById(docId))!});
+      }
+
 
     } catch (error) {
       console.error("Error processing document:", error);
@@ -238,18 +264,23 @@ export default function DocumentsPage() {
   
   const handleUpdateDocumentData = async (docId: string, updatedData: ExtractDataOutput) => {
     const trail = await addAuditEvent(docId, 'Document approuvé manuellement');
-    const updates = { status: 'approved', extractedData: updatedData, auditTrail: trail };
+    const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
     await updateDocument(docId, updates);
     const doc = documents.find(d => d.id === docId);
     if(doc) {
-        setDocuments(docs => docs.map(d => d.id === docId ? {...d, ...updates} : d));
+        const updatedDoc = {...doc, ...updates};
+        setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
+        if (activeDocumentId === docId) {
+          setActiveDocumentId(null); // Force re-render of form
+          setActiveDocumentId(docId);
+        }
         createNotification(doc, 'a été approuvé.');
         toast({ title: "Document approuvé", description: "Les données ont été validées et enregistrées." });
     }
   };
 
    const handleAddComment = async (docId: string, commentText: string) => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !activeDocument) return;
     const newComment: Comment = {
       id: crypto.randomUUID(),
       text: commentText,
@@ -277,18 +308,23 @@ export default function DocumentsPage() {
     if (doc) {
         setZoom(1);
         setRotation(0);
-        setActiveDocumentId(doc.id);
+        
+        let docWithDataUrl = doc;
 
         if (!doc.dataUrl && doc.storagePath) {
             try {
                 const url = await getDownloadURL(ref(storage, doc.storagePath));
-                setDocuments(docs => docs.map(d => d.id === doc.id ? {...d, dataUrl: url} : d));
+                docWithDataUrl = {...doc, dataUrl: url };
+                setDocuments(docs => docs.map(d => d.id === doc.id ? docWithDataUrl : d));
             } catch (error) {
                 console.error("Failed to get download URL", error);
                 toast({ title: "Erreur de chargement", description: "Impossible de récupérer l'aperçu du document.", variant: "destructive" });
             }
         }
+        
+        setActiveDocumentId(docWithDataUrl.id);
         if (window.innerWidth < 1024) setIsSheetOpen(true);
+
     } else {
         setActiveDocumentId(null);
     }
@@ -312,15 +348,17 @@ export default function DocumentsPage() {
   }
 
   const handleBulkSend = async () => {
+    let sentCount = 0;
     const promises = selectedDocumentIds.map(async (docId) => {
       const doc = documents.find(d => d.id === docId);
       if (doc && doc.status === 'approved') {
         await handleSendToCegid(doc);
+        sentCount++;
       }
     });
     await Promise.all(promises);
     if(selectedClientId) fetchDocuments(selectedClientId);
-    toast({ title: "Données envoyées", description: `${selectedDocumentIds.length} documents ont été envoyés à CEGID.` });
+    toast({ title: "Données envoyées", description: `${sentCount} documents ont été envoyés à CEGID.` });
     setSelectedDocumentIds([]);
   }
 
@@ -388,7 +426,29 @@ export default function DocumentsPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const SearchCriteriaDisplay = () => { /* ... component implementation ... */ };
+  const SearchCriteriaDisplay = () => {
+    if (!searchCriteria) return null;
+
+    const criteriaCount = Object.values(searchCriteria).filter(v => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && (typeof v !== 'string' || v.trim() !== '')).length -1;
+    
+    return (
+        <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4 text-sm">
+            <span className="font-medium text-muted-foreground pl-2">Filtre intelligent actif ({criteriaCount} critères) :</span>
+            <span className="text-foreground font-semibold">{searchCriteria.originalQuery}</span>
+            <div className="flex-grow" />
+             <Button variant="ghost" size="icon" onClick={() => {
+                setSearchCriteria(null);
+                setSearchQuery('');
+                localStorage.removeItem('searchCriteria');
+                localStorage.removeItem('searchQuery');
+                window.dispatchEvent(new Event('storage'));
+             }}>
+                <FilterX className="h-4 w-4" />
+             </Button>
+        </div>
+    )
+ };
+
   const BulkActionsToolbar = () => (
     <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4">
         <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
@@ -408,7 +468,16 @@ export default function DocumentsPage() {
     </div>
   )
   
-  const PreviewControls = () => ( /* ... component implementation ... */ );
+  const PreviewControls = () => (
+    <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+        <TooltipProvider>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom avant</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Pivoter</p></TooltipContent></Tooltip>
+            {activeDocumentId && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(activeDocumentId)} disabled={isProcessing}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Relancer le traitement</p></TooltipContent></Tooltip>}
+        </TooltipProvider>
+    </div>
+  );
 
   const renderContent = () => {
     if (activeDocument) {
@@ -417,12 +486,19 @@ export default function DocumentsPage() {
           <Card className="flex-1 aspect-square w-full bg-muted overflow-hidden relative">
             <PreviewControls />
             <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
-                <iframe 
-                    src={activeDocument.dataUrl} 
-                    className="w-full h-full border-0 transition-transform duration-300"
-                    style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
-                    title="Aperçu du document" 
-                />
+                {activeDocument.dataUrl ? (
+                    <iframe 
+                        src={activeDocument.dataUrl} 
+                        className="w-full h-full border-0 transition-transform duration-300"
+                        style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
+                        title="Aperçu du document" 
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin mb-4"/>
+                        <p>Chargement de l'aperçu...</p>
+                    </div>
+                )}
             </div>
           </Card>
           <DataValidationForm
@@ -497,3 +573,7 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
+
+    
