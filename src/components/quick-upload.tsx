@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { FileUploader } from './file-uploader';
@@ -18,7 +18,21 @@ export function QuickUpload() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const { toast } = useToast();
+
+    useEffect(() => {
+        const clientId = localStorage.getItem('selectedClientId');
+        setSelectedClientId(clientId);
+
+        const handleStorageChange = () => {
+            const clientId = localStorage.getItem('selectedClientId');
+            setSelectedClientId(clientId);
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
     const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
         const event: AuditEvent = {
@@ -69,6 +83,16 @@ export function QuickUpload() {
     }, [toast]);
     
     const handleFileDrop = async (files: File[]) => {
+        if (!selectedClientId) {
+            toast({
+                variant: "destructive",
+                title: "Aucun client sélectionné",
+                description: "Veuillez sélectionner un client avant d'utiliser l'ajout rapide.",
+            });
+            setIsOpen(false);
+            return;
+        }
+
         setIsLoading(true);
         setUploadedFiles(files);
         
@@ -86,6 +110,8 @@ export function QuickUpload() {
                 status: 'processing' as const,
                 file,
                 dataUrl,
+                clientId: selectedClientId,
+                comments: [],
                 auditTrail: [{
                     action: 'Document téléversé (ajout rapide)',
                     date: new Date().toISOString(),
@@ -131,7 +157,7 @@ export function QuickUpload() {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                 <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+                 <Button variant="ghost" size="icon" className="hidden md:inline-flex" disabled={!selectedClientId}>
                     <PlusCircle className="h-5 w-5" />
                     <span className="sr-only">Ajout Rapide</span>
                 </Button>
@@ -140,7 +166,7 @@ export function QuickUpload() {
                 <DialogHeader>
                     <DialogTitle>Téléversement Rapide</DialogTitle>
                     <DialogDescription>
-                        Déposez vos documents ici. Ils seront automatiquement traités et ajoutés à votre historique.
+                        Déposez vos documents ici. Ils seront automatiquement traités et ajoutés au dossier du client sélectionné.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">

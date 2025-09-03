@@ -50,7 +50,7 @@ export interface Document {
   status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
   file: File;
   dataUrl: string;
-  clientId: string; // New field
+  clientId: string; 
   type?: string;
   confidence?: number;
   extractedData?: ExtractDataOutput;
@@ -220,11 +220,7 @@ export default function DocumentsPage() {
   };
   
   const handleProcessDocument = useCallback(async (docId: string) => {
-    let docToProcess = null;
-    setDocuments(currentDocs => {
-      docToProcess = currentDocs.find(d => d.id === docId);
-      return currentDocs;
-    })
+    const docToProcess = documents.find(d => d.id === docId);
 
     if (!docToProcess || docToProcess.status === 'processing') return;
 
@@ -233,18 +229,9 @@ export default function DocumentsPage() {
     updateDocumentState(docId, { status: 'processing', auditTrail: trail });
     
     try {
-      // Re-fetch doc from state to get the latest version.
-      let currentDoc: Document | undefined;
-      setDocuments(docs => {
-        currentDoc = docs.find(d => d.id === docId);
-        return docs;
-      });
-
-      if (!currentDoc) throw new Error("Document not found after state update");
-
-      const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
+      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
       
-      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType });
+      const extracted = await extractData({ documentDataUri: docToProcess.dataUrl, documentType: recognition.documentType });
       trail = addAuditEvent(docId, 'Traitement IA terminé');
       
       const finalUpdates: Partial<Document> = {
@@ -261,7 +248,7 @@ export default function DocumentsPage() {
         description: `Données extraites de ${docToProcess.name}. Prêt pour examen.`,
       });
       
-      const finalDoc = { ...currentDoc, ...finalUpdates };
+      const finalDoc = { ...docToProcess, ...finalUpdates };
       createNotification(finalDoc, 'est prêt pour examen.');
 
     } catch (error) {
@@ -278,7 +265,7 @@ export default function DocumentsPage() {
     } finally {
       if (docId === activeDocumentId) setIsLoading(false);
     }
-  }, [activeDocumentId, toast, addAuditEvent]);
+  }, [documents, activeDocumentId, toast, addAuditEvent]);
   
   const handleUpdateDocumentData = (docId: string, updatedData: ExtractDataOutput) => {
     let updatedDoc : Document | undefined;
