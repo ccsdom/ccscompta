@@ -10,7 +10,7 @@ import { ref, getDownloadURL, deleteObject } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, Briefcase, Car, Utensils, Laptop } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,17 @@ const getStatusBadge = (status: Document['status']) => {
       return <Badge variant="outline">Inconnu</Badge>;
   }
 };
+
+const getCategoryIcon = (categoryName: string) => {
+    const name = categoryName.toLowerCase();
+    if (name.includes('transport') || name.includes('déplacements')) return Car;
+    if (name.includes('repas') || name.includes('divertissement')) return Utensils;
+    if (name.includes('informatique') || name.includes('it')) return Laptop;
+    if (name.includes('fournitures')) return Briefcase;
+    if (name.includes('relevé')) return Landmark;
+    if (name.includes('non classé')) return Folder;
+    return FileText;
+}
 
 type DocumentGroup = {
     title: string;
@@ -253,29 +264,35 @@ export default function MyDocumentsPage() {
         
         const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
 
-        const groups: { [key: string]: Document[] } = {
-            invoices: [],
-            receipts: [],
-            bankStatements: [],
-            other: [],
-        };
+        const groups: { [key: string]: Document[] } = {};
 
         sortedDocs.forEach(doc => {
-            const type = doc.type?.toLowerCase() || 'other';
-            if (type.includes('invoice')) groups.invoices.push(doc);
-            else if (type.includes('receipt')) groups.receipts.push(doc);
-            else if (type.includes('bank statement')) groups.bankStatements.push(doc);
-            else groups.other.push(doc);
+            if (doc.type === 'bank statement') {
+                if (!groups['Relevés Bancaires']) groups['Relevés Bancaires'] = [];
+                groups['Relevés Bancaires'].push(doc);
+            } else {
+                const category = doc.extractedData?.category || 'Non classé';
+                if (!groups[category]) {
+                    groups[category] = [];
+                }
+                groups[category].push(doc);
+            }
         });
 
-        const result: DocumentGroup[] = [
-            { title: 'Factures', icon: FileText, documents: groups.invoices },
-            { title: 'Reçus', icon: Receipt, documents: groups.receipts },
-            { title: 'Relevés Bancaires', icon: Landmark, documents: groups.bankStatements },
-            { title: 'Autres Documents', icon: Folder, documents: groups.other },
-        ];
-
-        return result.filter(group => group.documents.length > 0);
+        const result: DocumentGroup[] = Object.entries(groups).map(([title, documents]) => ({
+            title,
+            icon: getCategoryIcon(title),
+            documents,
+        }));
+        
+        // Ensure a specific order: categories, then bank statements, then unclassified
+        return result.sort((a,b) => {
+            if (a.title === 'Relevés Bancaires') return 1;
+            if (b.title === 'Relevés Bancaires') return -1;
+            if (a.title === 'Non classé') return 1;
+            if (b.title === 'Non classé') return -1;
+            return a.title.localeCompare(b.title);
+        });
 
   }, [documents, searchQuery, searchCriteria]);
 
@@ -358,8 +375,8 @@ export default function MyDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
-        <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Mes Documents</h1>
+        <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables classées par catégorie.</p>
       </div>
 
       <Card>
@@ -447,5 +464,7 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    
 
     
