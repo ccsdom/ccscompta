@@ -4,120 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Documentation CCS Compta</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-        h1, h2, h3 {
-            color: #1a1a1a;
-            border-bottom: 1px solid #eaeaea;
-            padding-bottom: 0.5rem;
-            margin-top: 2rem;
-        }
-        h1 { font-size: 2.5em; }
-        h2 { font-size: 2em; }
-        h3 { font-size: 1.5em; }
-        code {
-            background-color: #f3f3f3;
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-        }
-        ul {
-            padding-left: 1.5rem;
-        }
-        li {
-            margin-bottom: 0.5rem;
-        }
-        strong {
-            color: #1a1a1a;
-        }
-        .container {
-            border: 1px solid #eaeaea;
-            border-radius: 8px;
-            padding: 2rem;
-            background-color: #fafafa;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Documentation Utilisateur de CCS Compta</h1>
-            <p>Votre guide complet pour maîtriser la plateforme de comptabilité augmentée.</p>
-        </div>
+    <h1>Documentation du logiciel CCS Compta</h1>
 
-        <h2>1. Introduction</h2>
-        <p>Bienvenue sur CCS Compta, la solution SaaS conçue pour révolutionner la collaboration entre les cabinets comptables et leurs clients. Notre mission est de simplifier et d'automatiser le traitement des pièces comptables grâce à une intelligence artificielle de pointe, vous permettant de vous concentrer sur l'expertise et le conseil.</p>
+    <section id="introduction">
+        <h2>Introduction</h2>
+        <p>Bienvenue sur CCS Compta, votre plateforme de gestion comptable collaborative. Ce document vous guide à travers les fonctionnalités principales de l'application, que vous soyez un client, un comptable ou un administrateur.</p>
+    </section>
 
-        <h2>2. Premiers Pas</h2>
-        <h3>Pour les Clients</h3>
-        <ol>
-            <li><strong>Connexion :</strong> Utilisez les identifiants fournis par votre cabinet pour vous connecter.</li>
-            <li><strong>Tableau de Bord :</strong> Obtenez une vue d'ensemble rapide de l'état de vos documents.</li>
-            <li><strong>Téléversement :</strong> Allez dans "Mes Documents" et déposez simplement vos factures, reçus, etc. L'IA s'occupe du reste !</li>
-        </ol>
-
-        <h3>Pour les Cabinets Comptables</h3>
-        <ol>
-            <li><strong>Connexion :</strong> Connectez-vous avec votre compte comptable ou administrateur.</li>
-            <li><strong>Tableau de Bord Comptable :</strong> Visualisez l'activité de tous vos clients en un coup d'œil.</li>
-            <li><strong>Sélection d'un Client :</strong> Utilisez le sélecteur de client dans la barre latérale pour accéder au dossier d'un client spécifique.</li>
-            <li><strong>Traitement :</strong> Dans la page "Documents du client", supervisez le travail de l'IA, validez les données et envoyez-les vers votre logiciel de production.</li>
-        </ol>
-
-        <h2>3. Fonctionnalités Clés</h2>
+    <section id="espace-client">
+        <h2>Espace Client</h2>
         
-        <h3>Extraction Intelligente de Données (IA)</h3>
-        <p>Lorsque vous téléversez un document, notre IA analyse son contenu pour en extraire automatiquement les informations essentielles :</p>
-        <ul>
-            <li>Type de document (facture, reçu, relevé bancaire...)</li>
-            <li>Fournisseurs</li>
-            <li>Dates</li>
-            <li>Montants (TTC)</li>
-            <li>Montant et Taux de TVA</li>
-            <li>Catégorie comptable suggérée</li>
-        </ul>
+        <article id="client-dashboard">
+            <h3>Tableau de bord (Mes Documents)</h3>
+            <p>C'est votre page d'accueil. Elle vous permet de téléverser de nouveaux documents et de suivre le statut de ceux que vous avez déjà envoyés.</p>
+            <ul>
+                <li><strong>Téléversement :</strong> Utilisez la zone de glisser-déposer pour ajouter de nouveaux fichiers (factures, reçus, etc.). Formats acceptés : PDF, JPG, PNG.</li>
+                <li><strong>Liste des documents :</strong> Visualisez tous vos documents, classés par type (Factures, Reçus, etc.).</li>
+                <li><strong>Statuts :</strong> Chaque document a un statut pour suivre son parcours :
+                    <ul>
+                        <li><strong>En attente :</strong> Le document est téléversé mais pas encore analysé par l'IA.</li>
+                        <li><strong>En traitement :</strong> L'IA est en train d'analyser le document.</li>
+                        <li><strong>En examen :</strong> Le document a été traité et est en attente de validation par votre comptable.</li>
+                        <li><strong>Approuvé :</strong> Votre comptable a validé le document et ses données.</li>
+                        <li><strong>Erreur :</strong> Un problème est survenu lors du traitement.</li>
+                    </ul>
+                </li>
+            </ul>
+        </article>
+
+        <article id="client-scan">
+            <h3>Scanner un document</h3>
+            <p>Utilisez l'appareil photo de votre téléphone ou de votre ordinateur pour numériser un document physique et l'envoyer directement sur la plateforme. C'est idéal pour les reçus et les factures papier lorsque vous êtes en déplacement.</p>
+        </article>
+
+        <article id="client-analytics">
+            <h3>Mon Analyse</h3>
+            <p>Cette page vous donne un aperçu de vos finances, basé sur les documents approuvés par votre comptable. Vous pouvez y voir :</p>
+            <ul>
+                <li>Le total de vos dépenses.</li>
+                <li>Vos principaux fournisseurs.</li>
+                <li>La répartition de vos dépenses par catégorie (fournitures, transport, etc.).</li>
+            </ul>
+        </article>
         
-        <h3>Recherche Sémantique (Langage Naturel)</h3>
-        <p>Ne cherchez plus par nom de fichier ! Utilisez la barre de recherche principale pour poser des questions en langage naturel. L'IA interprète votre demande et applique les filtres adéquats.</p>
-        <p><strong>Exemples :</strong></p>
-        <ul>
-            <li><code>Factures de plus de 200€ de mars dernier</code></li>
-            <li><code>Reçus d'hôtel de ce trimestre</code></li>
-            <li><code>Documents de transport de la semaine passée</code></li>
-        </ul>
+        <article id="client-comments">
+            <h3>Commentaires sur un document</h3>
+            <p>Pour communiquer avec votre comptable au sujet d'une pièce spécifique, cliquez sur le document dans la liste. Un panneau s'ouvrira, affichant une section "Commentaires" où vous pouvez poser des questions ou apporter des précisions.</p>
+        </article>
+    </section>
 
-        <h3>Rapprochement Bancaire Assisté par IA</h3>
-        <p>C'est l'une de nos fonctionnalités les plus puissantes. Lorsque vous téléversez un relevé bancaire, notre IA ne se contente pas d'extraire les transactions. Pour chaque ligne de débit, elle recherche activement dans les documents du client (factures, reçus) pour trouver la pièce justificative correspondante. Si une correspondance est trouvée, elle est automatiquement liée à la transaction, vous faisant gagner des heures de travail manuel.</p>
+    <section id="espace-comptable">
+        <h2>Espace Comptable</h2>
 
-        <h3>Analyse & Rapports</h3>
-        <ul>
-            <li><strong>Pour les Clients (`Mon Analyse`) :</strong> Visualisez vos dépenses par catégorie et par fournisseur pour mieux comprendre la santé financière de votre entreprise.</li>
-            <li><strong>Pour les Comptables (`Analyse Détaillée`) :</strong> Accédez à une analyse approfondie pour chaque client. Préparez facilement les déclarations de TVA grâce au tableau de calcul de la TVA déductible. Personnalisez votre espace de travail en affichant ou masquant les graphiques.</li>
-            <li><strong>Pour les Administrateurs (`Rapports`) :</strong> Pilotez la performance de votre cabinet avec des indicateurs clés sur le chiffre d'affaires, la facturation et l'activité client.</li>
-        </ul>
+        <article id="accountant-dashboard">
+            <h3>Tableau de bord</h3>
+            <p>Votre tableau de bord central vous donne une vue d'ensemble de l'activité de tous vos clients : nombre de documents en attente, validations récentes, activité par client, etc.</p>
+        </article>
 
-        <h2>4. Gestion des Rôles et Permissions</h2>
-        <p>CCS Compta est conçu pour s'adapter à la structure de votre cabinet grâce à un système de rôles clairs.</p>
-        <ul>
-            <li><strong>Client :</strong> Peut téléverser et consulter ses propres documents, communiquer avec son comptable et voir ses propres analyses.</li>
-            <li><strong>Comptable (Secrétaire) :</strong> Peut gérer les clients qui lui sont assignés, valider les documents, et accéder aux analyses détaillées de ces clients.</li>
-            <li><strong>Administrateur (Comptable en Chef) :</strong> A tous les droits d'un comptable, et peut en plus gérer l'ensemble des cabinets (si en mode SaaS), voir les rapports de performance du cabinet, et gérer les utilisateurs et les paramètres avancés.</li>
-        </ul>
+        <article id="accountant-clients">
+            <h3>Gestion des clients</h3>
+            <p>Créez de nouveaux dossiers clients, modifiez les informations des clients existants, ou importez une liste de clients via un fichier CSV.</p>
+        </article>
 
-        <h2>5. Support</h2>
-        <p>Si vous rencontrez des difficultés ou avez des questions, n'hésitez pas à consulter la page "Aide & Support" depuis le menu latéral. Vous y trouverez une FAQ et un formulaire pour contacter notre équipe.</p>
+        <article id="accountant-documents">
+            <h3>Documents du client</h3>
+            <p>Après avoir sélectionné un client, cette page vous montre tous ses documents. C'est ici que vous validez le travail de l'IA. Vous pouvez :</p>
+            <ul>
+                <li><strong>Vérifier les données :</strong> Comparez l'aperçu du document avec les données extraites par l'IA.</li>
+                <li><strong>Corriger si besoin :</strong> Tous les champs sont modifiables.</li>
+                <li><strong>Approuver :</strong> Une fois les données validées, approuvez le document pour l'intégrer à la comptabilité.</li>
+                <li><strong>Envoyer à Cegid :</strong> Après approbation, vous pouvez envoyer les écritures vers votre logiciel de production.</li>
+            </ul>
+        </article>
+        
+        <article id="accountant-settings">
+            <h3>Paramètres d'automatisation</h3>
+            <p>Dans les paramètres, vous pouvez activer l'auto-approbation. Si l'IA est suffisamment certaine de la qualité de son extraction (vous pouvez définir le seuil de confiance), elle peut approuver automatiquement les documents, vous faisant gagner un temps précieux.</p>
+        </article>
+    </section>
 
-    </div>
 </body>
 </html>
