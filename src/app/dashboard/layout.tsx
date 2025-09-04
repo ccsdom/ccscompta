@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Breadcrumb } from "@/components/breadcrumb";
 import { usePathname } from 'next/navigation';
+import { SupportChatbot } from "@/components/support-chatbot";
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,7 @@ export default function DashboardLayout({
           {showBreadcrumb && <Breadcrumb />}
           {children}
         </main>
+        <SupportChatbot />
       </div>
     </div>
   );

@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import Image from 'next/image';
 import { Mail, Phone, HelpCircle } from "lucide-react";
 import Link from "next/link";
-import { SupportChatbot } from "@/components/support-chatbot";
 
 export default function SupportPage() {
 
@@ -165,7 +164,6 @@ export default function SupportPage() {
             </CardContent>
         </Card>
       </div>
-      <SupportChatbot />
     </div>
   );
 }
