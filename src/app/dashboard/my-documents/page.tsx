@@ -10,7 +10,7 @@ import { ref, getDownloadURL, deleteObject } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, Briefcase, Car, Utensils, Laptop } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -49,16 +49,23 @@ const getStatusBadge = (status: Document['status']) => {
   }
 };
 
-const getCategoryIcon = (categoryName: string) => {
-    const name = categoryName.toLowerCase();
-    if (name.includes('transport') || name.includes('déplacements')) return Car;
-    if (name.includes('repas') || name.includes('divertissement')) return Utensils;
-    if (name.includes('informatique') || name.includes('it')) return Laptop;
-    if (name.includes('fournitures')) return Briefcase;
-    if (name.includes('relevé')) return Landmark;
-    if (name.includes('non classé')) return Folder;
-    return FileText;
+const typeToGroupMap: Record<string, string> = {
+    'purchase invoice': "Factures d'achat",
+    'sales invoice': "Factures de vente",
+    'receipt': "Reçus",
+    'bank statement': "Relevés bancaires",
+};
+
+const getGroupIcon = (groupName: string) => {
+    switch (groupName) {
+        case "Factures d'achat": return ArrowDownToLine;
+        case "Factures de vente": return ArrowUpFromLine;
+        case "Reçus": return Receipt;
+        case "Relevés bancaires": return Landmark;
+        default: return Folder;
+    }
 }
+
 
 type DocumentGroup = {
     title: string;
@@ -267,32 +274,22 @@ export default function MyDocumentsPage() {
         const groups: { [key: string]: Document[] } = {};
 
         sortedDocs.forEach(doc => {
-            if (doc.type === 'bank statement') {
-                if (!groups['Relevés Bancaires']) groups['Relevés Bancaires'] = [];
-                groups['Relevés Bancaires'].push(doc);
-            } else {
-                const category = doc.extractedData?.category || 'Non classé';
-                if (!groups[category]) {
-                    groups[category] = [];
-                }
-                groups[category].push(doc);
+            const groupName = typeToGroupMap[doc.type || ''] || 'Autres documents';
+            if (!groups[groupName]) {
+                groups[groupName] = [];
             }
+            groups[groupName].push(doc);
         });
 
-        const result: DocumentGroup[] = Object.entries(groups).map(([title, documents]) => ({
-            title,
-            icon: getCategoryIcon(title),
-            documents,
-        }));
-        
-        // Ensure a specific order: categories, then bank statements, then unclassified
-        return result.sort((a,b) => {
-            if (a.title === 'Relevés Bancaires') return 1;
-            if (b.title === 'Relevés Bancaires') return -1;
-            if (a.title === 'Non classé') return 1;
-            if (b.title === 'Non classé') return -1;
-            return a.title.localeCompare(b.title);
-        });
+        const groupOrder = ["Factures de vente", "Factures d'achat", "Reçus", "Relevés bancaires", "Autres documents"];
+
+        return groupOrder
+            .map(title => ({
+                title,
+                icon: getGroupIcon(title),
+                documents: groups[title] || [],
+            }))
+            .filter(group => group.documents.length > 0);
 
   }, [documents, searchQuery, searchCriteria]);
 
@@ -424,7 +421,7 @@ export default function MyDocumentsPage() {
                                         <TableCell className="font-medium">
                                             <div className="flex items-center gap-3">
                                                 <div className="bg-muted p-2 rounded-md">
-                                                    <FileUp className="h-5 w-5 text-muted-foreground"/>
+                                                    <FileText className="h-5 w-5 text-muted-foreground"/>
                                                 </div>
                                                 <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
                                             </div>
@@ -464,7 +461,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    
-
-    

@@ -22,7 +22,7 @@ export type RecognizeDocumentTypeInput = z.infer<typeof RecognizeDocumentTypeInp
 const RecognizeDocumentTypeOutputSchema = z.object({
   documentType: z
     .string()
-    .describe('The type of the document (invoice, receipt, bank statement, etc.).'),
+    .describe('The type of the document (purchase invoice, sales invoice, receipt, bank statement, etc.).'),
   confidence: z
     .number()
     .describe('The confidence level of the document type recognition (0-1).'),
@@ -41,7 +41,13 @@ const prompt = ai.definePrompt({
   output: {schema: RecognizeDocumentTypeOutputSchema},
   prompt: `You are an expert accounting document classifier.
 
-You will be provided with a document image. You need to identify the type of the document. Possible document types are: invoice, receipt, bank statement, or other.  If you cannot determine the document type set the documentType to 'other'.
+You will be provided with a document image. You need to identify the type of the document.
+Possible document types are:
+- 'purchase invoice': A bill received from a supplier for goods or services purchased.
+- 'sales invoice': A bill sent to a customer for goods or services sold.
+- 'receipt': Proof of payment, like a cash register receipt or credit card slip.
+- 'bank statement': A list of transactions from a bank account.
+- 'other': If you cannot determine the document type from the list above.
 
 Analyze the document and provide your best assessment of its type.  Also, provide a confidence score between 0 and 1 of your determination.
 
@@ -61,14 +67,3 @@ const recognizeDocumentTypeFlow = ai.defineFlow(
     return output!;
   }
 );
-
-
-
-
-
-
-
-
-
-
-
