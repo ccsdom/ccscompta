@@ -49,20 +49,32 @@ export async function getClients(): Promise<Client[]> {
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
-    if (snapshot.empty) {
-      console.log('No clients found. Seeding mock data...');
+    let clients = snapshot.docs.map(fromFirestore);
+
+    // Check if demo client 'alpha' exists. If not, seed all missing mock clients.
+    const alphaClientExists = clients.some(c => c.id === 'alpha');
+
+    if (!alphaClientExists) {
+      console.log('Demo clients not found. Seeding mock data...');
       const batch = db.batch();
+      const existingClientIds = new Set(clients.map(c => c.id));
+      
       for (const client of MOCK_CLIENTS) {
-        const { id, ...clientData } = client;
-        const docRef = clientsCollection.doc(id); 
-        batch.set(docRef, clientData);
+        if (!existingClientIds.has(client.id)) {
+            const { id, ...clientData } = client;
+            const docRef = clientsCollection.doc(id); 
+            batch.set(docRef, clientData);
+        }
       }
       await batch.commit();
 
+      // Refetch all clients after seeding
       const seededSnapshot = await clientsCollection.get();
-      return seededSnapshot.docs.map(fromFirestore);
+      clients = seededSnapshot.docs.map(fromFirestore);
     }
-    return snapshot.docs.map(fromFirestore);
+    
+    return clients;
+
   } catch (error) {
     console.error('Error fetching clients:', error);
     return [];
