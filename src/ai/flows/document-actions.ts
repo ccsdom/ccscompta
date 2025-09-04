@@ -2,25 +2,54 @@
 'use server';
 
 import { z } from 'genkit';
-import { db } from '@/lib/firebase';
-import { collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
 import type { Document } from '@/lib/types';
-import { documentConverter } from '@/lib/document-data';
 import { MOCK_DOCUMENTS } from '@/data/mock-data';
+import type { FirestoreDataConverter, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
-const getDocumentsCollectionRef = () => collection(db, 'documents').withConverter(documentConverter);
+
+// Firestore data converter moved here to be server-only
+const documentConverter: FirestoreDataConverter<Document> = {
+    toFirestore: (docData: Omit<Document, 'id'>) => {
+        // Remove client-only fields before sending to Firestore
+        const { dataUrl, ...rest } = docData;
+        return rest;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot): Document => {
+        const data = snapshot.data();
+        return {
+            id: snapshot.id,
+            name: data.name,
+            uploadDate: data.uploadDate,
+            status: data.status,
+            storagePath: data.storagePath,
+            type: data.type,
+            confidence: data.confidence,
+            extractedData: data.extractedData,
+            auditTrail: data.auditTrail,
+            comments: data.comments,
+            clientId: data.clientId,
+        };
+    }
+};
+
+
+const getDocumentsCollectionRef = () => db.collection('documents').withConverter(documentConverter);
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
     try {
-        const q = query(getDocumentsCollectionRef(), where("clientId", "==", clientId));
-        let snapshot = await getDocs(q);
+        const q = getDocumentsCollectionRef().where("clientId", "==", clientId);
+        let snapshot = await q.get();
 
         if (snapshot.empty && MOCK_DOCUMENTS[clientId]) {
             console.log(`No documents found for client ${clientId}. Seeding with mock data...`);
+            const batch = db.batch();
             for (const docData of MOCK_DOCUMENTS[clientId]) {
-                await addDoc(getDocumentsCollectionRef(), docData);
+                 const docRef = getDocumentsCollectionRef().doc();
+                 batch.set(docRef, docData);
             }
-            snapshot = await getDocs(q);
+            await batch.commit();
+            snapshot = await q.get();
         }
 
         return snapshot.docs.map(doc => doc.data());
@@ -32,9 +61,10 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
 
 export async function getDocumentById(docId: string): Promise<Document | null> {
     try {
-        const snapshot = await getDoc(doc(db, 'documents', docId).withConverter(documentConverter));
-        if (snapshot.exists()) {
-            return snapshot.data();
+        const docRef = getDocumentsCollectionRef().doc(docId);
+        const snapshot = await docRef.get();
+        if (snapshot.exists) {
+            return snapshot.data() as Document;
         }
         return null;
     } catch (error) {
@@ -60,7 +90,8 @@ const DocumentSchemaForAdd = z.object({
 export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>): Promise<Document> {
     const validatedData = DocumentSchemaForAdd.parse(docData);
     try {
-        const docRef = await addDoc(getDocumentsCollectionRef(), validatedData);
+        const collectionRef = getDocumentsCollectionRef();
+        const docRef = await collectionRef.add(validatedData);
         return {
             id: docRef.id,
             ...validatedData
@@ -79,8 +110,8 @@ const UpdateDocumentInputSchema = z.object({
 export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocumentInputSchema>): Promise<void> {
     const validatedData = UpdateDocumentInputSchema.parse({ id, updates });
     try {
-        const docRef = doc(db, 'documents', validatedData.id).withConverter(documentConverter);
-        await updateDoc(docRef, validatedData.updates);
+        const docRef = getDocumentsCollectionRef().doc(validatedData.id);
+        await docRef.update(validatedData.updates);
     } catch (error) {
         console.error("Error updating document:", error);
         throw new Error("Failed to update document.");
@@ -89,7 +120,8 @@ export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocum
 
 export async function deleteDocument(docId: string): Promise<void> {
     try {
-        await deleteDoc(doc(db, 'documents', docId));
+        const docRef = getDocumentsCollectionRef().doc(docId);
+        await docRef.delete();
     } catch (error) {
         console.error("Error deleting document:", error);
         throw new Error("Failed to delete document.");

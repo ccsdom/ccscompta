@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase-admin';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { Timestamp } from 'firebase-admin/firestore';
@@ -21,7 +21,7 @@ const fromFirestore = (doc: FirebaseFirestore.DocumentSnapshot): Client => {
   if (activityData instanceof Timestamp) {
     lastActivity = activityData.toDate().toISOString().split('T')[0];
   } else if (typeof activityData === 'string') {
-    lastActivity = activityData; // Pour les mock data
+    lastActivity = activityData;
   } else {
     lastActivity = new Date().toISOString().split('T')[0];
   }
