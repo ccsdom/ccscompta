@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { getDocuments } from '@/ai/flows/document-actions';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -269,9 +270,12 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedDocs = localStorage.getItem('documents');
-    if (storedDocs) {
-        setAllDocs(JSON.parse(storedDocs));
+    if(document?.clientId) {
+      const fetchDocs = async () => {
+        const clientDocs = await getDocuments(document.clientId);
+        setAllDocs(clientDocs);
+      }
+      fetchDocs();
     }
   }, [document]);
 
@@ -435,5 +439,3 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     </CardWrapper>
   );
 }
-
-    

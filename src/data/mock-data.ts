@@ -17,7 +17,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
             uploadDate: '2024-07-15T10:00:00Z',
             status: 'approved',
             storagePath: 'alpha/Facture-Apple-01.pdf',
-            type: 'invoice',
+            type: 'purchase invoice',
             confidence: 0.98,
             clientId: 'alpha',
             extractedData: {
@@ -67,7 +67,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
                 transactions: [
                     { date: '2024-07-05', description: 'PRLV FREE MOBILE', amount: -29.99, vendor: 'Free Mobile', category: 'Télécommunications' },
                     { date: '2024-07-10', description: 'VIR RECU Rbt Amazon', amount: 50.00, vendor: 'Amazon', category: 'Remboursement' },
-                    { date: '2024-07-14', description: 'PAIEMENT CB APPLE STORE', amount: -1299.99, vendor: 'Apple Store', category: 'Services informatiques', matchingDocumentId: 'alpha/Facture-Apple-01.pdf' },
+                    { date: '2024-07-14', description: 'PAIEMENT CB APPLE STORE', amount: -1299.99, vendor: 'Apple Store', category: 'Services informatiques' },
                 ]
             },
             auditTrail: [
@@ -83,7 +83,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
             uploadDate: '2024-07-10T11:30:00Z',
             status: 'approved',
             storagePath: 'beta/facture-fournitures.pdf',
-            type: 'invoice',
+            type: 'purchase invoice',
             confidence: 0.95,
             clientId: 'beta',
             extractedData: {
