@@ -1,6 +1,7 @@
 
 import { config } from 'dotenv';
-config();
+// Doit être la toute première chose à s'exécuter pour charger les variables d'environnement
+config({ path: '.env' });
 
 'use server';
 
