@@ -86,6 +86,7 @@ export default function ClientsPage() {
         if (result.success) {
             setClients(prev => prev.filter(c => c.id !== client.id));
             toast({ title: 'Client supprimé', description: `Le client ${client.name} a été supprimé.` });
+            router.refresh();
         } else {
             toast({ variant: 'destructive', title: 'Erreur', description: result.error });
         }
@@ -94,6 +95,7 @@ export default function ClientsPage() {
     
     const handleClientsImported = () => {
         fetchClients();
+        router.refresh();
     }
     
     const handleExportClients = async () => {
