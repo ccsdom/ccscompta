@@ -56,6 +56,7 @@ const fromFirestore = (firestoreDoc: DocumentSnapshot<DocumentData>): Client => 
 };
 
 export async function getClients(): Promise<Client[]> {
+  "use server";
   try {
     const snapshot = await getDocs(clientsCollection);
     if (snapshot.empty) {
@@ -75,6 +76,7 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
+  "use server";
   try {
     const docRef = doc(db, 'clients', id);
     const docSnap = await getDoc(docRef);
@@ -108,6 +110,7 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  "use server";
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
 
@@ -152,6 +155,7 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  "use server";
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
     const docRef = doc(db, 'clients', validatedUpdates.id);
@@ -180,6 +184,7 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
+  "use server";
   try {
     const docRef = doc(db, 'clients', id);
     await deleteDoc(docRef);
