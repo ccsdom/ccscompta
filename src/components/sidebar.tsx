@@ -28,6 +28,7 @@ const accountantNavItems = [
 
 const clientNavItems = [
   { href: '/dashboard/my-documents', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { href: '/dashboard/my-documents', icon: FileText, label: 'Mes Documents' },
   { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner un document' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },
@@ -145,11 +146,12 @@ export function Sidebar() {
       <nav className="flex-1 px-4 py-4 space-y-2">
         {navItems.map((item) => (
           <Link
-            key={item.href}
+            key={item.href + item.label}
             href={item.href}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
-              isNavItemActive(item.href) ? 'bg-muted text-primary' : ''
+              isNavItemActive(item.href) && item.label !== 'Tableau de bord' ? 'bg-muted text-primary' : '',
+              isNavItemActive(item.href) && item.href === '/dashboard/my-documents' && pathname === item.href ? 'bg-muted text-primary' : ''
             )}>
               <item.icon className="h-4 w-4" />
               {item.label}
