@@ -36,8 +36,8 @@ import { getClients, deleteClient, updateClientsStatus } from '@/ai/flows/client
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import Papa from 'papaparse';
 import { Checkbox } from '@/components/ui/checkbox';
+import * as XLSX from 'xlsx';
 
 
 export const mockAccountants = [
@@ -130,20 +130,16 @@ export default function ClientsPage() {
                 return;
             }
 
-            const csv = Papa.unparse(allClients);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
+            const worksheet = XLSX.utils.json_to_sheet(allClients);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
+            
             const date = new Date().toISOString().slice(0, 10);
-            link.setAttribute("download", `export-clients-${date}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            XLSX.writeFile(workbook, `export-clients-${date}.xlsx`);
             
             toast({
               title: "Exportation réussie",
-              description: `${allClients.length} clients ont été exportés.`,
+              description: `${allClients.length} clients ont été exportés au format Excel.`,
             });
         } catch (error) {
             console.error("Failed to export clients:", error);
@@ -227,7 +223,7 @@ export default function ClientsPage() {
                     <ClientImportDialog onClientsImported={handleClientsImported} />
                      <Button variant="outline" onClick={handleExportClients}>
                         <Download className="mr-2 h-4 w-4" />
-                        Exporter en CSV
+                        Exporter
                     </Button>
                     <Button onClick={() => router.push('/dashboard/clients/new')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
