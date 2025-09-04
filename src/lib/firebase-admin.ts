@@ -4,25 +4,24 @@ import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 let adminApp: App;
 
 if (getApps().length === 0) {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // This handles the private key, removing potential quotes and parsing escaped newlines.
-  const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
-  
-  if (!projectId || !clientEmail || !privateKeyRaw) {
-    throw new Error('Firebase Admin SDK credentials are not set or are invalid in .env file.');
+  const base64Config = process.env.FIREBASE_ADMIN_SDK_CONFIG_BASE64;
+
+  if (!base64Config) {
+    throw new Error('La variable d\'environnement FIREBASE_ADMIN_SDK_CONFIG_BASE64 n\'est pas définie. Veuillez encoder votre fichier JSON de service account en Base64.');
   }
 
-  // Clean the private key: remove quotes and replace escaped newlines
-  const privateKey = privateKeyRaw.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+  try {
+    const serviceAccountJson = Buffer.from(base64Config, 'base64').toString('utf8');
+    const serviceAccount = JSON.parse(serviceAccountJson);
 
-  adminApp = initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
+    adminApp = initializeApp({
+      credential: cert(serviceAccount),
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'analyse ou de l'initialisation des credentials Firebase Admin:", error);
+    throw new Error("Impossible d'initialiser le SDK Admin de Firebase. Vérifiez le format de votre variable d'environnement FIREBASE_ADMIN_SDK_CONFIG_BASE64.");
+  }
+
 } else {
   adminApp = getApps()[0];
 }
