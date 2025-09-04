@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env' });
+dotenv.config();
 
 import '@/ai/flows/extract-data-from-documents.ts';
 import '@/ai/flows/recognize-document-type.ts';
