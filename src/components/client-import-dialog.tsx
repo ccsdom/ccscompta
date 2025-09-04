@@ -26,7 +26,8 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
-    const REQUIRED_HEADERS = ['name', 'siret', 'address', 'legalRepresentative', 'fiscalYearEndDate', 'email', 'phone'];
+    const REQUIRED_HEADERS_STANDARD = ['name', 'siret', 'address', 'legalRepresentative', 'fiscalYearEndDate', 'email', 'phone'];
+    const CUSTOM_HEADERS = ['RAISON SOCIALE', 'SIRET', 'REPRESENTEE PAR', 'Adresse EMAIL', 'TELEPHONE'];
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -53,20 +54,36 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
             skipEmptyLines: true,
             complete: (results) => {
                 const headers = results.meta.fields || [];
-                const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
+                const isStandardFormat = REQUIRED_HEADERS_STANDARD.every(h => headers.includes(h));
+                const isCustomFormat = CUSTOM_HEADERS.every(h => headers.includes(h));
 
-                if (missingHeaders.length > 0) {
-                    setErrors([`Les colonnes suivantes sont manquantes dans votre fichier CSV : ${missingHeaders.join(', ')}`]);
+                if (!isStandardFormat && !isCustomFormat) {
+                     setErrors([`Les en-têtes de votre fichier CSV ne correspondent à aucun format attendu. Veuillez utiliser soit le format standard (${REQUIRED_HEADERS_STANDARD.join(', ')}), soit votre format personnalisé (${CUSTOM_HEADERS.join(', ')}).`]);
                     setIsLoading(false);
                     return;
                 }
-
+                
                 if (results.errors.length > 0) {
                     setErrors(results.errors.map(e => `Ligne ${e.row}: ${e.message}`));
                 }
 
-                // Filter out any object that doesn't have a name property (likely empty rows)
-                const validData = (results.data as ParsedClient[]).filter(row => row.name && row.name.trim() !== "");
+                let processedData: ParsedClient[];
+
+                if (isCustomFormat) {
+                    processedData = (results.data as any[]).map(row => ({
+                        name: row['RAISON SOCIALE'],
+                        siret: row['SIRET'],
+                        legalRepresentative: row['REPRESENTEE PAR'],
+                        email: row['Adresse EMAIL'],
+                        phone: row['TELEPHONE'],
+                        address: '', // champ manquant
+                        fiscalYearEndDate: '', // champ manquant
+                    }));
+                } else {
+                     processedData = results.data as ParsedClient[];
+                }
+
+                const validData = processedData.filter(row => row.name && row.name.trim() !== "");
                 setParsedData(validData);
                 setIsLoading(false);
             },
@@ -92,36 +109,44 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         }
 
         setIsLoading(true);
-        try {
-            for (const clientData of parsedData) {
-                await addClient({
-                    ...clientData,
-                    status: 'onboarding',
-                });
-            }
-
-            toast({
-                title: 'Importation réussie',
-                description: `${parsedData.length} clients ont été ajoutés avec succès.`
+        let importedCount = 0;
+        let errorCount = 0;
+        
+        for (const clientData of parsedData) {
+            const result = await addClient({
+                ...clientData,
+                status: 'onboarding',
             });
+            if (result.success) {
+                importedCount++;
+            } else {
+                errorCount++;
+                console.error(`Failed to import client ${clientData.name}: ${result.error}`);
+            }
+        }
 
+        if (importedCount > 0) {
+            toast({
+                title: 'Importation terminée',
+                description: `${importedCount} clients ont été ajoutés avec succès.`
+            });
             onClientsImported();
-            
-            // Reset state and close dialog
-            setFile(null);
-            setParsedData([]);
-            setErrors([]);
-            setIsOpen(false);
-
-        } catch (error) {
+        }
+        
+        if (errorCount > 0) {
              toast({
                 variant: 'destructive',
-                title: 'Erreur d\'importation',
-                description: 'Une erreur est survenue lors de l\'ajout des clients à la base de données.'
+                title: `Erreurs lors de l'importation`,
+                description: `${errorCount} clients n'ont pas pu être importés (par ex. SIRET déjà existant). Consultez la console pour plus de détails.`
             });
-        } finally {
-            setIsLoading(false);
         }
+
+        // Reset state and close dialog
+        setFile(null);
+        setParsedData([]);
+        setErrors([]);
+        setIsOpen(false);
+        setIsLoading(false);
     }
     
     const resetState = () => {
@@ -145,7 +170,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                 <DialogHeader>
                     <DialogTitle>Importer des clients depuis un fichier CSV</DialogTitle>
                     <DialogDescription>
-                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les colonnes : {REQUIRED_HEADERS.join(', ')}.
+                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Les champs Adresse et Date de clôture peuvent être complétés manuellement après l'import.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -205,7 +230,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                                     <Table>
                                         <TableHeader className="sticky top-0 bg-background">
                                             <TableRow>
-                                                <TableHead>Nom</TableHead>
+                                                <TableHead>Raison Sociale</TableHead>
                                                 <TableHead>Email</TableHead>
                                                 <TableHead>SIRET</TableHead>
                                             </TableRow>
