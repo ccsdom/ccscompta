@@ -27,7 +27,7 @@ const accountantNavItems = [
 ];
 
 const clientNavItems = [
-  { href: '/dashboard/my-documents', icon: FileUp, label: 'Mes documents' },
+  { href: '/dashboard/my-documents', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
@@ -74,8 +74,11 @@ export function Sidebar() {
   }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
-    if (itemHref === '/dashboard' || itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin') {
+    if (itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin') {
         return pathname === itemHref;
+    }
+     if (itemHref === '/dashboard/my-documents') { // Treat my-documents as the client dashboard
+        return pathname === '/dashboard/my-documents';
     }
     return pathname.startsWith(itemHref);
   }

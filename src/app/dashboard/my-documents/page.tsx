@@ -326,7 +326,7 @@ export default function MyDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mes Documents</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
         <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables.</p>
       </div>
 
@@ -410,5 +410,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    
