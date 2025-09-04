@@ -6,36 +6,24 @@ let adminApp: App | undefined;
 let firestoreDb: Firestore | undefined;
 
 function initializeAdminApp() {
-  if (getApps().length > 0) {
-    if (getApps().some(app => app?.name === '[DEFAULT]')) {
-        adminApp = getApps().find(app => app?.name === '[DEFAULT]');
-        return;
-    }
+  if (getApps().length > 0 && getApps().some(app => app?.name === '[DEFAULT]')) {
+    adminApp = getApps().find(app => app?.name === '[DEFAULT]');
+    return;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // Make sure the private key is correctly formatted.
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    console.error("❌ Variables d'environnement manquantes pour Firebase Admin");
-    console.error("FIREBASE_PROJECT_ID:", !!projectId);
-    console.error("FIREBASE_CLIENT_EMAIL:", !!clientEmail);
-    console.error("FIREBASE_PRIVATE_KEY:", !!privateKey);
-    
+  if (!serviceAccountJson) {
+    console.error("❌ La variable d'environnement FIREBASE_SERVICE_ACCOUNT_JSON est manquante.");
     throw new Error(
-      "Impossible d'initialiser le SDK Admin de Firebase. Variables d'environnement manquantes."
+      "Impossible d'initialiser le SDK Admin de Firebase. La configuration est manquante."
     );
   }
 
   try {
+    const serviceAccount = JSON.parse(serviceAccountJson);
     adminApp = initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
+      credential: cert(serviceAccount),
     });
     console.info("✅ Firebase Admin SDK initialisé avec succès");
   } catch (error) {
