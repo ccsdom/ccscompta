@@ -140,7 +140,7 @@ const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAd
 
 const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean }) => {
     
-    const handleInputChange = (field: keyof ExtractDataOutput, value: string | number) => {
+    const handleInputChange = (field: keyof ExtractDataOutput, value: string | number | null) => {
         setFormData(prev => ({...prev, [field]: value}));
     }
 
@@ -179,16 +179,16 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label>Montant TVA</Label>
-                    <Input type="number" value={formData.vatAmount || ''} onChange={(e) => handleInputChange('vatAmount', parseFloat(e.target.value))} readOnly={isReadOnly} placeholder="Montant TVA" />
+                    <Input type="number" value={formData.vatAmount ?? ''} onChange={(e) => handleInputChange('vatAmount', e.target.value === '' ? null : parseFloat(e.target.value))} readOnly={isReadOnly} placeholder="Montant TVA" />
                 </div>
                  <div className="space-y-2">
                     <Label>Taux TVA (%)</Label>
-                    <Input type="number" value={formData.vatRate || ''} onChange={(e) => handleInputChange('vatRate', parseFloat(e.target.value))} readOnly={isReadOnly} placeholder="Taux TVA" />
+                    <Input type="number" value={formData.vatRate ?? ''} onChange={(e) => handleInputChange('vatRate', e.target.value === '' ? null : parseFloat(e.target.value))} readOnly={isReadOnly} placeholder="Taux TVA" />
                 </div>
             </div>
             <div className="space-y-2">
                 <Label>Catégorie</Label>
-                <Input value={formData.category || ''} onChange={(e) => handleInputChange('category', e.target.value)} readOnly={isReadOnly} placeholder="Catégorie suggérée par l'IA" />
+                <Input value={formData.category ?? ''} onChange={(e) => handleInputChange('category', e.target.value)} readOnly={isReadOnly} placeholder="Catégorie suggérée par l'IA" />
             </div>
             <div className="space-y-2">
                 <Label>Montants</Label>
