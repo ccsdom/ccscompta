@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -28,11 +32,12 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, deleteClient } from '@/ai/flows/client-actions';
+import { getClients, deleteClient, updateClientsStatus } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import Papa from 'papaparse';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 export const mockAccountants = [
@@ -47,6 +52,7 @@ export default function ClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
+    const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -74,6 +80,22 @@ export default function ClientsPage() {
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    const handleSelectAll = (checked: boolean | string) => {
+        if (checked) {
+            setSelectedClientIds(filteredClients.map(c => c.id));
+        } else {
+            setSelectedClientIds([]);
+        }
+    }
+    
+    const handleSelectRow = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedClientIds(prev => [...prev, id]);
+        } else {
+            setSelectedClientIds(prev => prev.filter(clientId => clientId !== id));
+        }
+    }
 
     const handleSelectClient = (clientId: string) => {
         localStorage.setItem('selectedClientId', clientId);
@@ -86,7 +108,6 @@ export default function ClientsPage() {
         if (result.success) {
             setClients(prev => prev.filter(c => c.id !== client.id));
             toast({ title: 'Client supprimé', description: `Le client ${client.name} a été supprimé.` });
-            router.refresh();
         } else {
             toast({ variant: 'destructive', title: 'Erreur', description: result.error });
         }
@@ -95,7 +116,6 @@ export default function ClientsPage() {
     
     const handleClientsImported = () => {
         fetchClients();
-        router.refresh();
     }
     
     const handleExportClients = async () => {
@@ -135,6 +155,23 @@ export default function ClientsPage() {
         }
     }
 
+    const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
+        const result = await updateClientsStatus({ clientIds: selectedClientIds, status });
+        if (result.success) {
+            await fetchClients(); // Refetch all clients to get the updates
+            toast({
+                title: "Statuts mis à jour",
+                description: `${result.updatedCount} clients ont été mis à jour.`
+            });
+        } else {
+            toast({
+                title: "Erreur de mise à jour",
+                description: result.error,
+                variant: "destructive"
+            });
+        }
+        setSelectedClientIds([]);
+    }
 
     const getStatusBadge = (status: string) => {
         switch(status) {
@@ -150,6 +187,34 @@ export default function ClientsPage() {
         const accountant = mockAccountants.find(a => a.id === accountantId);
         return accountant ? accountant.name.split(' ').map(n => n[0]).join('') : '';
     }
+
+    const BulkActionsToolbar = () => (
+        <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4">
+            <span className="text-sm font-medium text-muted-foreground pl-2">{selectedClientIds.length} sélectionné(s)</span>
+            <div className="flex-grow" />
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">Actions en masse</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Changer le statut</DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                             <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => handleBulkStatusChange('active')}>Actif</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleBulkStatusChange('inactive')}>Inactif</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleBulkStatusChange('onboarding')}>Intégration</DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                </DropdownMenuContent>
+            </DropdownMenu>
+             <Button variant="ghost" size="sm" onClick={() => setSelectedClientIds([])}>
+                <XCircle className="mr-2 h-4 w-4" />
+                Annuler
+            </Button>
+        </div>
+    )
 
     return (
         <div className="space-y-6">
@@ -170,6 +235,8 @@ export default function ClientsPage() {
                     </Button>
                 </div>
             </div>
+            
+            {selectedClientIds.length > 0 && <BulkActionsToolbar />}
 
             <Card>
                 <CardHeader>
@@ -195,7 +262,14 @@ export default function ClientsPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px]"></TableHead>
+                                <TableHead className="w-[40px] px-4">
+                                     <Checkbox
+                                        onCheckedChange={handleSelectAll}
+                                        checked={filteredClients.length > 0 && selectedClientIds.length === filteredClients.length}
+                                        indeterminate={selectedClientIds.length > 0 && selectedClientIds.length < filteredClients.length}
+                                        aria-label="Tout sélectionner"
+                                    />
+                                </TableHead>
                                 <TableHead>Nom de l'entreprise</TableHead>
                                 <TableHead>Statut</TableHead>
                                 <TableHead className="hidden md:table-cell">Comptable Attribué</TableHead>
@@ -218,13 +292,20 @@ export default function ClientsPage() {
                                 </TableRow>
                                 ))
                             ) : filteredClients.length > 0 ? filteredClients.map(client => (
-                                <TableRow key={client.id} className="group">
-                                    <TableCell>
+                                <TableRow key={client.id} data-state={selectedClientIds.includes(client.id) ? "selected" : ""}>
+                                    <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
+                                        <Checkbox
+                                            onCheckedChange={(checked) => handleSelectRow(client.id, !!checked)}
+                                            checked={selectedClientIds.includes(client.id)}
+                                            aria-label={`Sélectionner ${client.name}`}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="font-medium flex items-center gap-3">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                                             <Building className="h-5 w-5 text-muted-foreground" />
                                         </div>
+                                        {client.name}
                                     </TableCell>
-                                    <TableCell className="font-medium">{client.name}</TableCell>
                                     <TableCell>{getStatusBadge(client.status)}</TableCell>
                                     <TableCell className="hidden md:table-cell">
                                         {client.assignedAccountantId ? (

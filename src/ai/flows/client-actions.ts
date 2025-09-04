@@ -198,3 +198,33 @@ export async function deleteClient(
     };
   }
 }
+
+const UpdateClientsStatusInputSchema = z.object({
+  clientIds: z.array(z.string()),
+  status: z.enum(['active', 'inactive', 'onboarding']),
+});
+
+export async function updateClientsStatus(
+    { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
+): Promise<{ success: boolean; updatedCount: number, error?: string }> {
+    const db = adminDb.get();
+    const batch = db.batch();
+
+    try {
+        if (clientIds.length === 0) {
+            return { success: true, updatedCount: 0 };
+        }
+
+        clientIds.forEach(id => {
+            const docRef = db.collection('clients').doc(id);
+            batch.update(docRef, { status: status, lastActivity: Timestamp.fromDate(new Date()) });
+        });
+
+        await batch.commit();
+        
+        return { success: true, updatedCount: clientIds.length };
+    } catch (error) {
+        console.error("Error updating clients status:", error);
+        return { success: false, updatedCount: 0, error: error instanceof Error ? error.message : 'Erreur inconnue.' };
+    }
+}
