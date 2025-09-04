@@ -15,7 +15,7 @@ import { Skeleton } from './ui/skeleton';
 const adminNavItems = [
   { href: '/dashboard/admin', icon: ShieldCheck, label: 'Tableau de bord Admin' },
   { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
-  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports Globaux' },
+  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
 ];
 
 const accountantNavItems = [
