@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Loader2 } from "lucide-react";
+import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Loader2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import type { Document } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import React, { useState, useMemo } from 'react';
@@ -63,9 +63,12 @@ const getDocIcon = (type?: string) => {
     let icon: React.ReactNode;
     let tooltipContent: string;
 
-    if (docType.includes('invoice')) {
-        icon = <FileText className={className} />;
-        tooltipContent = 'Facture';
+    if (docType.includes('purchase invoice')) {
+        icon = <ArrowDownToLine className={className} />;
+        tooltipContent = "Facture d'achat";
+    } else if (docType.includes('sales invoice')) {
+        icon = <ArrowUpFromLine className={className} />;
+        tooltipContent = "Facture de vente";
     } else if (docType.includes('receipt')) {
         icon = <Receipt className={className} />;
         tooltipContent = 'Reçu';
@@ -74,7 +77,7 @@ const getDocIcon = (type?: string) => {
         tooltipContent = 'Relevé bancaire';
     } else {
         icon = <FileQuestion className={className} />;
-        tooltipContent = 'Autre';
+        tooltipContent = 'Type de document inconnu';
     }
 
     return (
