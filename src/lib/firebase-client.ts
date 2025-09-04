@@ -4,13 +4,12 @@ import { getStorage } from "firebase/storage";
 import { getFirestore as getClientFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  "projectId": "ccs-compta",
-  "appId": "1:641289397299:web:160436367ad4dff3e6ef46",
-  "storageBucket": "ccs-compta.appspot.com",
-  "apiKey": "AIzaSyC1Wu-pJ12Ionb9dsjWmaGusuxGmh5LZB4",
-  "authDomain": "ccs-compta.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "641289397299"
+  apiKey: "AIzaSyC1Wu-pJ12Ionb9dsjWmaGusuxGmh5LZB4",
+  authDomain: "ccs-compta.firebaseapp.com",
+  projectId: "ccs-compta",
+  storageBucket: "ccs-compta.appspot.com",
+  messagingSenderId: "641289397299",
+  appId: "1:641289397299:web:160436367ad4dff3e6ef46"
 };
 
 
