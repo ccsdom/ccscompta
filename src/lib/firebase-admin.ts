@@ -11,25 +11,37 @@ function initializeAdminApp() {
     return;
   }
 
-  // Cette approche est plus robuste pour les environnements de déploiement.
-  const base64Config = process.env.FIREBASE_ADMIN_SDK_CONFIG_BASE64;
-  
-  if (!base64Config) {
-      console.error("❌ La variable d'environnement FIREBASE_ADMIN_SDK_CONFIG_BASE64 n'est pas définie.");
-      throw new Error(
-        "Impossible d'initialiser le SDK Admin de Firebase. La configuration est manquante."
-      );
+  // Vérification des variables d'environnement
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    console.error("❌ Variables d'environnement manquantes pour Firebase Admin");
+    console.error("FIREBASE_PROJECT_ID:", !!projectId);
+    console.error("FIREBASE_CLIENT_EMAIL:", !!clientEmail);
+    console.error("FIREBASE_PRIVATE_KEY:", !!privateKey);
+    
+    throw new Error(
+      "Impossible d'initialiser le SDK Admin de Firebase. Variables d'environnement manquantes."
+    );
   }
 
   try {
-    const serviceAccountJson = Buffer.from(base64Config, "base64").toString("utf8");
-    const serviceAccount = JSON.parse(serviceAccountJson);
+    // Format correct de la private key
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
 
-    console.info("✅ Initialisation Firebase Admin SDK...");
+    console.info("✅ Initialisation Firebase Admin SDK avec variables individuelles...");
 
     adminApp = initializeApp({
-      credential: cert(serviceAccount),
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey: formattedPrivateKey,
+      }),
     });
+
+    console.info("✅ Firebase Admin SDK initialisé avec succès");
 
   } catch (error) {
     console.error("❌ Erreur lors de l'initialisation Firebase Admin:", error);
@@ -56,3 +68,6 @@ function getDb(): Firestore {
 export const db: { get: () => Firestore } = {
   get: getDb,
 };
+
+// Export pour une utilisation directe si nécessaire
+export { getDb as getFirestoreAdmin };
