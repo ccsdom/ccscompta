@@ -401,7 +401,43 @@ export default function DocumentsPage() {
   
   const filteredDocuments = useMemo(() => {
         let docs = [...documents];
-        if (searchCriteria) { /* ... filtering logic ... */ } 
+        
+        if (searchCriteria) {
+            const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
+
+            if (documentTypes && documentTypes.length > 0) {
+                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+            }
+            if (minAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
+            }
+            if (maxAmount) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
+            }
+            if (startDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+            }
+            if (endDate) {
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+            }
+            if (vendor) {
+                const lowerVendor = vendor.toLowerCase();
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+            }
+            if (keywords && keywords.length > 0) {
+                docs = docs.filter(d => {
+                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
+                    return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
+                });
+            }
+             if (!docs.length && originalQuery) {
+                 const lowercasedQuery = originalQuery.toLowerCase();
+                 docs = [...documents].filter(doc => 
+                    doc.name.toLowerCase().includes(lowercasedQuery) ||
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
+                );
+            }
+        } 
         else if (searchQuery) {
              const lowercasedQuery = searchQuery.toLowerCase();
              docs = docs.filter(doc => 
