@@ -9,7 +9,8 @@ import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL, deleteObject } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 const getStatusBadge = (status: Document['status']) => {
   switch (status) {
     case 'pending':
-      return <Badge variant="outline">En attente</Badge>;
+      return <Badge variant="outline" className="flex items-center gap-1.5"><FileClock className="h-3 w-3"/>En attente</Badge>;
     case 'processing':
       return (
             <Badge variant="secondary" className="flex items-center gap-1.5">
@@ -38,9 +39,9 @@ const getStatusBadge = (status: Document['status']) => {
             </Badge>
         );
     case 'reviewing':
-      return <Badge className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100/80">En examen</Badge>;
+      return <Badge className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100/80 flex items-center gap-1.5"><FileWarning className="h-3 w-3"/>En examen</Badge>;
     case 'approved':
-      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80">Approuvé</Badge>;
+      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80 flex items-center gap-1.5"><CheckCircle className="h-3 w-3"/>Approuvé</Badge>;
     case 'error':
       return <Badge variant="destructive">Erreur</Badge>;
     default:
@@ -246,51 +247,6 @@ export default function MyDocumentsPage() {
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
   }, [documents, searchQuery, searchCriteria]);
 
-  const SimpleDocumentHistory = () => (
-     <Card className="flex-1">
-        <CardHeader>
-            <CardTitle>Mes documents</CardTitle>
-            <CardDescription>Consultez l'historique et le statut de vos documents téléversés.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {clientDocuments.length > 0 ? (
-                <ul className="space-y-3">
-                    {clientDocuments.map(doc => (
-                        <li key={doc.id} className="flex items-center justify-between p-3 rounded-md border bg-muted/20 hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center gap-4 flex-1 min-w-0" onClick={() => handleSetActive(doc)}>
-                                <div>
-                                    <p className="font-medium truncate" title={doc.name}>{doc.name}</p>
-                                    <div className="flex items-center gap-4 mt-1">
-                                        <p className="text-sm text-muted-foreground">Le {new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</p>
-                                        {getStatusBadge(doc.status)}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                 <div className="text-center py-16">
-                    <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
-                </div>
-            )}
-        </CardContent>
-    </Card>
-  )
 
   const CommentsSectionClient = ({ comments, onAddComment }: { comments: Comment[], onAddComment: (text: string) => void }) => {
     const [newComment, setNewComment] = useState("");
@@ -340,7 +296,11 @@ export default function MyDocumentsPage() {
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
                     <div className="h-full flex flex-col"><div className="flex-1 p-6">
                             <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto mb-4">
-                                <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
+                                {activeDocument.dataUrl ? (
+                                    <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
+                                ): (
+                                    <div className="flex items-center justify-center h-full text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                                )}
                             </div>
                             <h3 className="font-semibold text-lg mb-4">Données validées</h3>
                             {activeDocument.status === 'approved' && activeDocument.extractedData ? (
@@ -369,16 +329,86 @@ export default function MyDocumentsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Mes Documents</h1>
         <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables.</p>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-1 space-y-6">
-            <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessing} />
-            <Card><CardHeader><CardTitle>Comment ça marche ?</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground space-y-2"><p>1. Déposez vos fichiers (factures, reçus, etc.) dans la zone ci-dessus.</p><p>2. Nous notifions votre comptable automatiquement.</p><p>3. Suivez le statut de vos documents dans la liste à droite.</p><p>4. Cliquez sur un document pour voir les détails et communiquer avec votre comptable.</p></CardContent></Card>
-        </div>
-        <div className="lg:col-span-2">
-            <SimpleDocumentHistory />
-        </div>
-      </div>
+
+      <Card>
+        <CardHeader>
+            <CardTitle>Nouveau document</CardTitle>
+            <CardDescription>Déposez vos fichiers ici. Ils seront automatiquement traités et envoyés à votre comptable pour examen.</CardDescription>
+        </CardHeader>
+        <CardContent>
+             <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessing} />
+        </CardContent>
+      </Card>
+      
+      <Card>
+         <CardHeader>
+            <CardTitle>Historique des documents</CardTitle>
+            <CardDescription>Consultez l'historique et le statut de vos documents téléversés.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Document</TableHead>
+                        <TableHead>Date de téléversement</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                {isLoading ? (
+                    Array.from({length: 3}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><div className="flex items-center gap-3"><div className="h-10 w-10 bg-muted rounded-md animate-pulse"></div><div className="h-5 w-40 bg-muted rounded-md animate-pulse"></div></div></TableCell>
+                            <TableCell><div className="h-5 w-24 bg-muted rounded-md animate-pulse"></div></TableCell>
+                            <TableCell><div className="h-6 w-28 bg-muted rounded-full animate-pulse"></div></TableCell>
+                            <TableCell className="text-right space-x-2"><div className="h-8 w-8 inline-block bg-muted rounded-md animate-pulse"></div><div className="h-8 w-8 inline-block bg-muted rounded-md animate-pulse"></div></TableCell>
+                        </TableRow>
+                    ))
+                ) : clientDocuments.length > 0 ? (
+                    clientDocuments.map(doc => (
+                        <TableRow key={doc.id}>
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-muted p-2 rounded-md">
+                                        <FileUp className="h-5 w-5 text-muted-foreground"/>
+                                    </div>
+                                    <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                            <TableCell className="text-right space-x-2">
+                                <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                     <TableRow>
+                        <TableCell colSpan={4} className="h-48 text-center">
+                            <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                            <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
+                        </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+        </CardContent>
+      </Card>
+
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}><DocumentPreviewSheet /></Sheet>
     </div>
   );
 }
+
+    
