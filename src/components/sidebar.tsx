@@ -30,6 +30,7 @@ const clientNavItems = [
   { href: '/dashboard/my-documents', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner un document' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
+  { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
 
