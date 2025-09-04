@@ -137,12 +137,14 @@ export function QuickUpload() {
               };
               
               const addedDoc = await addDocument(newDocData);
-              await processDocumentForClient({ ...addedDoc, dataUrl });
+              const docToProcess = { ...addedDoc, dataUrl };
+              await processDocumentForClient(docToProcess);
+              setProcessedFiles(prev => [...prev, file]);
             }
 
             window.dispatchEvent(new Event('storage')); // Notify other components to refetch
             toast({ title: "Téléversement et traitement terminés", description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.` });
-            setProcessedFiles(files);
+            
             setFilesToProcess([]);
 
         } catch (error) {

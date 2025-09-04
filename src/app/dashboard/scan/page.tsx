@@ -11,6 +11,8 @@ import { addDocument, updateDocument } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
+import { ref, uploadString } from 'firebase/storage';
+import { storage } from '@/lib/firebase-client';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -107,6 +109,10 @@ export default function ScanPage() {
         try {
             const fileName = `scan-${new Date().toISOString()}.jpg`;
             const storagePath = `${selectedClientId}/${fileName}`;
+            const storageRef = ref(storage, storagePath);
+
+            // Upload the image to Firebase Storage
+            await uploadString(storageRef, capturedImage, 'data_url');
             
             let newDocData: Omit<Document, 'id'> = {
                 name: fileName,
@@ -220,4 +226,3 @@ export default function ScanPage() {
         </div>
     );
 }
-
