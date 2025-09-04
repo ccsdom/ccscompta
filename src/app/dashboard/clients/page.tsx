@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -38,6 +38,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 export const mockAccountants = [
@@ -118,38 +120,79 @@ export default function ClientsPage() {
         fetchClients();
     }
     
-    const handleExportClients = async () => {
-        try {
-            const allClients = await getClients();
-            if (allClients.length === 0) {
-                toast({
-                    title: "Aucun client à exporter",
-                    description: "La base de données est vide.",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            const worksheet = XLSX.utils.json_to_sheet(allClients);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
-            
-            const date = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(workbook, `export-clients-${date}.xlsx`);
-            
+    const getClientsToExport = async () => {
+        const clientsToExport = await getClients();
+        if (clientsToExport.length === 0) {
             toast({
-              title: "Exportation réussie",
-              description: `${allClients.length} clients ont été exportés au format Excel.`,
-            });
-        } catch (error) {
-            console.error("Failed to export clients:", error);
-            toast({
-                title: "Erreur d'exportation",
-                description: "Une erreur est survenue lors de l'exportation des clients.",
+                title: "Aucun client à exporter",
+                description: "La base de données est vide.",
                 variant: "destructive"
             });
+            return null;
         }
+        return clientsToExport;
     }
+
+    const handleExportXLSX = async () => {
+        const clientsToExport = await getClientsToExport();
+        if (!clientsToExport) return;
+
+        const worksheet = XLSX.utils.json_to_sheet(clientsToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
+        
+        const date = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(workbook, `export-clients-${date}.xlsx`);
+        
+        toast({
+            title: "Exportation réussie",
+            description: `${clientsToExport.length} clients ont été exportés au format Excel.`,
+        });
+    }
+
+    const handleExportCSV = async () => {
+        const clientsToExport = await getClientsToExport();
+        if (!clientsToExport) return;
+
+        const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(clientsToExport));
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        const date = new Date().toISOString().slice(0, 10);
+        link.setAttribute("download", `export-clients-${date}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+            title: "Exportation réussie",
+            description: `${clientsToExport.length} clients ont été exportés au format CSV.`,
+        });
+    }
+
+    const handleExportPDF = async () => {
+        const clientsToExport = await getClientsToExport();
+        if (!clientsToExport) return;
+
+        const doc = new jsPDF();
+        doc.text("Liste des Clients", 14, 16);
+        (doc as any).autoTable({
+            head: [['Nom', 'Email', 'SIRET', 'Statut', 'Dernière Activité']],
+            body: clientsToExport.map(c => [c.name, c.email, c.siret, c.status, new Date(c.lastActivity).toLocaleDateString('fr-FR')]),
+            startY: 20,
+        });
+
+        const date = new Date().toISOString().slice(0, 10);
+        doc.save(`export-clients-${date}.pdf`);
+
+         toast({
+            title: "Exportation réussie",
+            description: `${clientsToExport.length} clients ont été exportés au format PDF.`,
+        });
+    }
+
 
     const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
         const result = await updateClientsStatus({ clientIds: selectedClientIds, status });
@@ -221,10 +264,28 @@ export default function ClientsPage() {
                 </div>
                  <div className="flex items-center gap-2">
                     <ClientImportDialog onClientsImported={handleClientsImported} />
-                     <Button variant="outline" onClick={handleExportClients}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Exporter
-                    </Button>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                <Download className="mr-2 h-4 w-4" />
+                                Exporter
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onClick={handleExportXLSX}>
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Exporter en Excel (.xlsx)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportPDF}>
+                                <FileType className="mr-2 h-4 w-4" />
+                                Exporter en PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportCSV}>
+                                <File className="mr-2 h-4 w-4" />
+                                Exporter en CSV
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button onClick={() => router.push('/dashboard/clients/new')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nouveau Client
