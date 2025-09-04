@@ -76,11 +76,8 @@ export function Sidebar() {
   }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
-    if (itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin') {
+    if (itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin' || itemHref === '/dashboard/my-documents') {
         return pathname === itemHref;
-    }
-     if (itemHref === '/dashboard/my-documents') { // Treat my-documents as the client dashboard
-        return pathname === '/dashboard/my-documents';
     }
     return pathname.startsWith(itemHref);
   }
@@ -133,14 +130,16 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="p-4 border-b space-y-4 mb-4">
-        <div className="text-center">
-            <span className={cn("text-sm font-semibold uppercase", currentRole !== 'client' ? 'text-primary' : 'text-primary')}>
-                {roleLabel}
-            </span>
-        </div>
-        {currentRole === 'accountant' && <ClientSwitcher />}
-      </div>
+      {currentRole !== 'admin' && (
+          <div className="p-4 border-b space-y-4 mb-4">
+            <div className="text-center">
+                <span className={cn("text-sm font-semibold uppercase", "text-primary")}>
+                    {roleLabel}
+                </span>
+            </div>
+            {currentRole === 'accountant' && <ClientSwitcher />}
+          </div>
+      )}
 
 
       <nav className="flex-1 px-4 py-4 space-y-2">

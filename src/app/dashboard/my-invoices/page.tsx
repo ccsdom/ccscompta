@@ -127,7 +127,7 @@ export default function MyInvoicesPage() {
                             )}
                         </TableBody>
                     </Table>
-                 <CardFooter className="text-xs text-muted-foreground">
+                 <CardFooter className="text-xs text-muted-foreground p-6">
                     <p>Pour toute question concernant une facture, veuillez contacter directement votre gestionnaire de dossier.</p>
                 </CardFooter>
             </Card>

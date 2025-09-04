@@ -16,7 +16,8 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord',
   'admin': 'Tableau de Bord Admin',
-  'my-documents': 'Mes Documents',
+  'my-documents': 'Tableau de bord',
+  'scan': 'Scanner un document',
   'my-analytics': 'Mon Analyse',
   'my-settings': 'Paramètres',
   'billing': 'Facturation',
@@ -49,6 +50,13 @@ export function Breadcrumb() {
   const segments = pathname.split('/').filter(Boolean);
   
   if (segments.length === 0) return null;
+
+  const isDashboardRoot = segments.length === 1 && (segments[0] === 'dashboard');
+  const isRoleDashboard = segments.length === 2 && ['accountant', 'admin', 'my-documents'].includes(segments[1]);
+
+  if (isDashboardRoot || isRoleDashboard) {
+    return null;
+  }
 
   return (
     <nav aria-label="fil d'ariane" className="mb-4">
