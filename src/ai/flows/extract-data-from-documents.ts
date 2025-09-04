@@ -144,8 +144,6 @@ const extractDataFlow = ai.defineFlow(
     
     let allClientDocsForAI: Document[] = [];
     if (input.documentType === 'bank statement') {
-        // If it's a bank statement, we fetch other documents for reconciliation.
-        // We filter to only include invoices and receipts as they are the only ones needed for matching.
         allClientDocsForAI = (await getDocuments(input.clientId)).filter(
             doc => doc.type === 'invoice' || doc.type === 'receipt'
         );
@@ -155,7 +153,7 @@ const extractDataFlow = ai.defineFlow(
         documentDataUri: input.documentDataUri,
         documentType: input.documentType,
         isBankStatement: input.documentType === 'bank statement',
-        allClientDocuments: allClientDocsForAI.length > 0 ? allClientDocsForAI.map(({ dataUrl, ...rest}) => rest) : undefined
+        allClientDocuments: allClientDocsForAI.length > 0 ? allClientDocsForAI.map(({ id, name, type, extractedData }) => ({ id, name, type, extractedData })) : undefined
     });
 
     return output!;
