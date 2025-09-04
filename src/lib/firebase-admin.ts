@@ -10,7 +10,7 @@ let adminApp: App;
 if (getApps().length === 0) {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // Ensure the private key is correctly formatted
+  // Ensure the private key is correctly formatted by replacing escaped newlines
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
   if (!projectId || !clientEmail || !privateKey) {
