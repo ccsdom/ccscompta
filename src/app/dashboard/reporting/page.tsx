@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Banknote, Users, TrendingUp, TrendingDown, FileCheck2, UserCheck, CalendarDays } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -11,6 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getClients } from '@/ai/flows/client-actions';
+import { getDocuments } from '@/ai/flows/document-actions';
+import type { Client } from '@/lib/client-data';
+import type { Document } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 const chartConfig = {
@@ -24,26 +29,147 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-const monthlyRevenueData = [
-  { month: 'Jan 24', revenue: 18600 },
-  { month: 'Fév 24', revenue: 30500 },
-  { month: 'Mar 24', revenue: 23700 },
-  { month: 'Avr 24', revenue: 73000, label: 'Bilans' },
-  { month: 'Mai 24', revenue: 20900 },
-  { month: 'Juin 24', revenue: 21400 },
-]
-
-const topClientsData = [
-    { name: 'Delta Industries', revenue: 15230, status: 'paid' },
-    { name: 'Entreprise Alpha', revenue: 12800, status: 'paid' },
-    { name: 'Gamma Inc.', revenue: 9500, status: 'overdue' },
-    { name: 'Bêta SARL', revenue: 7800, status: 'paid' },
-    { name: 'Epsilon Global', revenue: 4500, status: 'pending' },
-]
-
 
 export default function ReportingPage() {
-    const [timeRange, setTimeRange] = useState('6m');
+    const [timeRange, setTimeRange] = useState('1y');
+    const [clients, setClients] = useState<Client[]>([]);
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                const clientsData = await getClients();
+                setClients(clientsData);
+
+                const allDocsPromises = clientsData.map(c => getDocuments(c.id));
+                const allDocsArrays = await Promise.all(allDocsPromises);
+                setDocuments(allDocsArrays.flat());
+
+            } catch (error) {
+                console.error("Failed to load reporting data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadData();
+    }, []);
+
+    const reportingData = useMemo(() => {
+        if (clients.length === 0 || documents.length === 0) {
+            return null;
+        }
+
+        const now = new Date();
+        let filteredDocuments = documents;
+        if (timeRange === '1m') {
+            filteredDocuments = documents.filter(d => new Date(d.uploadDate).getMonth() === now.getMonth() && new Date(d.uploadDate).getFullYear() === now.getFullYear());
+        } else if (timeRange === '6m') {
+            const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+            filteredDocuments = documents.filter(d => new Date(d.uploadDate) >= sixMonthsAgo);
+        } else { // 1y
+             filteredDocuments = documents.filter(d => new Date(d.uploadDate).getFullYear() === now.getFullYear());
+        }
+
+
+        const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData?.amounts?.[0]);
+
+        const totalRevenue = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts?.[0] || 0), 0);
+        
+        const activeClients = clients.filter(c => c.status === 'active').length;
+        
+        const docsThisMonth = documents.filter(d => {
+            const docDate = new Date(d.uploadDate);
+            return docDate.getMonth() === now.getMonth() && docDate.getFullYear() === now.getFullYear();
+        }).length;
+
+        const monthlyRevenue = approvedDocs.reduce((acc, doc) => {
+            const date = new Date(doc.extractedData!.dates![0]);
+            const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
+            const amount = doc.extractedData!.amounts![0];
+            if (!acc[month]) {
+                acc[month] = 0;
+            }
+            acc[month] += amount;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const monthlyRevenueChartData = Object.entries(monthlyRevenue)
+            .map(([name, revenue]) => ({ name, revenue }))
+            .sort((a,b) => {
+                const [m1, y1] = a.name.split(' ');
+                const [m2, y2] = b.name.split(' ');
+                const months = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+                const d1 = new Date(parseInt(`20${y1}`), months.indexOf(m1));
+                const d2 = new Date(parseInt(`20${y2}`), months.indexOf(m2));
+                return d1.getTime() - d2.getTime();
+            });
+
+        const revenueByClient = approvedDocs.reduce((acc, doc) => {
+            if (!acc[doc.clientId]) {
+                acc[doc.clientId] = 0;
+            }
+            acc[doc.clientId] += doc.extractedData?.amounts?.[0] || 0;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const topClientsData = Object.entries(revenueByClient)
+            .map(([clientId, revenue]) => {
+                const client = clients.find(c => c.id === clientId);
+                return {
+                    name: client?.name || 'Client Inconnu',
+                    revenue
+                }
+            })
+            .sort((a,b) => b.revenue - a.revenue)
+            .slice(0, 5);
+
+
+        return {
+            totalRevenue,
+            pendingInvoices: 12250.00, // This remains mock data for now
+            activeClients,
+            docsThisMonth,
+            monthlyRevenueChartData,
+            topClientsData,
+        }
+
+    }, [clients, documents, timeRange]);
+
+     if (loading) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-9 w-1/3" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-28" /> <Skeleton className="h-28" />
+                    <Skeleton className="h-28" /> <Skeleton className="h-28" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Skeleton className="h-80 lg:col-span-2" />
+                    <Skeleton className="h-80" />
+                    <Skeleton className="h-80" />
+                </div>
+            </div>
+        )
+    }
+
+    if (!reportingData) {
+        return (
+            <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <AreaChart className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Pas de données à analyser</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Aucune donnée de client ou de document n'est disponible pour générer des rapports.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
 
     return (
         <div className="space-y-6">
@@ -69,14 +195,13 @@ export default function ReportingPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Chiffre d'affaires (Annuel)</CardTitle>
+                        <CardTitle className="text-sm font-medium">Chiffre d'affaires (Période)</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">450,231.89€</div>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3 text-green-500"/>
-                            +20.1% par rapport à l'année dernière
+                        <div className="text-2xl font-bold">{reportingData.totalRevenue.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Basé sur les documents approuvés
                         </p>
                     </CardContent>
                 </Card>
@@ -86,9 +211,9 @@ export default function ReportingPage() {
                         <Banknote className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">12,250.00€</div>
+                        <div className="text-2xl font-bold">{reportingData.pendingInvoices.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</div>
                         <p className="text-xs text-muted-foreground">
-                            Sur 8 factures non réglées
+                            Donnée statique de démonstration
                         </p>
                     </CardContent>
                 </Card>
@@ -98,10 +223,9 @@ export default function ReportingPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">73</div>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                           <TrendingUp className="h-3 w-3 text-green-500"/>
-                           +5 depuis le dernier trimestre
+                        <div className="text-2xl font-bold">{reportingData.activeClients}</div>
+                        <p className="text-xs text-muted-foreground">
+                           Total des clients avec statut "actif"
                         </p>
                     </CardContent>
                 </Card>
@@ -111,10 +235,9 @@ export default function ReportingPage() {
                         <FileCheck2 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">1,832</div>
-                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                           <TrendingDown className="h-3 w-3 text-red-500"/>
-                           -12% par rapport au mois dernier
+                        <div className="text-2xl font-bold">{reportingData.docsThisMonth}</div>
+                         <p className="text-xs text-muted-foreground">
+                           Documents téléversés ce mois-ci
                         </p>
                     </CardContent>
                 </Card>
@@ -124,14 +247,14 @@ export default function ReportingPage() {
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Chiffre d'affaires mensuel</CardTitle>
-                        <CardDescription>Évolution du CA facturé sur la période sélectionnée.</CardDescription>
+                        <CardDescription>Évolution du CA des documents approuvés sur la période.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <ChartContainer config={chartConfig} className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={monthlyRevenueData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
+                                <BarChart data={reportingData.monthlyRevenueChartData} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                                    <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
                                     <YAxis tickFormatter={(value) => `${(value as number / 1000)}k€`} tickLine={false} axisLine={false} />
                                     <ChartTooltip
                                         cursor={false}
@@ -141,8 +264,7 @@ export default function ReportingPage() {
                                         />}
                                     />
                                     <Bar dataKey="revenue" fill="var(--color-revenue)" radius={5}>
-                                        <LabelList dataKey="revenue" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1, minimumFractionDigits: 1})}€`} />
-                                        <LabelList dataKey="label" position="top" offset={-15} className="fill-background text-xs font-bold"/>
+                                        <LabelList dataKey="revenue" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR', notation: 'compact'})}`} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -152,22 +274,21 @@ export default function ReportingPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                 <Card className="lg:col-span-2">
+                 <Card className="lg:col-span-3">
                     <CardHeader>
                         <CardTitle>Classement des clients</CardTitle>
-                        <CardDescription>Top clients par chiffre d'affaires sur la période sélectionnée.</CardDescription>
+                        <CardDescription>Top clients par chiffre d'affaires (documents approuvés) sur la période.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Client</TableHead>
-                                    <TableHead className="text-right">CA facturé</TableHead>
-                                    <TableHead className="text-center">Statut de paiement</TableHead>
+                                    <TableHead className="text-right">CA approuvé</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {topClientsData.map(client => (
+                                {reportingData.topClientsData.map(client => (
                                     <TableRow key={client.name}>
                                         <TableCell className="font-medium flex items-center gap-3">
                                              <Avatar className="h-8 w-8 border">
@@ -176,47 +297,12 @@ export default function ReportingPage() {
                                             {client.name}
                                         </TableCell>
                                         <TableCell className="text-right font-mono">{client.revenue.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
-                                        <TableCell className="text-center">
-                                            {client.status === 'paid' && <Badge>À jour</Badge>}
-                                            {client.status === 'pending' && <Badge variant="secondary">En attente</Badge>}
-                                            {client.status === 'overdue' && <Badge variant="destructive">En retard</Badge>}
-                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </CardContent>
                 </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Bons payeurs</CardTitle>
-                        <CardDescription>Clients les plus rapides à régler leurs factures.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                            <span className="text-2xl font-bold">🥇</span>
-                            <div>
-                                <p className="font-semibold">Entreprise Alpha</p>
-                                <p className="text-xs text-muted-foreground">Paye en moyenne 2 jours avant l'échéance</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                             <span className="text-2xl font-bold">🥈</span>
-                            <div>
-                                <p className="font-semibold">Bêta SARL</p>
-                                <p className="text-xs text-muted-foreground">Paye en moyenne le jour de l'échéance</p>
-                            </div>
-                        </div>
-                         <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                             <span className="text-2xl font-bold">🥉</span>
-                            <div>
-                                <p className="font-semibold">Delta Industries</p>
-                                <p className="text-xs text-muted-foreground">Paye en moyenne 5 jours après l'échéance</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
             </div>
         </div>
     );
