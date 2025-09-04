@@ -80,7 +80,7 @@ For each transaction, you must extract:
 - A suggested accounting category based on the vendor/description.
 
 Your secondary goal is to act as a reconciliation agent. For each debit transaction, you MUST use the 'findMatchingDocument' tool to search for a corresponding invoice or receipt in the client's other documents.
-- Pass the transaction amount, cleaned-up vendor name, and date to the tool.
+- Pass the transaction amount, cleaned-up vendor name, date, and the full list of available documents ('allClientDocuments') to the tool.
 - If the tool returns a document ID, you MUST populate the 'matchingDocumentId' field for that transaction. Otherwise, leave it empty.
 
 The top-level fields (dates, amounts, vendorNames, category, vatAmount, vatRate) should be null.
@@ -145,7 +145,7 @@ const extractDataFlow = ai.defineFlow(
     let allClientDocsForAI: Document[] = [];
     if (input.documentType === 'bank statement') {
         allClientDocsForAI = (await getDocuments(input.clientId)).filter(
-            doc => doc.type === 'invoice' || doc.type === 'receipt'
+            doc => doc.type === 'purchase invoice' || doc.type === 'receipt'
         );
     }
     

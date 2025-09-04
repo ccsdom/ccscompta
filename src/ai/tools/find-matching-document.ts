@@ -10,7 +10,7 @@ import {z} from 'genkit';
 const DocumentSchema = z.object({
     id: z.string(),
     name: z.string(),
-    type: z.string(),
+    type: z.string().optional(),
     extractedData: z.object({
         amounts: z.array(z.number()).optional(),
         vendorNames: z.array(z.string()).optional(),
@@ -34,7 +34,7 @@ const findDocumentInStorage = (
 
     for (const doc of allDocs) {
         // We only search in invoices and receipts
-        if (doc.type !== 'invoice' && doc.type !== 'receipt') {
+        if (doc.type !== 'purchase invoice' && doc.type !== 'receipt') {
             continue;
         }
 
