@@ -11,19 +11,29 @@ function initializeAdminApp() {
     return;
   }
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  // Replace escaped newlines from the environment variable
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-  if (!serviceAccountJson) {
-    console.error("❌ La variable d'environnement FIREBASE_SERVICE_ACCOUNT_JSON est manquante.");
+  if (!projectId || !clientEmail || !privateKey) {
+    console.error("❌ Firebase Admin SDK - Une ou plusieurs variables d'environnement sont manquantes.");
+    console.error("FIREBASE_PROJECT_ID:", !!projectId);
+    console.error("FIREBASE_CLIENT_EMAIL:", !!clientEmail);
+    console.error("FIREBASE_PRIVATE_KEY:", !!privateKey);
+    
     throw new Error(
-      "Impossible d'initialiser le SDK Admin de Firebase. La configuration est manquante."
+      "Impossible d'initialiser le SDK Admin de Firebase. Variables d'environnement manquantes."
     );
   }
 
   try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
     adminApp = initializeApp({
-      credential: cert(serviceAccount),
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
     });
     console.info("✅ Firebase Admin SDK initialisé avec succès");
   } catch (error) {
