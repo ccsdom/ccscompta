@@ -2,45 +2,32 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import {
-  collection,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  type DocumentData,
-  type DocumentSnapshot,
-  Timestamp,
-  query,
-  where,
-} from 'firebase/firestore';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
+import { Timestamp } from 'firebase-admin/firestore';
 
-const clientsCollection = collection(db, 'clients');
+const clientsCollection = db.collection('clients');
 
-// ✅ Helper: normalise un doc Firestore vers Client sérialisable
-const fromFirestore = (firestoreDoc: DocumentSnapshot<DocumentData>): Client => {
-  const data = firestoreDoc.data();
+// Helper pour convertir les données de Firestore (côté admin)
+const fromFirestore = (doc: FirebaseFirestore.DocumentSnapshot): Client => {
+  const data = doc.data();
   if (!data) {
-    throw new Error(`Document ${firestoreDoc.id} has no data`);
+    throw new Error(`Document ${doc.id} has no data`);
   }
-
+  
   let lastActivity: string;
   const activityData = data.lastActivity;
 
   if (activityData instanceof Timestamp) {
     lastActivity = activityData.toDate().toISOString().split('T')[0];
   } else if (typeof activityData === 'string') {
-    lastActivity = activityData;
+    lastActivity = activityData; // Pour les mock data
   } else {
     lastActivity = new Date().toISOString().split('T')[0];
   }
 
   return {
-    id: firestoreDoc.id,
+    id: doc.id,
     name: data.name ?? '',
     siret: data.siret ?? '',
     address: data.address ?? '',
@@ -55,17 +42,21 @@ const fromFirestore = (firestoreDoc: DocumentSnapshot<DocumentData>): Client => 
   };
 };
 
+
 export async function getClients(): Promise<Client[]> {
-  "use server";
   try {
-    const snapshot = await getDocs(clientsCollection);
+    const snapshot = await clientsCollection.get();
     if (snapshot.empty) {
       console.log('No clients found. Seeding mock data...');
+      const batch = db.batch();
       for (const client of MOCK_CLIENTS) {
         const { id, ...clientData } = client;
-        await addDoc(clientsCollection, { ...clientData });
+        const docRef = clientsCollection.doc(); // Auto-generate ID
+        batch.set(docRef, clientData);
       }
-      const seededSnapshot = await getDocs(clientsCollection);
+      await batch.commit();
+
+      const seededSnapshot = await clientsCollection.get();
       return seededSnapshot.docs.map(fromFirestore);
     }
     return snapshot.docs.map(fromFirestore);
@@ -76,12 +67,11 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
-  "use server";
   try {
-    const docRef = doc(db, 'clients', id);
-    const docSnap = await getDoc(docRef);
+    const docRef = clientsCollection.doc(id);
+    const docSnap = await docRef.get();
 
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       return fromFirestore(docSnap);
     }
     return undefined;
@@ -110,12 +100,11 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  "use server";
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
 
-    const q = query(clientsCollection, where('siret', '==', validatedData.siret));
-    const querySnapshot = await getDocs(q);
+    const q = clientsCollection.where('siret', '==', validatedData.siret);
+    const querySnapshot = await q.get();
     if (!querySnapshot.empty) {
       const existingClient = fromFirestore(querySnapshot.docs[0]);
       throw new Error(
@@ -126,12 +115,12 @@ export async function addClient(
     const dataToSave = {
       ...validatedData,
       newDocuments: 0,
-      lastActivity: Timestamp.fromDate(new Date()), // stocke Timestamp en DB
+      lastActivity: Timestamp.fromDate(new Date()),
     };
-    const docRef = await addDoc(clientsCollection, dataToSave);
-    const newDocSnap = await getDoc(docRef);
+    const docRef = await clientsCollection.add(dataToSave);
+    const newDocSnap = await docRef.get();
 
-    if (!newDocSnap.exists()) {
+    if (!newDocSnap.exists) {
       throw new Error('Failed to create and fetch the new client.');
     }
 
@@ -155,20 +144,19 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  "use server";
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
-    const docRef = doc(db, 'clients', validatedUpdates.id);
+    const docRef = clientsCollection.doc(validatedUpdates.id);
 
     const updatesWithActivity = {
       ...validatedUpdates.updates,
       lastActivity: Timestamp.fromDate(new Date()),
     };
 
-    await updateDoc(docRef, updatesWithActivity);
+    await docRef.update(updatesWithActivity);
 
-    const updatedDoc = await getDoc(docRef);
-    if (updatedDoc.exists()) {
+    const updatedDoc = await docRef.get();
+    if (updatedDoc.exists) {
       return { success: true, data: fromFirestore(updatedDoc) };
     }
     throw new Error('Document not found after update.');
@@ -184,10 +172,9 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
-  "use server";
   try {
-    const docRef = doc(db, 'clients', id);
-    await deleteDoc(docRef);
+    const docRef = clientsCollection.doc(id);
+    await docRef.delete();
     return { success: true, data: null };
   } catch (error) {
     console.error('Error deleting client:', error);
