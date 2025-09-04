@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'genkit';
@@ -62,7 +61,7 @@ export async function getClients(): Promise<Client[]> {
     if (snapshot.empty) {
       console.log('No clients found. Seeding mock data...');
       for (const client of MOCK_CLIENTS) {
-        const { id, ...clientData } = client as any;
+        const { id, ...clientData } = client;
         await addDoc(clientsCollection, { ...clientData });
       }
       const seededSnapshot = await getDocs(clientsCollection);
