@@ -52,14 +52,14 @@ const ExtractDataOutputSchema = z.object({
   dates: z.array(z.string()).optional().describe('Dates found in the document (for invoices/receipts).'),
   amounts: z.array(z.number()).optional().describe('Total amounts (TTC) found in the document (for invoices/receipts).'),
   vendorNames: z.array(z.string()).optional().describe('Vendor names found in the document (for invoices/receipts).'),
-  vatAmount: z.number().optional().describe('The total VAT amount found in the document. If multiple VAT rates are present, sum them up.'),
-  vatRate: z.number().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
+  vatAmount: z.number().nullable().optional().describe('The total VAT amount found in the document. If multiple VAT rates are present, sum them up.'),
+  vatRate: z.number().nullable().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
   
   // Fields for multi-transaction documents like bank statements
   transactions: z.array(TransactionSchema).optional().describe('List of transactions extracted from the document (for bank statements).'),
 
   // Common fields
-  category: z.string().optional().describe('The suggested accounting category for the expense (e.g., "Fournitures", "Transport", "Repas"). Not used for bank statements.'),
+  category: z.string().nullable().optional().describe('The suggested accounting category for the expense (e.g., "Fournitures", "Transport", "Repas"). Not used for bank statements.'),
   otherInformation: z.string().optional().describe('Other relevant information extracted from the document.'),
   anomalies: z.array(z.string()).optional().describe('Potential anomalies or red flags detected in the document (e.g., "Unusually high amount", "Suspicious date").'),
 });
@@ -83,7 +83,7 @@ Your secondary goal is to act as a reconciliation agent. For each debit transact
 - Pass the transaction amount, cleaned-up vendor name, and date to the tool.
 - If the tool returns a document ID, you MUST populate the 'matchingDocumentId' field for that transaction. Otherwise, leave it empty.
 
-The top-level fields (dates, amounts, vendorNames, category, vatAmount, vatRate) should be empty.
+The top-level fields (dates, amounts, vendorNames, category, vatAmount, vatRate) should be null.
 `;
 
 const singleDocumentPrompt = `
@@ -92,7 +92,7 @@ Your goal is to extract the following fields and populate them at the top level:
 - Dates: Find all dates present in the document.
 - Amounts: Find all total monetary amounts (TTC) present.
 - Vendor Names: Identify the names of the vendors or suppliers.
-- VAT: Meticulously find the total VAT amount (TVA) and the VAT rate (Taux TVA). The rate should be a number (e.g., 20 for 20%). If not explicitly present, do not calculate or infer it; leave the fields empty.
+- VAT: Meticulously find the total VAT amount (TVA) and the VAT rate (Taux TVA). The rate should be a number (e.g., 20 for 20%). If not explicitly present, do not calculate or infer it; leave the fields null.
 - Category: Based on the document content, suggest an accounting category. Examples: "Fournitures de bureau", "Transport", "Repas et divertissement", "Services informatiques", "Loyer", "Autre".
 - Other Information: Extract any other relevant information.
 - The 'transactions' field must be empty.
