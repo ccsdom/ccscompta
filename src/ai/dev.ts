@@ -1,8 +1,6 @@
 
-'use server';
-
-// Note: We are now relying on Next.js's native .env.local loading.
-// The `dotenv` package has been removed.
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env' });
 
 import '@/ai/flows/extract-data-from-documents.ts';
 import '@/ai/flows/recognize-document-type.ts';

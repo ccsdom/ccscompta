@@ -7,14 +7,16 @@ let firestoreDb: Firestore | undefined;
 
 function initializeAdminApp() {
   if (getApps().length > 0) {
-    adminApp = getApps()[0];
-    return;
+    if (getApps().some(app => app?.name === '[DEFAULT]')) {
+        adminApp = getApps().find(app => app?.name === '[DEFAULT]');
+        return;
+    }
   }
 
-  // Vérification des variables d'environnement
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  // Make sure the private key is correctly formatted.
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
   if (!projectId || !clientEmail || !privateKey) {
     console.error("❌ Variables d'environnement manquantes pour Firebase Admin");
@@ -28,21 +30,14 @@ function initializeAdminApp() {
   }
 
   try {
-    // Format correct de la private key
-    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
-
-    console.info("✅ Initialisation Firebase Admin SDK avec variables individuelles...");
-
     adminApp = initializeApp({
       credential: cert({
         projectId,
         clientEmail,
-        privateKey: formattedPrivateKey,
+        privateKey,
       }),
     });
-
     console.info("✅ Firebase Admin SDK initialisé avec succès");
-
   } catch (error) {
     console.error("❌ Erreur lors de l'initialisation Firebase Admin:", error);
     throw new Error(
@@ -64,10 +59,6 @@ function getDb(): Firestore {
   return firestoreDb;
 }
 
-// Exporte une instance unique de Firestore avec initialisation paresseuse
 export const db: { get: () => Firestore } = {
   get: getDb,
 };
-
-// Export pour une utilisation directe si nécessaire
-export { getDb as getFirestoreAdmin };
