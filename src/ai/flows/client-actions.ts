@@ -6,7 +6,6 @@ import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { Timestamp } from 'firebase-admin/firestore';
 
-const clientsCollection = db.collection('clients');
 
 // Helper pour convertir les données de Firestore (côté admin)
 const fromFirestore = (doc: FirebaseFirestore.DocumentSnapshot): Client => {
@@ -44,6 +43,7 @@ const fromFirestore = (doc: FirebaseFirestore.DocumentSnapshot): Client => {
 
 
 export async function getClients(): Promise<Client[]> {
+  const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
     if (snapshot.empty) {
@@ -67,6 +67,7 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
+  const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
     const docSnap = await docRef.get();
@@ -100,6 +101,7 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  const clientsCollection = db.collection('clients');
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
 
@@ -144,6 +146,7 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  const clientsCollection = db.collection('clients');
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
     const docRef = clientsCollection.doc(validatedUpdates.id);
@@ -172,6 +175,7 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
+  const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
     await docRef.delete();
