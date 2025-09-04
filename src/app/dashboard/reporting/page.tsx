@@ -159,7 +159,7 @@ export default function ReportingPage() {
             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
                 <Card className="w-full max-w-md text-center">
                      <CardHeader>
-                        <AreaChart className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground" />
                         <CardTitle className="mt-4">Pas de données à analyser</CardTitle>
                     </CardHeader>
                     <CardContent>
