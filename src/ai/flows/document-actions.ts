@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'genkit';
-import { db } from '@/lib/firebase-admin';
+import { db as adminDb } from '@/lib/firebase-admin';
 import type { Document } from '@/lib/types';
 import { MOCK_DOCUMENTS } from '@/data/mock-data';
 import type { FirestoreDataConverter, QueryDocumentSnapshot } from 'firebase-admin/firestore';
@@ -33,9 +33,10 @@ const documentConverter: FirestoreDataConverter<Document> = {
 };
 
 
-const getDocumentsCollectionRef = () => db.collection('documents').withConverter(documentConverter);
+const getDocumentsCollectionRef = () => adminDb.get().collection('documents').withConverter(documentConverter);
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
+    const db = adminDb.get();
     const documentsCollection = getDocumentsCollectionRef();
     try {
         const q = documentsCollection.where("clientId", "==", clientId);

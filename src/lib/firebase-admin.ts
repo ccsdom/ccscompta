@@ -1,13 +1,19 @@
 import { getApps, initializeApp, cert, type App } from 'firebase-admin/app';
-import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
+import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
-let adminApp: App;
+let adminApp: App | undefined;
+let firestoreDb: Firestore | undefined;
 
-if (getApps().length === 0) {
+function initializeAdminApp() {
+  if (getApps().length > 0) {
+    adminApp = getApps()[0];
+    return;
+  }
+
   const base64Config = process.env.FIREBASE_ADMIN_SDK_CONFIG_BASE64;
 
   if (!base64Config) {
-    throw new Error('La variable d\'environnement FIREBASE_ADMIN_SDK_CONFIG_BASE64 n\'est pas définie. Veuillez encoder votre fichier JSON de service account en Base64.');
+    throw new Error('La variable d\'environnement FIREBASE_ADMIN_SDK_CONFIG_BASE64 n\'est pas définie.');
   }
 
   try {
@@ -21,9 +27,22 @@ if (getApps().length === 0) {
     console.error("Erreur lors de l'analyse ou de l'initialisation des credentials Firebase Admin:", error);
     throw new Error("Impossible d'initialiser le SDK Admin de Firebase. Vérifiez le format de votre variable d'environnement FIREBASE_ADMIN_SDK_CONFIG_BASE64.");
   }
-
-} else {
-  adminApp = getApps()[0];
 }
 
-export const db = getAdminFirestore(adminApp);
+function getDb(): Firestore {
+    if (!adminApp) {
+        initializeAdminApp();
+    }
+    if (!firestoreDb && adminApp) {
+        firestoreDb = getAdminFirestore(adminApp);
+    }
+    if (!firestoreDb) {
+        throw new Error("L'initialisation de Firestore a échoué.");
+    }
+    return firestoreDb;
+}
+
+// Exporte une propriété 'db' qui utilise un getter pour l'initialisation paresseuse.
+export const db = {
+    get: getDb
+};

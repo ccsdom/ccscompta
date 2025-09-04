@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase-admin';
+import { db as adminDb } from '@/lib/firebase-admin';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { Timestamp, type DocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
@@ -44,6 +44,7 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
 
 
 export async function getClients(): Promise<Client[]> {
+  const db = adminDb.get();
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
@@ -68,6 +69,7 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
+  const db = adminDb.get();
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -102,6 +104,7 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  const db = adminDb.get();
   const clientsCollection = db.collection('clients');
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
@@ -147,6 +150,7 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  const db = adminDb.get();
   const clientsCollection = db.collection('clients');
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
@@ -176,6 +180,7 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
+  const db = adminDb.get();
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
