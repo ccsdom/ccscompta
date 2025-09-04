@@ -1,21 +1,20 @@
 import { getApps, initializeApp, cert, type App } from 'firebase-admin/app';
 import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
-import { config } from 'dotenv';
-
-config(); // Load environment variables from .env file
 
 let adminApp: App;
 
-// This check is crucial for preventing re-initialization in Next.js hot-reload environments
 if (getApps().length === 0) {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // Ensure the private key is correctly formatted by replacing escaped newlines
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!projectId || !clientEmail || !privateKey) {
+  // This handles the private key, removing potential quotes and parsing escaped newlines.
+  const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
+  
+  if (!projectId || !clientEmail || !privateKeyRaw) {
     throw new Error('Firebase Admin SDK credentials are not set or are invalid in .env file.');
   }
+
+  // Clean the private key: remove quotes and replace escaped newlines
+  const privateKey = privateKeyRaw.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
 
   adminApp = initializeApp({
     credential: cert({
@@ -27,6 +26,5 @@ if (getApps().length === 0) {
 } else {
   adminApp = getApps()[0];
 }
-
 
 export const db = getAdminFirestore(adminApp);
