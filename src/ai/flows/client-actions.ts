@@ -54,7 +54,7 @@ export async function getClients(): Promise<Client[]> {
       const batch = db.batch();
       for (const client of MOCK_CLIENTS) {
         const { id, ...clientData } = client;
-        const docRef = clientsCollection.doc(); // Auto-generate ID
+        const docRef = clientsCollection.doc(id); 
         batch.set(docRef, clientData);
       }
       await batch.commit();
@@ -74,7 +74,7 @@ export async function getClientById(id: string): Promise<Client | undefined> {
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
-    const docSnap = docRef.get();
+    const docSnap = await docRef.get();
 
     if (docSnap.exists) {
       return fromFirestore(docSnap);
