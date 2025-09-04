@@ -1,6 +1,6 @@
 'use server';
 
-import { z } from 'genkit';
+import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -123,7 +123,7 @@ export async function addClient(
     const dataToSave = {
       ...validatedData,
       newDocuments: 0,
-      lastActivity: Timestamp.fromDate(new Date()), // stocke Timestamp
+      lastActivity: Timestamp.fromDate(new Date()), // stocke Timestamp en DB
     };
     const docRef = await addDoc(clientsCollection, dataToSave);
     const newDocSnap = await getDoc(docRef);
