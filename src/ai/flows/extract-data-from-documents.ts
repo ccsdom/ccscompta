@@ -69,7 +69,6 @@ export async function extractData(input: ExtractDataInput): Promise<ExtractDataO
   return extractDataFlow(input);
 }
 
-
 const bankStatementPrompt = `
 You are an expert at extracting transactions from a French bank statement.
 Your primary goal is to populate the 'transactions' array with every single transaction line.
@@ -114,12 +113,13 @@ const prompt = ai.definePrompt({
       documentDataUri: z.string(),
       documentType: z.string(),
       allClientDocuments: z.array(DocumentSchemaForTool).optional(),
+      isBankStatement: z.boolean(),
   })},
   output: {schema: ExtractDataOutputSchema},
   tools: [findMatchingDocumentTool],
   prompt: `You are an expert and vigilant accounting data extraction specialist. Your behavior depends on the documentType.
 
-{{#if (eq documentType "bank statement")}}
+{{#if isBankStatement}}
 ${bankStatementPrompt}
 {{else}}
 ${singleDocumentPrompt}
@@ -154,6 +154,7 @@ const extractDataFlow = ai.defineFlow(
     const {output} = await prompt({
         documentDataUri: input.documentDataUri,
         documentType: input.documentType,
+        isBankStatement: input.documentType === 'bank statement',
         allClientDocuments: allClientDocsForAI.length > 0 ? allClientDocsForAI.map(({ dataUrl, ...rest}) => rest) : undefined
     });
 
