@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type DocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
 
 
 // Helper pour convertir les données de Firestore (côté admin)
-const fromFirestore = (doc: FirebaseFirestore.DocumentSnapshot): Client => {
+const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   const data = doc.data();
   if (!data) {
     throw new Error(`Document ${doc.id} has no data`);
@@ -20,6 +20,7 @@ const fromFirestore = (doc: FirebaseFirestore.DocumentSnapshot): Client => {
   if (activityData instanceof Timestamp) {
     lastActivity = activityData.toDate().toISOString().split('T')[0];
   } else if (typeof activityData === 'string') {
+    // Handle mock data seeding case where date might be a string
     lastActivity = activityData;
   } else {
     lastActivity = new Date().toISOString().split('T')[0];

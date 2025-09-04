@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'genkit';
@@ -8,10 +7,10 @@ import { MOCK_DOCUMENTS } from '@/data/mock-data';
 import type { FirestoreDataConverter, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 
-// Firestore data converter moved here to be server-only
+// Firestore data converter to ensure type safety with Firestore
 const documentConverter: FirestoreDataConverter<Document> = {
     toFirestore: (docData: Omit<Document, 'id'>) => {
-        // Remove client-only fields before sending to Firestore
+        // The dataUrl is for client-side use only and should not be persisted.
         const { dataUrl, ...rest } = docData;
         return rest;
     },
@@ -42,6 +41,7 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
         const q = documentsCollection.where("clientId", "==", clientId);
         let snapshot = await q.get();
 
+        // If no documents are found for the client, seed with mock data for demo purposes
         if (snapshot.empty && MOCK_DOCUMENTS[clientId]) {
             console.log(`No documents found for client ${clientId}. Seeding with mock data...`);
             const batch = db.batch();
@@ -50,7 +50,7 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
                  batch.set(docRef, docData);
             }
             await batch.commit();
-            snapshot = await q.get();
+            snapshot = await q.get(); // Re-fetch after seeding
         }
 
         return snapshot.docs.map(doc => doc.data());
@@ -75,11 +75,12 @@ export async function getDocumentById(docId: string): Promise<Document | null> {
     }
 }
 
+// Zod schema for validating data when adding a new document
 const DocumentSchemaForAdd = z.object({
     name: z.string(),
     uploadDate: z.string(),
     status: z.enum(['pending', 'processing', 'reviewing', 'approved', 'error']),
-    dataUrl: z.string().optional(),
+    dataUrl: z.string().optional(), // dataUrl is optional and client-side only
     storagePath: z.string(),
     type: z.string().optional(),
     confidence: z.number().optional(),
@@ -94,6 +95,7 @@ export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>)
     const validatedData = DocumentSchemaForAdd.parse(docData);
     try {
         const docRef = await documentsCollection.add(validatedData);
+        // Return the full document object including the newly generated ID
         return {
             id: docRef.id,
             ...validatedData
