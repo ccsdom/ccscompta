@@ -27,7 +27,7 @@ const accountantNavItems = [
 ];
 
 const clientNavItems = [
-  { href: '/dashboard/my-documents', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { href: '/dashboard/my-documents', icon: FileText, label: 'Mes Documents' },
   { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner un document' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },

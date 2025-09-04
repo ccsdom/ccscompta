@@ -16,7 +16,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord',
   'admin': 'Tableau de Bord Admin',
-  'my-documents': 'Tableau de bord',
+  'my-documents': 'Mes Documents',
   'scan': 'Scanner un document',
   'my-analytics': 'Mon Analyse',
   'my-settings': 'Paramètres',
