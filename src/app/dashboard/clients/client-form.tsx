@@ -188,32 +188,6 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                         </FormItem>
                                     )}
                                 />
-                            <FormField
-                                    control={form.control}
-                                    name="assignedAccountantId"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Comptable Attribué</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Sélectionner un comptable" />
-                                            </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="unassigned">Non attribué</SelectItem>
-                                                {mockAccountants.map(acc => (
-                                                    <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                         <FormDescription>
-                                            Laissez vide pour ne pas attribuer de comptable.
-                                        </FormDescription>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                         </div>
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">

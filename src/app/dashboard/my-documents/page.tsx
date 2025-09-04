@@ -10,7 +10,7 @@ import { ref, getDownloadURL, deleteObject } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,12 @@ const getStatusBadge = (status: Document['status']) => {
     default:
       return <Badge variant="outline">Inconnu</Badge>;
   }
+};
+
+type DocumentGroup = {
+    title: string;
+    icon: React.ElementType;
+    documents: Document[];
 };
 
 export default function MyDocumentsPage() {
@@ -152,7 +158,7 @@ export default function MyDocumentsPage() {
       const trail = addAuditEvent(currentDoc.auditTrail, 'Erreur de traitement IA');
       await updateDocument({ id: currentDoc.id, updates: { status: 'error', auditTrail: trail } });
       setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'error', auditTrail: trail} : d));
-      toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${currentDoc.name}.` });
+      toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
       createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
     }
   }, [toast]);
@@ -234,17 +240,43 @@ export default function MyDocumentsPage() {
     setIsSheetOpen(true);
   }
   
-  const clientDocuments = useMemo(() => {
-        let docs = [...documents];
+  const groupedDocuments = useMemo(() => {
+        let filteredDocs = [...documents];
         if (searchCriteria) { /* ... filtering logic ... */ }
         else if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
-            docs = docs.filter(doc => 
+            filteredDocs = filteredDocs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
-        return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+        
+        const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+
+        const groups: { [key: string]: Document[] } = {
+            invoices: [],
+            receipts: [],
+            bankStatements: [],
+            other: [],
+        };
+
+        sortedDocs.forEach(doc => {
+            const type = doc.type?.toLowerCase() || 'other';
+            if (type.includes('invoice')) groups.invoices.push(doc);
+            else if (type.includes('receipt')) groups.receipts.push(doc);
+            else if (type.includes('bank statement')) groups.bankStatements.push(doc);
+            else groups.other.push(doc);
+        });
+
+        const result: DocumentGroup[] = [
+            { title: 'Factures', icon: FileText, documents: groups.invoices },
+            { title: 'Reçus', icon: Receipt, documents: groups.receipts },
+            { title: 'Relevés Bancaires', icon: Landmark, documents: groups.bankStatements },
+            { title: 'Autres Documents', icon: Folder, documents: groups.other },
+        ];
+
+        return result.filter(group => group.documents.length > 0);
+
   }, [documents, searchQuery, searchCriteria]);
 
 
@@ -340,71 +372,76 @@ export default function MyDocumentsPage() {
         </CardContent>
       </Card>
       
-      <Card>
-         <CardHeader>
-            <CardTitle>Historique des documents</CardTitle>
-            <CardDescription>Consultez l'historique et le statut de vos documents téléversés.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Document</TableHead>
-                        <TableHead>Date de téléversement</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                {isLoading ? (
-                    Array.from({length: 3}).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell><div className="flex items-center gap-3"><div className="h-10 w-10 bg-muted rounded-md animate-pulse"></div><div className="h-5 w-40 bg-muted rounded-md animate-pulse"></div></div></TableCell>
-                            <TableCell><div className="h-5 w-24 bg-muted rounded-md animate-pulse"></div></TableCell>
-                            <TableCell><div className="h-6 w-28 bg-muted rounded-full animate-pulse"></div></TableCell>
-                            <TableCell className="text-right space-x-2"><div className="h-8 w-8 inline-block bg-muted rounded-md animate-pulse"></div><div className="h-8 w-8 inline-block bg-muted rounded-md animate-pulse"></div></TableCell>
-                        </TableRow>
-                    ))
-                ) : clientDocuments.length > 0 ? (
-                    clientDocuments.map(doc => (
-                        <TableRow key={doc.id}>
-                            <TableCell className="font-medium">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-muted p-2 rounded-md">
-                                        <FileUp className="h-5 w-5 text-muted-foreground"/>
-                                    </div>
-                                    <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
-                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                            <TableCell className="text-right space-x-2">
-                                <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </TableCell>
-                        </TableRow>
-                    ))
-                ) : (
-                     <TableRow>
-                        <TableCell colSpan={4} className="h-48 text-center">
-                            <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
-                        </TableCell>
-                    </TableRow>
-                )}
-                </TableBody>
-            </Table>
-        </CardContent>
-      </Card>
+        {isLoading ? (
+            <div className="space-y-4">
+                <div className="h-10 w-1/3 bg-muted rounded-md animate-pulse"></div>
+                <div className="border rounded-lg">
+                    <div className="h-14 bg-muted/50 rounded-t-lg"></div>
+                    <div className="p-4 space-y-2">
+                        <div className="h-12 bg-muted rounded-md animate-pulse"></div>
+                        <div className="h-12 bg-muted rounded-md animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+        ) : groupedDocuments.length > 0 ? (
+             groupedDocuments.map((group) => (
+                <Card key={group.title}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <group.icon className="h-6 w-6" /> {group.title}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Document</TableHead>
+                                    <TableHead>Date de téléversement</TableHead>
+                                    <TableHead>Statut</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                               {group.documents.map(doc => (
+                                    <TableRow key={doc.id}>
+                                        <TableCell className="font-medium">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-muted p-2 rounded-md">
+                                                    <FileUp className="h-5 w-5 text-muted-foreground"/>
+                                                </div>
+                                                <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
+                                        <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                        <TableCell className="text-right space-x-2">
+                                            <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            ))
+        ) : (
+             <Card>
+                <CardContent className="h-48 flex flex-col items-center justify-center text-center">
+                    <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
+                </CardContent>
+            </Card>
+        )}
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}><DocumentPreviewSheet /></Sheet>
     </div>
