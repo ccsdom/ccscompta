@@ -13,6 +13,7 @@ export const MOCK_CLIENTS = [
 export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
     'alpha': [
         {
+            id: 'doc_alpha_1',
             name: 'Facture-Apple-01.pdf',
             uploadDate: '2024-07-15T10:00:00Z',
             status: 'approved',
@@ -36,6 +37,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
             comments: []
         },
         {
+            id: 'doc_alpha_2',
             name: 'Note-de-frais-deplacement.jpg',
             uploadDate: '2024-07-16T14:20:00Z',
             status: 'reviewing',
@@ -56,6 +58,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
             comments: [{ id: 'c1', text: 'Est-ce que ce déplacement est bien professionnel ?', user: 'Comptable Démo', date: '2024-07-16T15:00:00Z' }]
         },
         {
+            id: 'doc_alpha_3',
             name: 'Releve-bancaire-juillet.pdf',
             uploadDate: '2024-07-17T09:00:00Z',
             status: 'reviewing',
@@ -67,7 +70,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
                 transactions: [
                     { date: '2024-07-05', description: 'PRLV FREE MOBILE', amount: -29.99, vendor: 'Free Mobile', category: 'Télécommunications' },
                     { date: '2024-07-10', description: 'VIR RECU Rbt Amazon', amount: 50.00, vendor: 'Amazon', category: 'Remboursement' },
-                    { date: '2024-07-14', description: 'PAIEMENT CB APPLE STORE', amount: -1299.99, vendor: 'Apple Store', category: 'Services informatiques' },
+                    { date: '2024-07-14', description: 'PAIEMENT CB APPLE STORE', amount: -1299.99, vendor: 'Apple Store', category: 'Services informatiques', matchingDocumentId: 'doc_alpha_1' },
                 ]
             },
             auditTrail: [
@@ -79,6 +82,7 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
     ],
     'beta': [
         {
+            id: 'doc_beta_1',
             name: 'facture-fournitures.pdf',
             uploadDate: '2024-07-10T11:30:00Z',
             status: 'approved',
