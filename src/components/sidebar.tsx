@@ -138,7 +138,7 @@ export function Sidebar() {
                 {roleLabel}
             </span>
         </div>
-        {(currentRole === 'accountant' || currentRole === 'client') && <ClientSwitcher />}
+        {currentRole === 'accountant' && <ClientSwitcher />}
       </div>
 
 
