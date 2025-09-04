@@ -71,11 +71,11 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
 
                 if (isCustomFormat) {
                     processedData = (results.data as any[]).map(row => ({
-                        name: row['RAISON SOCIALE'],
-                        siret: row['SIRET'],
-                        legalRepresentative: row['REPRESENTEE PAR'],
-                        email: row['Adresse EMAIL'],
-                        phone: row['TELEPHONE'],
+                        name: row['RAISON SOCIALE'] || '',
+                        siret: row['SIRET'] || '',
+                        legalRepresentative: row['REPRESENTEE PAR'] || '',
+                        email: row['Adresse EMAIL'] || '',
+                        phone: row['TELEPHONE'] || '',
                         address: '', // champ manquant
                         fiscalYearEndDate: '', // champ manquant
                     }));
@@ -137,7 +137,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
              toast({
                 variant: 'destructive',
                 title: `Erreurs lors de l'importation`,
-                description: `${errorCount} clients n'ont pas pu être importés (par ex. SIRET déjà existant). Consultez la console pour plus de détails.`
+                description: `${errorCount} clients n'ont pas pu être importés (ex: SIRET déjà existant ou données invalides). Consultez la console pour plus de détails.`
             });
         }
 

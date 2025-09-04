@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -73,7 +74,7 @@ export async function getClientById(id: string): Promise<Client | undefined> {
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
-    const docSnap = await docRef.get();
+    const docSnap = docRef.get();
 
     if (docSnap.exists) {
       return fromFirestore(docSnap);
@@ -88,7 +89,7 @@ export async function getClientById(id: string): Promise<Client | undefined> {
 const AddClientInputSchema = z.object({
   name: z.string(),
   siret: z.string(),
-  email: z.string().email(),
+  email: z.string().email().or(z.literal('')),
   phone: z.string(),
   legalRepresentative: z.string(),
   address: z.string(),
@@ -135,6 +136,9 @@ export async function addClient(
     return { success: true, data: newClient };
   } catch (error) {
     console.error('Error adding client:', error);
+    if (error instanceof z.ZodError) {
+        return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue.',
