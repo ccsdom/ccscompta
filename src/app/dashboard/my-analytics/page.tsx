@@ -70,13 +70,13 @@ export default function MyAnalyticsPage() {
             return null;
         }
 
-        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a + b, 0) ?? 0), 0);
+        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a! + b!, 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
-            const date = new Date(doc.extractedData!.dates[0]);
+            const date = new Date(doc.extractedData!.dates[0]!);
             const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
             if (!acc[month]) {
                 acc[month] = 0;
             }
@@ -100,7 +100,7 @@ export default function MyAnalyticsPage() {
              if (!acc[category]) {
                 acc[category] = 0;
             }
-            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
             return acc;
         }, {} as Record<string, number>);
 
@@ -111,8 +111,8 @@ export default function MyAnalyticsPage() {
         }));
 
         const expensesByVendor = approvedDocs.reduce((acc, doc) => {
-            const vendor = doc.extractedData!.vendorNames[0] || 'Inconnu';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+            const vendor = doc.extractedData!.vendorNames![0]! || 'Inconnu';
+            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
              if (!acc[vendor]) {
                 acc[vendor] = 0;
             }
@@ -126,7 +126,7 @@ export default function MyAnalyticsPage() {
 
         const spendByType = approvedDocs.reduce((acc, doc) => {
             const type = doc.type || 'other';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a + b, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
             if (!acc[type]) {
                 acc[type] = { total: 0, count: 0 };
             }

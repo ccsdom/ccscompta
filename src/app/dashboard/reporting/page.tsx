@@ -85,9 +85,9 @@ export default function ReportingPage() {
         }).length;
 
         const monthlyRevenue = approvedDocs.reduce((acc, doc) => {
-            const date = new Date(doc.extractedData!.dates![0]);
+            const date = new Date(doc.extractedData!.dates![0]!);
             const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
-            const amount = doc.extractedData!.amounts![0];
+            const amount = doc.extractedData!.amounts![0]!;
             if (!acc[month]) {
                 acc[month] = 0;
             }
