@@ -280,20 +280,20 @@ export default function MyDocumentsPage() {
                 filteredDocs = filteredDocs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a != null && a >= minAmount));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
             }
             if (maxAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a != null && a <= maxAmount));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) >= new Date(startDate)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) <= new Date(endDate)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowerVendor)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
                 filteredDocs = filteredDocs.filter(d => {

@@ -436,20 +436,20 @@ export default function DocumentsPage() {
                 docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a? >= minAmount));
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
             }
             if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a? <= maxAmount));
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v?.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
@@ -461,7 +461,7 @@ export default function DocumentsPage() {
                  const lowercasedQuery = originalQuery.toLowerCase();
                  docs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v?.toLowerCase().includes(lowercasedQuery)))
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v != null && v.toLowerCase().includes(lowercasedQuery)))
                 );
             }
         } 
@@ -469,7 +469,7 @@ export default function DocumentsPage() {
              const lowercasedQuery = searchQuery.toLowerCase();
              docs = docs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
-                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor?.toLowerCase().includes(lowercasedQuery)))
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor != null && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
