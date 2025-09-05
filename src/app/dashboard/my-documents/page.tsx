@@ -6,7 +6,7 @@ import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase-client';
-import { ref, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -190,6 +190,7 @@ export default function MyDocumentsPage() {
     setIsProcessing(true);
     // In a real app, you might want to check against a server-side list of filenames.
     const existingFileNames = new Set(documents.map(d => d.name));
+    const docsToProcess: Document[] = [];
 
     for (const file of files) {
         if (existingFileNames.has(file.name)) {
@@ -198,26 +199,33 @@ export default function MyDocumentsPage() {
         }
         try {
             const dataUrl = await fileToDataUri(file);
-            // Don't upload to storage here, just add to DB with dataUrl for processing.
-            // A server-side function would later handle the upload to a permanent bucket.
+            const storagePath = `${clientId}/${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
+
             const newDocData: Omit<Document, 'id'> = {
                 name: file.name,
                 uploadDate: new Date().toISOString(),
-                status: 'pending',
-                dataUrl, // For immediate processing
-                storagePath: `${clientId}/${file.name}`, // Future storage path
+                status: 'processing',
+                storagePath: storagePath, 
                 clientId: clientId,
                 auditTrail: addAuditEvent([], 'Document téléversé par le client'),
                 comments: []
             };
             const newDoc = await addDocument(newDocData);
-            setDocuments(prev => [{...newDoc, dataUrl}, ...prev]);
-            await handleProcessDocument({...newDoc, dataUrl});
+            docsToProcess.push({...newDoc, dataUrl});
 
         } catch (error) {
              toast({ variant: "destructive", title: "Erreur de lecture", description: `Impossible de lire le fichier ${file.name}.`});
         }
     }
+    
+    setDocuments(prev => [...docsToProcess, ...prev]);
+
+    for (const doc of docsToProcess) {
+        await handleProcessDocument(doc);
+    }
+    
     setIsProcessing(false);
   };
 
@@ -229,8 +237,9 @@ export default function MyDocumentsPage() {
         const trail = addAuditEvent(doc.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
         const updatedComments = [...(doc.comments || []), newComment];
         await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
-        setDocuments(docs => docs.map(d => d.id === docId ? {...d, comments: updatedComments, auditTrail: trail} : d));
-        setActiveDocument(doc => doc ? {...doc, comments: updatedComments, auditTrail: trail} : null);
+        const updatedDoc = {...doc, comments: updatedComments, auditTrail: trail};
+        setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
+        setActiveDocument(updatedDoc);
     }
   };
 
@@ -244,17 +253,21 @@ export default function MyDocumentsPage() {
   }
 
   const handleSetActive = async (doc: Document) => {
-    setActiveDocument(doc);
+    let docWithDataUrl = doc;
     if (!doc.dataUrl && doc.storagePath) {
         try {
             const url = await getDownloadURL(ref(storage, doc.storagePath));
-            setDocuments(docs => docs.map(d => d.id === doc.id ? {...d, dataUrl: url} : d));
-            setActiveDocument({ ...doc, dataUrl: url });
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const dataUrl = await fileToDataUri(new File([blob], doc.name));
+            docWithDataUrl = { ...doc, dataUrl };
+            setDocuments(docs => docs.map(d => d.id === doc.id ? docWithDataUrl : d));
         } catch (error) {
             console.error("Failed to get download URL", error);
             toast({ title: "Erreur de chargement", description: "Impossible de récupérer l'aperçu du document.", variant: "destructive" });
         }
     }
+    setActiveDocument(docWithDataUrl);
     setIsSheetOpen(true);
   }
   
@@ -267,20 +280,20 @@ export default function MyDocumentsPage() {
                 filteredDocs = filteredDocs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
+                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a != null && a >= minAmount));
             }
             if (maxAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
+                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
                 filteredDocs = filteredDocs.filter(d => {
@@ -292,7 +305,7 @@ export default function MyDocumentsPage() {
                  const lowercasedQuery = originalQuery.toLowerCase();
                  filteredDocs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowercasedQuery)))
                 );
             }
         }
@@ -300,7 +313,7 @@ export default function MyDocumentsPage() {
             const lowercasedQuery = searchQuery.toLowerCase();
             filteredDocs = filteredDocs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
-                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
         
@@ -388,7 +401,7 @@ export default function MyDocumentsPage() {
                                 <div className="space-y-3 text-sm">
                                     <div className="flex justify-between"><span>Fournisseur:</span><span className="font-medium">{activeDocument.extractedData.vendorNames?.join(', ')}</span></div>
                                     <div className="flex justify-between"><span>Date:</span><span className="font-medium">{activeDocument.extractedData.dates?.[0]}</span></div>
-                                    <div className="flex justify-between"><span>Montant:</span><span className="font-medium">{activeDocument.extractedData.amounts?.[0].toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</span></div>
+                                    <div className="flex justify-between"><span>Montant:</span><span className="font-medium">{activeDocument.extractedData.amounts?.[0]?.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</span></div>
                                     <div className="flex justify-between"><span>Catégorie:</span><span className="font-medium">{activeDocument.extractedData.category}</span></div>
                                 </div>
                             ) : ( <div className="text-center text-sm text-muted-foreground py-8"><p>Les données du document n'ont pas encore été validées par votre comptable.</p></div> )}

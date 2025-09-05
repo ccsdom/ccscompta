@@ -10,7 +10,7 @@ import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase-client';
-import { ref, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import {
   Sheet,
@@ -147,11 +147,14 @@ export default function DocumentsPage() {
         const dataUrl = await fileToDataUri(file);
         const storagePath = `${selectedClientId}/${file.name}`;
         
+        // Upload to storage first
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+
         const newDocData: Omit<Document, 'id'> = {
           name: file.name,
           uploadDate: new Date().toISOString(),
           status: 'pending' as const,
-          dataUrl,
           storagePath,
           clientId: selectedClientId,
           auditTrail: [{ action: 'Document téléversé', date: new Date().toISOString(), user: getCurrentUser() }],
@@ -181,21 +184,23 @@ export default function DocumentsPage() {
     const docToProcess = documents.find(d => d.id === docId) ?? await getDocumentById(docId);
     if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
 
+    let docWithDataUrl = docToProcess;
+
     // Ensure dataUrl is present for processing
     if (!docToProcess.dataUrl) {
       try {
-        const fileContent = await getDownloadURL(ref(storage, docToProcess.storagePath));
-        // Note: Firebase Storage download URLs are not data URIs.
-        // For Genkit, we'd need to fetch this and convert to Base64, which is complex on the client.
-        // For this demo, we'll assume the dataUrl was cached from upload. This is a limitation.
-        // A robust solution would handle this fetch-and-convert on a server-side function.
-         toast({ variant: "destructive", title: "Erreur de traitement", description: `L'aperçu du document ${docToProcess.name} n'est pas disponible pour le retraitement. Veuillez le re-téléverser.` });
-         return;
+        const url = await getDownloadURL(ref(storage, docToProcess.storagePath));
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const dataUrl = await fileToDataUri(new File([blob], docToProcess.name));
+        docWithDataUrl = {...docToProcess, dataUrl};
       } catch (e) {
           toast({ variant: "destructive", title: "Erreur de traitement", description: `Impossible de récupérer le contenu de ${docToProcess.name}.` });
           return;
       }
     }
+    
+    if (!docWithDataUrl.dataUrl) return;
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
@@ -203,13 +208,13 @@ export default function DocumentsPage() {
     setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'processing', auditTrail: trail} : d));
     
     try {
-      const recognition = await recognizeDocumentType({ documentDataUri: docToProcess.dataUrl });
+      const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl });
       trail = await addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
       const extracted = await extractData({
-        documentDataUri: docToProcess.dataUrl,
+        documentDataUri: docWithDataUrl.dataUrl,
         documentType: recognition.documentType,
-        clientId: docToProcess.clientId
+        clientId: docWithDataUrl.clientId
       });
 
       trail = await addAuditEvent(docId, 'Données extraites par IA');
@@ -224,7 +229,7 @@ export default function DocumentsPage() {
 
       if (automationSettings.isEnabled && recognition.documentType !== 'bank statement') {
           trail = await addAuditEvent(docId, 'Validation automatique initiée');
-          const validation = await validateExtraction({ documentDataUri: docToProcess.dataUrl, extractedData: extracted });
+          const validation = await validateExtraction({ documentDataUri: docWithDataUrl.dataUrl, extractedData: extracted });
           
           if (validation.isConfident && validation.confidenceScore >= automationSettings.confidenceThreshold) {
               trail = await addAuditEvent(docId, `Validation IA réussie (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Document auto-approuvé.`);
@@ -242,10 +247,14 @@ export default function DocumentsPage() {
       }
 
       await updateDocument({ id: docId, updates: finalUpdates });
-      setDocuments(docs => docs.map(d => d.id === docId ? {...d, ...finalUpdates} : d));
-      // Also update the active document if it's the one being processed
+      const finalDoc = {
+        ...docWithDataUrl,
+        ...finalUpdates,
+        id: docId // ensure id is not lost
+      };
+      setDocuments(docs => docs.map(d => d.id === docId ? finalDoc : d));
       if(activeDocumentId === docId) {
-        handleSetActiveDocument({...(await getDocumentById(docId))!});
+        handleSetActiveDocument(finalDoc);
       }
 
 
@@ -270,8 +279,7 @@ export default function DocumentsPage() {
         const updatedDoc = {...doc, ...updates};
         setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
         if (activeDocumentId === docId) {
-          setActiveDocumentId(null); // Force re-render of form
-          setActiveDocumentId(docId);
+            handleSetActiveDocument(updatedDoc);
         }
         createNotification(doc, 'a été approuvé.');
         toast({ title: "Document approuvé", description: "Les données ont été validées et enregistrées." });
@@ -290,14 +298,22 @@ export default function DocumentsPage() {
     const doc = documents.find(d => d.id === docId);
     const updatedComments = [...(doc?.comments || []), newComment];
     await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
-    setDocuments(docs => docs.map(d => d.id === docId ? {...d, comments: updatedComments, auditTrail: trail} : d));
+    const updatedDoc = {...doc!, comments: updatedComments, auditTrail: trail};
+    setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
+    if (activeDocumentId === docId) {
+        handleSetActiveDocument(updatedDoc);
+    }
   };
 
   const handleSendToCegid = async (doc: Document, isAuto: boolean = false) => {
     const user = isAuto ? 'Système (Auto-envoi)' : getCurrentUser();
     const trail = [...doc.auditTrail, { action: 'Document envoyé à Cegid', date: new Date().toISOString(), user }];
     await updateDocument({ id: doc.id, updates: { auditTrail: trail } });
-    setDocuments(docs => docs.map(d => d.id === doc.id ? {...d, auditTrail: trail} : d));
+    const updatedDoc = {...doc, auditTrail: trail};
+    setDocuments(docs => docs.map(d => d.id === doc.id ? updatedDoc : d));
+     if (activeDocumentId === doc.id) {
+        handleSetActiveDocument(updatedDoc);
+    }
     console.log("Sending to Cegid:", doc);
     toast({ title: "Données envoyées", description: `${doc.name} a été envoyé à CEGID avec succès.` });
     createNotification(doc, 'a été envoyé à Cegid.');
@@ -311,14 +327,17 @@ export default function DocumentsPage() {
         let docWithDataUrl = doc;
 
         if (!doc.dataUrl && doc.storagePath) {
-            try {
+             try {
                 const url = await getDownloadURL(ref(storage, doc.storagePath));
-                docWithDataUrl = {...doc, dataUrl: url };
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const dataUrl = await fileToDataUri(new File([blob], doc.name));
+                docWithDataUrl = {...doc, dataUrl };
                 setDocuments(docs => docs.map(d => d.id === doc.id ? docWithDataUrl : d));
-            } catch (error) {
+             } catch (error) {
                 console.error("Failed to get download URL", error);
                 toast({ title: "Erreur de chargement", description: "Impossible de récupérer l'aperçu du document.", variant: "destructive" });
-            }
+             }
         }
         
         setActiveDocumentId(docWithDataUrl.id);
@@ -410,20 +429,20 @@ export default function DocumentsPage() {
                 docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a >= minAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a? >= minAmount));
             }
             if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a <= maxAmount));
+                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a? <= maxAmount));
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => date && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v?.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
@@ -435,7 +454,7 @@ export default function DocumentsPage() {
                  const lowercasedQuery = originalQuery.toLowerCase();
                  docs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v.toLowerCase().includes(lowercasedQuery)))
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v?.toLowerCase().includes(lowercasedQuery)))
                 );
             }
         } 
@@ -443,7 +462,7 @@ export default function DocumentsPage() {
              const lowercasedQuery = searchQuery.toLowerCase();
              docs = docs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
-                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor.toLowerCase().includes(lowercasedQuery)))
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor?.toLowerCase().includes(lowercasedQuery)))
             );
         }
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
@@ -608,5 +627,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    

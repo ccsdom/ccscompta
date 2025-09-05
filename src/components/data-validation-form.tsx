@@ -167,12 +167,12 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                 <Label>Noms des vendeurs</Label>
-                {(formData.vendorNames || []).map((vendor, index) => <Input key={index} value={vendor} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
+                {(formData.vendorNames || []).map((vendor, index) => <Input key={index} value={vendor ?? ''} onChange={e => handleArrayInputChange('vendorNames', index, e.target.value)} readOnly={isReadOnly} />)}
                 {(formData.vendorNames || []).length === 0 && <Input value="-" readOnly disabled />}
                 </div>
                 <div className="space-y-2">
                 <Label>Dates</Label>
-                {(formData.dates || []).map((date, index) => <Input key={index} value={date} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
+                {(formData.dates || []).map((date, index) => <Input key={index} value={date ?? ''} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} />)}
                 {(formData.dates || []).length === 0 && <Input value="-" readOnly disabled />}
                 </div>
             </div>
@@ -193,7 +193,7 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
             <div className="space-y-2">
                 <Label>Montants</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {(formData.amounts || []).map((amount, index) => <Input type="number" key={index} value={amount} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
+                {(formData.amounts || []).map((amount, index) => <Input type="number" key={index} value={amount ?? ''} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} />)}
                 {(formData.amounts || []).length === 0 && <Input value="-" readOnly disabled />}
                 </div>
             </div>
@@ -371,7 +371,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
                 {document.name}
               </CardDescription>
             </div>
-            {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({(document.confidence ?? 0) * 100}%)</Badge>}
+            {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({((document.confidence ?? 0) * 100).toFixed(0)}%)</Badge>}
           </div>
         </CardHeader>
         <CardContent className="flex-1 p-0 lg:p-6 lg:pt-0 flex flex-col gap-4">

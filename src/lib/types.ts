@@ -30,12 +30,12 @@ export interface Document {
   type?: string;
   confidence?: number;
   extractedData?: {
-    dates?: string[];
-    amounts?: number[];
-    vendorNames?: string[];
-    vatAmount?: number;
-    vatRate?: number;
-    category?: string;
+    dates?: (string | null)[];
+    amounts?: (number | null)[];
+    vendorNames?: (string | null)[];
+    vatAmount?: number | null;
+    vatRate?: number | null;
+    category?: string | null;
     otherInformation?: string;
     anomalies?: string[];
     transactions?: {
