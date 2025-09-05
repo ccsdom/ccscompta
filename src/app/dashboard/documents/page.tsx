@@ -236,6 +236,11 @@ export default function DocumentsPage() {
               finalUpdates.status = 'approved';
               toast({ title: "Document auto-approuvé", description: `${docToProcess.name} a été traité et approuvé automatiquement.` });
               createNotification({ ...docToProcess, ...finalUpdates }, 'a été approuvé automatiquement.');
+
+              if (automationSettings.autoSend) {
+                await handleSendToCegid({ ...docWithDataUrl, ...finalUpdates } as Document, true);
+              }
+
           } else {
               trail = await addAuditEvent(docId, `Validation IA requiert une revue (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Raison: ${validation.mismatchReason || 'N/A'}`);
               toast({ title: "Traitement terminé", description: `Données extraites de ${docToProcess.name}. Prêt pour examen.` });
@@ -314,7 +319,7 @@ export default function DocumentsPage() {
      if (activeDocumentId === doc.id) {
         handleSetActiveDocument(updatedDoc);
     }
-    console.log("Sending to Cegid:", doc);
+    console.log("Données simulées envoyées à Cegid pour le document:", doc);
     toast({ title: "Données envoyées", description: `${doc.name} a été envoyé à CEGID avec succès.` });
     createNotification(doc, 'a été envoyé à Cegid.');
   };
@@ -408,7 +413,16 @@ export default function DocumentsPage() {
       toast({ title: "Aucun document à exporter", description: "Veuillez sélectionner des documents approuvés.", variant: "destructive" });
       return;
     }
-    const dataToUnparse = docsToExport.map(doc => ({ /* ... mapping logic ... */ }));
+    const dataToUnparse = docsToExport.map(doc => ({
+      'ID Document': doc.id,
+      'Nom Fichier': doc.name,
+      'Date Document': doc.extractedData?.dates?.[0],
+      'Fournisseur': doc.extractedData?.vendorNames?.[0],
+      'Montant TTC': doc.extractedData?.amounts?.[0],
+      'Montant TVA': doc.extractedData?.vatAmount,
+      'Taux TVA': doc.extractedData?.vatRate,
+      'Categorie': doc.extractedData?.category,
+     }));
     const csvContent = "data:text/csv;charset=utf-8," + Papa.unparse(dataToUnparse);
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csvContent));
@@ -627,3 +641,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
