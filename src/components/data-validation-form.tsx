@@ -25,7 +25,6 @@ import { getDocuments, sendDocumentToCegid } from '@/ai/flows/document-actions';
 interface DataValidationFormProps {
   document: Document | null;
   onUpdate: (updatedData: ExtractDataOutput) => void;
-  onSendToCegid: (doc: Document) => void;
   isLoading: boolean;
   onAddComment: (commentText: string) => void;
   isSheet?: boolean;
@@ -263,7 +262,7 @@ const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { for
 }
 
 
-export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSending, setIsSending] = useState(false);
   const [allDocs, setAllDocs] = useState<Document[]>([]);
@@ -306,7 +305,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     const result = await sendDocumentToCegid(document.id, currentUser);
     if(result.success) {
       toast({ title: "Données envoyées", description: `${document.name} a été envoyé à CEGID avec succès.` });
-      onSendToCegid(document);
+      // The parent component will refetch the documents list which will update the audit trail.
     } else {
       toast({ variant: 'destructive', title: "Erreur d'envoi", description: result.error });
     }

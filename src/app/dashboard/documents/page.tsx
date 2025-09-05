@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
-import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
+import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
 import {
   Sheet,
   SheetContent,
@@ -114,11 +114,11 @@ export default function DocumentsPage() {
     window.dispatchEvent(new Event('storage')); // Notify header
   };
 
-  const addAuditEvent = async (docId: string, action: string): Promise<AuditEvent[]> => {
+  const addAuditEvent = async (docId: string, action: string, user: string = 'Système'): Promise<AuditEvent[]> => {
     const event: AuditEvent = {
         action,
         date: new Date().toISOString(),
-        user: 'Système',
+        user,
     };
     const doc = await getDocumentById(docId);
     return [...(doc?.auditTrail || []), event];
@@ -238,7 +238,9 @@ export default function DocumentsPage() {
               createNotification({ ...docToProcess, ...finalUpdates }, 'a été approuvé automatiquement.');
 
               if (automationSettings.autoSend) {
-                await handleSendToCegid({ ...docWithDataUrl, ...finalUpdates } as Document, true);
+                // We need to fetch the updated document state before sending
+                const updatedDocForSend = await getDocumentById(docId);
+                if (updatedDocForSend) await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
               }
 
           } else {
@@ -276,7 +278,7 @@ export default function DocumentsPage() {
   };
   
   const handleUpdateDocumentData = async (docId: string, updatedData: ExtractDataOutput) => {
-    const trail = await addAuditEvent(docId, 'Document approuvé manuellement');
+    const trail = await addAuditEvent(docId, 'Document approuvé manuellement', getCurrentUser());
     const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
     await updateDocument({ id: docId, updates });
     const doc = documents.find(d => d.id === docId);
@@ -299,7 +301,7 @@ export default function DocumentsPage() {
       user: getCurrentUser(),
       date: new Date().toISOString(),
     };
-    const trail = await addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
+    const trail = await addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`, getCurrentUser());
     const doc = documents.find(d => d.id === docId);
     const updatedComments = [...(doc?.comments || []), newComment];
     await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
@@ -308,20 +310,6 @@ export default function DocumentsPage() {
     if (activeDocumentId === docId) {
         handleSetActiveDocument(updatedDoc);
     }
-  };
-
-  const handleSendToCegid = async (doc: Document, isAuto: boolean = false) => {
-    const user = isAuto ? 'Système (Auto-envoi)' : getCurrentUser();
-    const trail = [...doc.auditTrail, { action: 'Document envoyé à Cegid', date: new Date().toISOString(), user }];
-    await updateDocument({ id: doc.id, updates: { auditTrail: trail } });
-    const updatedDoc = {...doc, auditTrail: trail};
-    setDocuments(docs => docs.map(d => d.id === doc.id ? updatedDoc : d));
-     if (activeDocumentId === doc.id) {
-        handleSetActiveDocument(updatedDoc);
-    }
-    console.log("Données simulées envoyées à Cegid pour le document:", doc);
-    toast({ title: "Données envoyées", description: `${doc.name} a été envoyé à CEGID avec succès.` });
-    createNotification(doc, 'a été envoyé à Cegid.');
   };
   
   const handleSetActiveDocument = async (doc: Document | null) => {
@@ -358,7 +346,7 @@ export default function DocumentsPage() {
     const promises = selectedDocumentIds.map(async (docId) => {
       const doc = documents.find(d => d.id === docId);
       if (doc && doc.status === 'reviewing') {
-        const trail = await addAuditEvent(docId, 'Document approuvé (en masse)');
+        const trail = await addAuditEvent(docId, 'Document approuvé (en masse)', getCurrentUser());
         await updateDocument({ id: docId, updates: { status: 'approved', auditTrail: trail } });
         createNotification(doc, 'a été approuvé.');
         approvedCount++;
@@ -372,16 +360,21 @@ export default function DocumentsPage() {
 
   const handleBulkSend = async () => {
     let sentCount = 0;
-    const promises = selectedDocumentIds.map(async (docId) => {
-      const doc = documents.find(d => d.id === docId);
-      if (doc && doc.status === 'approved') {
-        await handleSendToCegid(doc);
-        sentCount++;
-      }
-    });
-    await Promise.all(promises);
+    const docsToSend = documents.filter(doc => selectedDocumentIds.includes(doc.id) && doc.status === 'approved');
+
+    for (const doc of docsToSend) {
+        const result = await sendDocumentToCegid(doc.id, getCurrentUser());
+        if (result.success) {
+            sentCount++;
+        } else {
+             toast({ title: "Erreur d'envoi", description: `Échec de l'envoi de ${doc.name}: ${result.error}`, variant: "destructive" });
+        }
+    }
+    
+    if (sentCount > 0) {
+        toast({ title: "Données envoyées", description: `${sentCount} documents ont été envoyés à CEGID.` });
+    }
     if(selectedClientId) fetchDocuments(selectedClientId);
-    toast({ title: "Données envoyées", description: `${sentCount} documents ont été envoyés à CEGID.` });
     setSelectedDocumentIds([]);
   }
 
@@ -522,14 +515,14 @@ export default function DocumentsPage() {
         <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
         <div className="flex-grow" />
         <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
-        <Button variant="outline" size="sm" onClick={handleBulkSend}><Send className="h-4 w-4 mr-2" />Envoyer</Button>
+        <Button variant="outline" size="sm" onClick={handleBulkSend}><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</Button>
         <Button variant="outline" size="sm" onClick={handleBulkExport}><Download className="h-4 w-4 mr-2" />Export Comptable</Button>
         <AlertDialog>
             <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
-                <AlertDialogHeader><AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogHeader><AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Les documents sélectionnés seront supprimés.</AlertDialogDescription></AlertDialogHeader>
                 <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -573,7 +566,6 @@ export default function DocumentsPage() {
             key={activeDocument.id}
             document={activeDocument}
             onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-            onSendToCegid={() => handleSendToCegid(activeDocument)}
             isLoading={isProcessing}
             onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
           />
@@ -624,7 +616,6 @@ export default function DocumentsPage() {
               key={activeDocument.id}
               document={activeDocument}
               onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-              onSendToCegid={() => handleSendToCegid(activeDocument)}
               isLoading={isProcessing}
               onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
               isSheet
@@ -641,5 +632,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
