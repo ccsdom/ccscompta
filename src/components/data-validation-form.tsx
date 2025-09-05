@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { getDocuments } from '@/ai/flows/document-actions';
+import { getDocuments, sendDocumentToCegid } from '@/ai/flows/document-actions';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -265,11 +265,13 @@ const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { for
 
 export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
-  const [isSent, setIsSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [allDocs, setAllDocs] = useState<Document[]>([]);
   const { toast } = useToast();
+  const [currentUser, setCurrentUser] = useState('Comptable');
 
   useEffect(() => {
+    setCurrentUser(localStorage.getItem('userName') || 'Comptable');
     if(document?.clientId) {
       const fetchDocs = async () => {
         const clientDocs = await getDocuments(document.clientId);
@@ -285,7 +287,7 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
     } else {
       setFormData(initialFormState);
     }
-    setIsSent(false);
+    setIsSending(false);
   }, [document]);
 
   const handleDiscard = () => {
@@ -296,6 +298,19 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             description: "Vos modifications ont été annulées.",
         });
     }
+  }
+
+  const handleLocalSend = async () => {
+    if (!document) return;
+    setIsSending(true);
+    const result = await sendDocumentToCegid(document.id, currentUser);
+    if(result.success) {
+      toast({ title: "Données envoyées", description: `${document.name} a été envoyé à CEGID avec succès.` });
+      onSendToCegid(document);
+    } else {
+      toast({ variant: 'destructive', title: "Erreur d'envoi", description: result.error });
+    }
+    setIsSending(false);
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -430,8 +445,8 @@ export function DataValidationForm({ document, onUpdate, onSendToCegid, isLoadin
             </>
           )}
           {document.status === 'approved' && (
-            <Button type="button" onClick={() => { onSendToCegid(document); setIsSent(true); }} disabled={isSent}>
-              {isSent ? <><Check className="h-4 w-4 mr-2" />Envoyé</> : <><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</>}
+            <Button type="button" onClick={handleLocalSend} disabled={isSending}>
+              {isSending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Envoi en cours</> : <><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</>}
             </Button>
           )}
         </CardFooter>

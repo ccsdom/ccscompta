@@ -1,10 +1,12 @@
+
 'use server';
 
 import { z } from 'genkit';
 import { db as adminDb } from '@/lib/firebase-admin';
-import type { Document } from '@/lib/types';
+import type { Document, AuditEvent } from '@/lib/types';
 import { MOCK_DOCUMENTS } from '@/data/mock-data';
 import type { FirestoreDataConverter, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { createSupplier, findSupplier } from '@/services/cegid';
 
 
 // Firestore data converter to ensure type safety with Firestore
@@ -132,5 +134,57 @@ export async function deleteDocument(docId: string): Promise<void> {
     } catch (error) {
         console.error("Error deleting document:", error);
         throw new Error("Failed to delete document.");
+    }
+}
+
+const addAuditEvent = (trail: AuditEvent[], action: string, user: string = 'Système'): AuditEvent[] => {
+    return [...trail, { action, date: new Date().toISOString(), user }];
+}
+
+export async function sendDocumentToCegid(docId: string, user: string): Promise<{success: boolean, error?: string}> {
+    try {
+        let doc = await getDocumentById(docId);
+        if (!doc) {
+            throw new Error("Document non trouvé.");
+        }
+
+        const vendorName = doc.extractedData?.vendorNames?.[0];
+        if (!vendorName) {
+            throw new Error("Aucun fournisseur n'est spécifié dans les données extraites.");
+        }
+
+        let trail = addAuditEvent(doc.auditTrail, `Envoi vers Cegid initié par ${user}`, user);
+        await updateDocument({ id: docId, updates: { auditTrail: trail } });
+
+        // 1. Check if supplier exists in Cegid
+        const existingSupplier = await findSupplier(vendorName);
+        
+        if (!existingSupplier) {
+            trail = addAuditEvent(trail, `Fournisseur "${vendorName}" non trouvé dans Cegid. Tentative de création...`);
+            await updateDocument({ id: docId, updates: { auditTrail: trail } });
+
+            const newSupplier = await createSupplier({ name: vendorName, email: '' });
+            trail = addAuditEvent(trail, `Fournisseur "${newSupplier.name}" créé avec succès dans Cegid.`);
+            await updateDocument({ id: docId, updates: { auditTrail: trail } });
+        } else {
+             trail = addAuditEvent(trail, `Fournisseur "${vendorName}" trouvé dans Cegid.`);
+             await updateDocument({ id: docId, updates: { auditTrail: trail } });
+        }
+
+        // 2. Simulate sending the accounting entry
+        trail = addAuditEvent(trail, "Écriture comptable envoyée avec succès à Cegid.");
+        await updateDocument({ id: docId, updates: { auditTrail: trail } });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Erreur lors de l'envoi à Cegid:", error);
+        let errorMessage = error instanceof Error ? error.message : 'Une erreur inconnue est survenue.';
+        let doc = await getDocumentById(docId);
+        if (doc) {
+             const trail = addAuditEvent(doc.auditTrail, `Échec de l'envoi à Cegid: ${errorMessage}`);
+             await updateDocument({ id: docId, updates: { auditTrail: trail } });
+        }
+        return { success: false, error: errorMessage };
     }
 }
