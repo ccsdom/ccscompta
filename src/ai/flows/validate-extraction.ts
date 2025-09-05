@@ -26,12 +26,12 @@ const ValidateExtractionInputSchema = z.object({
       "The accounting document as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   extractedData: z.object({
-      dates: z.array(z.string()).optional().describe('Dates found in the document.'),
-      amounts: z.array(z.number()).optional().describe('Amounts found in the document.'),
-      vendorNames: z.array(z.string()).optional().describe('Vendor names found in the document.'),
-      vatAmount: z.number().optional().describe('The VAT amount.'),
-      vatRate: z.number().optional().describe('The VAT rate.'),
-      category: z.string().optional().describe('The suggested accounting category.'),
+      dates: z.array(z.string().nullable()).optional().describe('Dates found in the document.'),
+      amounts: z.array(z.number().nullable()).optional().describe('Amounts found in the document.'),
+      vendorNames: z.array(z.string().nullable()).optional().describe('Vendor names found in the document.'),
+      vatAmount: z.number().nullable().optional().describe('The VAT amount.'),
+      vatRate: z.number().nullable().optional().describe('The VAT rate.'),
+      category: z.string().nullable().optional().describe('The suggested accounting category.'),
       otherInformation: z.string().optional().describe('Other relevant information extracted.'),
       anomalies: z.array(z.string()).optional().describe('Potential anomalies detected.'),
       transactions: z.array(TransactionSchema).optional().describe('List of transactions for bank statements.')
