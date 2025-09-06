@@ -18,8 +18,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase-client";
+import { signInWithEmailAndPassword, type User } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase-client";
 
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -59,37 +60,40 @@ export default function LoginPage() {
     window.dispatchEvent(new Event('storage'));
   }, []);
 
-  const handleRedirect = (userEmail: string) => {
-      let role = 'client';
-      let name = 'Client';
-      let clientId = 'alpha'; // default client for new users
+  const handleRedirect = async (user: User) => {
+      
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
 
-      // Any user from @ccs-compta.com is an accountant/admin
-      if (userEmail.endsWith('@ccs-compta.com') || userEmail === 'app.ccs94@gmail.com') {
-        role = 'accountant';
-        name = userEmail.split('@')[0]; // simple name generation
-        name = name.charAt(0).toUpperCase() + name.slice(1);
-      } else {
-        // All other users are clients
-        role = 'client';
-        name = userEmail.split('@')[0];
-        // In a real app, you'd look up their actual client ID from your database
-        // For now, we'll assign a default one.
-        clientId = 'beta'; 
+      if (!userSnap.exists()) {
+          toast({
+              variant: "destructive",
+              title: "Erreur de profil",
+              description: "Votre profil utilisateur est introuvable. Veuillez contacter le support.",
+          });
+          setIsLoading(false);
+          return;
       }
-
+      
+      const userData = userSnap.data();
+      const role = userData.role || 'client'; // Default to client if no role is found
+      const name = userData.name || user.email?.split('@')[0] || 'Utilisateur';
 
       localStorage.setItem('userRole', role);
       localStorage.setItem('userName', name);
-      localStorage.setItem('userEmail', userEmail);
+      localStorage.setItem('userEmail', user.email || "");
       
       if (role === 'client') {
+          const clientId = userData.clientId || 'alpha'; // Fallback client ID
           localStorage.setItem('selectedClientId', clientId);
           router.push('/dashboard/my-documents');
-      } else {
-          // Accountants default to the first client in the list for now
-          localStorage.setItem('selectedClientId', 'alpha');
-          router.push('/dashboard/accountant');
+      } else { // accountant, admin, secretary
+          localStorage.setItem('selectedClientId', 'alpha'); // Default for now
+          if (role === 'accountant' || role === 'admin') {
+              router.push('/dashboard/accountant');
+          } else if (role === 'secretary') {
+              router.push('/dashboard/secretary');
+          }
       }
   }
 
@@ -98,8 +102,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      handleRedirect(email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await handleRedirect(userCredential.user);
     } catch (error: any) {
         let errorMessage = "Une erreur inconnue est survenue.";
         switch (error.code) {

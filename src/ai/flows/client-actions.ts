@@ -44,25 +44,41 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   };
 };
 
-const seedDemoUsers = async (auth: Auth) => {
+const seedDemoUsers = async (auth: Auth, db: FirebaseFirestore.Firestore) => {
     const usersToSeed = [
-        { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin' },
-        { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée' },
+        { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
+        { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
+        { email: 'app.ccs94@gmail.com', password: 'demodemo', displayName: 'Comptable CCS', role: 'accountant' },
     ];
 
     for (const user of usersToSeed) {
         try {
-            await auth.getUserByEmail(user.email);
-            // console.log(`User ${user.email} already exists.`);
+            const userRecord = await auth.getUserByEmail(user.email);
+            // User exists, ensure profile is correct
+            const userProfileRef = db.collection('users').doc(userRecord.uid);
+            await userProfileRef.set({
+                name: user.displayName,
+                email: user.email,
+                role: user.role,
+            }, { merge: true });
+
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
                 try {
-                    await auth.createUser({
+                    const newUserRecord = await auth.createUser({
                         email: user.email,
                         password: user.password,
                         displayName: user.displayName,
                     });
-                    console.log(`✅ Demo user ${user.email} created successfully.`);
+                    
+                    const userProfileRef = db.collection('users').doc(newUserRecord.uid);
+                    await userProfileRef.set({
+                        name: user.displayName,
+                        email: user.email,
+                        role: user.role,
+                    });
+
+                    console.log(`✅ Demo user ${user.email} and profile created successfully.`);
                 } catch (createError) {
                     console.error(`❌ Failed to create demo user ${user.email}:`, createError);
                 }
@@ -85,7 +101,7 @@ export async function getClients(): Promise<Client[]> {
   
   // Seed demo users if auth service is available
   if (auth) {
-    await seedDemoUsers(auth);
+    await seedDemoUsers(auth, db);
   }
 
   const clientsCollection = db.collection('clients');
