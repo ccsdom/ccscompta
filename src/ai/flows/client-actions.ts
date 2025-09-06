@@ -7,6 +7,7 @@ import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { Timestamp, type DocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
+import { UserRecord } from 'firebase-admin/auth';
 
 
 // Helper pour convertir les données de Firestore (côté admin)
@@ -44,7 +45,15 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   };
 };
 
-const seedDemoUsers = async (auth: Auth, db: FirebaseFirestore.Firestore) => {
+export const ensureDemoUsers = async () => {
+    const auth = adminAuth.get();
+    const db = adminDb.get();
+
+    if (!auth || !db) {
+        console.warn("Auth ou DB admin non disponible, impossible de créer les utilisateurs de démo.");
+        return;
+    }
+
     const usersToSeed = [
         { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
         { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
@@ -53,15 +62,7 @@ const seedDemoUsers = async (auth: Auth, db: FirebaseFirestore.Firestore) => {
 
     for (const user of usersToSeed) {
         try {
-            const userRecord = await auth.getUserByEmail(user.email);
-            // User exists, ensure profile is correct
-            const userProfileRef = db.collection('users').doc(userRecord.uid);
-            await userProfileRef.set({
-                name: user.displayName,
-                email: user.email,
-                role: user.role,
-            }, { merge: true });
-
+            await auth.getUserByEmail(user.email);
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
                 try {
@@ -77,43 +78,48 @@ const seedDemoUsers = async (auth: Auth, db: FirebaseFirestore.Firestore) => {
                         email: user.email,
                         role: user.role,
                     });
-
-                    console.log(`✅ Demo user ${user.email} and profile created successfully.`);
+                    console.log(`✅ Utilisateur de démo ${user.email} et profil créés.`);
                 } catch (createError) {
-                    console.error(`❌ Failed to create demo user ${user.email}:`, createError);
+                    console.error(`❌ Échec de la création de l'utilisateur ${user.email}:`, createError);
                 }
-            } else {
-                console.error(`❌ Error checking user ${user.email}:`, error);
             }
         }
     }
 };
 
+export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
+    const db = adminDb.get();
+    if (!db) return null;
+
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+        return null;
+    }
+    const data = userSnap.data();
+    return {
+        role: data?.role || 'client',
+        name: data?.name || '',
+        email: data?.email || '',
+        clientId: data?.clientId
+    };
+}
+
 
 export async function getClients(): Promise<Client[]> {
   const db = adminDb.get();
-  const auth = adminAuth.get();
-
-  if (!db) {
-    console.error("Firestore Admin DB not available.");
-    return MOCK_CLIENTS; // Fallback to mock data if admin SDK failed
-  }
-  
-  // Seed demo users if auth service is available
-  if (auth) {
-    await seedDemoUsers(auth, db);
-  }
+  if (!db) return MOCK_CLIENTS;
 
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
     let clients = snapshot.docs.map(fromFirestore);
 
-    // Check if demo client 'alpha' exists. If not, seed all missing mock clients.
     const alphaClientExists = clients.some(c => c.id === 'alpha');
 
     if (!alphaClientExists) {
-      console.log('Demo clients not found. Seeding mock data...');
+      console.log('Clients de démo non trouvés. Création des données de démo...');
       const batch = db.batch();
       const existingClientIds = new Set(clients.map(c => c.id));
       
@@ -125,8 +131,7 @@ export async function getClients(): Promise<Client[]> {
         }
       }
       await batch.commit();
-
-      // Refetch all clients after seeding
+      
       const seededSnapshot = await clientsCollection.get();
       clients = seededSnapshot.docs.map(fromFirestore);
     }
@@ -134,7 +139,7 @@ export async function getClients(): Promise<Client[]> {
     return clients;
 
   } catch (error) {
-    console.error('Error fetching clients:', error);
+    console.error('Erreur lors de la récupération des clients:', error);
     return [];
   }
 }
@@ -153,7 +158,7 @@ export async function getClientById(id: string): Promise<Client | undefined> {
     }
     return undefined;
   } catch (error) {
-    console.error('Error fetching client:', error);
+    console.error('Erreur lors de la récupération du client:', error);
     return undefined;
   }
 }
@@ -324,11 +329,7 @@ export async function getAccountants(): Promise<Accountant[]> {
         const querySnapshot = await q.get();
 
         if (querySnapshot.empty) {
-            // As a fallback for demo, if no accountants are found, return a default list
-            return [
-                { id: 'acc_demo_1', name: 'Comptable Démo 1'},
-                { id: 'acc_demo_2', name: 'Comptable Démo 2'},
-            ];
+            return [];
         }
 
         return querySnapshot.docs.map(doc => ({

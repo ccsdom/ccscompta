@@ -19,8 +19,8 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { signInWithEmailAndPassword, type User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase-client";
+import { auth } from "@/lib/firebase-client";
+import { ensureDemoUsers, getUserProfile } from "@/ai/flows/client-actions";
 
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -58,14 +58,13 @@ export default function LoginPage() {
   useEffect(() => {
     localStorage.clear();
     window.dispatchEvent(new Event('storage'));
+    ensureDemoUsers(); // Ensures demo users are created on first load
   }, []);
 
   const handleRedirect = async (user: User) => {
-      
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
+      const profile = await getUserProfile(user.uid);
 
-      if (!userSnap.exists()) {
+      if (!profile) {
           toast({
               variant: "destructive",
               title: "Erreur de profil",
@@ -75,26 +74,26 @@ export default function LoginPage() {
           return;
       }
       
-      const userData = userSnap.data();
-      const role = userData.role || 'client'; // Default to client if no role is found
-      const name = userData.name || user.email?.split('@')[0] || 'Utilisateur';
-
-      localStorage.setItem('userRole', role);
-      localStorage.setItem('userName', name);
-      localStorage.setItem('userEmail', user.email || "");
+      localStorage.setItem('userRole', profile.role);
+      localStorage.setItem('userName', profile.name);
+      localStorage.setItem('userEmail', profile.email);
       
-      if (role === 'client') {
-          const clientId = userData.clientId || 'alpha'; // Fallback client ID
+      let targetPath: string;
+      if (profile.role === 'client') {
+          const clientId = profile.clientId || 'alpha'; // Fallback client ID
           localStorage.setItem('selectedClientId', clientId);
-          router.push('/dashboard/my-documents');
-      } else { // accountant, admin, secretary
-          localStorage.setItem('selectedClientId', 'alpha'); // Default for now
-          if (role === 'accountant' || role === 'admin') {
-              router.push('/dashboard/accountant');
-          } else if (role === 'secretary') {
-              router.push('/dashboard/secretary');
+          targetPath = '/dashboard/my-documents';
+      } else { 
+          localStorage.setItem('selectedClientId', 'alpha'); 
+          if (profile.role === 'accountant' || profile.role === 'admin') {
+              targetPath = '/dashboard/accountant';
+          } else if (profile.role === 'secretary') {
+              targetPath = '/dashboard/secretary';
+          } else {
+              targetPath = '/login'; // Fallback
           }
       }
+      router.push(targetPath);
   }
 
   const handleLogin = async (e: React.FormEvent) => {
