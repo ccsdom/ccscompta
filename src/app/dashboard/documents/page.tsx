@@ -36,6 +36,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
 import { FileUploader } from '@/components/file-uploader';
 import Papa from 'papaparse';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -49,11 +50,14 @@ export default function DocumentsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
+  const [dashboardFilter, setDashboardFilter] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
    const fetchDocuments = useCallback(async (clientId: string) => {
     setIsLoading(true);
@@ -88,6 +92,10 @@ export default function DocumentsPage() {
                 setSelectedClientId(null);
                 setActiveDocumentId(null);
              }
+
+             const filter = searchParams.get('filter');
+             setDashboardFilter(filter);
+
         } catch (error) {
             console.error("Failed to load state from localStorage", error)
         }
@@ -95,7 +103,7 @@ export default function DocumentsPage() {
     loadState();
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
-  }, [selectedClientId, fetchDocuments])
+  }, [selectedClientId, fetchDocuments, searchParams])
 
 
   const createNotification = (doc: Document, message: string) => {
@@ -428,7 +436,26 @@ export default function DocumentsPage() {
   const filteredDocuments = useMemo(() => {
         let docs = [...documents];
         
-        if (searchCriteria) {
+        if (dashboardFilter) {
+            const today = new Date();
+            const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+            
+            switch (dashboardFilter) {
+                case 'today':
+                    docs = docs.filter(d => new Date(d.uploadDate) >= twentyFourHoursAgo);
+                    break;
+                case 'pending_review':
+                    docs = docs.filter(d => ['pending', 'reviewing', 'error'].includes(d.status));
+                    break;
+                case 'approved_today':
+                    docs = docs.filter(doc => {
+                        const approvalEvent = doc.auditTrail.find(e => e.action.includes('approuvé'));
+                        return approvalEvent && new Date(approvalEvent.date) >= twentyFourHoursAgo;
+                    });
+                    break;
+            }
+        }
+        else if (searchCriteria) {
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
             if (documentTypes && documentTypes.length > 0) {
@@ -472,7 +499,7 @@ export default function DocumentsPage() {
             );
         }
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
-  }, [documents, searchQuery, searchCriteria]);
+  }, [documents, searchQuery, searchCriteria, dashboardFilter]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
 
@@ -486,24 +513,44 @@ export default function DocumentsPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const SearchCriteriaDisplay = () => {
-    if (!searchCriteria) return null;
+  const clearFilters = () => {
+    // Clear dashboard filter
+    if (dashboardFilter) {
+        router.replace('/dashboard/documents');
+        setDashboardFilter(null);
+    }
+    // Clear intelligent search filter
+    if (searchCriteria) {
+        setSearchCriteria(null);
+        setSearchQuery('');
+        localStorage.removeItem('searchCriteria');
+        localStorage.removeItem('searchQuery');
+        window.dispatchEvent(new Event('storage'));
+    }
+  }
 
-    const criteriaCount = Object.values(searchCriteria).filter(v => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && (typeof v !== 'string' || v.trim() !== '')).length -1;
-    
+  const FilterDisplay = () => {
+    if (!dashboardFilter && !searchCriteria) return null;
+
+    let filterText = "Filtre actif";
+    if (dashboardFilter) {
+        switch (dashboardFilter) {
+            case 'today': filterText = "Filtre : Documents du jour"; break;
+            case 'pending_review': filterText = "Filtre : En attente d'examen"; break;
+            case 'approved_today': filterText = "Filtre : Validations du jour"; break;
+        }
+    } else if (searchCriteria) {
+         const criteriaCount = Object.values(searchCriteria).filter(v => v !== null && v !== undefined && (!Array.isArray(v) || v.length > 0) && (typeof v !== 'string' || v.trim() !== '')).length -1;
+         filterText = `Filtre intelligent (${criteriaCount} critères) : "${searchCriteria.originalQuery}"`;
+    }
+
     return (
         <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4 text-sm">
-            <span className="font-medium text-muted-foreground pl-2">Filtre intelligent actif ({criteriaCount} critères) :</span>
-            <span className="text-foreground font-semibold">{searchCriteria.originalQuery}</span>
+            <span className="font-medium text-muted-foreground pl-2">{filterText}</span>
             <div className="flex-grow" />
-             <Button variant="ghost" size="icon" onClick={() => {
-                setSearchCriteria(null);
-                setSearchQuery('');
-                localStorage.removeItem('searchCriteria');
-                localStorage.removeItem('searchQuery');
-                window.dispatchEvent(new Event('storage'));
-             }}>
-                <FilterX className="h-4 w-4" />
+             <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <FilterX className="mr-2 h-4 w-4" />
+                Effacer le filtre
              </Button>
         </div>
     )
@@ -586,7 +633,7 @@ export default function DocumentsPage() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
       <div className="lg:col-span-2 flex flex-col gap-6 h-full">
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
-        <SearchCriteriaDisplay />
+        <FilterDisplay />
         <DocumentHistory
           documents={filteredDocuments}
           onProcess={(doc) => handleProcessDocument(doc.id)}
