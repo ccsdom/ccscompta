@@ -8,3 +8,4 @@ import CabinetsPage from '../cabinets/page';
 export default function AdminDashboardPage() {
     return <CabinetsPage />;
 }
+

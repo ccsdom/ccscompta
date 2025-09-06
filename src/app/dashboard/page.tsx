@@ -52,3 +52,4 @@ export default function DashboardRedirect() {
   // though the layout structure means this component is primarily for redirection.
   return null;
 }
+
