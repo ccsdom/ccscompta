@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Banknote, Users, TrendingUp, TrendingDown, FileCheck2, UserCheck, CalendarDays } from 'lucide-react';
+import { DollarSign, Banknote, Users, TrendingUp, MoreHorizontal, Edit, FileWarning, CreditCard } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, LabelList, ResponsiveContainer, YAxis } from "recharts";
 import {type ChartConfig} from '@/components/ui/chart';
@@ -16,6 +16,9 @@ import { getDocuments } from '@/ai/flows/document-actions';
 import type { Client } from '@/lib/client-data';
 import type { Document } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 
 const chartConfig = {
@@ -29,12 +32,22 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
+// Mock subscription data
+const mockClientSubscriptions = {
+    'alpha': { plan: 'Croissance', paymentStatus: 'paid' },
+    'beta': { plan: 'Essentiel', paymentStatus: 'paid' },
+    'gamma': { plan: 'Essentiel', paymentStatus: 'overdue' },
+    'delta': { plan: 'Croissance', paymentStatus: 'paid' },
+    'epsilon': { plan: 'Inactif', paymentStatus: 'n/a' },
+};
+
 
 export default function ReportingPage() {
     const [timeRange, setTimeRange] = useState('1y');
     const [clients, setClients] = useState<Client[]>([]);
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
         const loadData = async () => {
@@ -47,7 +60,7 @@ export default function ReportingPage() {
                 const allDocsArrays = await Promise.all(allDocsPromises);
                 setDocuments(allDocsArrays.flat());
 
-            } catch (error) {
+            } catch (error) => {
                 console.error("Failed to load reporting data:", error);
             } finally {
                 setLoading(false);
@@ -77,12 +90,15 @@ export default function ReportingPage() {
 
         const totalRevenue = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts?.[0] || 0), 0);
         
-        const activeClients = clients.filter(c => c.status === 'active').length;
+        const activeClientsCount = clients.filter(c => c.status === 'active').length;
         
-        const docsThisMonth = documents.filter(d => {
-            const docDate = new Date(d.uploadDate);
-            return docDate.getMonth() === now.getMonth() && docDate.getFullYear() === now.getFullYear();
-        }).length;
+        const pendingInvoices = clients.reduce((acc, client) => {
+            const sub = (mockClientSubscriptions as any)[client.id];
+            if (sub?.paymentStatus === 'overdue') {
+                return acc + (sub.plan === 'Croissance' ? 79 : 29);
+            }
+            return acc;
+        }, 0);
 
         const monthlyRevenue = approvedDocs.reduce((acc, doc) => {
             const date = new Date(doc.extractedData!.dates![0]!);
@@ -106,44 +122,47 @@ export default function ReportingPage() {
                 return d1.getTime() - d2.getTime();
             });
 
-        const revenueByClient = approvedDocs.reduce((acc, doc) => {
-            if (!acc[doc.clientId]) {
-                acc[doc.clientId] = 0;
-            }
-            acc[doc.clientId] += doc.extractedData?.amounts?.[0] || 0;
-            return acc;
-        }, {} as Record<string, number>);
+        const allClientsData = clients
+            .map(client => {
+                const clientRevenue = approvedDocs
+                    .filter(doc => doc.clientId === client.id)
+                    .reduce((sum, doc) => sum + (doc.extractedData?.amounts?.[0] || 0), 0);
+                
+                const subscription = (mockClientSubscriptions as any)[client.id] || { plan: 'N/A', paymentStatus: 'n/a' };
 
-        const topClientsData = Object.entries(revenueByClient)
-            .map(([clientId, revenue]) => {
-                const client = clients.find(c => c.id === clientId);
                 return {
-                    name: client?.name || 'Client Inconnu',
-                    revenue
+                    ...client,
+                    revenue: clientRevenue,
+                    ...subscription
                 }
             })
             .sort((a,b) => b.revenue - a.revenue)
-            .slice(0, 5);
 
 
         return {
             totalRevenue,
-            pendingInvoices: 12250.00, // This remains mock data for now
-            activeClients,
-            docsThisMonth,
+            pendingInvoices,
+            activeClientsCount,
             monthlyRevenueChartData,
-            topClientsData,
+            allClientsData,
         }
 
     }, [clients, documents, timeRange]);
+    
+    const handleManagementAction = (action: string) => {
+        toast({
+            title: "Fonctionnalité non implémentée",
+            description: `L'action "${action}" sera bientôt disponible.`
+        })
+    }
 
      if (loading) {
         return (
             <div className="space-y-6">
                 <Skeleton className="h-9 w-1/3" />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <Skeleton className="h-28" /> <Skeleton className="h-28" />
-                    <Skeleton className="h-28" /> <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Skeleton className="h-80 lg:col-span-2" />
@@ -175,8 +194,8 @@ export default function ReportingPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Rapports & Performance</h1>
-                    <p className="text-muted-foreground mt-1">Analyse de la performance financière et opérationnelle du cabinet.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Rapports & Facturation</h1>
+                    <p className="text-muted-foreground mt-1">Supervisez la performance financière et gérez les abonnements.</p>
                 </div>
                  <div className="w-[180px]">
                     <Select value={timeRange} onValueChange={setTimeRange}>
@@ -192,7 +211,7 @@ export default function ReportingPage() {
                 </div>
             </div>
             
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Chiffre d'affaires (Période)</CardTitle>
@@ -207,13 +226,13 @@ export default function ReportingPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Factures en attente</CardTitle>
+                        <CardTitle className="text-sm font-medium">Factures en retard</CardTitle>
                         <Banknote className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{reportingData.pendingInvoices.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</div>
                         <p className="text-xs text-muted-foreground">
-                            Donnée statique de démonstration
+                            Total des paiements en attente
                         </p>
                     </CardContent>
                 </Card>
@@ -223,27 +242,15 @@ export default function ReportingPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{reportingData.activeClients}</div>
+                        <div className="text-2xl font-bold">{reportingData.activeClientsCount}</div>
                         <p className="text-xs text-muted-foreground">
                            Total des clients avec statut "actif"
                         </p>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Documents Traités (Mois)</CardTitle>
-                        <FileCheck2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{reportingData.docsThisMonth}</div>
-                         <p className="text-xs text-muted-foreground">
-                           Documents téléversés ce mois-ci
-                        </p>
-                    </CardContent>
-                </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1">
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Chiffre d'affaires mensuel</CardTitle>
@@ -273,37 +280,69 @@ export default function ReportingPage() {
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                 <Card className="lg:col-span-3">
-                    <CardHeader>
-                        <CardTitle>Classement des clients</CardTitle>
-                        <CardDescription>Top clients par chiffre d'affaires (documents approuvés) sur la période.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead className="text-right">CA approuvé</TableHead>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Gestion des Abonnements Clients</CardTitle>
+                    <CardDescription>Visualisez et gérez les abonnements de chaque client.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Client</TableHead>
+                                <TableHead>Plan Actuel</TableHead>
+                                <TableHead>Statut Paiement</TableHead>
+                                <TableHead className="text-right">CA (période)</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {reportingData.allClientsData.map(client => (
+                                <TableRow key={client.id}>
+                                    <TableCell className="font-medium flex items-center gap-3">
+                                         <Avatar className="h-8 w-8 border">
+                                            <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        {client.name}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={client.plan === 'Croissance' ? 'default' : 'secondary'}>{client.plan}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {client.paymentStatus === 'paid' && <Badge variant="outline" className="text-green-600 border-green-300">Payé</Badge>}
+                                        {client.paymentStatus === 'overdue' && <Badge variant="destructive">En retard</Badge>}
+                                        {client.paymentStatus === 'n/a' && <Badge variant="outline">N/A</Badge>}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono">{client.revenue.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleManagementAction("Modifier le plan")}>
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    Modifier le plan
+                                                </DropdownMenuItem>
+                                                 <DropdownMenuItem onClick={() => handleManagementAction("Générer une facture")}>
+                                                    <CreditCard className="mr-2 h-4 w-4" />
+                                                    Générer une facture
+                                                </DropdownMenuItem>
+                                                 <DropdownMenuItem onClick={() => handleManagementAction("Envoyer un rappel")}>
+                                                    <FileWarning className="mr-2 h-4 w-4" />
+                                                    Envoyer un rappel
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {reportingData.topClientsData.map(client => (
-                                    <TableRow key={client.name}>
-                                        <TableCell className="font-medium flex items-center gap-3">
-                                             <Avatar className="h-8 w-8 border">
-                                                <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            {client.name}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono">{client.revenue.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </div>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
     );
 }

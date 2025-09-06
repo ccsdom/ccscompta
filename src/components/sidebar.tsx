@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, AreaChart, Building2, LifeBuoy, ShieldCheck, ScanLine } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, AreaChart, Building2, LifeBuoy, ShieldCheck, ScanLine, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -14,7 +14,7 @@ import { Skeleton } from './ui/skeleton';
 
 const adminNavItems = [
   { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
-  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports Globaux' },
+  { href: '/dashboard/reporting', icon: DollarSign, label: 'Rapports & Facturation' },
 ];
 
 const accountantNavItems = [
@@ -164,6 +164,11 @@ export function Sidebar() {
         </div>
         {(currentRole === 'accountant' || currentRole === 'secretary') && (
             <ClientSwitcher />
+        )}
+         {currentRole === 'admin' && (
+            <div className="text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
+               Supervision de la plateforme
+            </div>
         )}
       </div>
 
