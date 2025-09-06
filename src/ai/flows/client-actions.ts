@@ -197,7 +197,7 @@ export async function getClientById(id: string): Promise<Client | undefined> {
 const AddClientInputSchema = z.object({
   name: z.string(),
   siret: z.string(),
-  email: z.string().email().or(z.literal('')),
+  email: z.string().email(),
   phone: z.string(),
   legalRepresentative: z.string(),
   address: z.string(),
@@ -214,9 +214,12 @@ export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
   const db = adminDb.get();
-  if (!db) return { success: false, error: "La base de données n'est pas disponible." };
+  const auth = adminAuth.get();
+  if (!db || !auth) return { success: false, error: "La base de données ou le service d'authentification n'est pas disponible." };
 
   const clientsCollection = db.collection('clients');
+  const usersCollection = db.collection('users');
+
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
 
@@ -229,19 +232,51 @@ export async function addClient(
       );
     }
 
+    // 1. Create client document in Firestore
     const dataToSave = {
       ...validatedData,
       newDocuments: 0,
       lastActivity: Timestamp.fromDate(new Date()),
     };
-    const docRef = await clientsCollection.add(dataToSave);
-    const newDocSnap = await docRef.get();
+    const clientDocRef = await clientsCollection.add(dataToSave);
+    const newDocSnap = await clientDocRef.get();
 
     if (!newDocSnap.exists) {
       throw new Error('Failed to create and fetch the new client.');
     }
 
     const newClient = fromFirestore(newDocSnap);
+
+    // 2. Create user in Firebase Authentication
+    let userRecord;
+    try {
+        userRecord = await auth.getUserByEmail(validatedData.email);
+        console.log(`User ${validatedData.email} already exists in Auth.`);
+    } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+            userRecord = await auth.createUser({
+                email: validatedData.email,
+                displayName: validatedData.legalRepresentative,
+                // A password is required, but the user should reset it.
+                // It's recommended to send a password reset email in a real scenario.
+                password: `temp_${Date.now()}` 
+            });
+             console.log(`User ${validatedData.email} created in Auth.`);
+        } else {
+            throw error; // Rethrow other auth errors
+        }
+    }
+
+    // 3. Create user profile in 'users' collection and link it to the client
+    const userProfileRef = usersCollection.doc(userRecord.uid);
+    await userProfileRef.set({
+        name: validatedData.legalRepresentative,
+        email: validatedData.email,
+        role: 'client',
+        clientId: newClient.id, // Link user profile to client document ID
+    });
+     console.log(`User profile for ${validatedData.email} created in Firestore.`);
+
 
     return { success: true, data: newClient };
   } catch (error) {

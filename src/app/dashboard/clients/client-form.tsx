@@ -109,10 +109,13 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                 name="email"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Adresse Email</FormLabel>
+                                    <FormLabel>Adresse Email (pour la connexion)</FormLabel>
                                     <FormControl>
-                                        <Input type="email" placeholder="contact@entreprise.com" {...field} />
+                                        <Input type="email" placeholder="contact@entreprise.com" {...field} disabled={!!client} />
                                     </FormControl>
+                                     <FormDescription>
+                                        Cette adresse sera utilisée pour la connexion du client.
+                                    </FormDescription>
                                     <FormMessage />
                                     </FormItem>
                                 )}
