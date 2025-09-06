@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Banknote, Users, TrendingUp, MoreHorizontal, Edit, FileWarning, CreditCard } from 'lucide-react';
+import { DollarSign, Banknote, Users, TrendingUp, MoreHorizontal, Edit, FileWarning, CreditCard, AreaChart } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, LabelList, ResponsiveContainer, YAxis } from "recharts";
 import {type ChartConfig} from '@/components/ui/chart';
@@ -60,7 +60,7 @@ export default function ReportingPage() {
                 const allDocsArrays = await Promise.all(allDocsPromises);
                 setDocuments(allDocsArrays.flat());
 
-            } catch (error) => {
+            } catch (error) {
                 console.error("Failed to load reporting data:", error);
             } finally {
                 setLoading(false);
