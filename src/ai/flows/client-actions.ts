@@ -91,19 +91,39 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
     const db = adminDb.get();
     if (!db) return null;
 
-    const userRef = doc(db, "users", uid);
-    const userSnap = await getDoc(userRef);
+    try {
+        const userRef = db.collection("users").doc(uid);
+        const userSnap = await userRef.get();
 
-    if (!userSnap.exists()) {
+        if (!userSnap.exists) {
+            console.log(`No profile found for UID: ${uid}. Trying to seed demo users.`);
+            // This is a failsafe in case the login page call doesn't happen first.
+            await ensureDemoUsers();
+            const retrySnap = await userRef.get();
+            if(!retrySnap.exists) return null;
+            
+            const data = retrySnap.data();
+            return {
+                role: data?.role || 'client',
+                name: data?.name || '',
+                email: data?.email || '',
+                clientId: data?.clientId
+            };
+        }
+        
+        const data = userSnap.data();
+        if (!data) return null;
+
+        return {
+            role: data.role || 'client',
+            name: data.name || '',
+            email: data.email || '',
+            clientId: data.clientId
+        };
+    } catch(error) {
+        console.error("Error fetching user profile:", error);
         return null;
     }
-    const data = userSnap.data();
-    return {
-        role: data?.role || 'client',
-        name: data?.name || '',
-        email: data?.email || '',
-        clientId: data?.clientId
-    };
 }
 
 
@@ -341,3 +361,5 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
