@@ -246,8 +246,4 @@ export default function CabinetsPage() {
         </div>
     )
 
-    
-
-    
-
-
+}

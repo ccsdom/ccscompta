@@ -35,7 +35,6 @@ const clientNavItems = [
   { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner un document' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },
-  { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
 
 const commonBottomNavItems = [
@@ -48,9 +47,13 @@ const accountantBottomNavItems = [
 const clientBottomNavItems = [
     { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
 ]
+const adminBottomNavItems = [
+    { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+];
+
 
 const roleConfig = {
-    admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Super-Administrateur' },
+    admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...adminBottomNavItems], label: 'Espace Super-Administrateur' },
     accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
     secretary: { items: secretaryNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Secrétariat' },
     client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
@@ -85,9 +88,14 @@ export function Sidebar() {
   }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
+    // For dashboard links, check if the pathname is exactly the href, or if it's the root for that role's dashboard
     if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary', '/dashboard/cabinets'].includes(itemHref)) {
-        return pathname === itemHref || pathname.startsWith(itemHref);
+        // Special case for admin where cabinets is the main view.
+        if (currentRole === 'admin' && (itemHref === '/dashboard/cabinets' || itemHref === '/dashboard/admin') && pathname.startsWith('/dashboard/cabinets')) return true;
+        if (currentRole === 'admin' && pathname === '/dashboard/admin' && (itemHref === '/dashboard/admin' || itemHref === '/dashboard/cabinets')) return true;
+        return pathname === itemHref;
     }
+    // For other links, check if the pathname starts with the href. This handles nested pages.
     return pathname.startsWith(itemHref);
   }
   
