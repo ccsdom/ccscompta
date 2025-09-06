@@ -1,11 +1,11 @@
 
 'use client'
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2, PlusCircle, Search, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Building2, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Users, FileText, CheckBadge } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -58,6 +58,14 @@ export default function CabinetsPage() {
         cabinet.adminName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const platformStats = useMemo(() => ({
+        totalCabinets: cabinets.length,
+        totalClients: cabinets.reduce((acc, cab) => acc + cab.clientCount, 0),
+        totalDocuments: cabinets.reduce((acc, cab) => acc + cab.docCount, 0),
+        activeCabinets: cabinets.filter(cab => cab.status === 'active').length,
+    }), [cabinets]);
+
+
     const handleDeleteCabinet = (cabinet: Cabinet) => {
         setCabinets(prev => prev.filter(c => c.id !== cabinet.id));
         setCabinetToDelete(null);
@@ -76,13 +84,56 @@ export default function CabinetsPage() {
         <div className="space-y-6">
              <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Gestion des Cabinets</h1>
-                    <p className="text-muted-foreground mt-1">Supervisez, ajoutez et gérez les cabinets comptables de la plateforme.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Tableau de bord Super-Admin</h1>
+                    <p className="text-muted-foreground mt-1">Supervisez l'ensemble de l'activité de la plateforme.</p>
                 </div>
                 <Button onClick={() => alert('Feature non implémentée.')}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Nouveau Cabinet
                 </Button>
+            </div>
+            
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total des Cabinets</CardTitle>
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{platformStats.totalCabinets}</div>
+                        <p className="text-xs text-muted-foreground">Cabinets inscrits sur la plateforme.</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total des Clients</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{platformStats.totalClients.toLocaleString('fr-FR')}</div>
+                        <p className="text-xs text-muted-foreground">Clients gérés tous cabinets confondus.</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total des Documents</CardTitle>
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{platformStats.totalDocuments.toLocaleString('fr-FR')}</div>
+                        <p className="text-xs text-muted-foreground">Documents traités sur la plateforme.</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Cabinets Actifs</CardTitle>
+                        <CheckBadge className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{platformStats.activeCabinets} / {platformStats.totalCabinets}</div>
+                        <p className="text-xs text-muted-foreground">Cabinets avec un statut "Actif".</p>
+                    </CardContent>
+                </Card>
             </div>
 
             <Card>
@@ -194,4 +245,5 @@ export default function CabinetsPage() {
             </AlertDialog>
         </div>
     )
-}
+
+    
