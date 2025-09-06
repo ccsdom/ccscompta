@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import { useState, useMemo } from 'react';
@@ -85,7 +84,7 @@ export default function CabinetsPage() {
         <div className="space-y-6">
              <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Tableau de bord Super-Admin</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Tableau de bord Super-Administrateur</h1>
                     <p className="text-muted-foreground mt-1">Supervisez l'ensemble de l'activité de la plateforme.</p>
                 </div>
                 <Button onClick={() => alert('Feature non implémentée.')}>
@@ -250,4 +249,5 @@ export default function CabinetsPage() {
     
 
     
+
 
