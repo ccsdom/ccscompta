@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { CabinetDetailsSheet } from '@/components/admin/cabinet-details-sheet';
 
 
 export interface Cabinet {
@@ -51,6 +52,8 @@ export default function CabinetsPage() {
     const [cabinets, setCabinets] = useState<Cabinet[]>(mockCabinets);
     const [searchTerm, setSearchTerm] = useState('');
     const [cabinetToDelete, setCabinetToDelete] = useState<Cabinet | null>(null);
+    const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const router = useRouter();
 
     const filteredCabinets = cabinets.filter(cabinet =>
@@ -70,6 +73,16 @@ export default function CabinetsPage() {
         setCabinets(prev => prev.filter(c => c.id !== cabinet.id));
         setCabinetToDelete(null);
     }
+    
+    const handleManageCabinet = (cabinet: Cabinet) => {
+        setSelectedCabinet(cabinet);
+        setIsSheetOpen(true);
+    }
+    
+    const handleUpdateCabinetStatus = (cabinetId: string, status: Cabinet['status']) => {
+        setCabinets(prev => prev.map(c => c.id === cabinetId ? {...c, status} : c));
+    }
+
 
     const getStatusBadge = (status: string) => {
         switch(status) {
@@ -193,8 +206,8 @@ export default function CabinetsPage() {
                                     <TableCell>{getStatusBadge(cabinet.status)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => alert('Feature non implémentée')}>
-                                                Accéder au dossier
+                                            <Button variant="outline" size="sm" onClick={() => handleManageCabinet(cabinet)}>
+                                                Gérer
                                             </Button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -243,6 +256,13 @@ export default function CabinetsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+            <CabinetDetailsSheet 
+                cabinet={selectedCabinet}
+                isOpen={isSheetOpen}
+                onOpenChange={setIsSheetOpen}
+                onUpdateStatus={handleUpdateCabinetStatus}
+            />
         </div>
     )
 
