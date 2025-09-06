@@ -61,26 +61,42 @@ export const ensureDemoUsers = async () => {
     ];
 
     for (const user of usersToSeed) {
+        let userRecord: UserRecord | null = null;
         try {
-            await auth.getUserByEmail(user.email);
+            userRecord = await auth.getUserByEmail(user.email);
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
                 try {
-                    const newUserRecord = await auth.createUser({
+                    userRecord = await auth.createUser({
                         email: user.email,
                         password: user.password,
                         displayName: user.displayName,
                     });
-                    
-                    const userProfileRef = db.collection('users').doc(newUserRecord.uid);
+                    console.log(`✅ Utilisateur de démo ${user.email} créé dans Auth.`);
+                } catch (createError) {
+                    console.error(`❌ Échec de la création de l'utilisateur Auth ${user.email}:`, createError);
+                    continue; // Skip to next user if Auth creation fails
+                }
+            } else {
+                console.error(`❌ Erreur lors de la recherche de l'utilisateur Auth ${user.email}:`, error);
+                continue;
+            }
+        }
+        
+        if (userRecord) {
+            const userProfileRef = db.collection('users').doc(userRecord.uid);
+            const userProfileSnap = await userProfileRef.get();
+
+            if (!userProfileSnap.exists) {
+                 try {
                     await userProfileRef.set({
                         name: user.displayName,
                         email: user.email,
                         role: user.role,
                     });
-                    console.log(`✅ Utilisateur de démo ${user.email} et profil créés.`);
-                } catch (createError) {
-                    console.error(`❌ Échec de la création de l'utilisateur ${user.email}:`, createError);
+                    console.log(`✅ Profil Firestore créé pour ${user.email}.`);
+                } catch (dbError) {
+                     console.error(`❌ Échec de la création du profil Firestore pour ${user.email}:`, dbError);
                 }
             }
         }
@@ -93,22 +109,17 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
 
     try {
         const userRef = db.collection("users").doc(uid);
-        const userSnap = await userRef.get();
+        let userSnap = await userRef.get();
 
         if (!userSnap.exists) {
             console.log(`No profile found for UID: ${uid}. Trying to seed demo users.`);
             // This is a failsafe in case the login page call doesn't happen first.
             await ensureDemoUsers();
-            const retrySnap = await userRef.get();
-            if(!retrySnap.exists) return null;
-            
-            const data = retrySnap.data();
-            return {
-                role: data?.role || 'client',
-                name: data?.name || '',
-                email: data?.email || '',
-                clientId: data?.clientId
-            };
+            userSnap = await userRef.get(); // Retry fetch after seeding
+            if(!userSnap.exists) {
+                console.error(`Still no profile for UID: ${uid} after seeding.`);
+                return null;
+            }
         }
         
         const data = userSnap.data();

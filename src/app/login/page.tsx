@@ -52,13 +52,24 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    localStorage.clear();
-    window.dispatchEvent(new Event('storage'));
-    ensureDemoUsers(); // Ensures demo users are created on first load
+    const initializeApp = async () => {
+        setIsLoading(true);
+        localStorage.clear();
+        window.dispatchEvent(new Event('storage'));
+        try {
+            await ensureDemoUsers();
+            console.log("Demo users check/seed complete.");
+        } catch (e) {
+            console.error("Could not ensure demo users", e);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    initializeApp();
   }, []);
 
   const handleRedirect = async (user: User) => {
