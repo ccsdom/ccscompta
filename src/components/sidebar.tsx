@@ -75,12 +75,9 @@ export function Sidebar() {
     if (role === 'admin') {
       setCurrentRole('admin');
       document.body.classList.add('admin-theme');
-    } else if (role === 'accountant') {
-      setCurrentRole('accountant');
+    } else if (role === 'accountant' || role === 'secretary') {
+      setCurrentRole(role);
       document.body.classList.add('accountant-theme');
-    } else if (role === 'secretary') {
-      setCurrentRole('secretary');
-      document.body.classList.add('accountant-theme'); // Use accountant theme for secretary
     }
     else {
       setCurrentRole('client');
