@@ -68,7 +68,12 @@ export default function LoginPage() {
       } else if (userEmail === 'admin@ccs-compta.com') {
         role = 'admin';
         name = 'Super Admin';
-      } else if (userEmail.endsWith('@client.com')) {
+      } else if (userEmail === 'secretaire@ccs-compta.com') {
+        role = 'secretary';
+        name = 'Secrétaire Dévouée';
+        clientId = 'alpha'; // Secretaries also need a default view
+      }
+      else if (userEmail.endsWith('@client.com')) {
         role = 'client'
         name = userEmail.split('@')[0];
         clientId = 'beta';
@@ -78,7 +83,7 @@ export default function LoginPage() {
       localStorage.setItem('userName', name);
       localStorage.setItem('userEmail', userEmail);
       
-      if (role === 'client' || role === 'accountant') {
+      if (role === 'client' || role === 'accountant' || role === 'secretary') {
         localStorage.setItem('selectedClientId', clientId);
       }
       
@@ -86,7 +91,10 @@ export default function LoginPage() {
           router.push('/dashboard/admin');
       } else if (role === 'accountant') {
           router.push('/dashboard/accountant');
-      } else {
+      } else if (role === 'secretary') {
+          router.push('/dashboard/secretary');
+      }
+      else {
           router.push('/dashboard/my-documents');
       }
   }
@@ -99,7 +107,7 @@ export default function LoginPage() {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // Basic validation for demo purposes
-    if ((email === "demo@ccs-compta.com" && password === "demodemo") || (email === 'admin@ccs-compta.com' && password === "demodemo")) {
+    if ((email === "demo@ccs-compta.com" && password === "demodemo") || (email === 'admin@ccs-compta.com' && password === "demodemo") || (email === 'secretaire@ccs-compta.com' && password === "demodemo")) {
         handleRedirect(email);
     } else if (email.endsWith('@client.com') && password === 'demodemo') {
         handleRedirect(email);

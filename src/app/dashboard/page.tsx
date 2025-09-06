@@ -21,6 +21,8 @@ export default function DashboardRedirect() {
         targetPath = '/dashboard/accountant';
       } else if (role === 'client') {
         targetPath = '/dashboard/my-documents';
+      } else if (role === 'secretary') {
+        targetPath = '/dashboard/secretary';
       }
       
       router.replace(targetPath);

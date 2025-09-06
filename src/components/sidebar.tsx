@@ -26,6 +26,12 @@ const accountantNavItems = [
   { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
 ];
 
+const secretaryNavItems = [
+    { href: '/dashboard/secretary', icon: LayoutDashboard, label: 'Tableau de bord' },
+    { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
+    { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
+];
+
 const clientNavItems = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes Documents' },
   { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner un document' },
@@ -48,6 +54,7 @@ const clientBottomNavItems = [
 const roleConfig = {
     admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Super-Admin' },
     accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
+    secretary: { items: secretaryNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Secrétariat' },
     client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
 }
 
@@ -55,12 +62,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin'>('client');
+  const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin' | 'secretary'>('client');
 
    useEffect(() => {
     // This effect runs only on the client side
     setMounted(true);
-    const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | null;
+    const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | 'secretary' | null;
     
     document.body.classList.remove('accountant-theme', 'admin-theme');
 
@@ -70,13 +77,17 @@ export function Sidebar() {
     } else if (role === 'accountant') {
       setCurrentRole('accountant');
       document.body.classList.add('accountant-theme');
-    } else {
+    } else if (role === 'secretary') {
+      setCurrentRole('secretary');
+      document.body.classList.add('accountant-theme'); // Use accountant theme for secretary
+    }
+    else {
       setCurrentRole('client');
     }
   }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
-    if (itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin' || itemHref === '/dashboard/my-documents') {
+    if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary'].includes(itemHref)) {
         return pathname === itemHref;
     }
     return pathname.startsWith(itemHref);
@@ -85,6 +96,7 @@ export function Sidebar() {
   const getDashboardHomeLink = () => {
     if (currentRole === 'client') return '/dashboard/my-documents';
     if (currentRole === 'accountant') return '/dashboard/accountant';
+    if (currentRole === 'secretary') return '/dashboard/secretary';
     return '/dashboard/admin';
   }
 
@@ -130,14 +142,14 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {currentRole !== 'admin' && (
+      {(currentRole === 'accountant' || currentRole === 'secretary') && (
           <div className="p-4 border-b space-y-4 mb-4">
             <div className="text-center">
                 <span className={cn("text-sm font-semibold uppercase", "text-primary")}>
                     {roleLabel}
                 </span>
             </div>
-            {currentRole === 'accountant' && <ClientSwitcher />}
+            <ClientSwitcher />
           </div>
       )}
 

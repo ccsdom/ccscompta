@@ -16,6 +16,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord',
   'admin': 'Tableau de Bord Admin',
+  'secretary': 'Tableau de Bord Secrétaire',
   'my-documents': 'Tableau de bord',
   'scan': 'Scanner un document',
   'my-analytics': 'Mon Analyse',
@@ -52,7 +53,7 @@ export function Breadcrumb() {
   if (segments.length === 0) return null;
 
   const isDashboardRoot = segments.length === 1 && (segments[0] === 'dashboard');
-  const isRoleDashboard = segments.length === 2 && ['accountant', 'admin', 'my-documents'].includes(segments[1]);
+  const isRoleDashboard = segments.length === 2 && ['accountant', 'admin', 'my-documents', 'secretary'].includes(segments[1]);
 
   if (isDashboardRoot || isRoleDashboard) {
     return null;
@@ -73,7 +74,7 @@ export function Breadcrumb() {
           
           let name = breadcrumbNameMap[segment] || getDynamicName(segment);
           
-          if (segment === 'dashboard' || segment === 'accountant' || segment === 'admin') return null;
+          if (segment === 'dashboard' || segment === 'accountant' || segment === 'admin' || segment === 'secretary') return null;
 
           return (
             <Fragment key={href}>
