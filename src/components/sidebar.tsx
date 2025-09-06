@@ -3,26 +3,20 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, AreaChart, Building2, LifeBuoy, ShieldCheck, ScanLine, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, AreaChart, LifeBuoy, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
-import { Separator } from './ui/separator';
 import { Skeleton } from './ui/skeleton';
 
-const adminNavItems = [
-  { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
-  { href: '/dashboard/reporting', icon: DollarSign, label: 'Rapports & Facturation' },
-];
 
 const accountantNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
-  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
 ];
 
 const secretaryNavItems = [
@@ -48,13 +42,10 @@ const accountantBottomNavItems = [
 const clientBottomNavItems = [
     { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
 ]
-const adminBottomNavItems = [
-    { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
-];
 
 
 const roleConfig = {
-    admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...adminBottomNavItems], label: 'Espace Super-Administrateur' },
+    admin: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' }, // Admin is now an accountant
     accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
     secretary: { items: secretaryNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Secrétariat' },
     client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
@@ -75,10 +66,7 @@ export function Sidebar() {
         
         document.body.classList.remove('accountant-theme', 'admin-theme');
 
-        if (role === 'admin') {
-          setCurrentRole('admin');
-          document.body.classList.add('admin-theme');
-        } else if (role === 'accountant' || role === 'secretary') {
+        if (role === 'admin' || role === 'accountant' || role === 'secretary') {
           setCurrentRole(role);
           document.body.classList.add('accountant-theme');
         }
@@ -97,9 +85,8 @@ export function Sidebar() {
 
   const isNavItemActive = (itemHref: string) => {
     // For dashboard links, check if the pathname is exactly the href, or if it's the root for that role's dashboard
-    if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary', '/dashboard/cabinets'].includes(itemHref)) {
-        // Special case for admin where cabinets is the main view.
-        if (currentRole === 'admin' && (itemHref === '/dashboard/cabinets' || itemHref === '/dashboard/admin') && (pathname.startsWith('/dashboard/cabinets') || pathname === '/dashboard/admin')) return true;
+    if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary'].includes(itemHref)) {
+        if ((currentRole === 'admin' || currentRole === 'accountant') && (itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin') && (pathname.startsWith('/dashboard/accountant') || pathname === '/dashboard/admin')) return true;
         return pathname === itemHref;
     }
     // For other links, check if the pathname starts with the href. This handles nested pages.
@@ -110,7 +97,7 @@ export function Sidebar() {
     if (currentRole === 'client') return '/dashboard/my-documents';
     if (currentRole === 'accountant') return '/dashboard/accountant';
     if (currentRole === 'secretary') return '/dashboard/secretary';
-    if (currentRole === 'admin') return '/dashboard/admin';
+    if (currentRole === 'admin') return '/dashboard/accountant'; // Admin redirects to accountant view
     return '/dashboard';
   }
 
@@ -162,13 +149,8 @@ export function Sidebar() {
                 {roleLabel}
             </span>
         </div>
-        {(currentRole === 'accountant' || currentRole === 'secretary') && (
+        {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
             <ClientSwitcher />
-        )}
-         {currentRole === 'admin' && (
-            <div className="text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
-               Supervision de la plateforme
-            </div>
         )}
       </div>
 

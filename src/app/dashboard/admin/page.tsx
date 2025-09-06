@@ -1,10 +1,10 @@
 
 'use client'
 
-import CabinetsPage from '../cabinets/page';
+import AccountantDashboard from '../accountant/page';
 
 export default function AdminDashboardPage() {
-    // For now, the Admin dashboard will be the same as the cabinets management page.
-    // This can be expanded with more admin-specific features later.
-    return <CabinetsPage />;
+    // The Admin is now treated as an accountant for a single firm.
+    // This page now shows the main accountant dashboard.
+    return <AccountantDashboard />;
 }

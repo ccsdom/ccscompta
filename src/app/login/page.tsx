@@ -66,7 +66,7 @@ export default function LoginPage() {
         name = 'Comptable Démo';
         clientId = 'alpha'; // Accountants can have a default view
       } else if (userEmail === 'admin@ccs-compta.com') {
-        role = 'admin';
+        role = 'admin'; // Admin now acts as an accountant
         name = 'Super Admin';
       } else if (userEmail === 'secretaire@ccs-compta.com') {
         role = 'secretary';
@@ -83,19 +83,12 @@ export default function LoginPage() {
       localStorage.setItem('userName', name);
       localStorage.setItem('userEmail', userEmail);
       
-      if (role === 'client' || role === 'accountant' || role === 'secretary') {
-        localStorage.setItem('selectedClientId', clientId);
-      }
-      
-      if (role === 'admin') {
-          router.push('/dashboard/admin');
-      } else if (role === 'accountant') {
-          router.push('/dashboard/accountant');
-      } else if (role === 'secretary') {
-          router.push('/dashboard/secretary');
-      }
-      else {
+      if (role === 'client') {
+          localStorage.setItem('selectedClientId', clientId);
           router.push('/dashboard/my-documents');
+      } else { // accountant, admin, secretary
+          localStorage.setItem('selectedClientId', 'alpha'); // Default client for accountants
+          router.push('/dashboard/accountant');
       }
   }
 
@@ -152,7 +145,7 @@ export default function LoginPage() {
                     Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
                 </p>
             </div>
-             <p className="text-xs text-white/60">&copy; 2025 CCS Compta. Tous droits réservés.</p>
+             <p className="text-xs text-white/60">&copy; 2025 CCS, Consulting Conseil Services. Tous droits réservés.</p>
          </div>
       </div>
       <div className="flex items-center justify-center py-12">
@@ -163,7 +156,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-3xl font-bold">Connectez-vous</h1>
             <p className="text-balance text-muted-foreground">
-              Utilisez les identifiants fournis par votre cabinet comptable.
+              Utilisez les identifiants fournis par CCS Compta.
             </p>
           </div>
           <form onSubmit={handleLogin} className="grid gap-4">

@@ -15,7 +15,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'analytics': 'Analyse Détaillée',
   'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord',
-  'admin': 'Tableau de Bord Admin',
+  'admin': 'Tableau de Bord', // Admin is now accountant
   'secretary': 'Tableau de Bord Secrétaire',
   'my-documents': 'Tableau de bord',
   'scan': 'Scanner un document',
@@ -23,8 +23,6 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'my-settings': 'Paramètres',
   'billing': 'Facturation',
   'my-invoices': 'Mes Factures',
-  'reporting': 'Rapports',
-  'cabinets': 'Gestion des Cabinets',
   'support': 'Aide & Support',
 };
 
@@ -74,6 +72,7 @@ export function Breadcrumb() {
           
           let name = breadcrumbNameMap[segment] || getDynamicName(segment);
           
+          // Do not show the root dashboard segment in breadcrumbs
           if (segment === 'dashboard' || segment === 'accountant' || segment === 'admin' || segment === 'secretary') return null;
 
           return (
