@@ -18,6 +18,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase-client";
+
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -50,10 +53,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("demodemo");
   const [isLoading, setIsLoading] = useState(false);
   
-  // This will run on client side only, after mount
   useEffect(() => {
-    // Clear any previous session data on login page load
     localStorage.clear();
+    window.dispatchEvent(new Event('storage'));
   }, []);
 
   const handleRedirect = (userEmail: string) => {
@@ -64,14 +66,14 @@ export default function LoginPage() {
       if (userEmail === 'demo@ccs-compta.com') {
         role = 'accountant';
         name = 'Comptable Démo';
-        clientId = 'alpha'; // Accountants can have a default view
+        clientId = 'alpha';
       } else if (userEmail === 'admin@ccs-compta.com') {
-        role = 'admin'; // Admin now acts as an accountant
+        role = 'accountant'; // Admin is now an accountant
         name = 'Super Admin';
       } else if (userEmail === 'secretaire@ccs-compta.com') {
         role = 'secretary';
         name = 'Secrétaire Dévouée';
-        clientId = 'alpha'; // Secretaries also need a default view
+        clientId = 'alpha';
       }
       else if (userEmail.endsWith('@client.com')) {
         role = 'client'
@@ -86,8 +88,8 @@ export default function LoginPage() {
       if (role === 'client') {
           localStorage.setItem('selectedClientId', clientId);
           router.push('/dashboard/my-documents');
-      } else { // accountant, admin, secretary
-          localStorage.setItem('selectedClientId', 'alpha'); // Default client for accountants
+      } else {
+          localStorage.setItem('selectedClientId', 'alpha');
           router.push('/dashboard/accountant');
       }
   }
@@ -96,23 +98,31 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Basic validation for demo purposes
-    if ((email === "demo@ccs-compta.com" && password === "demodemo") || (email === 'admin@ccs-compta.com' && password === "demodemo") || (email === 'secretaire@ccs-compta.com' && password === "demodemo")) {
-        handleRedirect(email);
-    } else if (email.endsWith('@client.com') && password === 'demodemo') {
-        handleRedirect(email);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      handleRedirect(email);
+    } catch (error: any) {
+        let errorMessage = "Une erreur inconnue est survenue.";
+        switch (error.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                errorMessage = "Email ou mot de passe incorrect. Veuillez réessayer.";
+                break;
+            case 'auth/invalid-email':
+                errorMessage = "L'adresse email n'est pas valide.";
+                break;
+            case 'auth/too-many-requests':
+                errorMessage = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
+                break;
+        }
+      toast({
+        variant: "destructive",
+        title: "Erreur de connexion",
+        description: errorMessage,
+      });
+      setIsLoading(false);
     }
-    else {
-        toast({
-            variant: "destructive",
-            title: "Erreur de connexion",
-            description: "Email ou mot de passe incorrect. Veuillez réessayer.",
-        })
-    }
-    setIsLoading(false);
   };
   
   const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
