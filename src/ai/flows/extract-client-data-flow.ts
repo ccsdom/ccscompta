@@ -1,7 +1,8 @@
 
 'use server';
 /**
- * @fileOverview An AI agent that extracts structured client data from natural language text.
+ * @fileOverview An AI agent that extracts structured client data from natural language text,
+ * potentially enriching it with an external tool.
  *
  * - extractClientData - A function that handles the extraction process.
  * - ExtractClientDataInput - The input type for the extractClientData function.
@@ -10,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { searchCompanyInfoTool } from '../tools/search-company-info';
 
 const ExtractClientDataInputSchema = z.object({
   description: z.string().describe('A natural language description of the client to add.'),
@@ -37,37 +39,34 @@ const prompt = ai.definePrompt({
   name: 'extractClientDataPrompt',
   input: {schema: ExtractClientDataInputSchema},
   output: {schema: ExtractClientDataOutputSchema},
+  tools: [searchCompanyInfoTool],
   prompt: `You are an expert data extraction agent for an accounting firm.
-Your task is to meticulously parse the user's natural language text and extract the information needed to create a new client file.
+Your task is to meticulously parse the user's natural language text and extract information to create a new client file.
 
 Analyze the user's text: "{{description}}"
 
-Extract the following information:
-- **name**: The company's legal name (Raison Sociale).
-- **siret**: The 14-digit SIRET number. It should only contain numbers.
-- **email**: The primary contact email address.
-- **phone**: The primary phone number.
-- **legalRepresentative**: The full name of the person who legally represents the company.
-- **address**: The full postal address of the company's headquarters.
-- **fiscalYearEndDate**: The closing date of the fiscal year. It MUST be in DD/MM format. For example, "clôture au 31 décembre" should be "31/12".
+**Your workflow:**
 
-Important rules:
-- Do not invent or infer any information that is not explicitly present in the text.
-- If a piece of information is not present, omit the corresponding key from the JSON output.
+1.  **SIRET Detection**: First, look for a 14-digit SIRET number in the user's text.
+2.  **Tool Usage**:
+    *   If you find a SIRET number, you **MUST** use the \`searchCompanyInfo\` tool to fetch official data for that company. This is the preferred source of information. Use the data returned by the tool to populate the \`name\`, \`address\`, \`legalRepresentative\`, \`phone\`, and \`email\` fields.
+    *   If the tool returns no data, or if no SIRET is provided, then (and only then) fall back to extracting information directly from the user's text.
+3.  **Final Extraction**: Extract any remaining information from the text that the tool did not provide (like \`fiscalYearEndDate\`).
+
+**Important rules:**
 - The SIRET number must be a string of 14 digits without spaces or any other characters.
+- The closing date of the fiscal year (\`fiscalYearEndDate\`) MUST be in DD/MM format. For example, "clôture au 31 décembre" should be "31/12".
+- Do not invent or infer any information. If a piece of information is not available from the tool or the text, omit its key from the output.
 
-Example:
-- User text: "Ajoute le client 'Innovatech SAS', SIRET 12345678901234, représenté par Marie Dubois au 10 Rue de l'Innovation, 75015 Paris. Email: contact@innovatech.fr, Tél: 0123456789. Clôture fiscale le 31/12."
-- Your output should be a JSON object like:
-{
-  "name": "Innovatech SAS",
-  "siret": "12345678901234",
-  "legalRepresentative": "Marie Dubois",
-  "address": "10 Rue de l'Innovation, 75015 Paris",
-  "email": "contact@innovatech.fr",
-  "phone": "0123456789",
-  "fiscalYearEndDate": "31/12"
-}
+**Example 1 (Tool usage):**
+- User text: "Ajoute le client SIRET 12345678901234, clôture au 30/06."
+- Your action: Call \`searchCompanyInfo\` with SIRET '12345678901234'. Tool returns { name: 'Innovatech SAS', address: '...', ... }.
+- Your output: { "name": "Innovatech SAS", "siret": "12345678901234", "address": "...", "fiscalYearEndDate": "30/06", ... }
+
+**Example 2 (Text extraction only):**
+- User text: "Nouveau client 'Pâtisserie Belle', la gérante est Mme. Belle, email factures@belle.fr."
+- Your action: No SIRET found, extract from text.
+- Your output: { "name": "Pâtisserie Belle", "legalRepresentative": "Mme. Belle", "email": "factures@belle.fr" }
 `,
 });
 
