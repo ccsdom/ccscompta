@@ -91,8 +91,7 @@ export function Sidebar() {
     // For dashboard links, check if the pathname is exactly the href, or if it's the root for that role's dashboard
     if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary', '/dashboard/cabinets'].includes(itemHref)) {
         // Special case for admin where cabinets is the main view.
-        if (currentRole === 'admin' && (itemHref === '/dashboard/cabinets' || itemHref === '/dashboard/admin') && pathname.startsWith('/dashboard/cabinets')) return true;
-        if (currentRole === 'admin' && pathname === '/dashboard/admin' && (itemHref === '/dashboard/admin' || itemHref === '/dashboard/cabinets')) return true;
+        if (currentRole === 'admin' && (itemHref === '/dashboard/cabinets' || itemHref === '/dashboard/admin') && (pathname.startsWith('/dashboard/cabinets') || pathname === '/dashboard/admin')) return true;
         return pathname === itemHref;
     }
     // For other links, check if the pathname starts with the href. This handles nested pages.
@@ -103,7 +102,8 @@ export function Sidebar() {
     if (currentRole === 'client') return '/dashboard/my-documents';
     if (currentRole === 'accountant') return '/dashboard/accountant';
     if (currentRole === 'secretary') return '/dashboard/secretary';
-    return '/dashboard/admin';
+    if (currentRole === 'admin') return '/dashboard/admin';
+    return '/dashboard';
   }
 
   const handleLogout = () => {
