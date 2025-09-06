@@ -1,11 +1,12 @@
 
+
 'use client'
 
 import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Users, FileText, CheckBadge } from "lucide-react";
+import { Building2, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Users, FileText, BadgeCheck } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -127,7 +128,7 @@ export default function CabinetsPage() {
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Cabinets Actifs</CardTitle>
-                        <CheckBadge className="h-4 w-4 text-muted-foreground" />
+                        <BadgeCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{platformStats.activeCabinets} / {platformStats.totalCabinets}</div>
@@ -249,3 +250,4 @@ export default function CabinetsPage() {
     
 
     
+
