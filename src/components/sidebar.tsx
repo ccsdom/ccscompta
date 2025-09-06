@@ -10,6 +10,7 @@ import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Skeleton } from './ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 
 
 const accountantNavItems = [
