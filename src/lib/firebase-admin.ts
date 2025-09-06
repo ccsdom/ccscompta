@@ -1,8 +1,10 @@
 import { getApps, initializeApp, cert, type App } from "firebase-admin/app";
+import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let adminApp: App | undefined;
 let firestoreDb: Firestore | undefined;
+let adminAuth: Auth | undefined;
 
 function initializeAdminApp() {
   if (getApps().length > 0 && getApps().some(app => app?.name === '[DEFAULT]')) {
@@ -15,10 +17,8 @@ function initializeAdminApp() {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (!projectId || !clientEmail || !privateKey) {
-    console.error("❌ Les variables d'environnement Firebase Admin sont manquantes.");
-    throw new Error(
-      "Impossible d'initialiser le SDK Admin de Firebase. Variables d'environnement manquantes."
-    );
+    console.warn("⚠️ Les variables d'environnement Firebase Admin sont manquantes. Certaines fonctionnalités (ex: création d'utilisateurs de démo) peuvent être désactivées.");
+    return;
   }
 
   try {
@@ -32,25 +32,39 @@ function initializeAdminApp() {
     console.info("✅ Firebase Admin SDK initialisé avec succès");
   } catch (error) {
     console.error("❌ Erreur lors de l'initialisation Firebase Admin:", error);
-    throw new Error(
-      "Impossible d'initialiser le SDK Admin de Firebase. Vérifiez vos variables d'environnement."
-    );
+    // Ne pas lancer d'erreur ici pour permettre à l'app de fonctionner même sans le SDK Admin
   }
 }
 
-function getDb(): Firestore {
+function getDb(): Firestore | null {
   if (!adminApp) {
     initializeAdminApp();
   }
-  if (!firestoreDb && adminApp) {
-    firestoreDb = getFirestore(adminApp);
-  }
+  // Si l'initialisation a échoué, adminApp sera undefined
+  if (!adminApp) return null;
+
   if (!firestoreDb) {
-    throw new Error("❌ L'initialisation de Firestore a échoué.");
+    firestoreDb = getFirestore(adminApp);
   }
   return firestoreDb;
 }
 
-export const db: { get: () => Firestore } = {
+function getAuthService(): Auth | null {
+  if (!adminApp) {
+    initializeAdminApp();
+  }
+  if (!adminApp) return null;
+
+  if (!adminAuth) {
+    adminAuth = getAuth(adminApp);
+  }
+  return adminAuth;
+}
+
+export const db: { get: () => Firestore | null } = {
   get: getDb,
+};
+
+export const auth: { get: () => Auth | null } = {
+  get: getAuthService,
 };

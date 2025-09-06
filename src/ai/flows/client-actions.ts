@@ -2,10 +2,11 @@
 'use server';
 
 import { z } from 'zod';
-import { db as adminDb } from '@/lib/firebase-admin';
+import { db as adminDb, auth as adminAuth } from '@/lib/firebase-admin';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { Timestamp, type DocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
+import type { Auth } from 'firebase-admin/auth';
 
 
 // Helper pour convertir les données de Firestore (côté admin)
@@ -43,9 +44,50 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   };
 };
 
+const seedDemoUsers = async (auth: Auth) => {
+    const usersToSeed = [
+        { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin' },
+        { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée' },
+    ];
+
+    for (const user of usersToSeed) {
+        try {
+            await auth.getUserByEmail(user.email);
+            // console.log(`User ${user.email} already exists.`);
+        } catch (error: any) {
+            if (error.code === 'auth/user-not-found') {
+                try {
+                    await auth.createUser({
+                        email: user.email,
+                        password: user.password,
+                        displayName: user.displayName,
+                    });
+                    console.log(`✅ Demo user ${user.email} created successfully.`);
+                } catch (createError) {
+                    console.error(`❌ Failed to create demo user ${user.email}:`, createError);
+                }
+            } else {
+                console.error(`❌ Error checking user ${user.email}:`, error);
+            }
+        }
+    }
+};
+
 
 export async function getClients(): Promise<Client[]> {
   const db = adminDb.get();
+  const auth = adminAuth.get();
+
+  if (!db) {
+    console.error("Firestore Admin DB not available.");
+    return MOCK_CLIENTS; // Fallback to mock data if admin SDK failed
+  }
+  
+  // Seed demo users if auth service is available
+  if (auth) {
+    await seedDemoUsers(auth);
+  }
+
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
@@ -83,6 +125,8 @@ export async function getClients(): Promise<Client[]> {
 
 export async function getClientById(id: string): Promise<Client | undefined> {
   const db = adminDb.get();
+  if (!db) return undefined;
+
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -118,6 +162,8 @@ export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
   const db = adminDb.get();
+  if (!db) return { success: false, error: "La base de données n'est pas disponible." };
+
   const clientsCollection = db.collection('clients');
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
@@ -167,6 +213,8 @@ export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
   const db = adminDb.get();
+  if (!db) return { success: false, error: "La base de données n'est pas disponible." };
+  
   const clientsCollection = db.collection('clients');
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
@@ -197,6 +245,8 @@ export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
   const db = adminDb.get();
+  if (!db) return { success: false, error: "La base de données n'est pas disponible." };
+
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -220,6 +270,8 @@ export async function updateClientsStatus(
     { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
 ): Promise<{ success: boolean; updatedCount: number, error?: string }> {
     const db = adminDb.get();
+    if (!db) return { success: false, updatedCount: 0, error: "La base de données n'est pas disponible." };
+    
     const batch = db.batch();
 
     try {

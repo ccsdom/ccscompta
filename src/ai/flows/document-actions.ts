@@ -35,11 +35,22 @@ const documentConverter: FirestoreDataConverter<Document> = {
 };
 
 
-const getDocumentsCollectionRef = () => adminDb.get().collection('documents').withConverter(documentConverter);
+const getDocumentsCollectionRef = () => {
+    const db = adminDb.get();
+    if (!db) return null;
+    return db.collection('documents').withConverter(documentConverter);
+}
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
     const db = adminDb.get();
+    if (!db) {
+        console.error("Firestore Admin DB not available.");
+        return MOCK_DOCUMENTS[clientId] || [];
+    }
+
     const documentsCollection = getDocumentsCollectionRef();
+    if (!documentsCollection) return MOCK_DOCUMENTS[clientId] || [];
+
     try {
         const q = documentsCollection.where("clientId", "==", clientId);
         let snapshot = await q.get();
@@ -65,6 +76,8 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
 
 export async function getDocumentById(docId: string): Promise<Document | null> {
     const documentsCollection = getDocumentsCollectionRef();
+    if (!documentsCollection) return null;
+
     try {
         const docRef = documentsCollection.doc(docId);
         const snapshot = await docRef.get();
@@ -93,8 +106,10 @@ const DocumentSchemaForAdd = z.object({
     clientId: z.string(),
 });
 
-export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>): Promise<Document> {
+export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>): Promise<Document | null> {
     const documentsCollection = getDocumentsCollectionRef();
+    if (!documentsCollection) return null;
+
     const validatedData = DocumentSchemaForAdd.parse(docData);
     try {
         const docRef = await documentsCollection.add(validatedData);
@@ -116,6 +131,8 @@ const UpdateDocumentInputSchema = z.object({
 
 export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocumentInputSchema>): Promise<void> {
     const documentsCollection = getDocumentsCollectionRef();
+    if (!documentsCollection) return;
+
     const validatedData = UpdateDocumentInputSchema.parse({ id, updates });
     try {
         const docRef = documentsCollection.doc(validatedData.id);
@@ -128,6 +145,7 @@ export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocum
 
 export async function deleteDocument(docId: string): Promise<void> {
     const documentsCollection = getDocumentsCollectionRef();
+    if (!documentsCollection) return;
     try {
         const docRef = documentsCollection.doc(docId);
         await docRef.delete();
