@@ -49,8 +49,8 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState("demo@ccs-compta.com");
-  const [password, setPassword] = useState("demodemo");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -61,26 +61,23 @@ export default function LoginPage() {
 
   const handleRedirect = (userEmail: string) => {
       let role = 'client';
-      let name = 'Client Démo';
-      let clientId = 'alpha';
+      let name = 'Client';
+      let clientId = 'alpha'; // default client for new users
 
-      if (userEmail === 'demo@ccs-compta.com') {
+      // Any user from @ccs-compta.com is an accountant/admin
+      if (userEmail.endsWith('@ccs-compta.com')) {
         role = 'accountant';
-        name = 'Comptable Démo';
-        clientId = 'alpha';
-      } else if (userEmail === 'admin@ccs-compta.com') {
-        role = 'accountant'; // Admin is now an accountant
-        name = 'Super Admin';
-      } else if (userEmail === 'secretaire@ccs-compta.com') {
-        role = 'secretary';
-        name = 'Secrétaire Dévouée';
-        clientId = 'alpha';
-      }
-      else if (userEmail.endsWith('@client.com')) {
-        role = 'client'
+        name = userEmail.split('@')[0]; // simple name generation
+        name = name.charAt(0).toUpperCase() + name.slice(1);
+      } else {
+        // All other users are clients
+        role = 'client';
         name = userEmail.split('@')[0];
-        clientId = 'beta';
+        // In a real app, you'd look up their actual client ID from your database
+        // For now, we'll assign a default one.
+        clientId = 'beta'; 
       }
+
 
       localStorage.setItem('userRole', role);
       localStorage.setItem('userName', name);
@@ -90,6 +87,7 @@ export default function LoginPage() {
           localStorage.setItem('selectedClientId', clientId);
           router.push('/dashboard/my-documents');
       } else {
+          // Accountants default to the first client in the list for now
           localStorage.setItem('selectedClientId', 'alpha');
           router.push('/dashboard/accountant');
       }
@@ -167,7 +165,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-3xl font-bold">Connectez-vous</h1>
             <p className="text-balance text-muted-foreground">
-              Utilisez les identifiants fournis par CCS Compta.
+              Utilisez les identifiants de votre compte CCS Compta.
             </p>
           </div>
           <form onSubmit={handleLogin} className="grid gap-4">
