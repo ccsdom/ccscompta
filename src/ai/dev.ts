@@ -8,5 +8,7 @@ import '@/ai/flows/support-chat-flow.ts';
 import '@/ai/flows/client-actions.ts';
 import '@/ai/flows/document-actions.ts';
 import '@/ai/flows/support-chat-flow.ts';
+import '@/ai/flows/extract-client-data-flow.ts';
+
 
 

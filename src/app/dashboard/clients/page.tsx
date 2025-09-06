@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2 } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -40,6 +40,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { AiClientDialog } from '@/components/ai-client-dialog';
 
 
 export default function ClientsPage() {
@@ -284,6 +285,7 @@ export default function ClientsPage() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+                    <AiClientDialog />
                     <Button onClick={() => router.push('/dashboard/clients/new')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nouveau Client

@@ -31,7 +31,7 @@ export const formSchema = z.object({
 
 
 interface ClientFormProps {
-    client?: Client;
+    client?: Partial<Client>;
     onSave: (data: z.infer<typeof formSchema>) => void;
 }
 
@@ -111,7 +111,7 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                     <FormItem>
                                     <FormLabel>Adresse Email (pour la connexion)</FormLabel>
                                     <FormControl>
-                                        <Input type="email" placeholder="contact@entreprise.com" {...field} disabled={!!client} />
+                                        <Input type="email" placeholder="contact@entreprise.com" {...field} disabled={!!client?.id} />
                                     </FormControl>
                                      <FormDescription>
                                         Cette adresse sera utilisée pour la connexion du client.
@@ -211,7 +211,7 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                             <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Sélectionner un comptable" />
-                                            </SelectTrigger>
+                                            </Trigger>
                                             </FormControl>
                                             <SelectContent>
                                                 <SelectItem value="unassigned">Non attribué</SelectItem>

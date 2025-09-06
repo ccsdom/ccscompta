@@ -33,6 +33,7 @@ export default function EditClientPage() {
     }, [params.id]);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
+        if (!params.id) return;
         const result = await updateClient({id: params.id, updates: data});
         
         if (result.success) {
