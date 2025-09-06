@@ -13,9 +13,7 @@ import { Separator } from './ui/separator';
 import { Skeleton } from './ui/skeleton';
 
 const adminNavItems = [
-  { href: '/dashboard/admin', icon: ShieldCheck, label: 'Tableau de bord Admin' },
   { href: '/dashboard/cabinets', icon: Building2, label: 'Gestion des Cabinets' },
-  { href: '/dashboard/reporting', icon: AreaChart, label: 'Rapports' },
 ];
 
 const accountantNavItems = [
@@ -52,7 +50,7 @@ const clientBottomNavItems = [
 ]
 
 const roleConfig = {
-    admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Super-Admin' },
+    admin: { items: adminNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Super-Administrateur' },
     accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
     secretary: { items: secretaryNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Secrétariat' },
     client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
@@ -87,8 +85,8 @@ export function Sidebar() {
   }, [pathname]);
 
   const isNavItemActive = (itemHref: string) => {
-    if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary'].includes(itemHref)) {
-        return pathname === itemHref;
+    if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary', '/dashboard/cabinets'].includes(itemHref)) {
+        return pathname === itemHref || pathname.startsWith(itemHref);
     }
     return pathname.startsWith(itemHref);
   }
@@ -142,16 +140,16 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {(currentRole === 'accountant' || currentRole === 'secretary') && (
-          <div className="p-4 border-b space-y-4 mb-4">
-            <div className="text-center">
-                <span className={cn("text-sm font-semibold uppercase", "text-primary")}>
-                    {roleLabel}
-                </span>
-            </div>
+      <div className="p-4 border-b space-y-4 mb-4">
+        <div className="text-center">
+            <span className={cn("text-sm font-semibold uppercase", "text-primary")}>
+                {roleLabel}
+            </span>
+        </div>
+        {(currentRole === 'accountant' || currentRole === 'secretary') && (
             <ClientSwitcher />
-          </div>
-      )}
+        )}
+      </div>
 
 
       <nav className="flex-1 px-4 py-4 space-y-2">
@@ -190,4 +188,3 @@ export function Sidebar() {
     </aside>
   );
 }
-
