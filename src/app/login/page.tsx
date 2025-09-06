@@ -65,7 +65,7 @@ export default function LoginPage() {
       let clientId = 'alpha'; // default client for new users
 
       // Any user from @ccs-compta.com is an accountant/admin
-      if (userEmail.endsWith('@ccs-compta.com')) {
+      if (userEmail.endsWith('@ccs-compta.com') || userEmail === 'app.ccs94@gmail.com') {
         role = 'accountant';
         name = userEmail.split('@')[0]; // simple name generation
         name = name.charAt(0).toUpperCase() + name.slice(1);
