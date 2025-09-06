@@ -308,3 +308,35 @@ export async function updateClientsStatus(
         return { success: false, updatedCount: 0, error: error instanceof Error ? error.message : 'Erreur inconnue.' };
     }
 }
+
+export interface Accountant {
+    id: string;
+    name: string;
+}
+
+export async function getAccountants(): Promise<Accountant[]> {
+    const db = adminDb.get();
+    if (!db) return [];
+
+    try {
+        const usersCollection = db.collection('users');
+        const q = usersCollection.where('role', '==', 'accountant');
+        const querySnapshot = await q.get();
+
+        if (querySnapshot.empty) {
+            // As a fallback for demo, if no accountants are found, return a default list
+            return [
+                { id: 'acc_demo_1', name: 'Comptable Démo 1'},
+                { id: 'acc_demo_2', name: 'Comptable Démo 2'},
+            ];
+        }
+
+        return querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name || 'Nom inconnu',
+        }));
+    } catch (error) {
+        console.error('Error fetching accountants:', error);
+        return [];
+    }
+}

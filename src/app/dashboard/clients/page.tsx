@@ -32,7 +32,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, deleteClient, updateClientsStatus } from '@/ai/flows/client-actions';
+import { getClients, deleteClient, updateClientsStatus, getAccountants, type Accountant } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,15 +42,9 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 
-export const mockAccountants = [
-    { id: 'acc_1', name: 'Marie Dubois' },
-    { id: 'acc_2', name: 'Pierre Martin' },
-    { id: 'acc_3', name: 'Sophie Lambert' },
-    { id: 'acc_4', name: 'Julien Petit' },
-];
-
 export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>([]);
+    const [accountants, setAccountants] = useState<Accountant[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
@@ -58,16 +52,20 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchClients = async () => {
+    const fetchClientsAndAccountants = async () => {
         setLoading(true);
         try {
-            const clientsData = await getClients();
+            const [clientsData, accountantsData] = await Promise.all([
+                getClients(),
+                getAccountants()
+            ]);
             setClients(clientsData);
+            setAccountants(accountantsData);
         } catch (error) {
-            console.error("Failed to fetch clients:", error);
+            console.error("Failed to fetch data:", error);
             toast({
                 title: "Erreur de chargement",
-                description: "Impossible de récupérer la liste des clients.",
+                description: "Impossible de récupérer les données des clients et des comptables.",
                 variant: "destructive",
             });
         } finally {
@@ -76,7 +74,7 @@ export default function ClientsPage() {
     };
 
     useEffect(() => {
-        fetchClients();
+        fetchClientsAndAccountants();
     }, []);
 
     const filteredClients = clients.filter(client =>
@@ -117,7 +115,7 @@ export default function ClientsPage() {
     }
     
     const handleClientsImported = () => {
-        fetchClients();
+        fetchClientsAndAccountants();
     }
     
     const getClientsToExport = async () => {
@@ -197,7 +195,7 @@ export default function ClientsPage() {
     const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
         const result = await updateClientsStatus({ clientIds: selectedClientIds, status });
         if (result.success) {
-            await fetchClients(); // Refetch all clients to get the updates
+            await fetchClientsAndAccountants(); // Refetch all clients to get the updates
             toast({
                 title: "Statuts mis à jour",
                 description: `${result.updatedCount} clients ont été mis à jour.`
@@ -223,7 +221,7 @@ export default function ClientsPage() {
     
     const getAccountantInitial = (accountantId?: string) => {
         if (!accountantId) return '';
-        const accountant = mockAccountants.find(a => a.id === accountantId);
+        const accountant = accountants.find(a => a.id === accountantId);
         return accountant ? accountant.name.split(' ').map(n => n[0]).join('') : '';
     }
 
@@ -263,7 +261,7 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={handleClientsImported} />
+                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline">
@@ -374,7 +372,7 @@ export default function ClientsPage() {
                                                         </Avatar>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>{mockAccountants.find(a => a.id === client.assignedAccountantId)?.name}</p>
+                                                        <p>{accountants.find(a => a.id === client.assignedAccountantId)?.name}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>

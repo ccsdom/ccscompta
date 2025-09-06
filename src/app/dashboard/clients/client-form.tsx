@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockAccountants } from './page';
+import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
 import { type Client } from '@/lib/client-data';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 
 export const formSchema = z.object({
@@ -36,6 +37,15 @@ interface ClientFormProps {
 
 export function ClientForm({ client, onSave }: ClientFormProps) {
     const router = useRouter();
+    const [accountants, setAccountants] = useState<Accountant[]>([]);
+
+    useEffect(() => {
+        const fetchAccountants = async () => {
+            const fetchedAccountants = await getAccountants();
+            setAccountants(fetchedAccountants);
+        };
+        fetchAccountants();
+    }, []);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -188,6 +198,31 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                                         </FormItem>
                                     )}
                                 />
+                             <FormField
+                                    control={form.control}
+                                    name="assignedAccountantId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Comptable Attribué</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Sélectionner un comptable" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="unassigned">Non attribué</SelectItem>
+                                                {accountants.map((acc) => (
+                                                    <SelectItem key={acc.id} value={acc.id}>
+                                                        {acc.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                         </div>
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">
@@ -199,5 +234,3 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
         </Form>
     );
 }
-
-    
