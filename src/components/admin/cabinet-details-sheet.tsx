@@ -12,9 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import type { Cabinet } from "@/app/dashboard/cabinets/page";
-import { Building2, Users, FileText, BarChart, Mail, KeyRound, ShieldCheck } from "lucide-react";
+import { Building2, Users, FileText, BarChart, Mail, KeyRound, ShieldCheck, LogIn } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 
 interface CabinetDetailsSheetProps {
@@ -39,13 +39,14 @@ const mockActivityData = [
 ];
 
 const mockAccountants = [
-    { name: 'Marie Dubois', email: 'marie@cabinet.com' },
-    { name: 'Pierre Martin', email: 'pierre@cabinet.com' },
-    { name: 'Sophie Lambert', email: 'sophie@cabinet.com' },
+    { id: 'acc_1', name: 'Marie Dubois', email: 'marie@cabinet.com' },
+    { id: 'acc_2', name: 'Pierre Martin', email: 'pierre@cabinet.com' },
+    { id: 'acc_3', name: 'Sophie Lambert', email: 'sophie@cabinet.com' },
 ];
 
 export function CabinetDetailsSheet({ cabinet, isOpen, onOpenChange, onUpdateStatus }: CabinetDetailsSheetProps) {
     const { toast } = useToast();
+    const router = useRouter();
     
     if (!cabinet) return null;
 
@@ -56,6 +57,37 @@ export function CabinetDetailsSheet({ cabinet, isOpen, onOpenChange, onUpdateSta
             description: `Le statut du cabinet "${cabinet.name}" est maintenant "${status}".`,
         });
     }
+
+    const handleImpersonate = (accountant: {id: string, name: string, email: string}) => {
+        const originalAdmin = {
+            role: localStorage.getItem('userRole'),
+            name: localStorage.getItem('userName'),
+            email: localStorage.getItem('userEmail'),
+        };
+
+        // Store original admin info
+        localStorage.setItem('originalUserRole', originalAdmin.role || 'admin');
+        localStorage.setItem('originalUserName', originalAdmin.name || 'Super Admin');
+        localStorage.setItem('originalUserEmail', originalAdmin.email || '');
+
+        // Set impersonated user info
+        localStorage.setItem('userRole', 'accountant');
+        localStorage.setItem('userName', accountant.name);
+        localStorage.setItem('userEmail', accountant.email);
+        localStorage.setItem('selectedClientId', 'alpha'); // Set a default client for the view
+
+        toast({
+            title: `Mode Incognito Activé`,
+            description: `Vous naviguez maintenant en tant que ${accountant.name}.`,
+        });
+        
+        onOpenChange(false);
+        // Redirect to dashboard to reload the whole app state
+        router.push('/dashboard');
+        // A full reload might be even better to ensure all state is fresh
+        // window.location.href = '/dashboard';
+    }
+
 
     return (
         <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -119,9 +151,9 @@ export function CabinetDetailsSheet({ cabinet, isOpen, onOpenChange, onUpdateSta
                     <Separator />
 
                     <div>
-                        <h4 className="font-semibold mb-3">Comptes administrateur</h4>
+                        <h4 className="font-semibold mb-3">Comptes utilisateurs</h4>
                         <div className="space-y-3">
-                             {mockAccountants.slice(0, 2).map(acc => (
+                             {mockAccountants.map(acc => (
                                  <div key={acc.email} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-9 w-9 border">
@@ -132,7 +164,10 @@ export function CabinetDetailsSheet({ cabinet, isOpen, onOpenChange, onUpdateSta
                                             <p className="text-xs text-muted-foreground">{acc.email}</p>
                                         </div>
                                     </div>
-                                    <Button variant="ghost" size="sm">Gérer</Button>
+                                     <Button variant="outline" size="sm" onClick={() => handleImpersonate(acc)}>
+                                        <LogIn className="mr-2 h-4 w-4"/>
+                                        Se connecter en tant que
+                                    </Button>
                                  </div>
                              ))}
                         </div>

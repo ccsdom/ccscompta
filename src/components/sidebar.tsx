@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, FileUp, AreaChart, Building2, LifeBuoy, ShieldCheck, ScanLine } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, AreaChart, Building2, LifeBuoy, ShieldCheck, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -68,21 +68,31 @@ export function Sidebar() {
    useEffect(() => {
     // This effect runs only on the client side
     setMounted(true);
-    const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | 'secretary' | null;
     
-    document.body.classList.remove('accountant-theme', 'admin-theme');
+    const applyRole = () => {
+        const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | 'secretary' | null;
+        
+        document.body.classList.remove('accountant-theme', 'admin-theme');
 
-    if (role === 'admin') {
-      setCurrentRole('admin');
-      document.body.classList.add('admin-theme');
-    } else if (role === 'accountant' || role === 'secretary') {
-      setCurrentRole(role);
-      document.body.classList.add('accountant-theme');
+        if (role === 'admin') {
+          setCurrentRole('admin');
+          document.body.classList.add('admin-theme');
+        } else if (role === 'accountant' || role === 'secretary') {
+          setCurrentRole(role);
+          document.body.classList.add('accountant-theme');
+        }
+        else {
+          setCurrentRole('client');
+        }
     }
-    else {
-      setCurrentRole('client');
+
+    applyRole();
+    window.addEventListener('storage', applyRole);
+
+    return () => {
+        window.removeEventListener('storage', applyRole);
     }
-  }, [pathname]);
+  }, []);
 
   const isNavItemActive = (itemHref: string) => {
     // For dashboard links, check if the pathname is exactly the href, or if it's the root for that role's dashboard
