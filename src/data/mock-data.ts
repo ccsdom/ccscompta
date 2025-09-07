@@ -1,5 +1,4 @@
 
-
 import type { Document, Bilan } from '@/lib/types';
 import type { Client } from '@/lib/client-data';
 
