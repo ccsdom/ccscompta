@@ -210,7 +210,7 @@ export function ClientForm({ client, onSave, isSubmitting }: ClientFormProps) {
                                             <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Sélectionner un comptable" />
-                                            </Trigger>
+                                            </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
                                                 <SelectItem value="unassigned">Non attribué</SelectItem>
