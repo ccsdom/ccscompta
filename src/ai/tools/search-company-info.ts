@@ -51,20 +51,6 @@ async function getInseeApiToken() {
     return data.access_token;
 }
 
-const getLegalRepresentative = async (siren: string, token: string): Promise<string | undefined> => {
-    const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siren/${siren}/representants`, {
-        headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) return undefined;
-    const data = await response.json();
-
-    const representative = data.representants?.find((r: any) => r.type === 'personne physique');
-    if (representative) {
-        return `${representative.prenom || ''} ${representative.nom || ''}`.trim();
-    }
-    return undefined;
-}
-
 const searchBySiret = async (siret: string, token: string) => {
     const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret/${siret}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -78,14 +64,12 @@ const searchBySiret = async (siret: string, token: string) => {
     const address = etablissement.adresseEtablissement;
     const fullAddress = `${address.numeroVoieEtablissement || ''} ${address.typeVoieEtablissement || ''} ${address.libelleVoieEtablissement || ''}, ${address.codePostalEtablissement} ${address.libelleCommuneEtablissement}`;
     
-    const legalRepresentative = await getLegalRepresentative(uniteLegale.siren, token);
-
     return {
         name: uniteLegale.denominationUniteLegale || `${uniteLegale.nomUniteLegale} ${uniteLegale.prenom1UniteLegale}`,
         siret: etablissement.siret,
         address: fullAddress.trim(),
-        legalRepresentative: legalRepresentative,
-        // fiscalYearEndDate can be derived from 'moisClotureExerciceUniteLegale' if available
+        // Le représentant légal n'est pas fourni de manière fiable par cette API.
+        legalRepresentative: undefined, 
         fiscalYearEndDate: uniteLegale.moisClotureExerciceUniteLegale ? `31/${uniteLegale.moisClotureExerciceUniteLegale}` : undefined,
     };
 }
