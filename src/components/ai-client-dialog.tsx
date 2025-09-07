@@ -33,6 +33,16 @@ export function AiClientDialog() {
             // The flow is smart enough to handle either a name or a SIRET
             const extractedData = await extractClientData({ searchTerm: searchTerm });
 
+            if (!extractedData.name && !extractedData.siret) {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Aucune information trouvée',
+                    description: 'L\'IA n\'a pas pu trouver de données pour ce terme. Veuillez vérifier et réessayer.'
+                });
+                setIsLoading(false);
+                return;
+            }
+
             const queryParams = new URLSearchParams();
             for (const [key, value] of Object.entries(extractedData)) {
                 if (value) {
