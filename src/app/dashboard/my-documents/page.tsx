@@ -319,25 +319,38 @@ export default function MyDocumentsPage() {
         
         const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
 
-        const groups: { [key: string]: Document[] } = {};
-
+        const typeGroups: { [key: string]: Document[] } = {};
         sortedDocs.forEach(doc => {
             const groupName = typeToGroupMap[doc.type || ''] || 'Autres documents';
-            if (!groups[groupName]) {
-                groups[groupName] = [];
+            if (!typeGroups[groupName]) {
+                typeGroups[groupName] = [];
             }
-            groups[groupName].push(doc);
+            typeGroups[groupName].push(doc);
         });
 
         const groupOrder = ["Factures de vente", "Factures d'achat", "Reçus", "Relevés bancaires", "Autres documents"];
 
         return groupOrder
-            .map(title => ({
-                title,
-                icon: getGroupIcon(title),
-                documents: groups[title] || [],
-            }))
-            .filter(group => group.documents.length > 0);
+            .map(title => {
+                const docsInGroup = typeGroups[title] || [];
+                if (docsInGroup.length === 0) return null;
+
+                const monthGroups: { [key: string]: Document[] } = {};
+                docsInGroup.forEach(doc => {
+                    const monthKey = format(new Date(doc.uploadDate), 'LLLL yyyy', { locale: fr });
+                    if(!monthGroups[monthKey]) {
+                        monthGroups[monthKey] = [];
+                    }
+                    monthGroups[monthKey].push(doc);
+                });
+
+                return {
+                    title,
+                    icon: getGroupIcon(title),
+                    monthlyGroups: Object.entries(monthGroups).map(([month, documents]) => ({ month, documents })).sort((a, b) => new Date(b.documents[0].uploadDate).getTime() - new Date(a.documents[0].uploadDate).getTime()),
+                };
+            })
+            .filter(Boolean);
 
   }, [documents, searchQuery, searchCriteria]);
 
@@ -447,53 +460,60 @@ export default function MyDocumentsPage() {
             </div>
         ) : groupedDocuments.length > 0 ? (
              groupedDocuments.map((group) => (
-                <Card key={group.title}>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <group.icon className="h-6 w-6" /> {group.title}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Document</TableHead>
-                                    <TableHead>Date de téléversement</TableHead>
-                                    <TableHead>Statut</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                               {group.documents.map(doc => (
-                                    <TableRow key={doc.id}>
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center gap-3">
-                                                <div className="bg-muted p-2 rounded-md">
-                                                    <FileText className="h-5 w-5 text-muted-foreground"/>
-                                                </div>
-                                                <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
-                                        <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
-                                                    <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                group && (
+                    <Card key={group.title}>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <group.icon className="h-6 w-6" /> {group.title}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                           {group.monthlyGroups.map(monthGroup => (
+                               <div key={monthGroup.month} className="border-t">
+                                  <h4 className="text-sm font-semibold p-3 bg-muted/50 capitalize">{monthGroup.month}</h4>
+                                  <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Document</TableHead>
+                                            <TableHead>Date de téléversement</TableHead>
+                                            <TableHead>Statut</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                    {monthGroup.documents.map(doc => (
+                                            <TableRow key={doc.id}>
+                                                <TableCell className="font-medium">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="bg-muted p-2 rounded-md">
+                                                            <FileText className="h-5 w-5 text-muted-foreground"/>
+                                                        </div>
+                                                        <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
+                                                <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                                <TableCell className="text-right space-x-2">
+                                                    <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                                            <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                  </Table>
+                               </div>
+                           ))}
+                        </CardContent>
+                    </Card>
+                )
             ))
         ) : (
              <Card>
