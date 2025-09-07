@@ -14,7 +14,7 @@ import {z} from 'genkit';
 import { searchCompanyInfoTool } from '../tools/search-company-info';
 
 const ExtractClientDataInputSchema = z.object({
-  description: z.string().describe('A company name or SIRET number.'),
+  searchTerm: z.string().describe('A company name or SIRET number.'),
 });
 export type ExtractClientDataInput = z.infer<typeof ExtractClientDataInputSchema>;
 
@@ -43,13 +43,13 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert data extraction agent for an accounting firm.
 Your task is to parse the user's input, which can be a company name or a SIRET number, and find official company data.
 
-User input: "{{description}}"
+User input: "{{searchTerm}}"
 
 **Your workflow:**
 
 1.  **Analyze Input**: Determine if the input is a 14-digit SIRET number or a company name.
 2.  **Tool Usage**:
-    *   You **MUST** use the \`searchCompanyInfo\` tool to find the company data. Pass the SIRET if provided, otherwise pass the company name.
+    *   You **MUST** use the \`searchCompanyInfo\` tool to find the company data. Pass the searchTerm to the tool's \`searchTerm\` parameter.
     *   Use the data returned by the tool to populate the output fields (\`name\`, \`siret\`, \`address\`, \`legalRepresentative\`, \`phone\`, and \`email\`).
 3.  **Extraction from Text (Fallback & Complement)**:
     *   If the tool returns no data, try to extract information from the original text if it contains more than just the search term (e.g., "ajoute Innovatech SAS, clôture au 31/12").
@@ -62,12 +62,12 @@ User input: "{{description}}"
 
 **Example 1 (SIRET input):**
 - User input: "12345678901234"
-- Your action: Call \`searchCompanyInfo\` with SIRET '12345678901234'.
+- Your action: Call \`searchCompanyInfo\` with searchTerm '12345678901234'.
 - Your output: { "name": "Innovatech SAS", "siret": "12345678901234", "address": "...", "legalRepresentative": "Marie Dubois", ... }
 
 **Example 2 (Name input):**
 - User input: "GastroNomie & Fils"
-- Your action: Call \`searchCompanyInfo\` with name 'GastroNomie & Fils'.
+- Your action: Call \`searchCompanyInfo\` with searchTerm 'GastroNomie & Fils'.
 - Your output: { "name": "GastroNomie & Fils", "siret": "98765432109876", ... }
 `,
 });

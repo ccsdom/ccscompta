@@ -31,7 +31,7 @@ export function AiClientDialog() {
         setIsLoading(true);
         try {
             // The flow is smart enough to handle either a name or a SIRET
-            const extractedData = await extractClientData({ description: searchTerm });
+            const extractedData = await extractClientData({ searchTerm: searchTerm });
 
             const queryParams = new URLSearchParams();
             for (const [key, value] of Object.entries(extractedData)) {
