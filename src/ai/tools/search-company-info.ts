@@ -5,25 +5,23 @@
  */
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { MOCK_CLIENTS } from '@/data/mock-data';
 
-const MOCK_COMPANY_DB: Record<string, any> = {
-    '12345678901234': {
-        name: 'Innovatech SAS',
-        siret: '12345678901234',
-        address: '10 Rue de l\'Innovation, 75015 Paris',
-        legalRepresentative: 'Marie Dubois',
-        phone: '0123456789',
-        email: 'contact@innovatech.fr',
-    },
-    '98765432109876': {
-        name: 'GastroNomie & Fils',
-        siret: '98765432109876',
-        address: '25 Place de la Bourse, 69002 Lyon',
-        legalRepresentative: 'Paul Bocuse Jr.',
-        phone: '0472102030',
-        email: 'contact@gastronomie-fils.fr',
-    }
-};
+// Build the mock database from MOCK_CLIENTS to ensure consistency
+const MOCK_COMPANY_DB: Record<string, any> = {};
+MOCK_CLIENTS.forEach(client => {
+    // The tool returns a subset of fields, so we map them here.
+    MOCK_COMPANY_DB[client.siret] = {
+        name: client.name,
+        siret: client.siret,
+        address: client.address,
+        legalRepresentative: client.legalRepresentative,
+        phone: client.phone,
+        email: client.email,
+        fiscalYearEndDate: client.fiscalYearEndDate,
+    };
+});
+
 
 const findCompanyByName = (name: string) => {
     const lowercasedName = name.toLowerCase();
@@ -41,6 +39,7 @@ const SearchCompanyInfoOutputSchema = z.object({
     legalRepresentative: z.string().optional(),
     phone: z.string().optional(),
     email: z.string().optional(),
+    fiscalYearEndDate: z.string().optional(),
 });
 
 
