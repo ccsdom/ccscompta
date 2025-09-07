@@ -34,11 +34,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
-import { FileUploader } from '@/components/file-uploader';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BilanHistory } from '@/components/bilan-history';
+import { cn } from '@/lib/utils';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -152,63 +152,6 @@ export default function DocumentsPage() {
   };
 
 
-  const handleFileDrop = async (files: File[]) => {
-    if (!selectedClientId) {
-         toast({ variant: "destructive", title: "Aucun client sélectionné" });
-        return;
-    }
-    setIsProcessing(true);
-
-    // This is a temporary fix for state inconsistency.
-    // Ideally, we'd get a fresh list from the server.
-    const currentDocs = await getDocuments(selectedClientId);
-    const existingFileNames = new Set(currentDocs.map(d => d.name));
-    const newDocsToProcess: Document[] = [];
-
-    for (const file of files) {
-      if (existingFileNames.has(file.name)) {
-        toast({ variant: "destructive", title: "Fichier en double", description: `"${file.name}" a déjà été téléversé.` });
-        continue;
-      }
-      try {
-        const dataUrl = await fileToDataUri(file);
-        const storagePath = `${selectedClientId}/${file.name}`;
-        
-        // Upload to storage first
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, file);
-
-        const newDocData: Omit<Document, 'id'> = {
-          name: file.name,
-          uploadDate: new Date().toISOString(),
-          status: 'pending' as const,
-          storagePath,
-          clientId: selectedClientId,
-          auditTrail: [{ action: 'Document téléversé', date: new Date().toISOString(), user: getCurrentUser() }],
-          comments: []
-        };
-        const addedDoc = await addDocument(newDocData);
-        if (addedDoc) {
-            newDocsToProcess.push({ ...addedDoc, dataUrl });
-            existingFileNames.add(file.name);
-        }
-      } catch (error) {
-        console.error("Error during file upload:", error);
-        toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.` });
-      }
-    }
-    
-    if (newDocsToProcess.length > 0) {
-      setDocuments(prev => [...newDocsToProcess, ...prev]);
-      handleSetActiveDocument(newDocsToProcess[0]);
-      toast({ title: "Fichiers téléversés", description: `${newDocsToProcess.length} document(s) en cours de traitement.` });
-      for (const doc of newDocsToProcess) {
-        await handleProcessDocument(doc.id);
-      }
-    }
-    setIsProcessing(false);
-  };
-  
   const handleProcessDocument = async (docId: string) => {
     const docToProcess = documents.find(d => d.id === docId) ?? await getDocumentById(docId);
     if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
@@ -629,7 +572,43 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const renderContent = () => {
+  const MainContent = () => (
+    <div className="flex flex-col gap-6 h-full">
+        {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
+        <FilterDisplay />
+        <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col">
+            <TabsList>
+                <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
+                <TabsTrigger value="bilans">Bilans</TabsTrigger>
+            </TabsList>
+            <TabsContent value="documents" className="flex-1 mt-4">
+                 <DocumentHistory
+                    documentGroups={groupedDocuments}
+                    onProcess={(doc) => handleProcessDocument(doc.id)}
+                    onDelete={handleDeleteSingle}
+                    activeDocumentId={activeDocumentId}
+                    setActiveDocument={handleSetActiveDocument}
+                    selectedDocumentIds={selectedDocumentIds}
+                    setSelectedDocumentIds={setSelectedDocumentIds}
+                    isLoading={isLoading}
+                />
+            </TabsContent>
+            <TabsContent value="bilans" className="flex-1 mt-4">
+                {selectedClientId ? <BilanHistory clientId={selectedClientId} /> : (
+                    <Card className="h-full flex items-center justify-center">
+                        <CardContent className="text-center p-6">
+                            <BookCopy className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                            <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client pour voir l'historique des bilans.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </TabsContent>
+        </Tabs>
+    </div>
+  );
+
+  const DetailView = () => {
     if (activeDocument) {
       return (
         <div className="flex flex-col h-full gap-6">
@@ -662,57 +641,31 @@ export default function DocumentsPage() {
       );
     }
     return (
-      <Card className="h-full">
-        <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
-            <FileSignature className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Commencez la validation</h3>
-            <p className="text-sm text-muted-foreground mt-2 max-w-xs">
-                Sélectionnez un document dans la liste pour commencer le processus de validation. Vous pourrez examiner les données extraites par l'IA, les corriger si nécessaire, et approuver la pièce.
-            </p>
-        </CardContent>
-      </Card>
+        <div className="hidden lg:flex items-center justify-center h-full sticky top-[80px]">
+            <Card className="h-full w-full">
+                <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
+                    <FileSignature className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold">Commencez la validation</h3>
+                    <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+                        Sélectionnez un document dans la liste pour commencer le processus de validation. Vous pourrez examiner les données extraites par l'IA, les corriger si nécessaire, et approuver la pièce.
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
     );
   };
 
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
-        <div className="lg:col-span-2 flex flex-col gap-6 h-full overflow-y-auto">
-            {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
-            <FilterDisplay />
-            <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col">
-                <TabsList>
-                    <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
-                    <TabsTrigger value="bilans">Bilans</TabsTrigger>
-                </TabsList>
-                <TabsContent value="documents" className="flex-1 mt-4">
-                     <DocumentHistory
-                        documentGroups={groupedDocuments}
-                        onProcess={(doc) => handleProcessDocument(doc.id)}
-                        onDelete={handleDeleteSingle}
-                        activeDocumentId={activeDocumentId}
-                        setActiveDocument={handleSetActiveDocument}
-                        selectedDocumentIds={selectedDocumentIds}
-                        setSelectedDocumentIds={setSelectedDocumentIds}
-                        isLoading={isLoading}
-                    />
-                </TabsContent>
-                <TabsContent value="bilans" className="flex-1 mt-4">
-                    {selectedClientId ? <BilanHistory clientId={selectedClientId} /> : (
-                        <Card className="h-full flex items-center justify-center">
-                            <CardContent className="text-center p-6">
-                                <BookCopy className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
-                                <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client pour voir l'historique des bilans.</p>
-                            </CardContent>
-                        </Card>
-                    )}
-                </TabsContent>
-            </Tabs>
+        <div className={cn("h-full overflow-y-auto", activeDocumentId ? "lg:col-span-2" : "lg:col-span-3")}>
+             <MainContent />
         </div>
-        <div className="hidden lg:block h-full sticky top-[80px]">
-            {renderContent()}
-        </div>
+        {activeDocumentId && (
+            <div className="hidden lg:block h-full sticky top-[80px]">
+                <DetailView />
+            </div>
+        )}
 
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
@@ -734,8 +687,7 @@ export default function DocumentsPage() {
                 </>
             ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
+                <p>Aucun document sélectionné.</p>
                 </div>
             )}
             </SheetContent>
@@ -743,5 +695,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
