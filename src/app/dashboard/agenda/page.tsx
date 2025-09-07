@@ -13,6 +13,7 @@ import { Building, Percent, BookCheck, Briefcase } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 const eventTypeConfig = {
     tva: { label: "Déclaration TVA", icon: Percent, color: 'bg-blue-500' },
