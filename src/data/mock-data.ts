@@ -1,6 +1,6 @@
 
 
-import type { Document } from '@/lib/types';
+import type { Document, Bilan } from '@/lib/types';
 import type { Client } from '@/lib/client-data';
 
 export const MOCK_CLIENTS: Client[] = [
@@ -93,4 +93,19 @@ export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
             comments: []
         }
     ]
+};
+
+export const MOCK_BILANS: Record<string, Bilan[]> = {
+    'client-01': [
+        { id: 'b1', clientId: 'client-01', year: 2023, status: 'completed', netIncome: 55000, turnover: 250000, submissionDate: '2024-04-15T00:00:00Z' },
+        { id: 'b2', clientId: 'client-01', year: 2022, status: 'completed', netIncome: 48000, turnover: 220000, submissionDate: '2023-04-20T00:00:00Z' },
+        { id: 'b3', clientId: 'client-01', year: 2021, status: 'completed', netIncome: 42000, turnover: 190000, submissionDate: '2022-04-18T00:00:00Z' },
+    ],
+    'client-02': [
+        { id: 'b4', clientId: 'client-02', year: 2023, status: 'reviewing', netIncome: 32000, turnover: 180000, submissionDate: undefined },
+        { id: 'b5', clientId: 'client-02', year: 2022, status: 'completed', netIncome: 29000, turnover: 175000, submissionDate: '2023-05-10T00:00:00Z' },
+    ],
+    'client-04': [
+        { id: 'b6', clientId: 'client-04', year: 2023, status: 'pending', netIncome: 0, turnover: 0, submissionDate: undefined },
+    ],
 };

@@ -20,6 +20,17 @@ export interface Notification {
   isRead: boolean;
 }
 
+export interface Bilan {
+    id: string;
+    clientId: string;
+    year: number;
+    status: 'pending' | 'completed' | 'reviewing';
+    netIncome: number;
+    turnover: number;
+    submissionDate?: string; // ISO 8601 string date
+}
+
+
 export interface Document {
   id: string;
   name: string;

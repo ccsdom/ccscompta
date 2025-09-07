@@ -19,7 +19,7 @@ import {
   SheetTitle
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2 } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +37,8 @@ import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
 import { FileUploader } from '@/components/file-uploader';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BilanHistory } from '@/components/bilan-history';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -631,50 +633,69 @@ export default function DocumentsPage() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
-      <div className="lg:col-span-2 flex flex-col gap-6 h-full">
-        {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
-        <FilterDisplay />
-        <DocumentHistory
-          documents={filteredDocuments}
-          onProcess={(doc) => handleProcessDocument(doc.id)}
-          onDelete={handleDeleteSingle}
-          activeDocumentId={activeDocumentId}
-          setActiveDocument={handleSetActiveDocument}
-          selectedDocumentIds={selectedDocumentIds}
-          setSelectedDocumentIds={setSelectedDocumentIds}
-          isLoading={isLoading}
-        />
-      </div>
-      <div className="hidden lg:block h-full sticky top-[80px]">
-        {renderContent()}
-      </div>
+        <div className="lg:col-span-2 flex flex-col gap-6 h-full">
+            {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
+            <FilterDisplay />
+            <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col">
+                <TabsList>
+                    <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
+                    <TabsTrigger value="bilans">Bilans</TabsTrigger>
+                </TabsList>
+                <TabsContent value="documents" className="flex-1 mt-4">
+                    <DocumentHistory
+                        documents={filteredDocuments}
+                        onProcess={(doc) => handleProcessDocument(doc.id)}
+                        onDelete={handleDeleteSingle}
+                        activeDocumentId={activeDocumentId}
+                        setActiveDocument={handleSetActiveDocument}
+                        selectedDocumentIds={selectedDocumentIds}
+                        setSelectedDocumentIds={setSelectedDocumentIds}
+                        isLoading={isLoading}
+                    />
+                </TabsContent>
+                <TabsContent value="bilans" className="flex-1 mt-4">
+                    {selectedClientId ? <BilanHistory clientId={selectedClientId} /> : (
+                        <Card className="h-full flex items-center justify-center">
+                            <CardContent className="text-center p-6">
+                                <BookCopy className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                                <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client pour voir l'historique des bilans.</p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </TabsContent>
+            </Tabs>
+        </div>
+        <div className="hidden lg:block h-full sticky top-[80px]">
+            {renderContent()}
+        </div>
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
-          {activeDocument ? (
-            <>
-            <SheetHeader className="p-6">
-              <SheetTitle>
-                <span className="sr-only">{activeDocument.name}</span>
-              </SheetTitle>
-            </SheetHeader>
-            <DataValidationForm
-              key={activeDocument.id}
-              document={activeDocument}
-              onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-              isLoading={isProcessing}
-              onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
-              isSheet
-            />
-            </>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8">
-              <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
+            {activeDocument ? (
+                <>
+                <SheetHeader className="p-6">
+                <SheetTitle>
+                    <span className="sr-only">{activeDocument.name}</span>
+                </SheetTitle>
+                </SheetHeader>
+                <DataValidationForm
+                key={activeDocument.id}
+                document={activeDocument}
+                onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
+                isLoading={isProcessing}
+                onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
+                isSheet
+                />
+                </>
+            ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold">Aucun document sélectionné</h3>
+                </div>
+            )}
+            </SheetContent>
+        </Sheet>
     </div>
   );
 }

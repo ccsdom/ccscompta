@@ -3,8 +3,8 @@
 
 import { z } from 'genkit';
 import { db as adminDb } from '@/lib/firebase-admin';
-import type { Document, AuditEvent } from '@/lib/types';
-import { MOCK_DOCUMENTS } from '@/data/mock-data';
+import type { Document, AuditEvent, Bilan } from '@/lib/types';
+import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
 import type { FirestoreDataConverter, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { createSupplier, findSupplier } from '@/services/cegid';
 
@@ -206,3 +206,10 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
         return { success: false, error: errorMessage };
     }
 }
+
+
+export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
+    // This is a mock implementation. In a real app, you would fetch this from Firestore.
+    return Promise.resolve(MOCK_BILANS[clientId] || []);
+}
+
