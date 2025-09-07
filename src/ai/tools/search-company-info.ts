@@ -72,6 +72,6 @@ export const searchCompanyInfoTool = ai.defineTool(
         }
         
         console.log(`[Tool] No company found for term: ${searchTerm}`);
-        return { name: undefined }; // Return an empty object if not found
+        return {}; // Return an empty object if not found
     }
 );

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent that extracts structured client data from natural language text,
@@ -48,7 +49,7 @@ User input: "{{searchTerm}}"
 
 1.  **Analyze Input**: Determine if the input is a 14-digit SIRET number or a company name.
 2.  **Tool Usage**:
-    *   You **MUST** use the \`searchCompanyInfo\` tool to find the company data. Pass the searchTerm to the tool's \`searchTerm\` parameter.
+    *   You **MUST** use the \`searchCompanyInfo\` tool to find the company data. Pass the user's input directly to the tool's \`searchTerm\` parameter.
     *   Use the data returned by the tool to populate the output fields (\`name\`, \`siret\`, \`address\`, \`legalRepresentative\`, \`phone\`, and \`email\`).
 3.  **Extraction from Text (Fallback & Complement)**:
     *   If the tool returns no data, try to extract information from the original text if it contains more than just the search term (e.g., "ajoute Innovatech SAS, clôture au 31/12").
@@ -60,14 +61,14 @@ User input: "{{searchTerm}}"
 - Do not invent or infer any information. If a piece of information is not available from the tool or the text, omit its key from the output.
 
 **Example 1 (SIRET input):**
-- User input: "12345678901234"
-- Your action: Call \`searchCompanyInfo\` with searchTerm '12345678901234'.
-- Your output: { "name": "Innovatech SAS", "siret": "12345678901234", "address": "...", "legalRepresentative": "Marie Dubois", ... }
+- User input: "10000000000001"
+- Your action: Call \`searchCompanyInfo\` with searchTerm '10000000000001'.
+- Your output: { "name": "ACTION AVENTURE", "siret": "10000000000001", "address": "1 Rue de l\'Aventure, 75001 Paris", "legalRepresentative": "Représentant A", ... }
 
 **Example 2 (Name input):**
-- User input: "GastroNomie & Fils"
-- Your action: Call \`searchCompanyInfo\` with searchTerm 'GastroNomie & Fils'.
-- Your output: { "name": "GastroNomie & Fils", "siret": "98765432109876", ... }
+- User input: "Chicken Spot"
+- Your action: Call \`searchCompanyInfo\` with searchTerm 'Chicken Spot'.
+- Your output: { "name": "CHICKEN SPOT", "siret": "10000000000006", ... }
 `,
 });
 
