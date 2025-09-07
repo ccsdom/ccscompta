@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A tool for searching official company data from the INSEE Sirene API.
