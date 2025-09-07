@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, AreaChart, LifeBuoy, ScanLine } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -17,6 +17,7 @@ const accountantNavItems = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
+  { href: '/dashboard/agenda', icon: CalendarDays, label: 'Agenda' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
 ];
 
@@ -24,6 +25,7 @@ const secretaryNavItems = [
     { href: '/dashboard/secretary', icon: LayoutDashboard, label: 'Tableau de bord' },
     { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
     { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
+    { href: '/dashboard/agenda', icon: CalendarDays, label: 'Agenda' },
 ];
 
 const clientNavItems = [

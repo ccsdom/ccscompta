@@ -30,6 +30,15 @@ export interface Bilan {
     submissionDate?: string; // ISO 8601 string date
 }
 
+export interface AgendaEvent {
+    id: string;
+    title: string;
+    date: Date;
+    type: 'tva' | 'bilan' | 'task';
+    clientId: string;
+    clientName: string;
+}
+
 
 export interface Document {
   id: string;
