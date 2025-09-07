@@ -19,7 +19,7 @@ import {
   SheetTitle
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy, ArrowDownToLine, ArrowUpFromLine, Receipt, Landmark, Folder } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy, ArrowDownToLine, ArrowUpFromLine, Receipt, Landmark, Folder, FileSignature } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -664,8 +664,11 @@ export default function DocumentsPage() {
     return (
       <Card className="h-full">
         <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
-            <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessing} />
-            <p className="text-sm text-muted-foreground mt-4">Ou sélectionnez un document dans la liste pour voir l'aperçu et valider les données.</p>
+            <FileSignature className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold">Bienvenue, Comptable</h3>
+            <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+                Sélectionnez un document dans la liste pour commencer le processus de validation. Vous pourrez examiner les données extraites par l'IA, les corriger si nécessaire, et approuver la pièce.
+            </p>
         </CardContent>
       </Card>
     );
@@ -740,3 +743,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
