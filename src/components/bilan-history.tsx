@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from "@/components/ui/button";
 import { Download, FileWarning, CheckCircle, Clock } from 'lucide-react';
 import { getBilansByClientId } from '@/ai/flows/document-actions';
@@ -39,7 +39,9 @@ export function BilanHistory({ clientId }: BilanHistoryProps) {
       setBilans(data);
       setIsLoading(false);
     };
-    fetchBilans();
+    if (clientId) {
+        fetchBilans();
+    }
   }, [clientId]);
 
   return (
