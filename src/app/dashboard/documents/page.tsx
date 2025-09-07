@@ -39,6 +39,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BilanHistory } from '@/components/bilan-history';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -466,24 +468,38 @@ export default function DocumentsPage() {
         
         const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
 
-        const groups: { [key: string]: Document[] } = {};
+        const typeGroups: { [key: string]: Document[] } = {};
         sortedDocs.forEach(doc => {
             const groupName = typeToGroupMap[doc.type || ''] || 'Autres documents';
-            if (!groups[groupName]) {
-                groups[groupName] = [];
+            if (!typeGroups[groupName]) {
+                typeGroups[groupName] = [];
             }
-            groups[groupName].push(doc);
+            typeGroups[groupName].push(doc);
         });
 
         const groupOrder = ["Factures de vente", "Factures d'achat", "Reçus", "Relevés bancaires", "Autres documents"];
 
         return groupOrder
-            .map(title => ({
-                title,
-                icon: getGroupIcon(title),
-                documents: groups[title] || [],
-            }))
-            .filter(group => group.documents.length > 0);
+            .map(title => {
+                const docsInGroup = typeGroups[title] || [];
+                if (docsInGroup.length === 0) return null;
+
+                const monthGroups: { [key: string]: Document[] } = {};
+                docsInGroup.forEach(doc => {
+                    const monthKey = format(new Date(doc.uploadDate), 'LLLL yyyy', { locale: fr });
+                    if(!monthGroups[monthKey]) {
+                        monthGroups[monthKey] = [];
+                    }
+                    monthGroups[monthKey].push(doc);
+                });
+
+                return {
+                    title,
+                    icon: getGroupIcon(title),
+                    monthlyGroups: Object.entries(monthGroups).map(([month, documents]) => ({ month, documents })).sort((a, b) => new Date(b.documents[0].uploadDate).getTime() - new Date(a.documents[0].uploadDate).getTime()),
+                };
+            })
+            .filter(Boolean);
 
   }, [documents, searchQuery, searchCriteria, dashboardFilter]);
 

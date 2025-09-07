@@ -3,10 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileText, Receipt, Landmark, FileQuestion, Play, Eye, Trash2, FileClock, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Loader2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Play, Eye, Trash2, FileClock, Loader2 } from "lucide-react";
 import type { Document } from "@/lib/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,14 +20,19 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "./ui/skeleton";
 
-type DocumentGroup = {
-    title: string;
-    icon: React.ElementType;
+type MonthlyGroup = {
+    month: string;
     documents: Document[];
 };
 
+type DocumentGroup = {
+    title: string;
+    icon: React.ElementType;
+    monthlyGroups: MonthlyGroup[];
+};
+
 interface DocumentHistoryProps {
-  documentGroups: DocumentGroup[];
+  documentGroups: (DocumentGroup | null)[];
   onProcess: (doc: Document) => void;
   onDelete: (docId: string) => void;
   activeDocumentId?: string | null;
@@ -63,15 +67,6 @@ const getStatusBadge = (status: Document['status']) => {
 
 export function DocumentHistory({ documentGroups, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds, isLoading }: DocumentHistoryProps) {
 
-    const handleSelectAll = (checked: boolean | string) => {
-        if (checked) {
-            const allDocIds = documentGroups.flatMap(g => g.documents.map(d => d.id));
-            setSelectedDocumentIds(allDocIds);
-        } else {
-            setSelectedDocumentIds([]);
-        }
-    }
-
     const handleSelectRow = (id: string, checked: boolean) => {
         if (checked) {
             setSelectedDocumentIds(prev => [...prev, id]);
@@ -95,7 +90,9 @@ export function DocumentHistory({ documentGroups, onProcess, onDelete, activeDoc
         )
     }
 
-    if (documentGroups.length === 0) {
+    const nonEmptyGroups = documentGroups.filter((g): g is DocumentGroup => g !== null && g.monthlyGroups.length > 0);
+
+    if (nonEmptyGroups.length === 0) {
         return (
             <Card>
                 <CardContent className="h-48 flex flex-col items-center justify-center text-center">
@@ -109,7 +106,7 @@ export function DocumentHistory({ documentGroups, onProcess, onDelete, activeDoc
 
     return (
         <div className="space-y-6">
-            {documentGroups.map((group) => (
+            {nonEmptyGroups.map((group) => (
                 <Card key={group.title}>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -117,111 +114,116 @@ export function DocumentHistory({ documentGroups, onProcess, onDelete, activeDoc
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[40px] px-4">
-                                        <Checkbox
-                                            onCheckedChange={(checked) => {
-                                                const docIds = group.documents.map(d => d.id);
-                                                if (checked) {
-                                                    setSelectedDocumentIds(prev => [...new Set([...prev, ...docIds])]);
-                                                } else {
-                                                    setSelectedDocumentIds(prev => prev.filter(id => !docIds.includes(id)));
-                                                }
-                                            }}
-                                            checked={group.documents.every(d => selectedDocumentIds.includes(d.id))}
-                                            indeterminate={group.documents.some(d => selectedDocumentIds.includes(d.id)) && !group.documents.every(d => selectedDocumentIds.includes(d.id))}
-                                            aria-label={`Sélectionner tous les ${group.title}`}
-                                        />
-                                    </TableHead>
-                                    <TableHead>Document</TableHead>
-                                    <TableHead className="hidden lg:table-cell">Fournisseur</TableHead>
-                                    <TableHead className="hidden md:table-cell text-right">Montant</TableHead>
-                                    <TableHead>Statut</TableHead>
-                                    <TableHead className="text-right w-[140px]">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {group.documents.map((doc) => (
-                                <TableRow 
-                                    key={doc.id} 
-                                    data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
-                                    className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-muted/80' : ''}`}
-                                    onClick={() => setActiveDocument(doc)}
-                                >
-                                    <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
-                                        <Checkbox
-                                            onCheckedChange={(checked) => handleSelectRow(doc.id, !!checked)}
-                                            checked={selectedDocumentIds.includes(doc.id)}
-                                            aria-label={`Sélectionner ${doc.name}`}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</div>
-                                        <div className="text-xs text-muted-foreground">{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</div>
-                                    </TableCell>
-                                    <TableCell className="hidden lg:table-cell text-muted-foreground">{doc.extractedData?.vendorNames?.[0] || 'N/A'}</TableCell>
-                                     <TableCell className="hidden md:table-cell text-right font-mono text-sm">
-                                        {doc.extractedData?.amounts?.[0]?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || '-'}
-                                    </TableCell>
-                                    <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                    <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                                    <TooltipProvider>
-                                        {(doc.status === 'pending' || doc.status === 'error') && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="ghost" size="icon" onClick={() => onProcess(doc)}>
-                                                        <Play className="h-4 w-4" />
-                                                        <span className="sr-only">Traiter</span>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>Traiter le document</p></TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                        {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
-                                                        <Eye className="h-4 w-4" />
-                                                        <span className="sr-only">Afficher</span>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>Afficher les détails</p></TooltipContent>
-                                            </Tooltip>
-                                        )}
+                        {group.monthlyGroups.map(monthGroup => (
+                             <div key={monthGroup.month} className="border-t">
+                                <h4 className="text-sm font-semibold p-3 bg-muted/50 capitalize">{monthGroup.month}</h4>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[40px] px-4">
+                                                 <Checkbox
+                                                    onCheckedChange={(checked) => {
+                                                        const docIds = monthGroup.documents.map(d => d.id);
+                                                        if (checked) {
+                                                            setSelectedDocumentIds(prev => [...new Set([...prev, ...docIds])]);
+                                                        } else {
+                                                            setSelectedDocumentIds(prev => prev.filter(id => !docIds.includes(id)));
+                                                        }
+                                                    }}
+                                                    checked={monthGroup.documents.length > 0 && monthGroup.documents.every(d => selectedDocumentIds.includes(d.id))}
+                                                    indeterminate={monthGroup.documents.some(d => selectedDocumentIds.includes(d.id)) && !monthGroup.documents.every(d => selectedDocumentIds.includes(d.id))}
+                                                    aria-label={`Sélectionner tous les documents pour ${monthGroup.month}`}
+                                                />
+                                            </TableHead>
+                                            <TableHead>Document</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Fournisseur</TableHead>
+                                            <TableHead className="hidden md:table-cell text-right">Montant</TableHead>
+                                            <TableHead>Statut</TableHead>
+                                            <TableHead className="text-right w-[140px]">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {monthGroup.documents.map((doc) => (
+                                        <TableRow 
+                                            key={doc.id} 
+                                            data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
+                                            className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-muted/80' : ''}`}
+                                            onClick={() => setActiveDocument(doc)}
+                                        >
+                                            <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    onCheckedChange={(checked) => handleSelectRow(doc.id, !!checked)}
+                                                    checked={selectedDocumentIds.includes(doc.id)}
+                                                    aria-label={`Sélectionner ${doc.name}`}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</div>
+                                                <div className="text-xs text-muted-foreground">{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</div>
+                                            </TableCell>
+                                            <TableCell className="hidden lg:table-cell text-muted-foreground">{doc.extractedData?.vendorNames?.[0] || 'N/A'}</TableCell>
+                                            <TableCell className="hidden md:table-cell text-right font-mono text-sm">
+                                                {doc.extractedData?.amounts?.[0]?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || '-'}
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                            <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                                            <TooltipProvider>
+                                                {(doc.status === 'pending' || doc.status === 'error') && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="ghost" size="icon" onClick={() => onProcess(doc)}>
+                                                                <Play className="h-4 w-4" />
+                                                                <span className="sr-only">Traiter</span>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Traiter le document</p></TooltipContent>
+                                                    </Tooltip>
+                                                )}
+                                                {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
+                                                                <Eye className="h-4 w-4" />
+                                                                <span className="sr-only">Afficher</span>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Afficher les détails</p></TooltipContent>
+                                                    </Tooltip>
+                                                )}
 
-                                        <AlertDialog>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                                            <Trash2 className="h-4 w-4" />
-                                                            <span className="sr-only">Supprimer</span>
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                </TooltipTrigger>
-                                                <TooltipContent className="border-destructive text-destructive"><p>Supprimer le document</p></TooltipContent>
-                                            </Tooltip>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Cette action est irréversible. Le document "{doc.name}" sera définitivement supprimé.
-                                                </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                        </TooltipProvider>
-                                    </TableCell>
-                                </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                                <AlertDialog>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <span className="sr-only">Supprimer</span>
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="border-destructive text-destructive"><p>Supprimer le document</p></TooltipContent>
+                                                    </Tooltip>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Cette action est irréversible. Le document "{doc.name}" sera définitivement supprimé.
+                                                        </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                                </TooltipProvider>
+                                            </TableCell>
+                                        </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
             ))}
