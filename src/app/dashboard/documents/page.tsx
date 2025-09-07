@@ -665,7 +665,7 @@ export default function DocumentsPage() {
       <Card className="h-full">
         <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
             <FileSignature className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Bienvenue, Comptable</h3>
+            <h3 className="text-lg font-semibold">Commencez la validation</h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-xs">
                 Sélectionnez un document dans la liste pour commencer le processus de validation. Vous pourrez examiner les données extraites par l'IA, les corriger si nécessaire, et approuver la pièce.
             </p>
@@ -744,4 +744,5 @@ export default function DocumentsPage() {
   );
 }
 
+    
     
