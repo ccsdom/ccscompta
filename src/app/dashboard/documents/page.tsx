@@ -19,7 +19,7 @@ import {
   SheetTitle
 } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy, ArrowDownToLine, ArrowUpFromLine, Receipt, Landmark, Folder } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
@@ -42,6 +42,24 @@ import { BilanHistory } from '@/components/bilan-history';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
+
+const typeToGroupMap: Record<string, string> = {
+    'purchase invoice': "Factures d'achat",
+    'sales invoice': "Factures de vente",
+    'receipt': "Reçus",
+    'bank statement': "Relevés bancaires",
+};
+
+const getGroupIcon = (groupName: string) => {
+    switch (groupName) {
+        case "Factures d'achat": return ArrowDownToLine;
+        case "Factures de vente": return ArrowUpFromLine;
+        case "Reçus": return Receipt;
+        case "Relevés bancaires": return Landmark;
+        default: return Folder;
+    }
+}
+
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -170,8 +188,10 @@ export default function DocumentsPage() {
           comments: []
         };
         const addedDoc = await addDocument(newDocData);
-        newDocsToProcess.push({ ...addedDoc, dataUrl });
-        existingFileNames.add(file.name);
+        if (addedDoc) {
+            newDocsToProcess.push({ ...addedDoc, dataUrl });
+            existingFileNames.add(file.name);
+        }
       } catch (error) {
         console.error("Error during file upload:", error);
         toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.` });
@@ -435,8 +455,8 @@ export default function DocumentsPage() {
     toast({ title: "Exportation réussie", description: `${docsToExport.length} documents ont été exportés.` });
   }
   
-  const filteredDocuments = useMemo(() => {
-        let docs = [...documents];
+  const groupedDocuments = useMemo(() => {
+        let filteredDocs = [...documents];
         
         if (dashboardFilter) {
             const today = new Date();
@@ -444,13 +464,13 @@ export default function DocumentsPage() {
             
             switch (dashboardFilter) {
                 case 'today':
-                    docs = docs.filter(d => new Date(d.uploadDate) >= twentyFourHoursAgo);
+                    filteredDocs = filteredDocs.filter(d => new Date(d.uploadDate) >= twentyFourHoursAgo);
                     break;
                 case 'pending_review':
-                    docs = docs.filter(d => ['pending', 'reviewing', 'error'].includes(d.status));
+                    filteredDocs = filteredDocs.filter(d => ['pending', 'reviewing', 'error'].includes(d.status));
                     break;
                 case 'approved_today':
-                    docs = docs.filter(doc => {
+                    filteredDocs = filteredDocs.filter(doc => {
                         const approvalEvent = doc.auditTrail.find(e => e.action.includes('approuvé'));
                         return approvalEvent && new Date(approvalEvent.date) >= twentyFourHoursAgo;
                     });
@@ -461,33 +481,33 @@ export default function DocumentsPage() {
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
             if (documentTypes && documentTypes.length > 0) {
-                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+                filteredDocs = filteredDocs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
             }
             if (maxAmount) {
-                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
+                filteredDocs = filteredDocs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
-                docs = docs.filter(d => {
+                filteredDocs = filteredDocs.filter(d => {
                     const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
-             if (!docs.length && originalQuery) {
+             if (!filteredDocs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = [...documents].filter(doc => 
+                 filteredDocs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v != null && v.toLowerCase().includes(lowercasedQuery)))
                 );
@@ -495,12 +515,33 @@ export default function DocumentsPage() {
         } 
         else if (searchQuery) {
              const lowercasedQuery = searchQuery.toLowerCase();
-             docs = docs.filter(doc => 
+             filteredDocs = filteredDocs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor != null && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
-        return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+        
+        const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+
+        const groups: { [key: string]: Document[] } = {};
+        sortedDocs.forEach(doc => {
+            const groupName = typeToGroupMap[doc.type || ''] || 'Autres documents';
+            if (!groups[groupName]) {
+                groups[groupName] = [];
+            }
+            groups[groupName].push(doc);
+        });
+
+        const groupOrder = ["Factures de vente", "Factures d'achat", "Reçus", "Relevés bancaires", "Autres documents"];
+
+        return groupOrder
+            .map(title => ({
+                title,
+                icon: getGroupIcon(title),
+                documents: groups[title] || [],
+            }))
+            .filter(group => group.documents.length > 0);
+
   }, [documents, searchQuery, searchCriteria, dashboardFilter]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
@@ -633,7 +674,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
-        <div className="lg:col-span-2 flex flex-col gap-6 h-full">
+        <div className="lg:col-span-2 flex flex-col gap-6 h-full overflow-y-auto">
             {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
             <FilterDisplay />
             <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col">
@@ -642,8 +683,8 @@ export default function DocumentsPage() {
                     <TabsTrigger value="bilans">Bilans</TabsTrigger>
                 </TabsList>
                 <TabsContent value="documents" className="flex-1 mt-4">
-                    <DocumentHistory
-                        documents={filteredDocuments}
+                     <DocumentHistory
+                        documentGroups={groupedDocuments}
                         onProcess={(doc) => handleProcessDocument(doc.id)}
                         onDelete={handleDeleteSingle}
                         activeDocumentId={activeDocumentId}
