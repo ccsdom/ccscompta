@@ -1,12 +1,11 @@
 
 'use client'
 
-import { ClientForm } from "../client-form";
+import { ClientForm, formSchema } from "../client-form";
 import { addClient } from '@/ai/flows/client-actions';
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";
-import { type formSchema } from '../client-form';
 import { useEffect, useState } from "react";
 import type { Client } from "@/lib/client-data";
 
@@ -15,6 +14,7 @@ export default function NewClientPage() {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const [initialData, setInitialData] = useState<Partial<Client> | undefined>(undefined);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const queryData: Record<string, any> = {};
@@ -27,6 +27,7 @@ export default function NewClientPage() {
     }, [searchParams]);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
+        setIsSubmitting(true);
         const result = await addClient(data);
 
         if (result.success) {
@@ -43,6 +44,7 @@ export default function NewClientPage() {
                 title: "Erreur lors de l'ajout du client",
                 description: result.error
             });
+            setIsSubmitting(false);
         }
     }
 
@@ -52,7 +54,9 @@ export default function NewClientPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Nouveau Client</h1>
                 <p className="text-muted-foreground mt-1">Remplissez les informations ci-dessous pour créer un nouveau dossier client.</p>
             </div>
-            <ClientForm onSave={handleSave} client={initialData} key={JSON.stringify(initialData)} />
+            <ClientForm onSave={handleSave} client={initialData} key={JSON.stringify(initialData)} isSubmitting={isSubmitting} />
         </div>
     )
 }
+
+    

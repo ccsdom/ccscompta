@@ -32,9 +32,10 @@ export const formSchema = z.object({
 interface ClientFormProps {
     client?: Partial<Client>;
     onSave: (data: z.infer<typeof formSchema>) => void;
+    isSubmitting?: boolean;
 }
 
-export function ClientForm({ client, onSave }: ClientFormProps) {
+export function ClientForm({ client, onSave, isSubmitting }: ClientFormProps) {
     const router = useRouter();
     const [accountants, setAccountants] = useState<Accountant[]>([]);
 
@@ -229,7 +230,7 @@ export function ClientForm({ client, onSave }: ClientFormProps) {
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">
                         <Button variant="ghost" type="button" onClick={() => router.push('/dashboard/clients')}>Annuler</Button>
-                        <Button type="submit">Enregistrer</Button>
+                        <Button type="submit" disabled={isSubmitting}>Enregistrer</Button>
                     </CardFooter>
                 </Card>
             </form>

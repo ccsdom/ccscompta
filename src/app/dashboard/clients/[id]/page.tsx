@@ -18,10 +18,12 @@ export default function EditClientPage() {
     const { toast } = useToast();
     const [client, setClient] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (params.id) {
             const fetchClient = async () => {
+                setLoading(true);
                 const clientData = await getClientById(params.id);
                 if (clientData) {
                     setClient(clientData);
@@ -34,6 +36,7 @@ export default function EditClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         if (!params.id) return;
+        setIsSubmitting(true);
         const result = await updateClient({id: params.id, updates: data});
         
         if (result.success) {
@@ -50,6 +53,7 @@ export default function EditClientPage() {
                 title: "Erreur",
                 description: result.error
             });
+            setIsSubmitting(false);
         }
     }
 
@@ -86,7 +90,9 @@ export default function EditClientPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Modifier le Client</h1>
                 <p className="text-muted-foreground mt-1">Mettez à jour les informations du dossier pour <span className="font-semibold text-foreground">{client.name}</span>.</p>
             </div>
-            <ClientForm client={client} onSave={handleSave} />
+            <ClientForm client={client} onSave={handleSave} isSubmitting={isSubmitting} />
         </div>
     )
 }
+
+    
