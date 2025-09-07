@@ -5,31 +5,33 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Wand2, Loader2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { extractClientData } from '@/ai/flows/extract-client-data-flow';
+import { Label } from './ui/label';
 
 export function AiClientDialog() {
     const [isOpen, setIsOpen] = useState(false);
-    const [description, setDescription] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
 
     const handleExtractAndCreate = async () => {
-        if (!description.trim()) {
+        if (!searchTerm.trim()) {
             toast({
                 variant: 'destructive',
-                title: 'Description vide',
-                description: 'Veuillez décrire le client à ajouter.'
+                title: 'Champ vide',
+                description: 'Veuillez entrer un nom d\'entreprise ou un SIRET.'
             });
             return;
         }
 
         setIsLoading(true);
         try {
-            const extractedData = await extractClientData({ description });
+            // The flow is smart enough to handle either a name or a SIRET
+            const extractedData = await extractClientData({ description: searchTerm });
 
             const queryParams = new URLSearchParams();
             for (const [key, value] of Object.entries(extractedData)) {
@@ -40,17 +42,24 @@ export function AiClientDialog() {
             
             router.push(`/dashboard/clients/new?${queryParams.toString()}`);
             setIsOpen(false);
-            setDescription('');
+            setSearchTerm('');
 
         } catch (error) {
             console.error("Failed to extract client data:", error);
             toast({
                 variant: 'destructive',
-                title: 'Erreur d\'extraction',
-                description: 'L\'IA n\'a pas pu extraire les informations. Essayez de reformuler.'
+                title: 'Erreur de recherche',
+                description: 'L\'IA n\'a pas pu trouver les informations. Vérifiez le nom ou le SIRET et réessayez.'
             });
         } finally {
             setIsLoading(false);
+        }
+    }
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleExtractAndCreate();
         }
     }
 
@@ -62,21 +71,25 @@ export function AiClientDialog() {
                     Ajout Rapide par IA
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[625px]">
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Création de Client par IA</DialogTitle>
                     <DialogDescription>
-                        Décrivez le client que vous souhaitez ajouter en langage naturel. L'IA extraira les informations pour pré-remplir le formulaire de création.
+                        Entrez le nom de l'entreprise ou son numéro de SIRET. L'IA recherchera les informations officielles pour pré-remplir le formulaire.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                   <Textarea
-                     placeholder="Ex: Ajoute le client 'Innovatech SAS', SIRET 12345678901234, représenté par Marie Dubois au 10 Rue de l'Innovation, 75015 Paris..."
-                     rows={6}
-                     value={description}
-                     onChange={(e) => setDescription(e.target.value)}
-                     disabled={isLoading}
-                   />
+                   <div className="space-y-2">
+                     <Label htmlFor="search-term">Nom ou SIRET de l'entreprise</Label>
+                     <Input
+                       id="search-term"
+                       placeholder="Ex: Innovatech SAS ou 12345678901234"
+                       value={searchTerm}
+                       onChange={(e) => setSearchTerm(e.target.value)}
+                       onKeyDown={handleKeyDown}
+                       disabled={isLoading}
+                     />
+                   </div>
                 </div>
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} disabled={isLoading}>Annuler</Button>
@@ -84,10 +97,10 @@ export function AiClientDialog() {
                         {isLoading ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Extraction en cours...
+                                Recherche en cours...
                             </>
                         ) : (
-                            'Extraire et Créer'
+                            'Rechercher et Créer'
                         )}
                     </Button>
                 </DialogFooter>

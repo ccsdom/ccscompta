@@ -14,7 +14,7 @@ import {z} from 'genkit';
 import { searchCompanyInfoTool } from '../tools/search-company-info';
 
 const ExtractClientDataInputSchema = z.object({
-  description: z.string().describe('A natural language description of the client to add.'),
+  description: z.string().describe('A company name or SIRET number.'),
 });
 export type ExtractClientDataInput = z.infer<typeof ExtractClientDataInputSchema>;
 
@@ -41,32 +41,34 @@ const prompt = ai.definePrompt({
   output: {schema: ExtractClientDataOutputSchema},
   tools: [searchCompanyInfoTool],
   prompt: `You are an expert data extraction agent for an accounting firm.
-Your task is to meticulously parse the user's natural language text and extract information to create a new client file.
+Your task is to parse the user's input, which can be a company name or a SIRET number, and find official company data.
 
-Analyze the user's text: "{{description}}"
+User input: "{{description}}"
 
 **Your workflow:**
 
-1.  **SIRET Detection**: First, look for a 14-digit SIRET number in the user's text.
+1.  **Analyze Input**: Determine if the input is a 14-digit SIRET number or a company name.
 2.  **Tool Usage**:
-    *   If you find a SIRET number, you **MUST** use the \`searchCompanyInfo\` tool to fetch official data for that company. This is the preferred source of information. Use the data returned by the tool to populate the \`name\`, \`address\`, \`legalRepresentative\`, \`phone\`, and \`email\` fields.
-    *   If the tool returns no data, or if no SIRET is provided, then (and only then) fall back to extracting information directly from the user's text.
-3.  **Final Extraction**: Extract any remaining information from the text that the tool did not provide (like \`fiscalYearEndDate\`).
+    *   You **MUST** use the \`searchCompanyInfo\` tool to find the company data. Pass the SIRET if provided, otherwise pass the company name.
+    *   Use the data returned by the tool to populate the output fields (\`name\`, \`siret\`, \`address\`, \`legalRepresentative\`, \`phone\`, and \`email\`).
+3.  **Extraction from Text (Fallback & Complement)**:
+    *   If the tool returns no data, try to extract information from the original text if it contains more than just the search term (e.g., "ajoute Innovatech SAS, clôture au 31/12").
+    *   Always check the original text for information the tool might not provide, like \`fiscalYearEndDate\`.
 
 **Important rules:**
-- The SIRET number must be a string of 14 digits without spaces or any other characters.
-- The closing date of the fiscal year (\`fiscalYearEndDate\`) MUST be in DD/MM format. For example, "clôture au 31 décembre" should be "31/12".
+- A SIRET number must be exactly 14 digits. If you extract one, ensure it is a plain string of numbers.
+- A fiscal year end date (\`fiscalYearEndDate\`) MUST be in DD/MM format. For example, "clôture au 31 décembre" should be "31/12".
 - Do not invent or infer any information. If a piece of information is not available from the tool or the text, omit its key from the output.
 
-**Example 1 (Tool usage):**
-- User text: "Ajoute le client SIRET 12345678901234, clôture au 30/06."
-- Your action: Call \`searchCompanyInfo\` with SIRET '12345678901234'. Tool returns { name: 'Innovatech SAS', address: '...', ... }.
-- Your output: { "name": "Innovatech SAS", "siret": "12345678901234", "address": "...", "fiscalYearEndDate": "30/06", ... }
+**Example 1 (SIRET input):**
+- User input: "12345678901234"
+- Your action: Call \`searchCompanyInfo\` with SIRET '12345678901234'.
+- Your output: { "name": "Innovatech SAS", "siret": "12345678901234", "address": "...", "legalRepresentative": "Marie Dubois", ... }
 
-**Example 2 (Text extraction only):**
-- User text: "Nouveau client 'Pâtisserie Belle', la gérante est Mme. Belle, email factures@belle.fr."
-- Your action: No SIRET found, extract from text.
-- Your output: { "name": "Pâtisserie Belle", "legalRepresentative": "Mme. Belle", "email": "factures@belle.fr" }
+**Example 2 (Name input):**
+- User input: "GastroNomie & Fils"
+- Your action: Call \`searchCompanyInfo\` with name 'GastroNomie & Fils'.
+- Your output: { "name": "GastroNomie & Fils", "siret": "98765432109876", ... }
 `,
 });
 
