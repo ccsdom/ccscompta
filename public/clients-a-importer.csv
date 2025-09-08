@@ -1,0 +1,9 @@
+name,siret,address,legalRepresentative,fiscalYearEndDate,email,phone
+ACTION AVENTURE,12345678901234,"123 Rue de l'Aventure, 75001 Paris","Jean Dupont","31/12","action.aventure@example.com","0123456789"
+AUTO ECOLE DE LA MAIRIE,23456789012345,"45 Avenue de la République, 75011 Paris","Marie Curie","31/12","autoecole.mairie@example.com","0123456780"
+BODY MINUTE,34567890123456,"67 Boulevard Voltaire, 75011 Paris","Pierre Martin","30/09","body.minute@example.com","0123456781"
+CABINET FLORET,45678901234567,"89 Rue du Temple, 75003 Paris","Sophie Dubois","31/12","cabinet.floret@example.com","0123456782"
+CABINET MEDICAL GALEA,56789012345678,"101 Rue de la Santé, 75013 Paris","Dr. Alain Bernard","31/12","medical.galea@example.com","0123456783"
+CHICKEN SPOT,67890123456789,"12 Rue du Faubourg, 75010 Paris","Fatima Zahra","31/03","chicken.spot@example.com","0123456784"
+EASYLIAGE,78901234567890,"33 Rue de l'Innovation, 75015 Paris","Aylan VSW","31/12","vsw.contact@gmail.com","0123456785"
+FREE,89012345678901,"8 Rue de la Ville l'Évêque, 75008 Paris","Xavier Niel","31/12","contact@free.fr","0123456786"

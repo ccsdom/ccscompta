@@ -4,13 +4,14 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileUp, File, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download } from "lucide-react";
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/lib/client-data';
 import { addClient } from '@/ai/flows/client-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
+import Link from 'next/link';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
@@ -197,6 +198,14 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                                 </p>
                             </div>
                         </label>
+                        <div className="mt-4 text-center">
+                           <Button variant="link" asChild>
+                               <a href="/clients-a-importer.csv" download>
+                                 <Download className="mr-2 h-4 w-4"/>
+                                 Télécharger le fichier d'exemple
+                               </a>
+                           </Button>
+                        </div>
                     </div>
                 ) : (
                     <div>
@@ -263,7 +272,3 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         </Dialog>
     );
 }
-
-    
-
-    
