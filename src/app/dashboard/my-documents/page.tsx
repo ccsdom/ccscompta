@@ -139,15 +139,13 @@ export default function MyDocumentsPage() {
     return [...trail, event];
   };
 
-  const handleProcessDocument = useCallback(async (doc: Document) => {
+  const handleProcessDocument = useCallback(async (doc: Document, dataUrl: string) => {
     let currentDoc = { ...doc };
     try {
-        if (!currentDoc.dataUrl) throw new Error("Document data URL is missing for processing.");
-        
-        const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
+        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         const trailWithRecognition = addAuditEvent(currentDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
 
-        const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType, clientId: currentDoc.clientId });
+        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: currentDoc.clientId });
         const trailWithExtraction = addAuditEvent(trailWithRecognition, 'Données extraites par IA');
 
         const finalUpdates: Partial<Document> = {
@@ -171,7 +169,7 @@ export default function MyDocumentsPage() {
         toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
         createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
     }
-}, [toast]);
+  }, [toast]);
 
 
   const handleFileDrop = async (files: File[]) => {
@@ -183,46 +181,49 @@ export default function MyDocumentsPage() {
     setIsProcessing(true);
     const existingFileNames = new Set(documents.map(d => d.name));
     
-    const docsToProcess: Document[] = [];
-    const tempDocs: Document[] = [];
+    const processingPromises: Promise<void>[] = [];
 
     for (const file of files) {
         if (existingFileNames.has(file.name)) {
             toast({ variant: "destructive", title: "Fichier en double", description: `Le fichier "${file.name}" existe déjà.`});
             continue;
         }
-        try {
-            const dataUrl = await fileToDataUri(file);
-            const storagePath = `${clientId}/${file.name}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, file);
 
-            const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
-                name: file.name,
-                uploadDate: new Date().toISOString(),
-                status: 'processing',
-                storagePath: storagePath, 
-                clientId: clientId,
-                auditTrail: addAuditEvent([], 'Document téléversé par le client'),
-                comments: []
-            };
+        const processFile = async () => {
+            let createdDoc: Document | null = null;
+            try {
+                const dataUrl = await fileToDataUri(file);
+                const storagePath = `${clientId}/${file.name}`;
+                const storageRef = ref(storage, storagePath);
+                await uploadBytes(storageRef, file);
 
-            const createdDoc = await addDocument(newDocData);
-            if (createdDoc) {
-                const docWithUrl = { ...createdDoc, dataUrl };
-                docsToProcess.push(docWithUrl);
-                tempDocs.push(docWithUrl);
+                const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
+                    name: file.name,
+                    uploadDate: new Date().toISOString(),
+                    status: 'processing',
+                    storagePath: storagePath, 
+                    clientId: clientId,
+                    auditTrail: addAuditEvent([], 'Document téléversé par le client'),
+                    comments: []
+                };
+
+                createdDoc = await addDocument(newDocData);
+                if (createdDoc) {
+                    setDocuments(prev => [{...createdDoc!, dataUrl}, ...prev]);
+                    await handleProcessDocument(createdDoc, dataUrl);
+                }
+            } catch (error) {
+                toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.`});
+                if (createdDoc) {
+                    await deleteDocument(createdDoc.id);
+                    setDocuments(docs => docs.filter(d => d.id !== createdDoc!.id));
+                }
             }
-        } catch (error) {
-             toast({ variant: "destructive", title: "Erreur de lecture", description: `Impossible de lire le fichier ${file.name}.`});
-        }
+        };
+        processingPromises.push(processFile());
     }
     
-    setDocuments(prev => [...tempDocs, ...prev]);
-
-    // Lancer le traitement en parallèle pour tous les nouveaux documents
-    await Promise.all(docsToProcess.map(doc => handleProcessDocument(doc)));
-    
+    await Promise.all(processingPromises);
     setIsProcessing(false);
   };
 

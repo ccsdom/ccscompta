@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { addDocument, updateDocument } from '@/ai/flows/document-actions';
+import { addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
@@ -111,7 +111,6 @@ export default function ScanPage() {
             const storagePath = `${selectedClientId}/${fileName}`;
             const storageRef = ref(storage, storagePath);
 
-            // Upload the image to Firebase Storage
             await uploadString(storageRef, capturedImage, 'data_url');
             
             const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
@@ -125,10 +124,7 @@ export default function ScanPage() {
             };
 
             createdDoc = await addDocument(newDocData);
-
-            if (!createdDoc) {
-                throw new Error("Failed to add document to database.");
-            }
+            if (!createdDoc) throw new Error("Failed to create document in database.");
 
             const recognition = await recognizeDocumentType({ documentDataUri: capturedImage });
             const extracted = await extractData({ documentDataUri: capturedImage, documentType: recognition.documentType, clientId: selectedClientId });
@@ -151,15 +147,18 @@ export default function ScanPage() {
                 className: 'bg-green-100 dark:bg-green-900 border-green-200 dark:border-green-800'
             });
             setCapturedImage(null);
+            
         } catch (error) {
             console.error("Erreur lors de l'envoi du scan:", error);
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
             if (createdDoc) {
+                // If AI processing fails, set status to error
                 const trail = addAuditEvent(createdDoc.auditTrail, 'Erreur de traitement IA');
                 await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
             }
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
         } finally {
             setIsProcessing(false);
+            window.dispatchEvent(new Event('storage')); // Notify other components (like my-documents)
         }
     };
 
