@@ -182,7 +182,6 @@ export default function MyDocumentsPage() {
     }
     
     setIsProcessing(true);
-    // In a real app, you might want to check against a server-side list of filenames.
     const existingFileNames = new Set(documents.map(d => d.name));
     const docsToProcess: Document[] = [];
 
@@ -197,7 +196,7 @@ export default function MyDocumentsPage() {
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
 
-            const newDocData: Omit<Document, 'id'> = {
+            const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
                 name: file.name,
                 uploadDate: new Date().toISOString(),
                 status: 'processing',
@@ -525,3 +524,5 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    

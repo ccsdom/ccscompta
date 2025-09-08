@@ -114,11 +114,10 @@ export default function ScanPage() {
             // Upload the image to Firebase Storage
             await uploadString(storageRef, capturedImage, 'data_url');
             
-            let newDocData: Omit<Document, 'id'> = {
+            const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
                 name: fileName,
                 uploadDate: new Date().toISOString(),
                 status: 'processing',
-                dataUrl: capturedImage,
                 storagePath: storagePath,
                 clientId: selectedClientId,
                 comments: [],
@@ -126,6 +125,10 @@ export default function ScanPage() {
             };
 
             const addedDoc = await addDocument(newDocData);
+
+            if (!addedDoc) {
+                throw new Error("Failed to add document to database.");
+            }
 
             const recognition = await recognizeDocumentType({ documentDataUri: capturedImage });
             const extracted = await extractData({ documentDataUri: capturedImage, documentType: recognition.documentType, clientId: selectedClientId });
@@ -226,3 +229,5 @@ export default function ScanPage() {
         </div>
     );
 }
+
+    
