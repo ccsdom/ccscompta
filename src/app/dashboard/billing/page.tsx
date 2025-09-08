@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown } from "lucide-react";
+import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown, FilterX } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -97,6 +97,14 @@ export default function BillingPage() {
         );
     };
 
+    const handleResetFilters = () => {
+        setClientFilter('all');
+        setStatusFilter('all');
+        setStartDateFilter('');
+        setEndDateFilter('');
+        setSelectedInvoiceIds([]);
+    }
+
     const handleBulkMarkAsPaid = () => {
         setInvoices(prev => prev.map(inv => 
             selectedInvoiceIds.includes(inv.id) ? { ...inv, status: 'paid' } : inv
@@ -159,6 +167,8 @@ export default function BillingPage() {
         }
     }
 
+    const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
+
     return (
         <div className="space-y-6">
              <div>
@@ -198,6 +208,12 @@ export default function BillingPage() {
                                 <span className="text-muted-foreground">-</span>
                                 <Input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} className="w-full md:w-auto"/>
                             </div>
+                             {hasActiveFilters && (
+                                <Button variant="ghost" onClick={handleResetFilters}>
+                                    <FilterX className="mr-2 h-4 w-4"/>
+                                    Réinitialiser
+                                </Button>
+                             )}
                         </div>
                     </div>
                 </CardHeader>
@@ -282,3 +298,4 @@ export default function BillingPage() {
     )
 
     
+}
