@@ -3,12 +3,9 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let adminApp: App | undefined;
-let firestoreDb: Firestore | undefined;
-let adminAuth: Auth | undefined;
 
 function initializeAdminApp() {
-  // Si l'app existe déjà, on la récupère.
-  if (getApps().length > 0 && getApps()[0]) {
+  if (getApps().length > 0) {
     adminApp = getApps()[0];
     return;
   }
@@ -33,7 +30,6 @@ function initializeAdminApp() {
     console.info("✅ Firebase Admin SDK initialisé avec succès");
   } catch (error) {
     console.error("❌ Erreur lors de l'initialisation Firebase Admin:", error);
-    // Ne pas lancer d'erreur ici pour permettre à l'app de fonctionner même sans le SDK Admin
   }
 }
 
@@ -41,19 +37,19 @@ function initializeAdminApp() {
 initializeAdminApp();
 
 function getDb(): Firestore | null {
-  if (!adminApp) return null;
-  if (!firestoreDb) {
-    firestoreDb = getFirestore(adminApp);
+  if (!adminApp) {
+    initializeAdminApp(); // Tentative de ré-initialisation
+    if (!adminApp) return null;
   }
-  return firestoreDb;
+  return getFirestore(adminApp);
 }
 
 function getAuthService(): Auth | null {
-  if (!adminApp) return null;
-  if (!adminAuth) {
-    adminAuth = getAuth(adminApp);
+  if (!adminApp) {
+    initializeAdminApp(); // Tentative de ré-initialisation
+    if (!adminApp) return null;
   }
-  return adminAuth;
+  return getAuth(adminApp);
 }
 
 export const db: { get: () => Firestore | null } = {
@@ -63,3 +59,5 @@ export const db: { get: () => Firestore | null } = {
 export const auth: { get: () => Auth | null } = {
   get: getAuthService,
 };
+
+    
