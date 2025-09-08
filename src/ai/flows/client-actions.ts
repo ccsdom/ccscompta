@@ -119,6 +119,10 @@ export const ensureDemoUsers = async () => {
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
+    if (!db) {
+      console.error("Firestore Admin DB not available during getUserProfile call.");
+      return null;
+    }
     try {
         const userRef = db.collection("users").doc(uid);
         const userSnap = await userRef.get();
@@ -145,6 +149,10 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
 
 
 export async function getClients(): Promise<Client[]> {
+    if (!db) {
+        console.error("Firestore Admin DB not available for getClients.");
+        return [];
+    }
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
@@ -154,7 +162,7 @@ export async function getClients(): Promise<Client[]> {
     const mockClientIds = new Set(MOCK_CLIENTS.map(c => c.id));
     const existingMockClients = clients.filter(c => mockClientIds.has(c.id));
 
-    if (existingMockClients.length === 0) {
+    if (existingMockClients.length === 0 && MOCK_CLIENTS.length > 0) {
       console.log('Clients de démo non trouvés. Création des données de démo...');
       const batch = db.batch();
       
@@ -178,6 +186,10 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
+    if (!db) {
+        console.error("Firestore Admin DB not available for getClientById.");
+        return undefined;
+    }
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -194,13 +206,13 @@ export async function getClientById(id: string): Promise<Client | undefined> {
 }
 
 const AddClientInputSchema = z.object({
-  name: z.string(),
-  siret: z.string(),
-  email: z.string().email(),
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
+  siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres."),
+  email: z.string().email("Email invalide."),
   phone: z.string(),
   legalRepresentative: z.string(),
   address: z.string(),
-  fiscalYearEndDate: z.string(),
+  fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, "Format JJ/MM invalide."),
   status: z.enum(['active', 'inactive', 'onboarding']),
   assignedAccountantId: z.string().optional(),
 });
@@ -212,6 +224,10 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+  if (!db || !auth) {
+    return { success: false, error: "La base de données ou le service d'authentification n'est pas disponible." };
+  }
+
   const clientsCollection = db.collection('clients');
   const usersCollection = db.collection('users');
 
@@ -294,6 +310,9 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
+   if (!db) {
+    return { success: false, error: "La base de données n'est pas disponible." };
+  }
   const clientsCollection = db.collection('clients');
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
@@ -323,6 +342,9 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
+   if (!db) {
+    return { success: false, error: "La base de données n'est pas disponible." };
+  }
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -345,6 +367,9 @@ const UpdateClientsStatusInputSchema = z.object({
 export async function updateClientsStatus(
     { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
 ): Promise<{ success: boolean; updatedCount: number, error?: string }> {
+    if (!db) {
+      return { success: false, updatedCount: 0, error: "La base de données n'est pas disponible." };
+    }
     const batch = db.batch();
 
     try {
@@ -372,6 +397,10 @@ export interface Accountant {
 }
 
 export async function getAccountants(): Promise<Accountant[]> {
+    if (!db) {
+        console.error("Firestore Admin DB not available for getAccountants.");
+        return [];
+    }
     try {
         const usersCollection = db.collection('users');
         const q = usersCollection.where('role', '==', 'accountant');

@@ -8,23 +8,20 @@ let auth: Auth;
 let db: Firestore;
 
 try {
-    if (getApps().length > 0) {
-        adminApp = getApps()[0];
+    const apps = getApps();
+    if (apps.length > 0) {
+        adminApp = apps[0];
     } else {
-        const projectId = process.env.FIREBASE_PROJECT_ID;
-        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-        // This is the crucial part: the private key from environment variables needs to have its newlines properly escaped.
         const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-        if (!projectId || !clientEmail || !privateKey) {
-            throw new Error("Firebase Admin SDK credentials are not configured in environment variables.");
+        if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
+            throw new Error("Les informations d'identification Firebase Admin ne sont pas définies dans les variables d'environnement.");
         }
         
         adminApp = initializeApp({
             credential: cert({
-                projectId,
-                clientEmail,
-                privateKey,
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: privateKey,
             }),
         });
     }
@@ -33,12 +30,10 @@ try {
     db = getFirestore(adminApp);
 
 } catch (error) {
-    console.error("Firebase admin initialization error:", error);
-    // In a non-production environment, you might want to avoid throwing
-    // and instead have fallback logic or mock services.
-    // For this app, we'll allow it to fail to make it clear configuration is needed.
+    console.error("Erreur d'initialisation de Firebase Admin:", error);
+    // Pour éviter de bloquer l'application, nous n'allons pas lancer d'erreur ici,
+    // mais les fonctions qui dépendent de db/auth échoueront avec des logs plus clairs.
 }
-
 
 // @ts-ignore
 export { auth, db };
