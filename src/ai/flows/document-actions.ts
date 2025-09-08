@@ -5,7 +5,7 @@ import { z } from 'genkit';
 import { db as adminDb } from '@/lib/firebase-admin';
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
-import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot, getFirestore } from 'firebase-admin/firestore';
 import { createSupplier, findSupplier } from '@/services/cegid';
 
 
@@ -41,13 +41,13 @@ const documentConverter: FirestoreDataConverter<Document> = {
 
 
 const getDocumentsCollectionRef = () => {
-    const db = adminDb.get();
+    const db = getFirestore();
     if (!db) return null;
     return db.collection('documents').withConverter(documentConverter);
 }
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
-    const db = adminDb.get();
+    const db = getFirestore();
     if (!db) {
         console.error("Firestore Admin DB not available.");
         return MOCK_DOCUMENTS[clientId] || [];
