@@ -285,7 +285,7 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
+                    <ClientImportDialog onClientsImported={handleClientsImported} />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline">
@@ -473,3 +473,5 @@ export default function ClientsPage() {
         </div>
     )
 }
+
+    
