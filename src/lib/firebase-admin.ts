@@ -1,63 +1,81 @@
+
 import { getApps, initializeApp, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let adminApp: App | undefined;
 
-function initializeAdminApp() {
+// This function ensures Firebase Admin is initialized, but only once.
+function getAdminApp(): App {
+  if (adminApp) {
+    return adminApp;
+  }
+
+  // Check if an app is already initialized
   if (getApps().length > 0) {
     adminApp = getApps()[0];
-    return;
+    return adminApp;
   }
   
+  // If no app is initialized, create a new one.
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (!projectId || !clientEmail || !privateKey) {
-    console.warn("⚠️ Les variables d'environnement Firebase Admin sont manquantes. L'accès à la base de données ne fonctionnera pas côté serveur.");
-    return;
+    // This is a server-side log, will appear in the function logs.
+    console.error("FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY is not set.");
+    // In a real app, you might want to throw an error here to prevent the app from starting.
+    // For this environment, we'll log the error and let it fail gracefully later.
+    throw new Error("Firebase Admin SDK credentials are not configured.");
   }
 
   try {
+    const credentials = {
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+    };
+    
     adminApp = initializeApp({
-      credential: cert({
-          projectId,
-          clientEmail,
-          privateKey: privateKey.replace(/\\n/g, '\n'),
-      }),
+      credential: cert(credentials),
     });
-    console.info("✅ Firebase Admin SDK initialisé avec succès");
+
+    console.info("✅ Firebase Admin SDK initialized successfully.");
+    return adminApp;
+
   } catch (error) {
-    console.error("❌ Erreur lors de l'initialisation Firebase Admin:", error);
+    console.error("❌ Error initializing Firebase Admin SDK:", error);
+    throw error; // Rethrow the error to make it clear that initialization failed.
   }
 }
 
-// Initialiser l'application au chargement du module
-initializeAdminApp();
 
 function getDb(): Firestore | null {
-  if (!adminApp) {
-    initializeAdminApp(); // Tentative de ré-initialisation
-    if (!adminApp) return null;
+  try {
+    const app = getAdminApp();
+    return getFirestore(app);
+  } catch (error) {
+    console.error("Failed to get Firestore instance:", error);
+    return null;
   }
-  return getFirestore(adminApp);
 }
 
 function getAuthService(): Auth | null {
-  if (!adminApp) {
-    initializeAdminApp(); // Tentative de ré-initialisation
-    if (!adminApp) return null;
+  try {
+    const app = getAdminApp();
+    return getAuth(app);
+  } catch (error) {
+    console.error("Failed to get Auth instance:", error);
+    return null;
   }
-  return getAuth(adminApp);
 }
 
-export const db: { get: () => Firestore | null } = {
+// Export getters that will be used by server-side functions.
+export const db = {
   get: getDb,
 };
 
-export const auth: { get: () => Auth | null } = {
+export const auth = {
   get: getAuthService,
 };
-
-    

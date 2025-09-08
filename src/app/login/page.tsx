@@ -52,27 +52,43 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
+    // This is a one-time setup when the login page loads.
     const initializeApp = async () => {
-        setIsLoading(true);
+        setIsSeeding(true);
+        // Clear any previous session data.
         localStorage.clear();
         window.dispatchEvent(new Event('storage'));
         try {
+            // Ensure demo users and data are available on the server.
             await ensureDemoUsers();
-            console.log("Demo users check/seed complete.");
+            console.log("Demo user check complete.");
         } catch (e) {
             console.error("Could not ensure demo users", e);
+             toast({
+                variant: "destructive",
+                title: "Erreur de configuration",
+                description: "Le serveur n'a pas pu préparer les données de démonstration.",
+            });
         } finally {
-            setIsLoading(false);
+            setIsSeeding(false);
         }
     }
     initializeApp();
-  }, []);
+  }, [toast]);
 
-  const handleRedirect = async (user: User) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
       const profile = await getUserProfile(user.uid);
 
       if (!profile) {
@@ -85,6 +101,7 @@ export default function LoginPage() {
           return;
       }
       
+      // Store user info in localStorage for the client-side app to use.
       localStorage.setItem('userRole', profile.role);
       localStorage.setItem('userName', profile.name);
       localStorage.setItem('userEmail', profile.email);
@@ -94,37 +111,26 @@ export default function LoginPage() {
           if (!profile.clientId) {
             toast({
               variant: "destructive",
-              title: "Erreur de configuration",
-              description: "Votre compte client n'est lié à aucun dossier. Veuillez contacter le support.",
+              title: "Erreur de configuration du client",
+              description: "Votre compte n'est lié à aucun dossier client.",
             });
             setIsLoading(false);
             return;
           }
           localStorage.setItem('selectedClientId', profile.clientId);
           targetPath = '/dashboard/my-documents';
-      } else { 
-          localStorage.setItem('selectedClientId', 'client-01'); 
-          if (profile.role === 'accountant' || profile.role === 'admin') {
-              targetPath = '/dashboard/accountant';
-          } else if (profile.role === 'secretary') {
-              targetPath = '/dashboard/secretary';
-          } else {
-              targetPath = '/login'; // Fallback
-          }
+      } else if (profile.role === 'accountant' || profile.role === 'admin') {
+          targetPath = '/dashboard/accountant';
+      } else if (profile.role === 'secretary') {
+          targetPath = '/dashboard/secretary';
+      } else {
+          targetPath = '/login'; // Fallback
       }
-      // Force a re-render cycle for all components listening to storage before navigating.
+      
+      // Notify all components that localStorage has changed.
       window.dispatchEvent(new Event('storage'));
       router.push(targetPath);
-  }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // Wait for the redirect logic (including profile fetching and localStorage writing) to complete.
-      await handleRedirect(userCredential.user);
     } catch (error: any) {
         let errorMessage = "Une erreur inconnue est survenue.";
         switch (error.code) {
@@ -156,6 +162,8 @@ export default function LoginPage() {
           description: "La connexion via Google sera bientôt disponible.",
       })
   }
+  
+  const isLoginDisabled = isLoading || isSeeding;
 
   return (
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2">
@@ -203,7 +211,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isLoginDisabled}
               />
             </div>
             <div className="grid gap-2">
@@ -223,7 +231,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
-                  disabled={isLoading}
+                  disabled={isLoginDisabled}
                   className="pr-10"
                 />
                 <button
@@ -236,12 +244,12 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-              Se connecter
+            <Button type="submit" className="w-full" disabled={isLoginDisabled}>
+              {isLoginDisabled && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+              {isSeeding ? "Initialisation..." : "Se connecter"}
             </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoginDisabled}>
+              {isLoginDisabled ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
               Se connecter avec Google
             </Button>
           </form>
