@@ -1,19 +1,22 @@
+
 'use client';
 
 import { useState } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react';
 
 interface FileUploaderProps {
-  onFileDrop: (files: File[]) => void;
-  isLoading: boolean;
+  onFileDrop: (files: File[]) => Promise<void>; // Make it a promise to await completion
+  isLoading: boolean; // Keep this prop for initial state if needed, but manage internal loading state
 }
 
-export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
+export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isUploading) return;
     setIsDragging(true);
   };
 
@@ -28,27 +31,33 @@ export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
     e.stopPropagation();
   };
 
+  const startUploadProcess = async (files: File[]) => {
+      if (files.length === 0) return;
+      setIsUploading(true);
+      await onFileDrop(files);
+      setIsUploading(false);
+  }
+
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    if (isUploading) return;
 
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      onFileDrop(files);
-    }
+    startUploadProcess(files);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      if (files.length > 0) {
-        onFileDrop(files);
-        e.target.value = ''; // Reset input to allow re-uploading the same file
-      }
+      startUploadProcess(files);
+      e.target.value = ''; // Reset input to allow re-uploading the same file
     }
   };
   
+  const isLoading = parentIsLoading || isUploading;
+
   return (
         <label
           htmlFor="file-upload"
@@ -57,7 +66,7 @@ export function FileUploader({ onFileDrop, isLoading }: FileUploaderProps) {
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           className={`relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-            ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+            ${isDragging && !isLoading ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
         >
           <input
             id="file-upload"
