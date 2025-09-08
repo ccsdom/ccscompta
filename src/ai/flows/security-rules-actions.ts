@@ -18,12 +18,17 @@ export async function configureStorageSecurityRules(): Promise<{success: boolean
   const rules = `
 rules_version = '2';
 
+// Ces règles s'appliquent au service Firebase Storage
 service firebase.storage {
+  // Elles concernent le "bucket" (l'espace de stockage) de votre projet
   match /b/{bucket}/o {
-    // This rule allows any authenticated user to read and write files.
-    // For a production app, you might want to restrict this further,
-    // for example, allowing a user to only write to their own directory.
+    
+    // Cette règle s'applique à tous les fichiers dans votre bucket
     match /{allPaths=**} {
+    
+      // Permet les opérations de lecture (get, list) et d'écriture (create, update, delete)
+      // uniquement si l'utilisateur est authentifié (connecté).
+      // request.auth n'est pas nul si l'utilisateur est bien connecté.
       allow read, write: if request.auth != null;
     }
   }
@@ -37,3 +42,4 @@ service firebase.storage {
     rules: rules,
   };
 }
+
