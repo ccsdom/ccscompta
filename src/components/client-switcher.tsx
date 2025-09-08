@@ -42,6 +42,8 @@ export function ClientSwitcher() {
 
         if (role === 'client') {
             const userEmail = localStorage.getItem('userEmail');
+            // In a real app, you'd have a more robust way of linking user to client.
+            // Here, we find the client by their name, assuming it's in localStorage.
             const clientName = localStorage.getItem('userName');
             const client = clientsData.find(c => c.name === clientName || c.email === userEmail);
             if(client) {
@@ -90,7 +92,7 @@ export function ClientSwitcher() {
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
-          disabled={!clients || clients.length === 0 || userRole === 'client'}
+          disabled={userRole === 'client'}
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-6 w-6">
