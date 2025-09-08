@@ -67,10 +67,10 @@ export default function AgendaPage() {
         if (!dayEvents || dayEvents.length === 0) return null;
         
         return (
-            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex space-x-0.5">
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex space-x-1">
                 {dayEvents.slice(0, 3).map(event => {
                     const config = eventTypeConfig[event.type];
-                    return <div key={event.id} className={`h-1.5 w-1.5 rounded-full ${config.color}`} />;
+                    return <div key={event.id} className={`h-2 w-2 rounded-full ${config.color}`} />;
                 })}
             </div>
         );
@@ -84,7 +84,7 @@ export default function AgendaPage() {
                     Visualisez les échéances fiscales et les événements importants de vos clients.
                 </p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-14rem)]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
                 <Card className="lg:col-span-2">
                     <CardContent className="p-2 h-full">
                          {isLoading && !events.length ? (
@@ -103,14 +103,14 @@ export default function AgendaPage() {
                                 classNames={{
                                     months: "flex flex-col sm:flex-row space-y-4 sm:space-y-0 h-full",
                                     month: "space-y-4 w-full flex flex-col",
-                                    table: "w-full border-collapse border-t",
+                                    table: "w-full border-collapse flex-1 flex flex-col",
                                     head_row: "flex border-b",
-                                    head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem] border-x",
-                                    row: "flex w-full mt-0 border-b",
-                                    cell: "h-full w-full text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md border-x first:border-l-0 last:border-r-0",
-                                    day: "h-full w-full p-1.5 aria-selected:opacity-100",
-                                    day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-md",
-                                    day_today: "bg-accent text-accent-foreground rounded-md",
+                                    head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.9rem] border-x p-2",
+                                    row: "flex w-full mt-0 border-b flex-1",
+                                    cell: "w-full text-center text-base p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md border-x first:border-l-0 last:border-r-0 flex flex-col justify-start items-center",
+                                    day: "w-full h-auto p-2 font-semibold aria-selected:opacity-100 aspect-square flex items-center justify-center",
+                                    day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
+                                    day_today: "bg-accent text-accent-foreground rounded-full",
                                     day_outside: "text-muted-foreground opacity-50",
                                 }}
                                 components={{
