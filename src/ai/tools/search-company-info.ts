@@ -75,7 +75,8 @@ const searchBySiret = async (siret: string, token: string) => {
 }
 
 const searchByName = async (name: string, token: string) => {
-     const query = `denominationUniteLegale:"${name}" AND etatAdministratifUniteLegale:A`;
+     // This query uses SOLR syntax to search for the company name in the denomination field and filter for active companies.
+     const query = `denominationUniteLegale:"${name}"~1 AND etatAdministratifUniteLegale:A`;
      const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret?q=${encodeURIComponent(query)}`, {
         headers: { Authorization: `Bearer ${token}` },
     });
@@ -83,7 +84,7 @@ const searchByName = async (name: string, token: string) => {
      const data = await response.json();
 
      if (data.etablissements && data.etablissements.length > 0) {
-        // Return the first active result
+        // Return the first active result, which is likely the most relevant one.
         return searchBySiret(data.etablissements[0].siret, token);
      }
      return null;
