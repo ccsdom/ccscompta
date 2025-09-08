@@ -116,8 +116,8 @@ export default function LoginPage() {
         if (!profile) {
             toast({
                 variant: "destructive",
-                title: "Erreur de profil",
-                description: "Votre profil utilisateur est introuvable dans la base de données. L'authentification a réussi mais le chargement du profil a échoué. Veuillez contacter le support.",
+                title: "Erreur de chargement du profil",
+                description: "Votre profil utilisateur est introuvable. L'authentification a réussi mais le chargement a échoué. Veuillez contacter le support.",
             });
             setIsLoading(false);
             return;
