@@ -46,23 +46,6 @@ import { fr } from 'date-fns/locale';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
 
-const typeToGroupMap: Record<string, string> = {
-    'purchase invoice': "Factures d'achat",
-    'sales invoice': "Factures de vente",
-    'receipt': "Reçus",
-    'bank statement': "Relevés bancaires",
-};
-
-const getGroupIcon = (groupName: string) => {
-    switch (groupName) {
-        case "Factures d'achat": return ArrowDownToLine;
-        case "Factures de vente": return ArrowUpFromLine;
-        case "Reçus": return Receipt;
-        case "Relevés bancaires": return Landmark;
-        default: return Folder;
-    }
-}
-
 const TABS_CONFIG = [
     { value: 'achats', label: "Factures d'achat", icon: ArrowDownToLine, types: ['purchase invoice']},
     { value: 'ventes', label: "Factures de vente", icon: ArrowUpFromLine, types: ['sales invoice']},
@@ -663,11 +646,11 @@ export default function DocumentsPage() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
-        <div className={cn("h-full overflow-y-auto", activeDocumentId ? "lg:col-span-2" : "lg:col-span-3")}>
+        <div className={cn("h-full overflow-y-auto", activeDocument ? "lg:col-span-1" : "lg:col-span-3")}>
              <MainContent />
         </div>
-        {activeDocumentId && (
-            <div className="hidden lg:block h-full sticky top-[80px]">
+        {activeDocument && (
+            <div className="hidden lg:block lg:col-span-2 h-full sticky top-[80px]">
                 <DetailView />
             </div>
         )}
