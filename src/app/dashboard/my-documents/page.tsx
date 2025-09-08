@@ -138,94 +138,76 @@ export default function MyDocumentsPage() {
     };
     return [...trail, event];
   };
-  
-  const processDocumentAI = useCallback(async (doc: Document) => {
-      let docWithDataUrl = { ...doc };
-      try {
-        if (!doc.dataUrl) {
-            const url = await getDownloadURL(ref(storage, doc.storagePath));
-            const response = await fetch(url);
-            const blob = await response.blob();
-            docWithDataUrl.dataUrl = await fileToDataUri(new File([blob], doc.name));
-        }
-
-        const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
-        const trailWithRecognition = addAuditEvent(doc.auditTrail, `Type reconnu: ${recognition.documentType}`);
-
-        const extracted = await extractData({ documentDataUri: docWithDataUrl.dataUrl!, documentType: recognition.documentType, clientId: doc.clientId });
-        const trailWithExtraction = addAuditEvent(trailWithRecognition, 'Données extraites par IA');
-
-        const finalUpdates: Partial<Document> = {
-            status: 'reviewing',
-            extractedData: extracted,
-            type: recognition.documentType,
-            confidence: recognition.confidence,
-            auditTrail: trailWithExtraction,
-        };
-
-        await updateDocument({ id: doc.id, updates: finalUpdates });
-        setDocuments(docs => docs.map(d => d.id === doc.id ? { ...d, ...finalUpdates } : d));
-        toast({ title: `Traitement de ${doc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
-        createNotification({ ...doc, ...finalUpdates }, 'est prêt pour examen.');
-
-    } catch (error) {
-        console.error("Error processing document:", error);
-        const trail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
-        await updateDocument({ id: doc.id, updates: { status: 'error', auditTrail: trail } });
-        setDocuments(docs => docs.map(d => d.id === doc.id ? { ...d, status: 'error', auditTrail: trail } : d));
-        toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
-        createNotification({ ...doc, status: 'error' }, 'a échoué lors du traitement.');
-    }
-  }, [toast]);
-
 
   const handleFileDrop = async (files: File[]) => {
     if (!clientId) {
-         toast({ variant: "destructive", title: "Erreur interne", description: `Votre identifiant client n'est pas défini.`});
-         return;
+      toast({ variant: "destructive", title: "Erreur interne", description: `Votre identifiant client n'est pas défini.` });
+      return;
     }
-    
     setIsUploading(true);
-    const existingFileNames = new Set(documents.map(d => d.name));
-    
-    const newDocsToProcess: Document[] = [];
 
+    const newDocumentsList: Document[] = [];
     for (const file of files) {
-        if (existingFileNames.has(file.name)) {
-            toast({ variant: "destructive", title: "Fichier en double", description: `Le fichier "${file.name}" existe déjà.`});
-            continue;
+      try {
+        const storagePath = `${clientId}/${Date.now()}-${file.name}`;
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+
+        const newDocData: Omit<Document, 'id'> = {
+          name: file.name,
+          uploadDate: new Date().toISOString(),
+          status: 'processing', // Start as processing
+          storagePath: storagePath,
+          clientId: clientId,
+          auditTrail: addAuditEvent([], 'Document téléversé par le client'),
+          comments: []
+        };
+        
+        const createdDoc = await addDocument(newDocData);
+        if (createdDoc) {
+          newDocumentsList.push(createdDoc);
         }
+      } catch (error) {
+        console.error(`Error uploading file ${file.name}:`, error);
+        toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.` });
+      }
+    }
 
+    setDocuments(prev => [...newDocumentsList, ...prev]);
+    setIsUploading(false); // Stop the main uploader spinner
+
+    // Now, process each document with AI
+    for (const newDoc of newDocumentsList) {
         try {
-            const dataUrl = await fileToDataUri(file);
-            const storagePath = `${clientId}/${file.name}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, file);
+            const dataUrl = await fileToDataUri(new File([await (await fetch(await getDownloadURL(ref(storage, newDoc.storagePath)))).blob()], newDoc.name));
+            const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+            const trailWithRecognition = addAuditEvent(newDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+            const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: newDoc.clientId });
+            const trailWithExtraction = addAuditEvent(trailWithRecognition, 'Données extraites par IA');
 
-            const newDocData: Omit<Document, 'id'> = {
-                name: file.name,
-                uploadDate: new Date().toISOString(),
-                status: 'processing',
-                storagePath: storagePath, 
-                clientId: clientId,
-                auditTrail: addAuditEvent([], 'Document téléversé par le client'),
-                comments: []
+            const finalUpdates: Partial<Document> = {
+                status: 'reviewing',
+                extractedData: extracted,
+                type: recognition.documentType,
+                confidence: recognition.confidence,
+                auditTrail: trailWithExtraction,
             };
 
-            const createdDoc = await addDocument(newDocData);
-            if (createdDoc) {
-                setDocuments(prev => [{...createdDoc, dataUrl}, ...prev]);
-                newDocsToProcess.push(createdDoc);
-            }
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.`});
+            await updateDocument({ id: newDoc.id, updates: finalUpdates });
+            setDocuments(docs => docs.map(d => d.id === newDoc.id ? { ...d, ...finalUpdates } : d));
+            createNotification({ ...newDoc, ...finalUpdates }, 'est prêt pour examen.');
+
+        } catch(aiError) {
+            console.error(`AI processing failed for ${newDoc.name}:`, aiError);
+            const trail = addAuditEvent(newDoc.auditTrail, 'Erreur de traitement IA');
+            await updateDocument({ id: newDoc.id, updates: { status: 'error', auditTrail: trail } });
+            setDocuments(docs => docs.map(d => d.id === newDoc.id ? { ...d, status: 'error', auditTrail: trail } : d));
+            createNotification({ ...newDoc, status: 'error' }, 'a échoué lors du traitement.');
         }
     }
-    
-    // Process all newly added documents
-    await Promise.all(newDocsToProcess.map(doc => processDocumentAI(doc)));
-    
-    setIsUploading(false);
+     if (newDocumentsList.length > 0) {
+        toast({ title: "Téléversement terminé", description: `${newDocumentsList.length} document(s) sont en cours d'analyse.` });
+    }
   };
 
 
