@@ -2,10 +2,10 @@
 'use server';
 
 import { z } from 'genkit';
-import { db as adminDb } from '@/lib/firebase-admin';
+import { db } from '@/lib/firebase-admin';
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
-import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot, getFirestore } from 'firebase-admin/firestore';
+import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { createSupplier, findSupplier } from '@/services/cegid';
 
 
@@ -41,20 +41,16 @@ const documentConverter: FirestoreDataConverter<Document> = {
 
 
 const getDocumentsCollectionRef = () => {
-    const db = getFirestore();
-    if (!db) return null;
     return db.collection('documents').withConverter(documentConverter);
 }
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
-    const db = getFirestore();
     if (!db) {
         console.error("Firestore Admin DB not available.");
         return MOCK_DOCUMENTS[clientId] || [];
     }
 
     const documentsCollection = getDocumentsCollectionRef();
-    if (!documentsCollection) return MOCK_DOCUMENTS[clientId] || [];
 
     try {
         const q = documentsCollection.where("clientId", "==", clientId);
@@ -81,8 +77,6 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
 
 export async function getDocumentById(docId: string): Promise<Document | null> {
     const documentsCollection = getDocumentsCollectionRef();
-    if (!documentsCollection) return null;
-
     try {
         const docRef = documentsCollection.doc(docId);
         const snapshot = await docRef.get();
@@ -113,8 +107,6 @@ const DocumentSchemaForAdd = z.object({
 
 export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>): Promise<Document | null> {
     const documentsCollection = getDocumentsCollectionRef();
-    if (!documentsCollection) return null;
-
     const validatedData = DocumentSchemaForAdd.parse(docData);
     try {
         const docRef = await documentsCollection.add(validatedData);
@@ -136,8 +128,6 @@ const UpdateDocumentInputSchema = z.object({
 
 export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocumentInputSchema>): Promise<void> {
     const documentsCollection = getDocumentsCollectionRef();
-    if (!documentsCollection) return;
-
     const validatedData = UpdateDocumentInputSchema.parse({ id, updates });
     try {
         const docRef = documentsCollection.doc(validatedData.id);
@@ -157,7 +147,6 @@ export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocum
 
 export async function deleteDocument(docId: string): Promise<void> {
     const documentsCollection = getDocumentsCollectionRef();
-    if (!documentsCollection) return;
     try {
         const docRef = documentsCollection.doc(docId);
         await docRef.delete();

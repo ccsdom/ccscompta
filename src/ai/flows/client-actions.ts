@@ -2,13 +2,12 @@
 'use server';
 
 import { z } from 'zod';
-import { db as adminDb, auth as adminAuth } from '@/lib/firebase-admin';
+import { db, auth } from '@/lib/firebase-admin';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { Timestamp, type DocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
 import type { Auth } from 'firebase-admin/auth';
 import { UserRecord } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
 
 
 // Helper pour convertir les données de Firestore (côté admin)
@@ -47,8 +46,6 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
 };
 
 export const ensureDemoUsers = async () => {
-    const auth = adminAuth.get();
-    const db = getFirestore();
 
     if (!auth || !db) {
         console.warn("Auth ou DB admin non disponible, impossible de créer les utilisateurs de démo.");
@@ -122,9 +119,6 @@ export const ensureDemoUsers = async () => {
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
-    const db = getFirestore();
-    if (!db) return null;
-
     try {
         const userRef = db.collection("users").doc(uid);
         const userSnap = await userRef.get();
@@ -151,9 +145,6 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
 
 
 export async function getClients(): Promise<Client[]> {
-  const db = getFirestore();
-  if (!db) return MOCK_CLIENTS;
-
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
@@ -187,9 +178,6 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
-  const db = getFirestore();
-  if (!db) return undefined;
-
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -224,10 +212,6 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  const db = getFirestore();
-  const auth = adminAuth.get();
-  if (!db || !auth) return { success: false, error: "La base de données ou le service d'authentification n'est pas disponible." };
-
   const clientsCollection = db.collection('clients');
   const usersCollection = db.collection('users');
 
@@ -310,9 +294,6 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  const db = getFirestore();
-  if (!db) return { success: false, error: "La base de données n'est pas disponible." };
-  
   const clientsCollection = db.collection('clients');
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
@@ -342,9 +323,6 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
-  const db = getFirestore();
-  if (!db) return { success: false, error: "La base de données n'est pas disponible." };
-
   const clientsCollection = db.collection('clients');
   try {
     const docRef = clientsCollection.doc(id);
@@ -367,9 +345,6 @@ const UpdateClientsStatusInputSchema = z.object({
 export async function updateClientsStatus(
     { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
 ): Promise<{ success: boolean; updatedCount: number, error?: string }> {
-    const db = getFirestore();
-    if (!db) return { success: false, updatedCount: 0, error: "La base de données n'est pas disponible." };
-    
     const batch = db.batch();
 
     try {
@@ -397,9 +372,6 @@ export interface Accountant {
 }
 
 export async function getAccountants(): Promise<Accountant[]> {
-    const db = getFirestore();
-    if (!db) return [];
-
     try {
         const usersCollection = db.collection('users');
         const q = usersCollection.where('role', '==', 'accountant');
@@ -418,10 +390,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
-    
-
-    
-
-    
-
-    
