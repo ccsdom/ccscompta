@@ -61,37 +61,35 @@ export const ensureDemoUsers = async () => {
     for (const user of usersToSeed) {
         let userRecord: UserRecord | null = null;
         try {
-            // Try to create the user. If they already exist, it will throw an error.
-            userRecord = await auth.createUser({
-                email: user.email,
+            userRecord = await auth.getUserByEmail(user.email);
+            // If user exists, update their password and display name to ensure consistency.
+             await auth.updateUser(userRecord.uid, {
                 password: user.password,
                 displayName: user.displayName,
             });
-            console.log(`✅ Utilisateur de démo ${user.email} créé dans Auth.`);
+            console.log(`✅ Utilisateur de démo ${user.email} existant mis à jour.`);
         } catch (error: any) {
-            if (error.code === 'auth/email-already-exists') {
-                // If user exists, get their record and update password to ensure consistency.
-                try {
-                    userRecord = await auth.getUserByEmail(user.email);
-                    await auth.updateUser(userRecord.uid, {
+            if (error.code === 'auth/user-not-found') {
+                // If user doesn't exist, create them.
+                 try {
+                    userRecord = await auth.createUser({
+                        email: user.email,
                         password: user.password,
                         displayName: user.displayName,
                     });
-                    console.log(`✅ Utilisateur de démo ${user.email} existant mis à jour.`);
-                } catch (updateError) {
-                    console.error(`❌ Échec de la mise à jour de l'utilisateur Auth ${user.email}:`, updateError);
-                    continue;
+                    console.log(`✅ Utilisateur de démo ${user.email} créé dans Auth.`);
+                } catch (createError) {
+                     console.error(`❌ Erreur lors de la création de l'utilisateur Auth ${user.email}:`, createError);
+                     continue;
                 }
             } else {
-                console.error(`❌ Erreur lors de la création/recherche de l'utilisateur Auth ${user.email}:`, error);
+                console.error(`❌ Erreur lors de la recherche de l'utilisateur Auth ${user.email}:`, error);
                 continue;
             }
         }
         
         if (userRecord) {
             const userProfileRef = db.collection('users').doc(userRecord.uid);
-            const userProfileSnap = await userProfileRef.get();
-
             const profileData: { name: string, email: string, role: string, clientId?: string } = {
                 name: user.displayName,
                 email: user.email,
@@ -113,27 +111,56 @@ export const ensureDemoUsers = async () => {
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
-    if (!db) {
-      console.error("Firestore Admin DB not available during getUserProfile call.");
+    if (!db || !auth) {
+      console.error("Firestore Admin DB ou Auth non disponible.");
       return null;
     }
     const userRef = db.collection("users").doc(uid);
-    const userSnap = await userRef.get();
+    
+    try {
+        const userSnap = await userRef.get();
 
-    if (!userSnap.exists) {
-        console.error(`No profile found for UID: ${uid}.`);
+        if (userSnap.exists) {
+            const data = userSnap.data();
+            if(data) {
+                return {
+                    role: data.role || 'client',
+                    name: data.name || '',
+                    email: data.email || '',
+                    clientId: data.clientId
+                };
+            }
+        }
+        
+        // Failsafe: If profile doesn't exist in Firestore, create it from Auth user record
+        console.warn(`Profil non trouvé pour l'UID: ${uid}. Tentative de création à la volée.`);
+        const authUser = await auth.getUser(uid);
+        if (authUser && authUser.email) {
+            let role = 'client'; // Default role
+            // Assign roles based on email for demo purposes
+            if (authUser.email === 'admin@ccs-compta.com') role = 'admin';
+            if (authUser.email === 'app.ccs94@gmail.com') role = 'accountant';
+            if (authUser.email === 'secretaire@ccs-compta.com') role = 'secretary';
+            
+            const newProfileData = {
+                name: authUser.displayName || 'Utilisateur',
+                email: authUser.email,
+                role: role,
+            };
+
+            await userRef.set(newProfileData);
+            console.log(`✅ Profil de secours créé pour ${authUser.email}.`);
+
+            return newProfileData;
+        }
+
+        console.error(`Impossible de trouver ou de créer un profil pour l'UID: ${uid}.`);
+        return null;
+
+    } catch (error) {
+        console.error(`Erreur grave lors de la récupération du profil pour l'UID ${uid}:`, error);
         return null;
     }
-    
-    const data = userSnap.data();
-    if (!data) return null;
-
-    return {
-        role: data.role || 'client',
-        name: data.name || '',
-        email: data.email || '',
-        clientId: data.clientId
-    };
 }
 
 
@@ -412,3 +439,4 @@ export async function getAccountants(): Promise<Accountant[]> {
     
 
     
+
