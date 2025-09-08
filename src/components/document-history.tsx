@@ -143,7 +143,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                     <TableRow 
                                         key={doc.id} 
                                         data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
-                                        className={`cursor-pointer ${activeDocumentId === doc.id ? 'bg-muted/80' : ''}`}
+                                        className={`cursor-pointer`}
                                         onClick={() => setActiveDocument(doc)}
                                     >
                                         <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
@@ -225,3 +225,5 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
         </div>
     );
 }
+
+    

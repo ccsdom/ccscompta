@@ -13,11 +13,12 @@ import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy, ArrowDownToLine, ArrowUpFromLine, Receipt, Landmark, Folder, FileSignature } from 'lucide-react';
 import {
@@ -57,11 +58,10 @@ const TABS_CONFIG = [
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
   const [dashboardFilter, setDashboardFilter] = useState<string | null>(null);
@@ -100,11 +100,11 @@ export default function DocumentsPage() {
              if (clientId && clientId !== selectedClientId) {
                 setSelectedClientId(clientId);
                 fetchDocuments(clientId);
-                setActiveDocumentId(null);
+                setActiveDocument(null);
              } else if (!clientId) {
                 setDocuments([]);
                 setSelectedClientId(null);
-                setActiveDocumentId(null);
+                setActiveDocument(null);
              }
 
              const filter = searchParams.get('filter');
@@ -226,7 +226,7 @@ export default function DocumentsPage() {
         id: docId // ensure id is not lost
       };
       setDocuments(docs => docs.map(d => d.id === docId ? finalDoc : d));
-      if(activeDocumentId === docId) {
+      if(activeDocument?.id === docId) {
         handleSetActiveDocument(finalDoc);
       }
 
@@ -251,9 +251,7 @@ export default function DocumentsPage() {
     if(doc) {
         const updatedDoc = {...doc, ...updates};
         setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
-        if (activeDocumentId === docId) {
-            handleSetActiveDocument(updatedDoc);
-        }
+        handleSetActiveDocument(updatedDoc);
         createNotification(doc, 'a été approuvé.');
         toast({ title: "Document approuvé", description: "Les données ont été validées et enregistrées." });
     }
@@ -273,9 +271,7 @@ export default function DocumentsPage() {
     await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
     const updatedDoc = {...doc!, comments: updatedComments, auditTrail: trail};
     setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
-    if (activeDocumentId === docId) {
-        handleSetActiveDocument(updatedDoc);
-    }
+    handleSetActiveDocument(updatedDoc);
   };
   
   const handleSetActiveDocument = async (doc: Document | null) => {
@@ -299,11 +295,10 @@ export default function DocumentsPage() {
              }
         }
         
-        setActiveDocumentId(docWithDataUrl.id);
-        if (window.innerWidth < 1024) setIsSheetOpen(true);
+        setActiveDocument(docWithDataUrl);
 
     } else {
-        setActiveDocumentId(null);
+        setActiveDocument(null);
     }
   }
 
@@ -349,7 +344,7 @@ export default function DocumentsPage() {
      const doc = documents.find(d => d.id === docId);
      if(doc?.storagePath) await deleteObject(ref(storage, doc.storagePath));
      setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
-     if (activeDocumentId === docId) setActiveDocumentId(null);
+     if (activeDocument?.id === docId) setActiveDocument(null);
      toast({ variant: 'destructive', title: "Document supprimé" });
   }
 
@@ -361,7 +356,7 @@ export default function DocumentsPage() {
     });
     await Promise.all(promises);
     setDocuments(prevDocs => prevDocs.filter(doc => !selectedDocumentIds.includes(doc.id)));
-    if (activeDocumentId && selectedDocumentIds.includes(activeDocumentId)) setActiveDocumentId(null);
+    if (activeDocument && selectedDocumentIds.includes(activeDocument.id)) setActiveDocument(null);
     toast({ variant: 'destructive', title: "Documents supprimés", description: `${selectedDocumentIds.length} documents ont été supprimés.` });
     setSelectedDocumentIds([]);
   }
@@ -461,18 +456,6 @@ export default function DocumentsPage() {
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
   }, [documents, searchQuery, searchCriteria, dashboardFilter]);
 
-  const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
-
-  useEffect(() => {
-    if (activeDocumentId && window.innerWidth < 1024) setIsSheetOpen(true);
-  }, [activeDocumentId]);
-
-  useEffect(() => {
-    const handleResize = () => { if (window.innerWidth >= 1024) setIsSheetOpen(false); };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const clearFilters = () => {
     // Clear dashboard filter
     if (dashboardFilter) {
@@ -541,12 +524,12 @@ export default function DocumentsPage() {
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom avant</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Pivoter</p></TooltipContent></Tooltip>
-            {activeDocumentId && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(activeDocumentId)} disabled={isProcessing}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Relancer le traitement</p></TooltipContent></Tooltip>}
+            {activeDocument?.id && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(activeDocument.id)} disabled={isProcessing}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Relancer le traitement</p></TooltipContent></Tooltip>}
         </TooltipProvider>
     </div>
   );
 
-  const MainContent = ({ setActiveDocument }: { setActiveDocument: (doc: Document) => void }) => (
+  const MainContent = () => (
     <div className="flex flex-col gap-6 h-full">
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
         <FilterDisplay />
@@ -570,8 +553,8 @@ export default function DocumentsPage() {
                                     documents={docsForTab}
                                     onProcess={handleProcessDocument}
                                     onDelete={handleDeleteSingle}
-                                    activeDocumentId={activeDocumentId}
-                                    setActiveDocument={setActiveDocument}
+                                    activeDocumentId={activeDocument?.id}
+                                    setActiveDocument={handleSetActiveDocument}
                                     selectedDocumentIds={selectedDocumentIds}
                                     setSelectedDocumentIds={setSelectedDocumentIds}
                                     isLoading={isLoading}
@@ -596,90 +579,57 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const DetailView = () => {
-    if (activeDocument) {
-      return (
-        <div className="flex flex-col h-full gap-6">
-          <Card className="flex-1 aspect-square w-full bg-muted overflow-hidden relative">
-            <PreviewControls />
-            <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
-                {activeDocument.dataUrl ? (
-                    <iframe 
-                        src={activeDocument.dataUrl} 
-                        className="w-full h-full border-0 transition-transform duration-300"
-                        style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
-                        title="Aperçu du document" 
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-                        <Loader2 className="h-8 w-8 animate-spin mb-4"/>
-                        <p>Chargement de l'aperçu...</p>
-                    </div>
-                )}
-            </div>
-          </Card>
-          <DataValidationForm
-            key={activeDocument.id}
-            document={activeDocument}
-            onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-            isLoading={isProcessing}
-            onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
-          />
-        </div>
-      );
-    }
+  const DetailViewDialog = () => {
+    if (!activeDocument) return null;
+
     return (
-        <div className="hidden lg:flex items-center justify-center h-full sticky top-[80px]">
-            <Card className="h-full w-full">
-                <CardContent className="h-full flex flex-col items-center justify-center text-center p-8">
-                    <FileSignature className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold">Commencez la validation</h3>
-                    <p className="text-sm text-muted-foreground mt-2 max-w-xs">
-                        Sélectionnez un document dans la liste pour commencer le processus de validation. Vous pourrez examiner les données extraites par l'IA, les corriger si nécessaire, et approuver la pièce.
-                    </p>
-                </CardContent>
-            </Card>
-        </div>
-    );
-  };
+        <Dialog open={!!activeDocument} onOpenChange={(open) => { if (!open) setActiveDocument(null)}}>
+            <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="p-4 border-b">
+                    <DialogTitle>{activeDocument.name}</DialogTitle>
+                    <DialogDescription>Validez les données extraites par l'IA ou laissez des commentaires.</DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-1 lg:grid-cols-2 flex-1 overflow-hidden">
+                    <div className="relative bg-muted h-full overflow-hidden">
+                       <PreviewControls />
+                       <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
+                            {activeDocument.dataUrl ? (
+                                <iframe 
+                                    src={activeDocument.dataUrl} 
+                                    className="w-full h-full border-0 transition-transform duration-300"
+                                    style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
+                                    title="Aperçu du document" 
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                                    <Loader2 className="h-8 w-8 animate-spin mb-4"/>
+                                    <p>Chargement de l'aperçu...</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="h-full overflow-y-auto">
+                        <DataValidationForm
+                            key={activeDocument.id}
+                            document={activeDocument}
+                            onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
+                            isLoading={isProcessing}
+                            onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
+                         />
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+  }
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
-        <div className={cn("h-full overflow-y-auto", activeDocument ? "lg:col-span-1" : "lg:col-span-3")}>
-             <MainContent setActiveDocument={handleSetActiveDocument} />
-        </div>
-        {activeDocument && (
-            <div className="hidden lg:block lg:col-span-2 h-full sticky top-[80px]">
-                <DetailView />
-            </div>
-        )}
-
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetContent side="right" className="p-0 w-full sm:max-w-lg overflow-y-auto">
-            {activeDocument ? (
-                <>
-                <SheetHeader className="p-6">
-                <SheetTitle>
-                    <span className="sr-only">{activeDocument.name}</span>
-                </SheetTitle>
-                </SheetHeader>
-                <DataValidationForm
-                key={activeDocument.id}
-                document={activeDocument}
-                onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
-                isLoading={isProcessing}
-                onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
-                isSheet
-                />
-                </>
-            ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                <p>Aucun document sélectionné.</p>
-                </div>
-            )}
-            </SheetContent>
-        </Sheet>
+    <div className="h-[calc(100vh-10rem)]">
+        <MainContent />
+        <DetailViewDialog />
     </div>
   );
 }
+
+    

@@ -27,7 +27,6 @@ interface DataValidationFormProps {
   onUpdate: (updatedData: ExtractDataOutput) => void;
   isLoading: boolean;
   onAddComment: (commentText: string) => void;
-  isSheet?: boolean;
 }
 
 const initialFormState: ExtractDataOutput = {
@@ -262,7 +261,7 @@ const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { for
 }
 
 
-export function DataValidationForm({ document, onUpdate, isLoading, onAddComment, isSheet = false }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, isLoading, onAddComment }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSending, setIsSending] = useState(false);
   const [allDocs, setAllDocs] = useState<Document[]>([]);
@@ -320,14 +319,6 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
   const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
   const isBankStatement = document?.type === 'bank statement';
 
-  const CardWrapper = ({ children }: { children: React.ReactNode }) => {
-    return (
-        <Card className={`flex-1 rounded-none border-0 lg:rounded-lg lg:border h-full flex flex-col ${isSheet ? '' : 'mt-[-24px]'}`}>
-            {children}
-        </Card>
-    );
-  };
-
   if (!document) {
     return null;
   }
@@ -337,119 +328,99 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
 
   const DataView = () => {
     return (
-        <ScrollArea className="h-[calc(100vh-450px)] lg:h-auto">
-            {hasAnomalies && (
-                <Alert variant="destructive" className="mb-4">
-                    <ShieldAlert className="h-4 w-4" />
-                    <AlertTitle>Anomalies Détectées !</AlertTitle>
-                    <AlertDescription>
-                    <ul className="list-disc pl-4 mt-1">
-                        {formData.anomalies!.map((anomaly, index) => (
-                        <li key={index}>{anomaly}</li>
-                        ))}
-                    </ul>
-                    <p className="mt-2">Veuillez vérifier attentivement les données extraites avant d'approuver.</p>
-                    </AlertDescription>
-                </Alert>
-            )}
-            
-            {hasExtractedData ? (
-                isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} allDocs={allDocs} /> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
-            ) : (
-                <div className="text-center text-sm text-muted-foreground py-10">
-                    {document.status === 'pending' && <Info className="h-8 w-8 mx-auto mb-2" />}
-                    {document.status === 'error' && <AlertCircle className="h-8 w-8 mx-auto mb-2" />}
-                    
-                    <h3 className="font-semibold text-foreground mb-1">
-                        {document.status === 'pending' && "Document en attente"}
-                        {document.status === 'error' && "Erreur de traitement"}
-                    </h3>
-                    <p>
-                        {document.status === 'pending' && "Cliquez sur 'Traiter' pour lancer l'extraction des données."}
-                        {document.status === 'error' && "Impossible d'extraire les données de ce document."}
-                    </p>
-                </div>
-            )}
+        <ScrollArea className="flex-1">
+             <div className="p-6">
+                {hasAnomalies && (
+                    <Alert variant="destructive" className="mb-4">
+                        <ShieldAlert className="h-4 w-4" />
+                        <AlertTitle>Anomalies Détectées !</AlertTitle>
+                        <AlertDescription>
+                        <ul className="list-disc pl-4 mt-1">
+                            {formData.anomalies!.map((anomaly, index) => (
+                            <li key={index}>{anomaly}</li>
+                            ))}
+                        </ul>
+                        <p className="mt-2">Veuillez vérifier attentivement les données extraites avant d'approuver.</p>
+                        </AlertDescription>
+                    </Alert>
+                )}
+                
+                {hasExtractedData ? (
+                    isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} allDocs={allDocs} /> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
+                ) : (
+                    <div className="text-center text-sm text-muted-foreground py-10">
+                        {document.status === 'pending' && <Info className="h-8 w-8 mx-auto mb-2" />}
+                        {document.status === 'error' && <AlertCircle className="h-8 w-8 mx-auto mb-2" />}
+                        
+                        <h3 className="font-semibold text-foreground mb-1">
+                            {document.status === 'pending' && "Document en attente"}
+                            {document.status === 'error' && "Erreur de traitement"}
+                        </h3>
+                        <p>
+                            {document.status === 'pending' && "Cliquez sur 'Traiter' pour lancer l'extraction des données."}
+                            {document.status === 'error' && "Impossible d'extraire les données de ce document."}
+                        </p>
+                    </div>
+                )}
+            </div>
          </ScrollArea>
     )
   }
 
   return (
-    <CardWrapper>
-      <form onSubmit={handleSubmit} className="h-full flex flex-col">
-        <CardHeader className="p-4 lg:p-6">
-          <div className="flex justify-between items-start gap-4">
-            <div>
-              <CardTitle className="text-xl">Détails du Document</CardTitle>
-              <CardDescription className="truncate max-w-[250px] md:max-w-sm" title={document.name}>
-                {document.name}
-              </CardDescription>
-            </div>
-            {document.type && <Badge variant={document.confidence && document.confidence > 0.8 ? "default" : "secondary"}>{document.type} ({((document.confidence ?? 0) * 100).toFixed(0)}%)</Badge>}
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 p-0 lg:p-6 lg:pt-0 flex flex-col gap-4">
-            {isSheet && (
-                <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto p-4 lg:p-0">
-                    {document.dataUrl ? (
-                        <iframe src={document.dataUrl} className="w-full h-full" title="Aperçu du document" />
-                    ): (
-                        <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                            Aperçu non disponible
-                        </div>
-                    )}
-                </div>
-            )}
-            
-            {isLoading && (
-                <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="mt-4 text-sm font-medium">Analyse par l'IA en cours...</p>
-                </div>
-            )}
+    <div className="h-full flex flex-col">
+        <form onSubmit={handleSubmit} className="h-full flex flex-col">
+            <div className="flex-1 p-0 flex flex-col gap-4 overflow-hidden">
+                {isLoading && (
+                    <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-4 text-sm font-medium">Analyse par l'IA en cours...</p>
+                    </div>
+                )}
 
-            <div className="flex-1 px-4 lg:px-0 flex flex-col">
-                <Tabs defaultValue="data" className="flex-1 flex flex-col">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="data" className="gap-1">
-                            {isBankStatement ? <Landmark className="h-4 w-4"/> : <FileJson2 className="h-4 w-4" />}
-                            {isBankStatement ? 'Transactions' : 'Données'}
-                        </TabsTrigger>
-                        <TabsTrigger value="comments" className="gap-1">
-                            <MessageSquare className="h-4 w-4" />
-                            Commentaires {(document.comments || []).length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{(document.comments || []).length}</span>}
-                        </TabsTrigger>
-                        <TabsTrigger value="history" className="gap-1"><ListOrdered className="h-4 w-4" />Historique</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="data" className="flex-1 mt-4">
-                        <DataView />
-                    </TabsContent>
-                    <TabsContent value="comments" className="flex-1 mt-0">
-                         <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
-                    </TabsContent>
-                    <TabsContent value="history" className="flex-1 mt-4">
-                        <ScrollArea className="h-[calc(100vh-450px)] lg:h-auto pr-4">
-                           <AuditTrail trail={document.auditTrail} />
-                        </ScrollArea>
-                    </TabsContent>
-                </Tabs>
+                <div className="flex-1 flex flex-col overflow-y-auto">
+                    <Tabs defaultValue="data" className="flex-1 flex flex-col h-full">
+                        <TabsList className="grid w-full grid-cols-3 mx-6 mt-6">
+                            <TabsTrigger value="data" className="gap-1">
+                                {isBankStatement ? <Landmark className="h-4 w-4"/> : <FileJson2 className="h-4 w-4" />}
+                                {isBankStatement ? 'Transactions' : 'Données'}
+                            </TabsTrigger>
+                            <TabsTrigger value="comments" className="gap-1">
+                                <MessageSquare className="h-4 w-4" />
+                                Commentaires {(document.comments || []).length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{(document.comments || []).length}</span>}
+                            </TabsTrigger>
+                            <TabsTrigger value="history" className="gap-1"><ListOrdered className="h-4 w-4" />Historique</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="data" className="flex-1 mt-4">
+                            <DataView />
+                        </TabsContent>
+                        <TabsContent value="comments" className="flex-1 mt-0 p-6">
+                             <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
+                        </TabsContent>
+                        <TabsContent value="history" className="flex-1 mt-4 p-6">
+                            <ScrollArea className="h-full pr-4">
+                               <AuditTrail trail={document.auditTrail} />
+                            </ScrollArea>
+                        </TabsContent>
+                    </Tabs>
+                </div>
             </div>
-          
-        </CardContent>
-        <CardFooter className="flex justify-end gap-2 p-4 lg:p-6 border-t">
-          {document.status === 'reviewing' && (
-            <>
-              <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="h-4 w-4 mr-2" />Annuler</Button>
-              <Button type="submit"><Check className="h-4 w-4 mr-2" />Approuver</Button>
-            </>
-          )}
-          {document.status === 'approved' && (
-            <Button type="button" onClick={handleLocalSend} disabled={isSending}>
-              {isSending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Envoi en cours</> : <><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</>}
-            </Button>
-          )}
-        </CardFooter>
-      </form>
-    </CardWrapper>
+            <div className="flex justify-end gap-2 p-4 border-t bg-background">
+              {document.status === 'reviewing' && (
+                <>
+                  <Button variant="ghost" type="button" onClick={handleDiscard}><RotateCcw className="h-4 w-4 mr-2" />Annuler</Button>
+                  <Button type="submit"><Check className="h-4 w-4 mr-2" />Approuver</Button>
+                </>
+              )}
+              {document.status === 'approved' && (
+                <Button type="button" onClick={handleLocalSend} disabled={isSending}>
+                  {isSending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Envoi en cours</> : <><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</>}
+                </Button>
+              )}
+            </div>
+        </form>
+    </div>
   );
 }
+
+    
