@@ -1,9 +1,30 @@
 name,siret,address,legalRepresentative,fiscalYearEndDate,email,phone
-ACTION AVENTURE,12345678901234,"123 Rue de l'Aventure, 75001 Paris","Jean Dupont","31/12","action.aventure@example.com","0123456789"
-AUTO ECOLE DE LA MAIRIE,23456789012345,"45 Avenue de la République, 75011 Paris","Marie Curie","31/12","autoecole.mairie@example.com","0123456780"
-BODY MINUTE,34567890123456,"67 Boulevard Voltaire, 75011 Paris","Pierre Martin","30/09","body.minute@example.com","0123456781"
-CABINET FLORET,45678901234567,"89 Rue du Temple, 75003 Paris","Sophie Dubois","31/12","cabinet.floret@example.com","0123456782"
-CABINET MEDICAL GALEA,56789012345678,"101 Rue de la Santé, 75013 Paris","Dr. Alain Bernard","31/12","medical.galea@example.com","0123456783"
-CHICKEN SPOT,67890123456789,"12 Rue du Faubourg, 75010 Paris","Fatima Zahra","31/03","chicken.spot@example.com","0123456784"
-EASYLIAGE,78901234567890,"33 Rue de l'Innovation, 75015 Paris","Aylan VSW","31/12","vsw.contact@gmail.com","0123456785"
-FREE,89012345678901,"8 Rue de la Ville l'Évêque, 75008 Paris","Xavier Niel","31/12","contact@free.fr","0123456786"
+ACTION AVENTURE,89332507900014,,Mme Jennifer DUVAL,31/12,actionaventure@email.com,0102030405
+AUTO ECOLE DE LA MAIRIE,83109330100018,,Mme Samia ACHOUI,31/12,autoecolemairie@email.com,0102030405
+BODY MINUTE,89936869000010,,Mme Ines Kaced,31/12,bodyminute@email.com,0102030405
+CABINET FLORET,84759902600017,,Mme Déborah FLORET,31/12,cabinetfloret@email.com,0102030405
+CABINET MEDICAL GALEA,90315892700013,,Mme Nadia GALEA,31/12,cabinetmedicalgalea@email.com,0102030405
+CHICKEN SPOT,84796349500014,,M. Mohamed-Amine BENGUESMIA,31/12,chickenspot@email.com,0102030405
+CIKETIC,90835036700018,,M. Jeremy Cik,31/12,ciketic@email.com,0102030405
+CMC,88491839000019,,M. Carlos DA COSTA,31/12,cmc@email.com,0102030405
+EASYLIAGE,84435061600021,,M. Aylan VIGNERON,31/12,easyliage@email.com,0102030405
+ELITECH,84988773900023,,Mme Linda BOUGHALEM,31/12,elitech@email.com,0102030405
+FAMILY BURGER,90184497000019,,M. Mohamed-Amine BENGUESMIA,31/12,familyburger@email.com,0102030405
+GO RECEPTION,89813589400015,,M. Kevin NGO,31/12,goreception@email.com,0102030405
+IDEAL DECO,88147492100016,,M. Jean-Marc HATCHI,31/12,idealdeco@email.com,0102030405
+ILYADE,90412158800016,,Mme Fatiha ZEROUALI,31/12,ilyade@email.com,0102030405
+INFINI'TIF,84915720900014,,Mme Jennifer DUVAL,31/12,infinitif@email.com,0102030405
+JLM ENVELOPPE,83313233300023,,Mme Linda BOUGHALEM,31/12,jlmenveloppe@email.com,0102030405
+LA BAGUETTE DOREE,84318787000011,,M. Abderrahmane SEMMA,31/12,labaguettedoree@email.com,0102030405
+LE COMPTOIR DE CHELLES,90837568700014,,M. Kamel KACI,31/12,lecomptoirdechelles@email.com,0102030405
+LE KIOSQUE A PIZZA,88339178900015,,M. Cedric ROBERT,31/12,lekiosqueapizza@email.com,0102030405
+LES SAVEURS DU PORTUGAL,90457497900013,,M. Jean-Marc HATCHI,31/12,lessaveursduportugal@email.com,0102030405
+LIBRAIRIE INTERNATIONALE,88887711400013,,Mme Fatiha ZEROUALI,31/12,librairieinternationale@email.com,0102030405
+O'TACOS,84206990600013,,M. Kamel KACI,31/12,otacos@email.com,0102030405
+PIMENT & BASILIC,90313885300015,,M. Cédric ROBERT,31/12,pimentbasilic@email.com,0102030405
+PIZZA DI NAPOLI,90297072400015,,Mme Samia ACHOUI,31/12,pizzadinapoli@email.com,0102030405
+POINT SOLEIL,90042603800017,,Mme Ines Kaced,31/12,pointsoleil@email.com,0102030405
+PRESTIGE CLEAN,88849767700011,,M. Aylan VIGNERON,31/12,prestigeclean@email.com,0102030405
+R'BURGER,89182393300013,,M. Kevin NGO,31/12,rburger@email.com,0102030405
+TOP GARAGE,84865181700011,,M. Abderrahmane SEMMA,31/12,topgarage@email.com,0102030405
+VSW,84347201800015,,M. Carlos DA COSTA,31/12,vsw@email.com,0102030405
