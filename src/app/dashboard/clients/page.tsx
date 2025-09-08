@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2, LogIn } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2, LogIn, RefreshCw } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -29,11 +29,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, deleteClient, updateClientsStatus, getAccountants, type Accountant } from '@/ai/flows/client-actions';
+import { getClients, deleteClient, updateClientsStatus, getAccountants, type Accountant, resetClients } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,6 +51,7 @@ export default function ClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isResetting, setIsResetting] = useState(false);
     const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
     const router = useRouter();
     const { toast } = useToast();
@@ -127,15 +129,28 @@ export default function ClientsPage() {
         router.push('/dashboard/my-documents');
     }
     
-    const handleDeleteClient = async (client: Client) => {
-        const result = await deleteClient(client.id);
+    const handleDeleteClient = async () => {
+        if (!clientToDelete) return;
+        const result = await deleteClient(clientToDelete.id);
         if (result.success) {
-            setClients(prev => prev.filter(c => c.id !== client.id));
-            toast({ title: 'Client supprimé', description: `Le client ${client.name} a été supprimé.` });
+            setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+            toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
         } else {
             toast({ variant: 'destructive', title: 'Erreur', description: result.error });
         }
         setClientToDelete(null);
+    }
+
+    const handleReset = async () => {
+        setIsResetting(true);
+        const result = await resetClients();
+        if(result.success) {
+            toast({ title: 'Réinitialisation réussie', description: `${result.deletedCount} clients ont été supprimés.` });
+            await fetchClientsAndAccountants();
+        } else {
+            toast({ variant: 'destructive', title: 'Erreur', description: result.error });
+        }
+        setIsResetting(false);
     }
     
     const handleClientsImported = () => {
@@ -325,16 +340,39 @@ export default function ClientsPage() {
                             <CardTitle>Liste des clients</CardTitle>
                             <CardDescription>Parcourez vos clients ou recherchez un dossier spécifique.</CardDescription>
                         </div>
-                        <div className="w-full max-w-sm">
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Rechercher par nom..."
-                                    className="pl-8"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                        <div className="flex items-center gap-2">
+                            <div className="w-full max-w-sm">
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Rechercher par nom..."
+                                        className="pl-8"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
                             </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" disabled={isResetting}>
+                                        <RefreshCw className={`mr-2 h-4 w-4 ${isResetting ? 'animate-spin' : ''}`} />
+                                        Réinitialiser la liste
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Cette action supprimera DÉFINITIVEMENT tous les clients de votre base de données.
+                                            Cette action est irréversible.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/90">Confirmer et supprimer tout</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                     </div>
                 </CardHeader>
@@ -362,7 +400,7 @@ export default function ClientsPage() {
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                 <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-10 w-10 rounded-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-5" /></TableCell>
                                     <TableCell><Skeleton className="h-6 w-48" /></TableCell>
                                     <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                                     <TableCell className="hidden md:table-cell"><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
@@ -466,14 +504,10 @@ export default function ClientsPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setClientToDelete(null)}>Annuler</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => clientToDelete && handleDeleteClient(clientToDelete)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
     )
 }
-
-    
-
-    
