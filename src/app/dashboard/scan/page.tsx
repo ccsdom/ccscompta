@@ -105,7 +105,7 @@ export default function ScanPage() {
 
         setIsProcessing(true);
         toast({ title: 'Envoi en cours...', description: 'Votre document est en cours de traitement.' });
-
+        let createdDoc: Document | null = null;
         try {
             const fileName = `scan-${new Date().toISOString()}.jpg`;
             const storagePath = `${selectedClientId}/${fileName}`;
@@ -124,9 +124,9 @@ export default function ScanPage() {
                 auditTrail: addAuditEvent([], 'Document scanné par le client'),
             };
 
-            const addedDoc = await addDocument(newDocData);
+            createdDoc = await addDocument(newDocData);
 
-            if (!addedDoc) {
+            if (!createdDoc) {
                 throw new Error("Failed to add document to database.");
             }
 
@@ -138,12 +138,12 @@ export default function ScanPage() {
                 extractedData: extracted,
                 type: recognition.documentType,
                 confidence: recognition.confidence,
-                auditTrail: addAuditEvent(addedDoc.auditTrail, 'Traitement IA terminé, en attente de validation')
+                auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé, en attente de validation')
             };
 
-            await updateDocument({ id: addedDoc.id, updates: finalUpdates });
+            await updateDocument({ id: createdDoc.id, updates: finalUpdates });
 
-            createNotification({ ...addedDoc, ...finalUpdates }, 'est prêt pour examen.');
+            createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
 
             toast({
                 title: 'Document envoyé !',
@@ -153,6 +153,10 @@ export default function ScanPage() {
             setCapturedImage(null);
         } catch (error) {
             console.error("Erreur lors de l'envoi du scan:", error);
+            if (createdDoc) {
+                const trail = addAuditEvent(createdDoc.auditTrail, 'Erreur de traitement IA');
+                await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
+            }
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
         } finally {
             setIsProcessing(false);

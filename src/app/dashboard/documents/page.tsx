@@ -150,23 +150,7 @@ export default function DocumentsPage() {
     const docToProcess = documents.find(d => d.id === docId) ?? await getDocumentById(docId);
     if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
 
-    let docWithDataUrl = docToProcess;
-
-    // Ensure dataUrl is present for processing
-    if (!docToProcess.dataUrl) {
-      try {
-        const url = await getDownloadURL(ref(storage, docToProcess.storagePath));
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const dataUrl = await fileToDataUri(new File([blob], docToProcess.name));
-        docWithDataUrl = {...docToProcess, dataUrl};
-      } catch (e) {
-          toast({ variant: "destructive", title: "Erreur de traitement", description: `Impossible de récupérer le contenu de ${docToProcess.name}.` });
-          return;
-      }
-    }
-    
-    if (!docWithDataUrl.dataUrl) return;
+    let docWithDataUrl = { ...docToProcess };
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
@@ -174,11 +158,18 @@ export default function DocumentsPage() {
     setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'processing', auditTrail: trail} : d));
     
     try {
-      const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl });
+        if (!docWithDataUrl.dataUrl) {
+            const url = await getDownloadURL(ref(storage, docWithDataUrl.storagePath));
+            const response = await fetch(url);
+            const blob = await response.blob();
+            docWithDataUrl.dataUrl = await fileToDataUri(new File([blob], docWithDataUrl.name));
+        }
+
+      const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
       trail = await addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
       
       const extracted = await extractData({
-        documentDataUri: docWithDataUrl.dataUrl,
+        documentDataUri: docWithDataUrl.dataUrl!,
         documentType: recognition.documentType,
         clientId: docWithDataUrl.clientId
       });
@@ -195,7 +186,7 @@ export default function DocumentsPage() {
 
       if (automationSettings.isEnabled && recognition.documentType !== 'bank statement') {
           trail = await addAuditEvent(docId, 'Validation automatique initiée');
-          const validation = await validateExtraction({ documentDataUri: docWithDataUrl.dataUrl, extractedData: extracted });
+          const validation = await validateExtraction({ documentDataUri: docWithDataUrl.dataUrl!, extractedData: extracted });
           
           if (validation.isConfident && validation.confidenceScore >= automationSettings.confidenceThreshold) {
               trail = await addAuditEvent(docId, `Validation IA réussie (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Document auto-approuvé.`);
@@ -223,7 +214,7 @@ export default function DocumentsPage() {
       const finalDoc = {
         ...docWithDataUrl,
         ...finalUpdates,
-        id: docId // ensure id is not lost
+        id: docId
       };
       setDocuments(docs => docs.map(d => d.id === docId ? finalDoc : d));
       if(activeDocument?.id === docId) {

@@ -68,28 +68,25 @@ export function QuickUpload() {
     };
 
     const processSingleFile = useCallback(async (file: File, clientId: string) => {
-        let docForProcessing: Document | null = null;
+        let createdDoc: Document | null = null;
         try {
             const dataUrl = await fileToDataUri(file);
             const storagePath = `${clientId}/${file.name}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
 
-            const newDocData: Omit<Document, 'id'> = {
+            const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
                 name: file.name,
                 uploadDate: new Date().toISOString(),
                 status: 'processing' as const,
-                dataUrl,
                 storagePath,
                 clientId: clientId,
                 comments: [],
                 auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
             };
 
-            const addedDoc = await addDocument(newDocData);
-            if (!addedDoc) throw new Error("Failed to save document metadata.");
-            
-            docForProcessing = { ...addedDoc, dataUrl };
+            createdDoc = await addDocument(newDocData);
+            if (!createdDoc) throw new Error("Failed to save document metadata.");
             
             const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
             const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
@@ -99,17 +96,17 @@ export function QuickUpload() {
                 extractedData: extracted,
                 type: recognition.documentType,
                 confidence: recognition.confidence,
-                auditTrail: addAuditEvent(docForProcessing.auditTrail, 'Traitement IA terminé, en attente de validation comptable')
+                auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé, en attente de validation comptable')
             };
 
-            await updateDocument({ id: docForProcessing.id, updates: finalUpdates });
-            createNotification({ ...docForProcessing, ...finalUpdates }, 'est prêt pour examen.');
+            await updateDocument({ id: createdDoc.id, updates: finalUpdates });
+            createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
 
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
-            if (docForProcessing) {
-                const trail = addAuditEvent(docForProcessing.auditTrail, 'Erreur de traitement IA');
-                await updateDocument({ id: docForProcessing.id, updates: { status: 'error', auditTrail: trail } });
+            if (createdDoc) {
+                const trail = addAuditEvent(createdDoc.auditTrail, 'Erreur de traitement IA');
+                await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
             }
             toast({
                 variant: "destructive",
@@ -193,3 +190,5 @@ export function QuickUpload() {
         </Dialog>
     );
 }
+
+    

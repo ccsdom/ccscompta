@@ -125,10 +125,9 @@ export default function MyDocumentsPage() {
       date: new Date().toISOString(),
       isRead: false
     };
-    // This is a mock implementation for notifications
     const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
     localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-    window.dispatchEvent(new Event('storage')); // Notify header
+    window.dispatchEvent(new Event('storage'));
   };
 
   const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
@@ -141,36 +140,38 @@ export default function MyDocumentsPage() {
   };
 
   const handleProcessDocument = useCallback(async (doc: Document) => {
-      let currentDoc = doc;
-      try {
-        const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl! });
-        currentDoc.auditTrail = addAuditEvent(currentDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+    let currentDoc = { ...doc };
+    try {
+        if (!currentDoc.dataUrl) throw new Error("Document data URL is missing for processing.");
         
-        const extracted = await extractData({ documentDataUri: currentDoc.dataUrl!, documentType: recognition.documentType, clientId: currentDoc.clientId });
-        currentDoc.auditTrail = addAuditEvent(currentDoc.auditTrail, 'Données extraites par IA');
+        const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl });
+        const trailWithRecognition = addAuditEvent(currentDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+
+        const extracted = await extractData({ documentDataUri: currentDoc.dataUrl, documentType: recognition.documentType, clientId: currentDoc.clientId });
+        const trailWithExtraction = addAuditEvent(trailWithRecognition, 'Données extraites par IA');
 
         const finalUpdates: Partial<Document> = {
             status: 'reviewing',
             extractedData: extracted,
             type: recognition.documentType,
             confidence: recognition.confidence,
-            auditTrail: currentDoc.auditTrail,
+            auditTrail: trailWithExtraction,
         };
-        await updateDocument({ id: currentDoc.id, updates: finalUpdates });
 
-        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, ...finalUpdates} : d));
+        await updateDocument({ id: currentDoc.id, updates: finalUpdates });
+        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? { ...d, ...finalUpdates } : d));
         toast({ title: `Traitement de ${currentDoc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
         createNotification({ ...currentDoc, ...finalUpdates }, 'est prêt pour examen.');
 
-      } catch (error) {
+    } catch (error) {
         console.error("Error processing document:", error);
         const trail = addAuditEvent(currentDoc.auditTrail, 'Erreur de traitement IA');
         await updateDocument({ id: currentDoc.id, updates: { status: 'error', auditTrail: trail } });
-        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'error', auditTrail: trail} : d));
+        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? { ...d, status: 'error', auditTrail: trail } : d));
         toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
         createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
-      }
-  }, [toast]);
+    }
+}, [toast]);
 
 
   const handleFileDrop = async (files: File[]) => {
@@ -181,6 +182,7 @@ export default function MyDocumentsPage() {
     
     setIsProcessing(true);
     const existingFileNames = new Set(documents.map(d => d.name));
+    
     const docsToProcess: Document[] = [];
     const tempDocs: Document[] = [];
 
@@ -204,9 +206,10 @@ export default function MyDocumentsPage() {
                 auditTrail: addAuditEvent([], 'Document téléversé par le client'),
                 comments: []
             };
-            const newDoc = await addDocument(newDocData);
-            if (newDoc) {
-                const docWithUrl = {...newDoc, dataUrl};
+
+            const createdDoc = await addDocument(newDocData);
+            if (createdDoc) {
+                const docWithUrl = { ...createdDoc, dataUrl };
                 docsToProcess.push(docWithUrl);
                 tempDocs.push(docWithUrl);
             }
@@ -524,3 +527,5 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    
