@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2 } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2, LogIn } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -102,6 +103,28 @@ export default function ClientsPage() {
         localStorage.setItem('selectedClientId', clientId);
         window.dispatchEvent(new Event('storage'));
         router.push('/dashboard/documents');
+    }
+
+    const handleImpersonate = (client: Client) => {
+        // Store original user info
+        localStorage.setItem('originalUserRole', localStorage.getItem('userRole') || 'admin');
+        localStorage.setItem('originalUserName', localStorage.getItem('userName') || 'Super Admin');
+        localStorage.setItem('originalUserEmail', localStorage.getItem('userEmail') || '');
+
+        // Set new "impersonated" user info
+        localStorage.setItem('userRole', 'client');
+        localStorage.setItem('userName', client.legalRepresentative);
+        localStorage.setItem('userEmail', client.email);
+        localStorage.setItem('selectedClientId', client.id);
+
+        toast({
+            title: `Vue Client Activée`,
+            description: `Vous naviguez maintenant en tant que ${client.name}.`,
+        });
+
+        // Trigger a storage event to update all components and redirect
+        window.dispatchEvent(new Event('storage'));
+        router.push('/dashboard/my-documents');
     }
     
     const handleDeleteClient = async (client: Client) => {
@@ -403,10 +426,15 @@ export default function ClientsPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
+                                                     <DropdownMenuItem onClick={() => handleImpersonate(client)}>
+                                                        <LogIn className="mr-2 h-4 w-4" />
+                                                        Prendre la main
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
                                                         <Edit className="mr-2 h-4 w-4" />
                                                         Modifier
                                                     </DropdownMenuItem>
+                                                     <DropdownMenuSeparator />
                                                      <DropdownMenuItem className="text-destructive" onClick={() => setClientToDelete(client)}>
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Supprimer

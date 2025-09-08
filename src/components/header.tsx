@@ -152,11 +152,12 @@ export function Header() {
       localStorage.removeItem('selectedClientId');
 
       toast({
-          title: "Mode Incognito Terminé",
-          description: "Vous êtes retourné à votre compte Super Admin.",
+          title: "Vue Client terminée",
+          description: "Vous êtes retourné à votre compte.",
       });
-
-      router.push('/dashboard');
+      
+      window.dispatchEvent(new Event('storage'));
+      router.push('/dashboard/clients');
   }
 
   const handleAiSearch = async () => {
@@ -196,11 +197,11 @@ export function Header() {
   }
 
   const ImpersonationBanner = () => (
-     <div className="absolute top-16 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg">
+     <div className="absolute top-0 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg">
         <AlertTriangle className="h-4 w-4 mr-2"/>
         Vous naviguez en tant que <span className="font-bold mx-1">{impersonatedUserName}</span>.
         <Button variant="link" size="sm" className="text-yellow-900 hover:text-black font-bold h-auto p-0 ml-2" onClick={handleStopImpersonating}>
-            Revenir à mon compte admin
+            Revenir à mon compte
         </Button>
      </div>
   );
