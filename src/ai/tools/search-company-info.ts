@@ -76,7 +76,7 @@ const searchBySiret = async (siret: string, token: string) => {
 
 const searchByName = async (name: string, token: string) => {
      // Use a full-text search on the denomination field and filter for active establishments.
-     const query = `denominationUniteLegale:"${name}" AND etatAdministratifEtablissement:Actif`;
+     const query = `nomUniteLegale:"${name}" AND etatAdministratifEtablissement:Actif`;
      const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret?q=${encodeURIComponent(query)}`, {
         headers: { Authorization: `Bearer ${token}` },
     });
