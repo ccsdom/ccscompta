@@ -58,19 +58,23 @@ const searchBySiret = async (siret: string, token: string) => {
     if (!response.ok) return null;
     const data = await response.json();
     
+    if (!data.etablissement) return null;
+    
     const etablissement = data.etablissement;
     const uniteLegale = etablissement.uniteLegale;
     
+    if (!uniteLegale) return null;
+
     const address = etablissement.adresseEtablissement;
     const fullAddress = `${address.numeroVoieEtablissement || ''} ${address.typeVoieEtablissement || ''} ${address.libelleVoieEtablissement || ''}, ${address.codePostalEtablissement} ${address.libelleCommuneEtablissement}`;
     
     return {
-        name: uniteLegale.denominationUniteLegale || `${uniteLegale.nomUniteLegale} ${uniteLegale.prenom1UniteLegale}`,
+        name: uniteLegale.denominationUniteLegale || `${uniteLegale.nomUniteLegale || ''} ${uniteLegale.prenom1UniteLegale || ''}`.trim(),
         siret: etablissement.siret,
         address: fullAddress.trim(),
         // Le représentant légal n'est pas fourni de manière fiable par cette API.
         legalRepresentative: undefined, 
-        fiscalYearEndDate: uniteLegale.moisClotureExerciceUniteLegale ? `31/${uniteLegale.moisClotureExerciceUniteLegale}` : undefined,
+        fiscalYearEndDate: uniteLegale.moisClotureExerciceUniteLegale ? `31/${uniteLegale.moisClotureExerciceUniteLegale}`.padStart(5, '0') : undefined,
     };
 }
 
@@ -83,7 +87,7 @@ const searchByName = async (name: string, token: string) => {
      if (!response.ok) return null;
      const data = await response.json();
 
-     if (data.etablissements && data.etablissements.length > 0) {
+     if (data.etablissements && data.etablissements.length > 0 && data.etablissements[0].siret) {
         // Return the first active result, which is likely the most relevant one.
         return searchBySiret(data.etablissements[0].siret, token);
      }
