@@ -144,7 +144,7 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
             else if (authUser.email === 'app.ccs94@gmail.com') role = 'accountant';
             else if (authUser.email === 'secretaire@ccs-compta.com') role = 'secretary';
             
-            const profileData = {
+            const profileData: {email: string, name: string, role: string} = {
                 email: authUser.email || '',
                 name: authUser.displayName || 'Utilisateur',
                 role: role,
@@ -448,3 +448,5 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
