@@ -103,7 +103,6 @@ export default function LoginPage() {
           localStorage.setItem('selectedClientId', profile.clientId);
           targetPath = '/dashboard/my-documents';
       } else { 
-          // For non-client roles, we can set a default, but it will be selectable.
           localStorage.setItem('selectedClientId', 'client-01'); 
           if (profile.role === 'accountant' || profile.role === 'admin') {
               targetPath = '/dashboard/accountant';
@@ -113,10 +112,9 @@ export default function LoginPage() {
               targetPath = '/login'; // Fallback
           }
       }
-      // Use push and then a full page reload to ensure all states are reset properly.
+      // Force a re-render cycle for all components listening to storage before navigating.
+      window.dispatchEvent(new Event('storage'));
       router.push(targetPath);
-      // A slight delay before reload can help ensure localStorage is set.
-      setTimeout(() => window.location.reload(), 100);
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -125,7 +123,7 @@ export default function LoginPage() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await ensureDemoUsers(); // Ensure users exist before fetching profile
+      // Wait for the redirect logic (including profile fetching and localStorage writing) to complete.
       await handleRedirect(userCredential.user);
     } catch (error: any) {
         let errorMessage = "Une erreur inconnue est survenue.";

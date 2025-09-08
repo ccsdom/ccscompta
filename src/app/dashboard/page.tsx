@@ -15,9 +15,7 @@ export default function DashboardRedirect() {
       const role = localStorage.getItem('userRole');
       
       let targetPath = '/login';
-      if (role === 'admin') {
-        targetPath = '/dashboard/admin';
-      } else if (role === 'accountant') {
+      if (role === 'admin' || role === 'accountant') {
         targetPath = '/dashboard/accountant';
       } else if (role === 'client') {
         targetPath = '/dashboard/my-documents';
@@ -26,6 +24,9 @@ export default function DashboardRedirect() {
       }
       
       router.replace(targetPath);
+      // The loading state will be set to false once the navigation completes
+      // or if the initial path is not the one we are redirecting from.
+      setLoading(false);
     } else {
         setLoading(false);
     }
