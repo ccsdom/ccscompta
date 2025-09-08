@@ -424,6 +424,36 @@ export async function getAccountants(): Promise<Accountant[]> {
     }
 }
 
+export async function resetClients(): Promise<{ success: boolean; deletedCount: number, error?: string }> {
+  const db = adminDb.get();
+  if (!db) {
+    return { success: false, deletedCount: 0, error: "La base de données n'est pas disponible pour la réinitialisation." };
+  }
+
+  const clientsCollection = db.collection('clients');
+  try {
+    const snapshot = await clientsCollection.get();
+    if (snapshot.empty) {
+      return { success: true, deletedCount: 0 };
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+
+    return { success: true, deletedCount: snapshot.size };
+  } catch (error) {
+    console.error('Error resetting clients:', error);
+    return { 
+      success: false, 
+      deletedCount: 0, 
+      error: error instanceof Error ? error.message : 'Une erreur inconnue est survenue lors de la réinitialisation.'
+    };
+  }
+}
     
 
     
