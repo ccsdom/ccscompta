@@ -63,6 +63,14 @@ const getGroupIcon = (groupName: string) => {
     }
 }
 
+const TABS_CONFIG = [
+    { value: 'achats', label: "Factures d'achat", icon: ArrowDownToLine, types: ['purchase invoice']},
+    { value: 'ventes', label: "Factures de vente", icon: ArrowUpFromLine, types: ['sales invoice']},
+    { value: 'recus', label: "Reçus", icon: Receipt, types: ['receipt']},
+    { value: 'releves', label: "Relevés bancaires", icon: Landmark, types: ['bank statement']},
+    { value: 'autres', label: "Autres", icon: Folder, types: ['other', undefined, '']}
+]
+
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -401,8 +409,8 @@ export default function DocumentsPage() {
     toast({ title: "Exportation réussie", description: `${docsToExport.length} documents ont été exportés.` });
   }
   
-  const groupedDocuments = useMemo(() => {
-        let filteredDocs = [...documents];
+  const filteredDocuments = useMemo(() => {
+        let docs = [...documents];
         
         if (dashboardFilter) {
             const today = new Date();
@@ -410,13 +418,13 @@ export default function DocumentsPage() {
             
             switch (dashboardFilter) {
                 case 'today':
-                    filteredDocs = filteredDocs.filter(d => new Date(d.uploadDate) >= twentyFourHoursAgo);
+                    docs = docs.filter(d => new Date(d.uploadDate) >= twentyFourHoursAgo);
                     break;
                 case 'pending_review':
-                    filteredDocs = filteredDocs.filter(d => ['pending', 'reviewing', 'error'].includes(d.status));
+                    docs = docs.filter(d => ['pending', 'reviewing', 'error'].includes(d.status));
                     break;
                 case 'approved_today':
-                    filteredDocs = filteredDocs.filter(doc => {
+                    docs = docs.filter(doc => {
                         const approvalEvent = doc.auditTrail.find(e => e.action.includes('approuvé'));
                         return approvalEvent && new Date(approvalEvent.date) >= twentyFourHoursAgo;
                     });
@@ -427,33 +435,33 @@ export default function DocumentsPage() {
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
             if (documentTypes && documentTypes.length > 0) {
-                filteredDocs = filteredDocs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
             }
             if (maxAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
-                filteredDocs = filteredDocs.filter(d => {
+                docs = docs.filter(d => {
                     const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
-             if (!filteredDocs.length && originalQuery) {
+             if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 filteredDocs = [...documents].filter(doc => 
+                 docs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v != null && v.toLowerCase().includes(lowercasedQuery)))
                 );
@@ -461,47 +469,13 @@ export default function DocumentsPage() {
         } 
         else if (searchQuery) {
              const lowercasedQuery = searchQuery.toLowerCase();
-             filteredDocs = filteredDocs.filter(doc => 
+             docs = docs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor != null && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
         
-        const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
-
-        const typeGroups: { [key: string]: Document[] } = {};
-        sortedDocs.forEach(doc => {
-            const groupName = typeToGroupMap[doc.type || ''] || 'Autres documents';
-            if (!typeGroups[groupName]) {
-                typeGroups[groupName] = [];
-            }
-            typeGroups[groupName].push(doc);
-        });
-
-        const groupOrder = ["Factures de vente", "Factures d'achat", "Reçus", "Relevés bancaires", "Autres documents"];
-
-        return groupOrder
-            .map(title => {
-                const docsInGroup = typeGroups[title] || [];
-                if (docsInGroup.length === 0) return null;
-
-                const monthGroups: { [key: string]: Document[] } = {};
-                docsInGroup.forEach(doc => {
-                    const monthKey = format(new Date(doc.uploadDate), 'LLLL yyyy', { locale: fr });
-                    if(!monthGroups[monthKey]) {
-                        monthGroups[monthKey] = [];
-                    }
-                    monthGroups[monthKey].push(doc);
-                });
-
-                return {
-                    title,
-                    icon: getGroupIcon(title),
-                    monthlyGroups: Object.entries(monthGroups).map(([month, documents]) => ({ month, documents })).sort((a, b) => new Date(b.documents[0].uploadDate).getTime() - new Date(a.documents[0].uploadDate).getTime()),
-                };
-            })
-            .filter(Boolean);
-
+        return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
   }, [documents, searchQuery, searchCriteria, dashboardFilter]);
 
   const activeDocument = useMemo(() => documents.find(d => d.id === activeDocumentId) ?? null, [documents, activeDocumentId]);
@@ -594,21 +568,35 @@ export default function DocumentsPage() {
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
         <FilterDisplay />
         <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col">
-            <TabsList>
+            <TabsList className="grid grid-cols-2 w-full max-w-sm">
                 <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
                 <TabsTrigger value="bilans">Bilans</TabsTrigger>
             </TabsList>
             <TabsContent value="documents" className="flex-1 mt-4">
-                 <DocumentHistory
-                    documentGroups={groupedDocuments}
-                    onProcess={(doc) => handleProcessDocument(doc.id)}
-                    onDelete={handleDeleteSingle}
-                    activeDocumentId={activeDocumentId}
-                    setActiveDocument={handleSetActiveDocument}
-                    selectedDocumentIds={selectedDocumentIds}
-                    setSelectedDocumentIds={setSelectedDocumentIds}
-                    isLoading={isLoading}
-                />
+                 <Tabs defaultValue="achats" className="w-full">
+                     <TabsList className="grid w-full grid-cols-5">
+                        {TABS_CONFIG.map(tab => (
+                            <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+                        ))}
+                     </TabsList>
+                     {TABS_CONFIG.map(tab => {
+                        const docsForTab = filteredDocuments.filter(doc => tab.types.includes(doc.type) || (tab.value === 'autres' && !TABS_CONFIG.flatMap(t=>t.types).includes(doc.type)));
+                         return (
+                             <TabsContent key={tab.value} value={tab.value} className="mt-4">
+                                <DocumentHistory
+                                    documents={docsForTab}
+                                    onProcess={(doc) => handleProcessDocument(doc.id)}
+                                    onDelete={handleDeleteSingle}
+                                    activeDocumentId={activeDocumentId}
+                                    setActiveDocument={handleSetActiveDocument}
+                                    selectedDocumentIds={selectedDocumentIds}
+                                    setSelectedDocumentIds={setSelectedDocumentIds}
+                                    isLoading={isLoading}
+                                />
+                             </TabsContent>
+                         )
+                     })}
+                 </Tabs>
             </TabsContent>
             <TabsContent value="bilans" className="flex-1 mt-4">
                 {selectedClientId ? <BilanHistory clientId={selectedClientId} /> : (

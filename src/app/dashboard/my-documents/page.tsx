@@ -67,12 +67,6 @@ const getGroupIcon = (groupName: string) => {
 }
 
 
-type DocumentGroup = {
-    title: string;
-    icon: React.ElementType;
-    documents: Document[];
-};
-
 export default function MyDocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
@@ -213,7 +207,9 @@ export default function MyDocumentsPage() {
                 comments: []
             };
             const newDoc = await addDocument(newDocData);
-            docsToProcess.push({...newDoc, dataUrl});
+            if (newDoc) {
+                docsToProcess.push({...newDoc, dataUrl});
+            }
 
         } catch (error) {
              toast({ variant: "destructive", title: "Erreur de lecture", description: `Impossible de lire le fichier ${file.name}.`});
@@ -459,7 +455,7 @@ export default function MyDocumentsPage() {
                 </div>
             </div>
         ) : groupedDocuments.length > 0 ? (
-             groupedDocuments.map((group) => (
+             (groupedDocuments as { title: string; icon: React.ElementType; monthlyGroups: { month: string; documents: Document[] } }[]).map((group) => (
                 group && (
                     <Card key={group.title}>
                         <CardHeader>
