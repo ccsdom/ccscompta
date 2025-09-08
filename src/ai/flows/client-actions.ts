@@ -126,17 +126,11 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
 
     try {
         const userRef = db.collection("users").doc(uid);
-        let userSnap = await userRef.get();
+        const userSnap = await userRef.get();
 
         if (!userSnap.exists) {
-            console.log(`No profile found for UID: ${uid}. Trying to seed demo users.`);
-            // This is a failsafe in case the login page call doesn't happen first.
-            await ensureDemoUsers();
-            userSnap = await userRef.get(); // Retry fetch after seeding
-            if(!userSnap.exists) {
-                console.error(`Still no profile for UID: ${uid} after seeding.`);
-                return null;
-            }
+            console.error(`No profile found for UID: ${uid}.`);
+            return null;
         }
         
         const data = userSnap.data();
