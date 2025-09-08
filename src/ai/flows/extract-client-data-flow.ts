@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent that extracts structured client data from natural language text,
@@ -18,13 +19,13 @@ const ExtractClientDataInputSchema = z.object({
 export type ExtractClientDataInput = z.infer<typeof ExtractClientDataInputSchema>;
 
 const ExtractClientDataOutputSchema = z.object({
-    name: z.string().optional().describe("The company's name (Raison Sociale)."),
-    siret: z.string().optional().describe("The 14-digit SIRET number."),
-    email: z.string().optional().describe("The client's contact email."),
-    phone: z.string().optional().describe("The client's phone number."),
-    legalRepresentative: z.string().optional().describe("The name of the company's legal representative."),
-    address: z.string().optional().describe("The full address of the company's headquarters."),
-    fiscalYearEndDate: z.string().optional().describe("The end date of the fiscal year in JJ/MM format."),
+    name: z.string().optional().nullable().describe("The company's name (Raison Sociale)."),
+    siret: z.string().optional().nullable().describe("The 14-digit SIRET number."),
+    email: z.string().optional().nullable().describe("The client's contact email."),
+    phone: z.string().optional().nullable().describe("The client's phone number."),
+    legalRepresentative: z.string().optional().nullable().describe("The name of the company's legal representative."),
+    address: z.string().optional().nullable().describe("The full address of the company's headquarters."),
+    fiscalYearEndDate: z.string().optional().nullable().describe("The end date of the fiscal year in JJ/MM format."),
 });
 export type ExtractClientDataOutput = z.infer<typeof ExtractClientDataOutputSchema>;
 
@@ -46,7 +47,7 @@ Pass the user's input directly to the tool's 'searchTerm' parameter.
 User input: "{{searchTerm}}"
 
 Use the data returned by the tool to populate the output fields.
-If the tool returns no data for a field, omit that field. Do not make up or infer any information.
+If the tool returns no data for a field, you can either omit that field or set it to null. Do not make up or infer any information.
 For example, if the tool returns a 'name' and 'siret' but no 'address', your output should only contain 'name' and 'siret'.
 `,
 });
