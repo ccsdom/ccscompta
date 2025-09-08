@@ -145,68 +145,75 @@ export default function MyDocumentsPage() {
       return;
     }
     setIsUploading(true);
+    let successCount = 0;
 
-    const newDocumentsList: Document[] = [];
-    for (const file of files) {
+    const processFile = async (file: File) => {
+      let docToUpdate: Document | null = null;
       try {
+        // Create a temporary document object to show in the UI immediately
+        const tempId = `temp-${Date.now()}`;
+        const tempDoc: Document = {
+            id: tempId,
+            name: file.name,
+            uploadDate: new Date().toISOString(),
+            status: 'processing',
+            storagePath: '',
+            clientId: clientId,
+            auditTrail: addAuditEvent([], 'Document téléversé par le client'),
+            comments: [],
+        };
+        setDocuments(prev => [tempDoc, ...prev]);
+
+        // Upload to Storage
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
 
-        const newDocData: Omit<Document, 'id'> = {
-          name: file.name,
-          uploadDate: new Date().toISOString(),
-          status: 'processing', // Start as processing
-          storagePath: storagePath,
-          clientId: clientId,
-          auditTrail: addAuditEvent([], 'Document téléversé par le client'),
-          comments: []
-        };
+        // Create the document in Firestore
+        const newDocData: Omit<Document, 'id'> = { ...tempDoc, storagePath };
+        docToUpdate = await addDocument(newDocData);
+
+        if (!docToUpdate) throw new Error("Failed to create document in Firestore.");
         
-        const createdDoc = await addDocument(newDocData);
-        if (createdDoc) {
-          newDocumentsList.push(createdDoc);
-        }
+        // Replace temp doc with real one
+        setDocuments(prev => prev.map(d => d.id === tempId ? { ...docToUpdate!, status: 'processing' } : d));
+
+        // Start AI processing
+        const dataUrl = await fileToDataUri(file);
+        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
+        const trailWithAI = addAuditEvent(docToUpdate.auditTrail, 'Traitement IA terminé');
+        
+        const finalUpdates: Partial<Document> = {
+            status: 'reviewing',
+            extractedData: extracted,
+            type: recognition.documentType,
+            confidence: recognition.confidence,
+            auditTrail: trailWithAI,
+        };
+
+        await updateDocument({ id: docToUpdate.id, updates: finalUpdates });
+        setDocuments(prev => prev.map(d => d.id === docToUpdate!.id ? { ...d, ...finalUpdates } : d));
+        createNotification({ ...docToUpdate, ...finalUpdates }, 'est prêt pour examen.');
+        successCount++;
+
       } catch (error) {
-        console.error(`Error uploading file ${file.name}:`, error);
+        console.error(`Error processing file ${file.name}:`, error);
         toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.` });
-      }
-    }
-
-    setDocuments(prev => [...newDocumentsList, ...prev]);
-    setIsUploading(false); // Stop the main uploader spinner
-
-    // Now, process each document with AI
-    for (const newDoc of newDocumentsList) {
-        try {
-            const dataUrl = await fileToDataUri(new File([await (await fetch(await getDownloadURL(ref(storage, newDoc.storagePath)))).blob()], newDoc.name));
-            const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-            const trailWithRecognition = addAuditEvent(newDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
-            const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: newDoc.clientId });
-            const trailWithExtraction = addAuditEvent(trailWithRecognition, 'Données extraites par IA');
-
-            const finalUpdates: Partial<Document> = {
-                status: 'reviewing',
-                extractedData: extracted,
-                type: recognition.documentType,
-                confidence: recognition.confidence,
-                auditTrail: trailWithExtraction,
-            };
-
-            await updateDocument({ id: newDoc.id, updates: finalUpdates });
-            setDocuments(docs => docs.map(d => d.id === newDoc.id ? { ...d, ...finalUpdates } : d));
-            createNotification({ ...newDoc, ...finalUpdates }, 'est prêt pour examen.');
-
-        } catch(aiError) {
-            console.error(`AI processing failed for ${newDoc.name}:`, aiError);
-            const trail = addAuditEvent(newDoc.auditTrail, 'Erreur de traitement IA');
-            await updateDocument({ id: newDoc.id, updates: { status: 'error', auditTrail: trail } });
-            setDocuments(docs => docs.map(d => d.id === newDoc.id ? { ...d, status: 'error', auditTrail: trail } : d));
-            createNotification({ ...newDoc, status: 'error' }, 'a échoué lors du traitement.');
+        if (docToUpdate) {
+            const trail = addAuditEvent(docToUpdate.auditTrail, 'Erreur de traitement IA');
+            await updateDocument({ id: docToUpdate.id, updates: { status: 'error', auditTrail: trail } });
+            setDocuments(prev => prev.map(d => d.id === docToUpdate!.id ? {...d, status: 'error', auditTrail: trail} : d));
+            createNotification({ ...docToUpdate, status: 'error' }, 'a échoué lors du traitement.');
         }
-    }
-     if (newDocumentsList.length > 0) {
-        toast({ title: "Téléversement terminé", description: `${newDocumentsList.length} document(s) sont en cours d'analyse.` });
+      }
+    };
+
+    await Promise.all(files.map(processFile));
+    
+    setIsUploading(false);
+    if (successCount > 0) {
+      toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été traités et envoyés.` });
     }
   };
 
