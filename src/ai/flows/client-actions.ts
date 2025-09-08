@@ -58,7 +58,7 @@ export const ensureDemoUsers = async () => {
         { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
         { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
         { email: 'app.ccs94@gmail.com', password: 'demodemo', displayName: 'Comptable CCS', role: 'accountant' },
-        { email: 'vsw.contact@gmail.com', password: 'Aylan@2021', displayName: 'VSW Contact', role: 'client' },
+        { email: 'vsw.contact@gmail.com', password: 'Aylan@2021', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' }, // Link to EASYLIAGE
     ];
 
     for (const user of usersToSeed) {
@@ -88,16 +88,32 @@ export const ensureDemoUsers = async () => {
             const userProfileRef = db.collection('users').doc(userRecord.uid);
             const userProfileSnap = await userProfileRef.get();
 
+            const profileData: { name: string, email: string, role: string, clientId?: string } = {
+                name: user.displayName,
+                email: user.email,
+                role: user.role,
+            };
+
+            if (user.clientId) {
+                profileData.clientId = user.clientId;
+            }
+
             if (!userProfileSnap.exists) {
                  try {
-                    await userProfileRef.set({
-                        name: user.displayName,
-                        email: user.email,
-                        role: user.role,
-                    });
+                    await userProfileRef.set(profileData);
                     console.log(`✅ Profil Firestore créé pour ${user.email}.`);
                 } catch (dbError) {
                      console.error(`❌ Échec de la création du profil Firestore pour ${user.email}:`, dbError);
+                }
+            } else {
+                 // Ensure existing profile has the clientId if specified in seed
+                if (user.clientId && userProfileSnap.data()?.clientId !== user.clientId) {
+                    try {
+                        await userProfileRef.update({ clientId: user.clientId });
+                        console.log(`✅ Profil Firestore mis à jour pour ${user.email} avec le clientId.`);
+                    } catch (dbError) {
+                        console.error(`❌ Échec de la mise à jour du profil Firestore pour ${user.email}:`, dbError);
+                    }
                 }
             }
         }
@@ -148,7 +164,7 @@ export async function getClients(): Promise<Client[]> {
     const snapshot = await clientsCollection.get();
     let clients = snapshot.docs.map(fromFirestore);
 
-    const alphaClientExists = clients.some(c => c.id === 'alpha');
+    const alphaClientExists = clients.some(c => c.id === 'client-01');
 
     if (!alphaClientExists) {
       console.log('Clients de démo non trouvés. Création des données de démo...');
