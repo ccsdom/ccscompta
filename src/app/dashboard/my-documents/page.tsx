@@ -73,7 +73,7 @@ export default function MyDocumentsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
   const { toast } = useToast();
@@ -138,14 +138,21 @@ export default function MyDocumentsPage() {
     };
     return [...trail, event];
   };
+  
+  const processDocumentAI = useCallback(async (doc: Document) => {
+      let docWithDataUrl = { ...doc };
+      try {
+        if (!doc.dataUrl) {
+            const url = await getDownloadURL(ref(storage, doc.storagePath));
+            const response = await fetch(url);
+            const blob = await response.blob();
+            docWithDataUrl.dataUrl = await fileToDataUri(new File([blob], doc.name));
+        }
 
-  const handleProcessDocument = useCallback(async (doc: Document, dataUrl: string) => {
-    let currentDoc = { ...doc };
-    try {
-        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-        const trailWithRecognition = addAuditEvent(currentDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+        const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
+        const trailWithRecognition = addAuditEvent(doc.auditTrail, `Type reconnu: ${recognition.documentType}`);
 
-        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: currentDoc.clientId });
+        const extracted = await extractData({ documentDataUri: docWithDataUrl.dataUrl!, documentType: recognition.documentType, clientId: doc.clientId });
         const trailWithExtraction = addAuditEvent(trailWithRecognition, 'Données extraites par IA');
 
         const finalUpdates: Partial<Document> = {
@@ -156,18 +163,18 @@ export default function MyDocumentsPage() {
             auditTrail: trailWithExtraction,
         };
 
-        await updateDocument({ id: currentDoc.id, updates: finalUpdates });
-        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? { ...d, ...finalUpdates } : d));
-        toast({ title: `Traitement de ${currentDoc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
-        createNotification({ ...currentDoc, ...finalUpdates }, 'est prêt pour examen.');
+        await updateDocument({ id: doc.id, updates: finalUpdates });
+        setDocuments(docs => docs.map(d => d.id === doc.id ? { ...d, ...finalUpdates } : d));
+        toast({ title: `Traitement de ${doc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
+        createNotification({ ...doc, ...finalUpdates }, 'est prêt pour examen.');
 
     } catch (error) {
         console.error("Error processing document:", error);
-        const trail = addAuditEvent(currentDoc.auditTrail, 'Erreur de traitement IA');
-        await updateDocument({ id: currentDoc.id, updates: { status: 'error', auditTrail: trail } });
-        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? { ...d, status: 'error', auditTrail: trail } : d));
+        const trail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
+        await updateDocument({ id: doc.id, updates: { status: 'error', auditTrail: trail } });
+        setDocuments(docs => docs.map(d => d.id === doc.id ? { ...d, status: 'error', auditTrail: trail } : d));
         toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
-        createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
+        createNotification({ ...doc, status: 'error' }, 'a échoué lors du traitement.');
     }
   }, [toast]);
 
@@ -178,10 +185,10 @@ export default function MyDocumentsPage() {
          return;
     }
     
-    setIsProcessing(true);
+    setIsUploading(true);
     const existingFileNames = new Set(documents.map(d => d.name));
     
-    const processingPromises: Promise<void>[] = [];
+    const newDocsToProcess: Document[] = [];
 
     for (const file of files) {
         if (existingFileNames.has(file.name)) {
@@ -189,42 +196,36 @@ export default function MyDocumentsPage() {
             continue;
         }
 
-        const processFile = async () => {
-            let createdDoc: Document | null = null;
-            try {
-                const dataUrl = await fileToDataUri(file);
-                const storagePath = `${clientId}/${file.name}`;
-                const storageRef = ref(storage, storagePath);
-                await uploadBytes(storageRef, file);
+        try {
+            const dataUrl = await fileToDataUri(file);
+            const storagePath = `${clientId}/${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
 
-                const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
-                    name: file.name,
-                    uploadDate: new Date().toISOString(),
-                    status: 'processing',
-                    storagePath: storagePath, 
-                    clientId: clientId,
-                    auditTrail: addAuditEvent([], 'Document téléversé par le client'),
-                    comments: []
-                };
+            const newDocData: Omit<Document, 'id'> = {
+                name: file.name,
+                uploadDate: new Date().toISOString(),
+                status: 'processing',
+                storagePath: storagePath, 
+                clientId: clientId,
+                auditTrail: addAuditEvent([], 'Document téléversé par le client'),
+                comments: []
+            };
 
-                createdDoc = await addDocument(newDocData);
-                if (createdDoc) {
-                    setDocuments(prev => [{...createdDoc!, dataUrl}, ...prev]);
-                    await handleProcessDocument(createdDoc, dataUrl);
-                }
-            } catch (error) {
-                toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.`});
-                if (createdDoc) {
-                    await deleteDocument(createdDoc.id);
-                    setDocuments(docs => docs.filter(d => d.id !== createdDoc!.id));
-                }
+            const createdDoc = await addDocument(newDocData);
+            if (createdDoc) {
+                setDocuments(prev => [{...createdDoc, dataUrl}, ...prev]);
+                newDocsToProcess.push(createdDoc);
             }
-        };
-        processingPromises.push(processFile());
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.`});
+        }
     }
     
-    await Promise.all(processingPromises);
-    setIsProcessing(false);
+    // Process all newly added documents
+    await Promise.all(newDocsToProcess.map(doc => processDocumentAI(doc)));
+    
+    setIsUploading(false);
   };
 
 
@@ -442,7 +443,7 @@ export default function MyDocumentsPage() {
             <CardDescription>Déposez vos fichiers ici. Ils seront automatiquement traités et envoyés à votre comptable pour examen.</CardDescription>
         </CardHeader>
         <CardContent>
-             <FileUploader onFileDrop={handleFileDrop} isLoading={isProcessing} />
+             <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} />
         </CardContent>
       </Card>
       
@@ -528,5 +529,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    

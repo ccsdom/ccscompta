@@ -5,7 +5,7 @@ import { z } from 'genkit';
 import { db as adminDb } from '@/lib/firebase-admin';
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
-import type { FirestoreDataConverter, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { createSupplier, findSupplier } from '@/services/cegid';
 
 
@@ -14,14 +14,19 @@ const documentConverter: FirestoreDataConverter<Document> = {
     toFirestore: (docData: Omit<Document, 'id'>) => {
         // The dataUrl is for client-side use only and should not be persisted.
         const { dataUrl, ...rest } = docData;
-        return rest;
+        const dataToSave = { ...rest };
+        if (typeof dataToSave.uploadDate === 'string') {
+            dataToSave.uploadDate = Timestamp.fromDate(new Date(dataToSave.uploadDate));
+        }
+        return dataToSave;
     },
     fromFirestore: (snapshot: QueryDocumentSnapshot): Document => {
         const data = snapshot.data();
+        const uploadDateTimestamp = data.uploadDate as Timestamp;
         return {
             id: snapshot.id,
             name: data.name,
-            uploadDate: data.uploadDate,
+            uploadDate: uploadDateTimestamp.toDate().toISOString(),
             status: data.status,
             storagePath: data.storagePath,
             type: data.type,
@@ -113,11 +118,11 @@ export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>)
     const validatedData = DocumentSchemaForAdd.parse(docData);
     try {
         const docRef = await documentsCollection.add(validatedData);
-        // Return the full document object including the newly generated ID
-        return {
-            id: docRef.id,
-            ...validatedData
-        };
+        const newDocSnap = await docRef.get();
+        if (newDocSnap.exists) {
+             return newDocSnap.data() as Document;
+        }
+        return null;
     } catch (error) {
         console.error("Error adding document:", error);
         throw new Error("Failed to add document to Firestore.");
@@ -136,7 +141,14 @@ export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocum
     const validatedData = UpdateDocumentInputSchema.parse({ id, updates });
     try {
         const docRef = documentsCollection.doc(validatedData.id);
-        await docRef.update(validatedData.updates);
+        
+        // Convert any date strings to Timestamps before updating
+        const updatePayload = { ...validatedData.updates };
+        if (updatePayload.uploadDate && typeof updatePayload.uploadDate === 'string') {
+            updatePayload.uploadDate = Timestamp.fromDate(new Date(updatePayload.uploadDate)) as any;
+        }
+
+        await docRef.update(updatePayload);
     } catch (error) {
         console.error("Error updating document:", error);
         throw new Error("Failed to update document.");
@@ -212,4 +224,3 @@ export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
     // This is a mock implementation. In a real app, you would fetch this from Firestore.
     return Promise.resolve(MOCK_BILANS[clientId] || []);
 }
-
