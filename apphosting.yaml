@@ -1,3 +1,4 @@
+
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
@@ -5,3 +6,23 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# Environment variables are accessible within your application's runtime.
+# https://firebase.google.com/docs/app-hosting/configure#environment-variables
+env:
+  - variable: 'FIREBASE_PROJECT_ID'
+    value: 'ccs-compta'
+  # It is best practice to use a secret manager for sensitive data.
+  # https://firebase.google.com/docs/app-hosting/configure#secret-manager
+  - variable: 'FIREBASE_CLIENT_EMAIL'
+    value: 'firebase-adminsdk-789wz@ccs-compta.iam.gserviceaccount.com'
+  - variable: 'FIREBASE_PRIVATE_KEY'
+    # Use a secret manager in a real production environment
+    value: '-----BEGIN PRIVATE KEY-----\nYourPrivateKeyHere\n-----END PRIVATE KEY-----\n'
+  - variable: 'INSEE_API_KEY'
+    value: 'YOUR_INSEE_API_KEY:YOUR_INSEE_API_SECRET'
+
+# managedSecrets:
+#  - FIREBASE_CLIENT_EMAIL
+#  - FIREBASE_PRIVATE_KEY
+#  - INSEE_API_KEY
