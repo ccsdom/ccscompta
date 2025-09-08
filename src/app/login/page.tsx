@@ -91,11 +91,20 @@ export default function LoginPage() {
       
       let targetPath: string;
       if (profile.role === 'client') {
-          const clientId = profile.clientId || 'alpha'; // Fallback client ID
-          localStorage.setItem('selectedClientId', clientId);
+          if (!profile.clientId) {
+            toast({
+              variant: "destructive",
+              title: "Erreur de configuration",
+              description: "Votre compte client n'est lié à aucun dossier. Veuillez contacter le support.",
+            });
+            setIsLoading(false);
+            return;
+          }
+          localStorage.setItem('selectedClientId', profile.clientId);
           targetPath = '/dashboard/my-documents';
       } else { 
-          localStorage.setItem('selectedClientId', 'alpha'); 
+          // For non-client roles, we can set a default, but it will be selectable.
+          localStorage.setItem('selectedClientId', 'client-01'); 
           if (profile.role === 'accountant' || profile.role === 'admin') {
               targetPath = '/dashboard/accountant';
           } else if (profile.role === 'secretary') {
@@ -104,7 +113,10 @@ export default function LoginPage() {
               targetPath = '/login'; // Fallback
           }
       }
+      // Use push and then a full page reload to ensure all states are reset properly.
       router.push(targetPath);
+      // A slight delay before reload can help ensure localStorage is set.
+      setTimeout(() => window.location.reload(), 100);
   }
 
   const handleLogin = async (e: React.FormEvent) => {

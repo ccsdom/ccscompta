@@ -141,7 +141,7 @@ export default function MyDocumentsPage() {
 
   const handleFileDrop = async (files: File[]) => {
     if (!clientId) {
-      toast({ variant: "destructive", title: "Erreur interne", description: `Votre identifiant client n'est pas défini.` });
+      toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
       return;
     }
     setIsUploading(true);

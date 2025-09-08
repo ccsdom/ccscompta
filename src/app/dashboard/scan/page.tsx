@@ -101,7 +101,12 @@ export default function ScanPage() {
     };
 
     const handleSend = async () => {
-        if (!capturedImage || !selectedClientId) return;
+        if (!capturedImage) return;
+        
+        if (!selectedClientId) {
+             toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
+             return;
+        }
 
         setIsProcessing(true);
         toast({ title: 'Envoi en cours...', description: 'Votre document est en cours de traitement.' });
