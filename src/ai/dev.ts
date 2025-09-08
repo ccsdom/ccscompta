@@ -10,3 +10,4 @@ import '@/ai/flows/document-actions.ts';
 import '@/ai/flows/extract-client-data-flow.ts';
 import '@/ai/tools/search-company-info.ts';
 import '@/ai/flows/agenda-actions.ts';
+import '@/ai/flows/security-rules-actions.ts';
