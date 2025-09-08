@@ -1,179 +1,130 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Zap, Star, FileText } from 'lucide-react';
-import type { Document } from '@/lib/types';
-import { getDocuments } from '@/ai/flows/document-actions';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal } from "lucide-react";
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from '@/hooks/use-toast';
 
+interface Invoice {
+    id: string;
+    clientName: string;
+    number: string;
+    date: string;
+    dueDate: string;
+    amount: number;
+    status: 'paid' | 'pending' | 'overdue';
+}
 
-const plans = [
-    {
-        name: "Essentiel",
-        price: "29€",
-        description: "Idéal pour les indépendants et les petites entreprises.",
-        features: ["Jusqu'à 50 documents/mois", "Extraction IA standard", "Support par email"],
-        isCurrent: false,
-    },
-    {
-        name: "Croissance",
-        price: "79€",
-        description: "Pour les entreprises en développement avec des besoins croissants.",
-        features: ["Jusqu'à 200 documents/mois", "Extraction et validation IA", "Analyses détaillées", "Support prioritaire"],
-        isCurrent: true, // Default plan for subscription model
-    },
-    {
-        name: "Performance",
-        price: "Sur devis",
-        description: "Pour les grandes entreprises et les besoins personnalisés.",
-        features: ["Documents illimités", "Automatisation avancée", "API & Intégrations", "Support dédié"],
-        isCurrent: false, // Set to true for custom plan clients
-        isPopular: true,
-    }
+const mockInvoices: Invoice[] = [
+    { id: '1', clientName: 'ACTION AVENTURE', number: 'FACT-2024-007', date: '01/07/2024', dueDate: '31/07/2024', amount: 350.00, status: 'pending' },
+    { id: '2', clientName: 'AUTO ECOLE DE LA MAIRIE', number: 'FACT-2024-006', date: '01/06/2024', dueDate: '30/06/2024', amount: 350.00, status: 'paid' },
+    { id: '3', clientName: 'BODY MINUTE', number: 'FACT-2024-005', date: '01/05/2024', dueDate: '31/05/2024', amount: 350.00, status: 'paid' },
+    { id: '4', clientName: 'CABINET FLORET', number: 'FACT-2023-BILAN', date: '15/04/2024', dueDate: '15/05/2024', amount: 1800.00, status: 'overdue' },
+    { id: '5', clientName: 'CABINET MEDICAL GALEA', number: 'FACT-2024-004', date: '01/04/2024', dueDate: '30/04/2024', amount: 350.00, status: 'paid' },
+    { id: '6', clientName: 'CHICKEN SPOT', number: 'FACT-2024-008', date: '05/07/2024', dueDate: '05/08/2024', amount: 450.00, status: 'pending' },
+
 ];
 
-
 export default function BillingPage() {
-    const [documents, setDocuments] = useState<Document[]>([]);
-    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-    const [billingModel, setBillingModel] = useState<'subscription' | 'custom'>('subscription');
-    const [isLoading, setIsLoading] = useState(true);
+    const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+    const { toast } = useToast();
 
-     useEffect(() => {
-        const loadState = async () => {
-            setIsLoading(true);
-            const storedClientId = localStorage.getItem('selectedClientId');
-            if (storedClientId) {
-               setSelectedClientId(storedClientId);
-               const clientDocs = await getDocuments(storedClientId);
-               setDocuments(clientDocs);
-               // Demo logic: Client 'alpha' has a custom plan included in their annual fee
-               if (storedClientId === 'alpha') {
-                   setBillingModel('custom');
-               } else {
-                   setBillingModel('subscription');
-               }
-            }
-            setIsLoading(false);
-        };
-        loadState();
-        window.addEventListener('storage', loadState);
-        return () => window.removeEventListener('storage', loadState);
-    }, []);
-
-    const currentMonthDocs = useMemo(() => {
-        const today = new Date();
-        return documents.filter(doc => {
-            const uploadDate = new Date(doc.uploadDate); // Assuming YYYY-MM-DD format from Firestore
-            return uploadDate.getMonth() === today.getMonth() && uploadDate.getFullYear() === today.getFullYear();
-        }).length;
-    }, [documents]);
-
-    
-    const docLimit = 200; // Based on "Croissance" plan for subscription model
-    const usagePercentage = Math.min((currentMonthDocs / docLimit) * 100, 100);
-    
-    const isCurrentPlan = (planName: string) => {
-        if (billingModel === 'custom') {
-            return planName === 'Performance';
+    const getStatusBadge = (status: Invoice['status']) => {
+        switch(status) {
+            case 'paid': return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80"><CheckCircle className="mr-1 h-3 w-3"/>Payée</Badge>
+            case 'pending': return <Badge variant="secondary"><Clock className="mr-1 h-3 w-3"/>En attente</Badge>
+            case 'overdue': return <Badge variant="destructive"><Clock className="mr-1 h-3 w-3"/>En retard</Badge>
+            default: return <Badge variant="outline">{status}</Badge>
         }
-        return planName === 'Croissance';
     }
-
-
-    const CurrentPlanCard = () => {
-        if (billingModel === 'custom') {
-            return (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Forfait Annuel sur Mesure</CardTitle>
-                        <CardDescription>Votre plan actuel est inclus dans vos honoraires de tenue comptable, vous donnant accès à toutes les fonctionnalités.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-4 text-sm p-4 rounded-lg bg-muted border">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shrink-0">
-                                <FileText className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                                <p className="font-bold text-2xl text-foreground">{currentMonthDocs.toLocaleString()}</p>
-                                <p className="text-muted-foreground">documents traités ce mois-ci (inclus dans votre forfait).</p>
-                            </div>
-                        </div>
-                         <p className="text-xs text-muted-foreground text-center pt-2">L'utilisation de la plateforme, incluant le traitement des documents et l'analyse, est comprise dans votre bilan annuel. Vous bénéficiez de toutes les fonctionnalités sans limite de volume.</p>
-                    </CardContent>
-                </Card>
-            )
-        }
-        
-        // Default view for subscription-based clients
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Consommation actuelle</CardTitle>
-                    <CardDescription>Votre utilisation pour le mois en cours, basée sur votre forfait.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center text-sm">
-                        <p className="font-medium">Forfait actuel : <span className="text-primary">Croissance</span></p>
-                        <p className="text-muted-foreground">Votre cycle se renouvelle le 1er du mois prochain.</p>
-                    </div>
-                    <div>
-                         <div className="flex justify-between items-end mb-1">
-                             <h3 className="font-semibold">{currentMonthDocs.toLocaleString()} / {docLimit.toLocaleString()} documents</h3>
-                             <p className="text-sm font-bold text-primary">{usagePercentage.toFixed(0)}%</p>
-                         </div>
-                        <Progress value={usagePercentage} className="h-3" />
-                    </div>
-                </CardContent>
-            </Card>
-        )
+    
+    const handleMarkAsPaid = (invoiceId: string) => {
+        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? {...inv, status: 'paid'} : inv));
+        toast({
+            title: "Facture mise à jour",
+            description: "La facture a été marquée comme payée.",
+        });
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-6">
              <div>
-                <h1 className="text-3xl font-bold tracking-tight">Facturation et Forfait</h1>
-                <p className="text-muted-foreground mt-1">Gérez votre abonnement et suivez votre consommation.</p>
+                <h1 className="text-3xl font-bold tracking-tight">Facturation Clients</h1>
+                <p className="text-muted-foreground mt-1">Suivez les paiements et gérez les factures de vos clients.</p>
             </div>
-            
-            <CurrentPlanCard />
 
-            <div className="space-y-4">
-                <div className="text-center pt-8">
-                    <h2 className="text-2xl font-bold tracking-tight">Découvrez nos autres forfaits</h2>
-                    <p className="text-muted-foreground mt-1">Passez à un forfait supérieur à tout moment pour débloquer plus de fonctionnalités.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   {plans.map(plan => (
-                       <Card key={plan.name} className={`flex flex-col ${isCurrentPlan(plan.name) ? 'border-primary ring-2 ring-primary' : ''} ${plan.isPopular && !isCurrentPlan(plan.name) ? 'relative' : ''}`}>
-                            {plan.isPopular && !isCurrentPlan(plan.name) && <div className="absolute top-0 -translate-y-1/2 w-full flex justify-center"><div className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1"><Star className="h-3 w-3"/> Populaire</div></div>}
-                            <CardHeader className="pt-8">
-                                <CardTitle>{plan.name}</CardTitle>
-                                <CardDescription>{plan.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-1 space-y-6">
-                                <div className="text-4xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.name !== 'Performance' && '/mois'}</span></div>
-                                <ul className="space-y-3">
-                                    {plan.features.map(feature => (
-                                        <li key={feature} className="flex items-start gap-2">
-                                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                                            <span className="text-muted-foreground">{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                            <CardFooter>
-                                <Button className="w-full" disabled={isCurrentPlan(plan.name)}>
-                                    {isCurrentPlan(plan.name) ? 'Votre forfait actuel' : 'Choisir ce forfait'}
-                                </Button>
-                            </CardFooter>
-                       </Card>
-                   ))}
-                </div>
-            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Suivi des factures</CardTitle>
+                    <CardDescription>Liste de toutes les factures émises pour l'ensemble des clients.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Client</TableHead>
+                                <TableHead>Numéro</TableHead>
+                                <TableHead>Échéance</TableHead>
+                                <TableHead>Montant</TableHead>
+                                <TableHead>Statut</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {invoices.length > 0 ? invoices.map(invoice => (
+                                <TableRow key={invoice.id}>
+                                    <TableCell className="font-medium">{invoice.clientName}</TableCell>
+                                    <TableCell>{invoice.number}</TableCell>
+                                    <TableCell>{invoice.dueDate}</TableCell>
+                                    <TableCell>{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Plus d'actions</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                 <DropdownMenuItem>
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Télécharger
+                                                </DropdownMenuItem>
+                                                {invoice.status !== 'paid' && (
+                                                    <DropdownMenuItem onClick={() => handleMarkAsPaid(invoice.id)}>
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        Marquer comme payée
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">
+                                        Aucune facture pour le moment.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                 <CardFooter className="text-xs text-muted-foreground p-6">
+                    <p>Pour toute question concernant une facture, veuillez contacter directement votre gestionnaire de dossier.</p>
+                </CardFooter>
+            </Card>
         </div>
-    );
+    )
 }

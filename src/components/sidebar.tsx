@@ -19,6 +19,7 @@ const accountantNavItems = [
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
   { href: '/dashboard/agenda', icon: CalendarDays, label: 'Agenda' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
+  { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },
 ];
 
 const secretaryNavItems = [
@@ -32,7 +33,7 @@ const clientNavItems = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes Documents' },
   { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner un document' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
-  { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },
+  { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
 
 const commonBottomNavItems = [
