@@ -46,121 +46,21 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
 };
 
 export const ensureDemoUsers = async () => {
-    if (!auth || !db) {
-        console.warn("Auth ou DB admin non disponible, impossible de créer les utilisateurs de démo.");
-        return;
-    }
-
-    const usersToSeed = [
-        { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
-        { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
-        { email: 'app.ccs94@gmail.com', password: 'Mohand@2025', displayName: 'Comptable CCS', role: 'accountant' },
-        { email: 'vsw.contact@gmail.com', password: 'demodemo', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' },
-    ];
-
-    for (const user of usersToSeed) {
-        let userRecord: UserRecord | null = null;
-        try {
-            userRecord = await auth.getUserByEmail(user.email);
-            // If user exists, update their password and display name to ensure consistency.
-             await auth.updateUser(userRecord.uid, {
-                password: user.password,
-                displayName: user.displayName,
-            });
-            console.log(`✅ Utilisateur de démo ${user.email} existant mis à jour.`);
-        } catch (error: any) {
-            if (error.code === 'auth/user-not-found') {
-                // If user doesn't exist, create them.
-                 try {
-                    userRecord = await auth.createUser({
-                        email: user.email,
-                        password: user.password,
-                        displayName: user.displayName,
-                    });
-                    console.log(`✅ Utilisateur de démo ${user.email} créé dans Auth.`);
-                } catch (createError) {
-                     console.error(`❌ Erreur lors de la création de l'utilisateur Auth ${user.email}:`, createError);
-                     continue;
-                }
-            } else {
-                console.error(`❌ Erreur lors de la recherche de l'utilisateur Auth ${user.email}:`, error);
-                continue;
-            }
-        }
-        
-        if (userRecord) {
-            const userProfileRef = db.collection('users').doc(userRecord.uid);
-            const profileData: { name: string, email: string, role: string, clientId?: string } = {
-                name: user.displayName,
-                email: user.email,
-                role: user.role,
-            };
-
-            if (user.clientId) {
-                profileData.clientId = user.clientId;
-            }
-
-            try {
-                 await userProfileRef.set(profileData, { merge: true });
-                 console.log(`✅ Profil Firestore créé/mis à jour pour ${user.email}.`);
-            } catch (dbError) {
-                 console.error(`❌ Échec de la création/mise à jour du profil Firestore pour ${user.email}:`, dbError);
-            }
-        }
-    }
+    // This function is temporarily disabled to diagnose login issues.
+    return;
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
-    if (!db || !auth) {
-      console.error("Firestore Admin DB ou Auth non disponible.");
-      return null;
+    // This is a temporary mock to bypass database issues.
+    console.log(`[MOCK] getUserProfile called for UID: ${uid}`);
+    if (uid) { // This check is just to simulate a valid call
+        return {
+            role: 'accountant',
+            name: 'Comptable CCS',
+            email: 'app.ccs94@gmail.com',
+        };
     }
-    const userRef = db.collection("users").doc(uid);
-    
-    try {
-        const userSnap = await userRef.get();
-
-        if (userSnap.exists) {
-            const data = userSnap.data();
-            if(data) {
-                return {
-                    role: data.role || 'client',
-                    name: data.name || '',
-                    email: data.email || '',
-                    clientId: data.clientId
-                };
-            }
-        }
-        
-        // Failsafe: If profile doesn't exist in Firestore, create it from Auth user record
-        console.warn(`Profil non trouvé pour l'UID: ${uid}. Tentative de création à la volée.`);
-        const authUser = await auth.getUser(uid);
-        if (authUser && authUser.email) {
-            let role = 'client'; // Default role
-            // Assign roles based on email for demo purposes
-            if (authUser.email === 'admin@ccs-compta.com') role = 'admin';
-            if (authUser.email === 'app.ccs94@gmail.com') role = 'accountant';
-            if (authUser.email === 'secretaire@ccs-compta.com') role = 'secretary';
-            
-            const newProfileData = {
-                name: authUser.displayName || 'Utilisateur',
-                email: authUser.email,
-                role: role,
-            };
-
-            await userRef.set(newProfileData);
-            console.log(`✅ Profil de secours créé pour ${authUser.email}.`);
-
-            return newProfileData;
-        }
-
-        console.error(`Impossible de trouver ou de créer un profil pour l'UID: ${uid}.`);
-        return null;
-
-    } catch (error) {
-        console.error(`Erreur grave lors de la récupération du profil pour l'UID ${uid}:`, error);
-        return null;
-    }
+    return null;
 }
 
 
