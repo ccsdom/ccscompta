@@ -147,17 +147,15 @@ export default function DocumentsPage() {
 
 
   const handleProcessDocument = async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId) ?? await getDocumentById(docId);
+    const docToProcess = documents.find(d => d.id === docId);
     if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
-
-    let docWithDataUrl = { ...docToProcess };
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
-    await updateDocument({id: docId, updates: { status: 'processing', auditTrail: trail }});
     setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'processing', auditTrail: trail} : d));
     
     try {
+        let docWithDataUrl = { ...docToProcess };
         if (!docWithDataUrl.dataUrl) {
             const url = await getDownloadURL(ref(storage, docWithDataUrl.storagePath));
             const response = await fetch(url);
@@ -622,5 +620,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
