@@ -141,39 +141,37 @@ export default function MyDocumentsPage() {
   };
 
   const handleProcessDocument = useCallback(async (doc: Document) => {
-    let currentDoc = doc;
-    currentDoc.auditTrail = addAuditEvent(currentDoc.auditTrail, 'Traitement IA initié par le client');
-    await updateDocument({id: currentDoc.id, updates: { status: 'processing', auditTrail: currentDoc.auditTrail }});
-    setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'processing', auditTrail: currentDoc.auditTrail} : d));
-    
-    try {
-      const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl! });
-      const extracted = await extractData({ documentDataUri: currentDoc.dataUrl!, documentType: recognition.documentType, clientId: currentDoc.clientId });
-      
-      const trail = addAuditEvent(currentDoc.auditTrail, 'Traitement IA terminé');
-      
-      const finalUpdates: Partial<Document> = {
-          status: 'reviewing',
-          extractedData: extracted,
-          type: recognition.documentType,
-          confidence: recognition.confidence,
-          auditTrail: trail
+      let currentDoc = doc;
+      try {
+        const recognition = await recognizeDocumentType({ documentDataUri: currentDoc.dataUrl! });
+        currentDoc.auditTrail = addAuditEvent(currentDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+        
+        const extracted = await extractData({ documentDataUri: currentDoc.dataUrl!, documentType: recognition.documentType, clientId: currentDoc.clientId });
+        currentDoc.auditTrail = addAuditEvent(currentDoc.auditTrail, 'Données extraites par IA');
+
+        const finalUpdates: Partial<Document> = {
+            status: 'reviewing',
+            extractedData: extracted,
+            type: recognition.documentType,
+            confidence: recognition.confidence,
+            auditTrail: currentDoc.auditTrail,
+        };
+        await updateDocument({ id: currentDoc.id, updates: finalUpdates });
+
+        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, ...finalUpdates} : d));
+        toast({ title: `Traitement de ${currentDoc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
+        createNotification({ ...currentDoc, ...finalUpdates }, 'est prêt pour examen.');
+
+      } catch (error) {
+        console.error("Error processing document:", error);
+        const trail = addAuditEvent(currentDoc.auditTrail, 'Erreur de traitement IA');
+        await updateDocument({ id: currentDoc.id, updates: { status: 'error', auditTrail: trail } });
+        setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'error', auditTrail: trail} : d));
+        toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
+        createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
       }
-      await updateDocument({ id: currentDoc.id, updates: finalUpdates });
-      setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, ...finalUpdates} : d));
-
-      toast({ title: `Traitement de ${currentDoc.name} terminé`, description: `Le document est prêt pour être examiné par votre comptable.` });
-      createNotification({ ...currentDoc, ...finalUpdates }, 'est prêt pour examen.');
-
-    } catch (error) {
-      console.error("Error processing document:", error);
-      const trail = addAuditEvent(currentDoc.auditTrail, 'Erreur de traitement IA');
-      await updateDocument({ id: currentDoc.id, updates: { status: 'error', auditTrail: trail } });
-      setDocuments(docs => docs.map(d => d.id === currentDoc.id ? {...d, status: 'error', auditTrail: trail} : d));
-      toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${doc.name}.` });
-      createNotification({ ...currentDoc, status: 'error' }, 'a échoué lors du traitement.');
-    }
   }, [toast]);
+
 
   const handleFileDrop = async (files: File[]) => {
     if (!clientId) {
@@ -184,6 +182,7 @@ export default function MyDocumentsPage() {
     setIsProcessing(true);
     const existingFileNames = new Set(documents.map(d => d.name));
     const docsToProcess: Document[] = [];
+    const tempDocs: Document[] = [];
 
     for (const file of files) {
         if (existingFileNames.has(file.name)) {
@@ -207,22 +206,23 @@ export default function MyDocumentsPage() {
             };
             const newDoc = await addDocument(newDocData);
             if (newDoc) {
-                docsToProcess.push({...newDoc, dataUrl});
+                const docWithUrl = {...newDoc, dataUrl};
+                docsToProcess.push(docWithUrl);
+                tempDocs.push(docWithUrl);
             }
-
         } catch (error) {
              toast({ variant: "destructive", title: "Erreur de lecture", description: `Impossible de lire le fichier ${file.name}.`});
         }
     }
     
-    setDocuments(prev => [...docsToProcess, ...prev]);
+    setDocuments(prev => [...tempDocs, ...prev]);
 
-    for (const doc of docsToProcess) {
-        await handleProcessDocument(doc);
-    }
+    // Lancer le traitement en parallèle pour tous les nouveaux documents
+    await Promise.all(docsToProcess.map(doc => handleProcessDocument(doc)));
     
     setIsProcessing(false);
   };
+
 
   const handleAddComment = async (docId: string, commentText: string) => {
     if (!commentText.trim()) return;
@@ -524,5 +524,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    

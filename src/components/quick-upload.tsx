@@ -13,7 +13,7 @@ import { addDocument, updateDocument } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, Notification, AuditEvent } from '@/lib/types';
-import { PlusCircle, CheckCircle } from 'lucide-react';
+import { PlusCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -21,16 +21,15 @@ export function QuickUpload() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [processedFiles, setProcessedFiles] = useState<File[]>([]);
-    const [filesToProcess, setFilesToProcess] = useState<File[]>([]);
+    const [filesToProcessCount, setFilesToProcessCount] = useState(0);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
         if (!isOpen) {
-            // Reset state when dialog is closed
             setIsLoading(false);
             setProcessedFiles([]);
-            setFilesToProcess([]);
+            setFilesToProcessCount(0);
         }
     }, [isOpen]);
     
@@ -65,47 +64,59 @@ export function QuickUpload() {
         };
         const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
         localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-        window.dispatchEvent(new Event('storage')); // Notify header
+        window.dispatchEvent(new Event('storage'));
     };
 
-    const processDocumentForClient = useCallback(async (doc: Document) => {
+    const processSingleFile = useCallback(async (file: File, clientId: string) => {
+        let docForProcessing: Document | null = null;
         try {
-          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Traitement IA initié par le client');
-          const recognition = await recognizeDocumentType({ documentDataUri: doc.dataUrl! });
-          doc.type = recognition.documentType;
-          doc.confidence = recognition.confidence;
-          doc.auditTrail = addAuditEvent(doc.auditTrail, `Type reconnu: ${doc.type}`);
-    
-          const extracted = await extractData({ documentDataUri: doc.dataUrl!, documentType: recognition.documentType, clientId: doc.clientId });
-          doc.extractedData = extracted;
-          doc.status = 'reviewing'; // Always set to reviewing for the accountant
-          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Données extraites par IA, en attente de validation comptable');
-          
-          await updateDocument({
-            id: doc.id,
-            updates: {
-              status: 'reviewing',
-              extractedData: extracted,
-              type: recognition.documentType,
-              confidence: recognition.confidence,
-              auditTrail: doc.auditTrail
-            }
-          });
+            const dataUrl = await fileToDataUri(file);
+            const storagePath = `${clientId}/${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
 
-          createNotification(doc, 'est prêt pour examen.');
-    
+            const newDocData: Omit<Document, 'id'> = {
+                name: file.name,
+                uploadDate: new Date().toISOString(),
+                status: 'processing' as const,
+                dataUrl,
+                storagePath,
+                clientId: clientId,
+                comments: [],
+                auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
+            };
+
+            const addedDoc = await addDocument(newDocData);
+            if (!addedDoc) throw new Error("Failed to save document metadata.");
+            
+            docForProcessing = { ...addedDoc, dataUrl };
+            
+            const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+            const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
+
+            const finalUpdates: Partial<Document> = {
+                status: 'reviewing',
+                extractedData: extracted,
+                type: recognition.documentType,
+                confidence: recognition.confidence,
+                auditTrail: addAuditEvent(docForProcessing.auditTrail, 'Traitement IA terminé, en attente de validation comptable')
+            };
+
+            await updateDocument({ id: docForProcessing.id, updates: finalUpdates });
+            createNotification({ ...docForProcessing, ...finalUpdates }, 'est prêt pour examen.');
+
         } catch (error) {
-          console.error("Error processing document:", error);
-          doc.status = 'error';
-          doc.auditTrail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
-          await updateDocument({ id: doc.id, updates: { status: 'error', auditTrail: doc.auditTrail }});
-          toast({
-            variant: "destructive",
-            title: "Le traitement a échoué",
-            description: `Impossible de traiter ${doc.name}.`,
-          });
+            console.error(`Error processing ${file.name}:`, error);
+            if (docForProcessing) {
+                const trail = addAuditEvent(docForProcessing.auditTrail, 'Erreur de traitement IA');
+                await updateDocument({ id: docForProcessing.id, updates: { status: 'error', auditTrail: trail } });
+            }
+            toast({
+                variant: "destructive",
+                title: "Le traitement a échoué",
+                description: `Impossible de traiter ${file.name}.`,
+            });
         }
-        return doc;
     }, [toast]);
     
     const handleFileDrop = async (files: File[]) => {
@@ -116,43 +127,19 @@ export function QuickUpload() {
         }
 
         setIsLoading(true);
-        setFilesToProcess(files);
+        setFilesToProcessCount(files.length);
         
-        try {
-            for (const file of files) {
-              const dataUrl = await fileToDataUri(file);
-              const storagePath = `${selectedClientId}/${file.name}`;
-              const storageRef = ref(storage, storagePath);
-              await uploadBytes(storageRef, file);
+        const processingPromises = files.map(file => 
+            processSingleFile(file, selectedClientId).then(() => {
+                setProcessedFiles(prev => [...prev, file]);
+            })
+        );
 
-              let newDocData: Omit<Document, 'id'> = {
-                name: file.name,
-                uploadDate: new Date().toISOString(),
-                status: 'processing' as const,
-                dataUrl,
-                storagePath,
-                clientId: selectedClientId,
-                comments: [],
-                auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
-              };
-              
-              const addedDoc = await addDocument(newDocData);
-              const docToProcess = { ...addedDoc, dataUrl };
-              await processDocumentForClient(docToProcess);
-              setProcessedFiles(prev => [...prev, file]);
-            }
-
-            window.dispatchEvent(new Event('storage')); // Notify other components to refetch
-            toast({ title: "Téléversement et traitement terminés", description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.` });
-            
-            setFilesToProcess([]);
-
-        } catch (error) {
-            console.error("Error during quick upload:", error);
-            toast({ variant: "destructive", title: "Erreur de téléversement" });
-        } finally {
-            setIsLoading(false);
-        }
+        await Promise.all(processingPromises);
+        
+        setIsLoading(false);
+        window.dispatchEvent(new Event('storage')); // Notify other components to refetch
+        toast({ title: "Téléversement et traitement terminés", description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.` });
     };
 
 
@@ -172,11 +159,18 @@ export function QuickUpload() {
                     </DialogDescription>
                 </DialogHeader>
                 
-                {processedFiles.length === 0 ? (
-                    <div className="py-4">
-                        <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
+                <div className="py-4">
+                    <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
+                </div>
+
+                {isLoading && filesToProcessCount > 0 && (
+                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Traitement de {processedFiles.length + 1} / {filesToProcessCount} document(s)...</span>
                     </div>
-                ) : (
+                )}
+                
+                {processedFiles.length > 0 && !isLoading && (
                     <div className="py-4">
                         <h3 className="text-sm font-medium mb-2">Fichiers traités avec succès :</h3>
                         <ul className="space-y-2">
@@ -189,20 +183,10 @@ export function QuickUpload() {
                         </ul>
                     </div>
                 )}
-
-
-                {filesToProcess.length > 0 && isLoading && (
-                     <div className="text-sm text-muted-foreground mt-2">
-                        <p>Traitement en cours :</p>
-                        <ul className="list-disc pl-5">
-                            {filesToProcess.map(f => <li key={f.name}>{f.name}</li>)}
-                        </ul>
-                    </div>
-                )}
                  
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button type="button" variant="secondary">Fermer</Button>
+                        <Button type="button" variant="secondary" disabled={isLoading}>Fermer</Button>
                     </DialogClose>
                 </DialogFooter>
             </DialogContent>
