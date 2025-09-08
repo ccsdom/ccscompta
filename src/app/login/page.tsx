@@ -57,14 +57,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    // This is a one-time setup when the login page loads.
     const initializeApp = async () => {
         setIsSeeding(true);
-        // Clear any previous session data.
         localStorage.clear();
         window.dispatchEvent(new Event('storage'));
         try {
-            // Ensure demo users and data are available on the server.
             await ensureDemoUsers();
             console.log("Demo user check complete.");
         } catch (e) {
@@ -84,53 +81,11 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    let user: User | null = null;
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      const profile = await getUserProfile(user.uid);
-
-      if (!profile) {
-          toast({
-              variant: "destructive",
-              title: "Erreur de profil",
-              description: "Votre profil utilisateur est introuvable. Veuillez contacter le support.",
-          });
-          setIsLoading(false);
-          return;
-      }
-      
-      // Store user info in localStorage for the client-side app to use.
-      localStorage.setItem('userRole', profile.role);
-      localStorage.setItem('userName', profile.name);
-      localStorage.setItem('userEmail', profile.email);
-      
-      let targetPath: string;
-      if (profile.role === 'client') {
-          if (!profile.clientId) {
-            toast({
-              variant: "destructive",
-              title: "Erreur de configuration du client",
-              description: "Votre compte n'est lié à aucun dossier client.",
-            });
-            setIsLoading(false);
-            return;
-          }
-          localStorage.setItem('selectedClientId', profile.clientId);
-          targetPath = '/dashboard/my-documents';
-      } else if (profile.role === 'accountant' || profile.role === 'admin') {
-          targetPath = '/dashboard/accountant';
-      } else if (profile.role === 'secretary') {
-          targetPath = '/dashboard/secretary';
-      } else {
-          targetPath = '/login'; // Fallback
-      }
-      
-      // Notify all components that localStorage has changed.
-      window.dispatchEvent(new Event('storage'));
-      router.push(targetPath);
-
+      user = userCredential.user;
     } catch (error: any) {
         let errorMessage = "Une erreur inconnue est survenue.";
         switch (error.code) {
@@ -152,6 +107,58 @@ export default function LoginPage() {
         description: errorMessage,
       });
       setIsLoading(false);
+      return;
+    }
+
+    try {
+        const profile = await getUserProfile(user.uid);
+
+        if (!profile) {
+            toast({
+                variant: "destructive",
+                title: "Erreur de profil",
+                description: "Votre profil utilisateur est introuvable dans la base de données. L'authentification a réussi mais le chargement du profil a échoué. Veuillez contacter le support.",
+            });
+            setIsLoading(false);
+            return;
+        }
+        
+        localStorage.setItem('userRole', profile.role);
+        localStorage.setItem('userName', profile.name);
+        localStorage.setItem('userEmail', profile.email);
+        
+        let targetPath: string;
+        if (profile.role === 'client') {
+            if (!profile.clientId) {
+              toast({
+                variant: "destructive",
+                title: "Erreur de configuration du client",
+                description: "Votre compte n'est lié à aucun dossier client.",
+              });
+              setIsLoading(false);
+              return;
+            }
+            localStorage.setItem('selectedClientId', profile.clientId);
+            targetPath = '/dashboard/my-documents';
+        } else if (profile.role === 'accountant' || profile.role === 'admin') {
+            targetPath = '/dashboard/accountant';
+        } else if (profile.role === 'secretary') {
+            targetPath = '/dashboard/secretary';
+        } else {
+            targetPath = '/login';
+        }
+        
+        window.dispatchEvent(new Event('storage'));
+        router.push(targetPath);
+
+    } catch (error) {
+        console.error("Failed to get user profile:", error);
+        toast({
+            variant: "destructive",
+            title: "Erreur de chargement du profil",
+            description: "La connexion a réussi mais le chargement de votre profil a échoué. Veuillez contacter le support.",
+        });
+        setIsLoading(false);
     }
   };
   

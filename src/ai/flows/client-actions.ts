@@ -56,7 +56,7 @@ export const ensureDemoUsers = async () => {
         { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
         { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
         { email: 'app.ccs94@gmail.com', password: 'demodemo', displayName: 'Comptable CCS', role: 'accountant' },
-        { email: 'vsw.contact@gmail.com', password: 'Aylan@2021', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' }, // Link to EASYLIAGE
+        { email: 'vsw.contact@gmail.com', password: 'demodemo', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' }, // Link to EASYLIAGE
     ];
 
     for (const user of usersToSeed) {
@@ -123,15 +123,15 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
       console.error("Firestore Admin DB or Auth not available during getUserProfile call.");
       return null;
     }
-    try {
-        const userRef = db.collection("users").doc(uid);
-        let userSnap = await userRef.get();
+    const userRef = db.collection("users").doc(uid);
+    let userSnap = await userRef.get();
 
-        if (!userSnap.exists) {
-            console.warn(`No profile found for UID: ${uid}. Attempting to create one as a fallback.`);
-            
-            // Fallback: User exists in Auth but not in Firestore 'users' collection.
-            // Let's create it on the fly.
+    if (!userSnap.exists) {
+        console.warn(`No profile found for UID: ${uid}. Attempting to create one as a fallback.`);
+        
+        // Fallback: User exists in Auth but not in Firestore 'users' collection.
+        // Let's create it on the fly.
+        try {
             const authUser = await auth.getUser(uid);
             if (!authUser) {
                  console.error(`Could not find user in Firebase Auth either for UID: ${uid}`);
@@ -159,21 +159,21 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
                 console.error(`Failed to create and re-fetch profile for UID: ${uid}.`);
                 return null;
             }
+        } catch (error) {
+             console.error("Error during fallback profile creation:", error);
+             return null;
         }
-        
-        const data = userSnap.data();
-        if (!data) return null;
-
-        return {
-            role: data.role || 'client',
-            name: data.name || '',
-            email: data.email || '',
-            clientId: data.clientId
-        };
-    } catch(error) {
-        console.error("Error fetching user profile:", error);
-        return null;
     }
+    
+    const data = userSnap.data();
+    if (!data) return null;
+
+    return {
+        role: data.role || 'client',
+        name: data.name || '',
+        email: data.email || '',
+        clientId: data.clientId
+    };
 }
 
 
