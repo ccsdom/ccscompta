@@ -8,7 +8,7 @@ import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   "projectId": "ccs-compta",
   "appId": "1:641289397299:web:160436367ad4dff3e6ef46",
-  "storageBucket": "ccs-compta.appspot.com",
+  "storageBucket": "ccs-compta.firebasestorage.app",
   "apiKey": "AIzaSyC1Wu-pJ12Ionb9dsjWmaGusuxGmh5LZB4",
   "authDomain": "ccs-compta.firebaseapp.com",
   "messagingSenderId": "641289397299"
