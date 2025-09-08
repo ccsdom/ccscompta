@@ -164,19 +164,18 @@ export async function getClients(): Promise<Client[]> {
     const snapshot = await clientsCollection.get();
     let clients = snapshot.docs.map(fromFirestore);
 
-    const alphaClientExists = clients.some(c => c.id === 'client-01');
+    // Check if any of the mock clients exist to decide whether to seed.
+    const mockClientIds = new Set(MOCK_CLIENTS.map(c => c.id));
+    const existingMockClients = clients.filter(c => mockClientIds.has(c.id));
 
-    if (!alphaClientExists) {
+    if (existingMockClients.length === 0) {
       console.log('Clients de démo non trouvés. Création des données de démo...');
       const batch = db.batch();
-      const existingClientIds = new Set(clients.map(c => c.id));
       
       for (const client of MOCK_CLIENTS) {
-        if (!existingClientIds.has(client.id)) {
-            const { id, ...clientData } = client;
-            const docRef = clientsCollection.doc(id); 
-            batch.set(docRef, clientData);
-        }
+        const { id, ...clientData } = client;
+        const docRef = clientsCollection.doc(id); 
+        batch.set(docRef, clientData);
       }
       await batch.commit();
       
@@ -424,6 +423,8 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
 
     
 
