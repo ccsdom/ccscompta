@@ -46,7 +46,6 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
 };
 
 export const ensureDemoUsers = async () => {
-
     if (!auth || !db) {
         console.warn("Auth ou DB admin non disponible, impossible de créer les utilisateurs de démo.");
         return;
@@ -56,28 +55,35 @@ export const ensureDemoUsers = async () => {
         { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
         { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
         { email: 'app.ccs94@gmail.com', password: 'demodemo', displayName: 'Comptable CCS', role: 'accountant' },
-        { email: 'vsw.contact@gmail.com', password: 'demodemo', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' }, // Link to EASYLIAGE
+        { email: 'vsw.contact@gmail.com', password: 'demodemo', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' },
     ];
 
     for (const user of usersToSeed) {
         let userRecord: UserRecord | null = null;
         try {
-            userRecord = await auth.getUserByEmail(user.email);
+            // Try to create the user. If they already exist, it will throw an error.
+            userRecord = await auth.createUser({
+                email: user.email,
+                password: user.password,
+                displayName: user.displayName,
+            });
+            console.log(`✅ Utilisateur de démo ${user.email} créé dans Auth.`);
         } catch (error: any) {
-            if (error.code === 'auth/user-not-found') {
+            if (error.code === 'auth/email-already-exists') {
+                // If user exists, get their record and update password to ensure consistency.
                 try {
-                    userRecord = await auth.createUser({
-                        email: user.email,
+                    userRecord = await auth.getUserByEmail(user.email);
+                    await auth.updateUser(userRecord.uid, {
                         password: user.password,
                         displayName: user.displayName,
                     });
-                    console.log(`✅ Utilisateur de démo ${user.email} créé dans Auth.`);
-                } catch (createError) {
-                    console.error(`❌ Échec de la création de l'utilisateur Auth ${user.email}:`, createError);
-                    continue; // Skip to next user if Auth creation fails
+                    console.log(`✅ Utilisateur de démo ${user.email} existant mis à jour.`);
+                } catch (updateError) {
+                    console.error(`❌ Échec de la mise à jour de l'utilisateur Auth ${user.email}:`, updateError);
+                    continue;
                 }
             } else {
-                console.error(`❌ Erreur lors de la recherche de l'utilisateur Auth ${user.email}:`, error);
+                console.error(`❌ Erreur lors de la création/recherche de l'utilisateur Auth ${user.email}:`, error);
                 continue;
             }
         }
@@ -96,23 +102,11 @@ export const ensureDemoUsers = async () => {
                 profileData.clientId = user.clientId;
             }
 
-            if (!userProfileSnap.exists) {
-                 try {
-                    await userProfileRef.set(profileData);
-                    console.log(`✅ Profil Firestore créé pour ${user.email}.`);
-                } catch (dbError) {
-                     console.error(`❌ Échec de la création du profil Firestore pour ${user.email}:`, dbError);
-                }
-            } else {
-                 // Ensure existing profile has the clientId if specified in seed
-                if (user.clientId && userProfileSnap.data()?.clientId !== user.clientId) {
-                    try {
-                        await userProfileRef.update({ clientId: user.clientId });
-                        console.log(`✅ Profil Firestore mis à jour pour ${user.email} avec le clientId.`);
-                    } catch (dbError) {
-                        console.error(`❌ Échec de la mise à jour du profil Firestore pour ${user.email}:`, dbError);
-                    }
-                }
+            try {
+                 await userProfileRef.set(profileData, { merge: true });
+                 console.log(`✅ Profil Firestore créé/mis à jour pour ${user.email}.`);
+            } catch (dbError) {
+                 console.error(`❌ Échec de la création/mise à jour du profil Firestore pour ${user.email}:`, dbError);
             }
         }
     }
@@ -414,5 +408,7 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
 
     
