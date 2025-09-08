@@ -125,6 +125,7 @@ export default function LoginPage() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await ensureDemoUsers(); // Ensure users exist before fetching profile
       await handleRedirect(userCredential.user);
     } catch (error: any) {
         let errorMessage = "Une erreur inconnue est survenue.";
