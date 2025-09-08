@@ -13,6 +13,7 @@ const breadcrumbNameMap: { [key: string]: string } = {
   'new': 'Nouveau Client',
   'documents': 'Documents',
   'analytics': 'Analyse Détaillée',
+  'agenda': 'Agenda',
   'settings': 'Paramètres (Comptable)',
   'accountant': 'Tableau de Bord',
   'admin': 'Tableau de Bord', // Admin is now accountant
