@@ -546,7 +546,7 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const MainContent = () => (
+  const MainContent = ({ setActiveDocument }: { setActiveDocument: (doc: Document) => void }) => (
     <div className="flex flex-col gap-6 h-full">
         {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
         <FilterDisplay />
@@ -563,15 +563,15 @@ export default function DocumentsPage() {
                         ))}
                      </TabsList>
                      {TABS_CONFIG.map(tab => {
-                        const docsForTab = filteredDocuments.filter(doc => tab.types.includes(doc.type) || (tab.value === 'autres' && !TABS_CONFIG.flatMap(t=>t.types).includes(doc.type)));
+                        const docsForTab = filteredDocuments.filter(doc => tab.types.includes(doc.type) || (tab.value === 'autres' && !TABS_CONFIG.flatMap(t=>t.types).filter(Boolean).includes(doc.type)));
                          return (
                              <TabsContent key={tab.value} value={tab.value} className="mt-4">
                                 <DocumentHistory
                                     documents={docsForTab}
-                                    onProcess={(doc) => handleProcessDocument(doc.id)}
+                                    onProcess={handleProcessDocument}
                                     onDelete={handleDeleteSingle}
                                     activeDocumentId={activeDocumentId}
-                                    setActiveDocument={handleSetActiveDocument}
+                                    setActiveDocument={setActiveDocument}
                                     selectedDocumentIds={selectedDocumentIds}
                                     setSelectedDocumentIds={setSelectedDocumentIds}
                                     isLoading={isLoading}
@@ -647,7 +647,7 @@ export default function DocumentsPage() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-10rem)] items-start">
         <div className={cn("h-full overflow-y-auto", activeDocument ? "lg:col-span-1" : "lg:col-span-3")}>
-             <MainContent />
+             <MainContent setActiveDocument={handleSetActiveDocument} />
         </div>
         {activeDocument && (
             <div className="hidden lg:block lg:col-span-2 h-full sticky top-[80px]">

@@ -24,7 +24,7 @@ import { fr } from 'date-fns/locale';
 
 interface DocumentHistoryProps {
   documents: Document[];
-  onProcess: (doc: Document) => void;
+  onProcess: (docId: string) => void;
   onDelete: (docId: string) => void;
   activeDocumentId?: string | null;
   setActiveDocument: (doc: Document) => void;
@@ -167,7 +167,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                             {(doc.status === 'pending' || doc.status === 'error') && (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" onClick={() => onProcess(doc)}>
+                                                        <Button variant="ghost" size="icon" onClick={() => onProcess(doc.id)}>
                                                             <Play className="h-4 w-4" />
                                                             <span className="sr-only">Traiter</span>
                                                         </Button>
