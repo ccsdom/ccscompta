@@ -13,7 +13,8 @@ try {
     } else {
         const projectId = process.env.FIREBASE_PROJECT_ID;
         const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-        const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+        // This is the crucial part: the private key from environment variables needs to have its newlines properly escaped.
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
         if (!projectId || !clientEmail || !privateKey) {
             throw new Error("Firebase Admin SDK credentials are not configured in environment variables.");
@@ -23,7 +24,7 @@ try {
             credential: cert({
                 projectId,
                 clientEmail,
-                privateKey: privateKey.replace(/\\n/g, '\n'), // This replacement is crucial.
+                privateKey,
             }),
         });
     }
