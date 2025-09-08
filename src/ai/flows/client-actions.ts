@@ -54,7 +54,7 @@ export const ensureDemoUsers = async () => {
     const usersToSeed = [
         { email: 'admin@ccs-compta.com', password: 'demodemo', displayName: 'Super Admin', role: 'admin' },
         { email: 'secretaire@ccs-compta.com', password: 'demodemo', displayName: 'Secrétaire Dévouée', role: 'secretary' },
-        { email: 'app.ccs94@gmail.com', password: 'demodemo', displayName: 'Comptable CCS', role: 'accountant' },
+        { email: 'app.ccs94@gmail.com', password: 'Mohand@2025', displayName: 'Comptable CCS', role: 'accountant' },
         { email: 'vsw.contact@gmail.com', password: 'demodemo', displayName: 'VSW Contact', role: 'client', clientId: 'client-09' },
     ];
 
