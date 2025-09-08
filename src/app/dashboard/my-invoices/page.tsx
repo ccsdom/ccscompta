@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Invoice {
     id: string;
+    clientId: string;
+    clientName: string;
     number: string;
     date: string;
     dueDate: string;
@@ -30,16 +32,28 @@ interface Invoice {
 }
 
 const mockInvoices: Invoice[] = [
-    { id: '1', number: 'FACT-2024-007', date: '01/07/2024', dueDate: '31/07/2024', amount: 350.00, status: 'pending' },
-    { id: '2', number: 'FACT-2024-006', date: '01/06/2024', dueDate: '30/06/2024', amount: 350.00, status: 'paid' },
-    { id: '3', number: 'FACT-2024-005', date: '01/05/2024', dueDate: '31/05/2024', amount: 350.00, status: 'paid' },
-    { id: '4', number: 'FACT-2023-BILAN', date: '15/04/2024', dueDate: '15/05/2024', amount: 1800.00, status: 'overdue' },
-    { id: '5', number: 'FACT-2024-004', date: '01/04/2024', dueDate: '30/04/2024', amount: 350.00, status: 'paid' },
+    { id: '1', clientId: 'client-01', clientName: 'ACTION AVENTURE', number: 'FACT-2024-007', date: '2024-07-01', dueDate: '2024-07-31', amount: 350.00, status: 'pending' },
+    { id: '2', clientId: 'client-02', clientName: 'AUTO ECOLE DE LA MAIRIE', number: 'FACT-2024-006', date: '2024-06-01', dueDate: '2024-06-30', amount: 350.00, status: 'paid' },
+    { id: '3', clientId: 'client-03', clientName: 'BODY MINUTE', number: 'FACT-2024-005', date: '2024-05-01', dueDate: '2024-05-31', amount: 350.00, status: 'paid' },
+    { id: '4', clientId: 'client-04', clientName: 'CABINET FLORET', number: 'FACT-2023-BILAN', date: '2024-04-15', dueDate: '2024-05-15', amount: 1800.00, status: 'overdue' },
+    { id: '5', clientId: 'client-05', clientName: 'CABINET MEDICAL GALEA', number: 'FACT-2024-004', date: '2024-04-01', dueDate: '2024-04-30', amount: 350.00, status: 'paid' },
 ];
 
+
 export default function MyInvoicesPage() {
-    const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
     const { toast } = useToast();
+
+    useState(() => {
+        const clientId = localStorage.getItem('selectedClientId');
+        // In a real app, you would fetch invoices for the specific client
+        // Here we just filter the mock data
+        if (clientId) {
+            setInvoices(mockInvoices.filter(inv => inv.clientId === clientId));
+        } else {
+             setInvoices(mockInvoices.slice(0,2)); // Fallback for demo
+        }
+    })
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch(status) {
@@ -86,8 +100,8 @@ export default function MyInvoicesPage() {
                             {invoices.length > 0 ? invoices.map(invoice => (
                                 <TableRow key={invoice.id}>
                                     <TableCell className="font-medium">{invoice.number}</TableCell>
-                                    <TableCell>{invoice.date}</TableCell>
-                                    <TableCell>{invoice.dueDate}</TableCell>
+                                    <TableCell>{new Date(invoice.date).toLocaleDateString('fr-FR')}</TableCell>
+                                    <TableCell>{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</TableCell>
                                     <TableCell>{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
                                     <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                                     <TableCell className="text-right space-x-2">
@@ -135,4 +149,5 @@ export default function MyInvoicesPage() {
             </Card>
         </div>
     )
-}
+
+    
