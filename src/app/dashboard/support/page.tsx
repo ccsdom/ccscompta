@@ -47,12 +47,12 @@ export default function SupportPage() {
       }
     },
     {
-        question: "Puis-je personnaliser mon tableau de bord analytique ?",
-        answer: "Oui ! En tant que comptable, sur la page 'Analyse Détaillée', vous trouverez un bouton 'Personnaliser' en haut à droite. Il vous permet d'afficher ou de masquer les différents graphiques et cartes statistiques selon vos préférences. Vos choix sont sauvegardés pour vos prochaines visites.",
+        question: "Comment fonctionne l'Ajout Rapide par IA (pour les comptables) ?",
+        answer: "Sur la page de gestion des clients, cliquez sur le bouton 'Ajout Rapide par IA'. Entrez simplement le nom de l'entreprise ou son numéro de SIRET. L'IA va automatiquement rechercher les informations publiques (raison sociale, adresse, etc.) et pré-remplir le formulaire de création de client pour vous faire gagner du temps.",
         image: {
             src: "https://picsum.photos/600/350",
-            alt: "Capture d'écran du menu de personnalisation des analyses",
-            hint: "analytics customization"
+            alt: "Capture d'écran de la boîte de dialogue d'ajout par IA",
+            hint: "AI feature"
         }
     }
   ];
