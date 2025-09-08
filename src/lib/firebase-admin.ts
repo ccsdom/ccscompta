@@ -7,9 +7,10 @@ let firestoreDb: Firestore | undefined;
 let adminAuth: Auth | undefined;
 
 function initializeAdminApp() {
-  if (getApps().length > 0 && getApps().some(app => app?.name === '[DEFAULT]')) {
-    adminApp = getApps().find(app => app?.name === '[DEFAULT]');
-    if (adminApp) return;
+  // Si l'app existe déjà, on la récupère.
+  if (getApps().length > 0 && getApps()[0]) {
+    adminApp = getApps()[0];
+    return;
   }
   
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -17,7 +18,7 @@ function initializeAdminApp() {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (!projectId || !clientEmail || !privateKey) {
-    console.warn("⚠️ Les variables d'environnement Firebase Admin sont manquantes. Certaines fonctionnalités (ex: création d'utilisateurs de démo) peuvent être désactivées.");
+    console.warn("⚠️ Les variables d'environnement Firebase Admin sont manquantes. L'accès à la base de données ne fonctionnera pas côté serveur.");
     return;
   }
 
@@ -36,13 +37,11 @@ function initializeAdminApp() {
   }
 }
 
-function getDb(): Firestore | null {
-  if (!adminApp) {
-    initializeAdminApp();
-  }
-  // Si l'initialisation a échoué, adminApp sera undefined
-  if (!adminApp) return null;
+// Initialiser l'application au chargement du module
+initializeAdminApp();
 
+function getDb(): Firestore | null {
+  if (!adminApp) return null;
   if (!firestoreDb) {
     firestoreDb = getFirestore(adminApp);
   }
@@ -50,11 +49,7 @@ function getDb(): Firestore | null {
 }
 
 function getAuthService(): Auth | null {
-  if (!adminApp) {
-    initializeAdminApp();
-  }
   if (!adminApp) return null;
-
   if (!adminAuth) {
     adminAuth = getAuth(adminApp);
   }
