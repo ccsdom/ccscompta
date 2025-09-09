@@ -7,29 +7,31 @@ let adminApp: App;
 let auth: Auth;
 let db: Firestore;
 
-const serviceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-};
-
-if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-  console.error("Firebase Admin credentials are not set in environment variables.");
-}
-
 try {
-    if (!getApps().length) {
-        adminApp = initializeApp({
-            credential: cert(serviceAccount),
-        });
-    } else {
-        adminApp = getApps()[0];
-    }
-    auth = getAuth(adminApp);
-    db = getFirestore(adminApp);
+  const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  };
+  
+  if (getApps().length) {
+    adminApp = getApps()[0];
+  } else {
+    adminApp = initializeApp({
+      credential: cert(serviceAccount),
+    });
+  }
+  
+  auth = getAuth(adminApp);
+  db = getFirestore(adminApp);
+
 } catch (error) {
     console.error("Firebase Admin SDK Initialization Error:", error);
+    // @ts-ignore
+    db = null;
+    // @ts-ignore
+    auth = null;
 }
 
-// @ts-ignore
+
 export { auth, db };
