@@ -20,7 +20,7 @@ env:
     # Use a secret manager in a real production environment
     value: '-----BEGIN PRIVATE KEY-----\nYourPrivateKeyHere\n-----END PRIVATE KEY-----\n'
   - variable: 'INSEE_API_KEY'
-    value: 'YOUR_INSEE_API_KEY:YOUR_INSEE_API_SECRET'
+    value: 'AflbxyLK3gZrjT7chwkFZ0t89O0a:CoVP5IF1AK23KCwP66oQM_DjCGIa'
 
 # managedSecrets:
 #  - FIREBASE_CLIENT_EMAIL
