@@ -89,7 +89,7 @@ const searchBySiret = async (siret: string, token: string) => {
 
 const searchByName = async (name: string, token: string) => {
      // This query uses SOLR syntax to search for the company name in the denomination field and filter for active companies.
-     const query = `denominationUniteLegale:"${name}" AND etatAdministratifUniteLegale:A`;
+     const query = `denominationUniteLegale:${name} AND etatAdministratifUniteLegale:A`;
      const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret?q=${encodeURIComponent(query)}&nombre=1`, {
         headers: { Authorization: `Bearer ${token}` },
     });
@@ -99,24 +99,10 @@ const searchByName = async (name: string, token: string) => {
      if (data.etablissements && data.etablissements.length > 0) {
         // Return the first active result, which is likely the most relevant one.
         const etablissement = data.etablissements[0];
-        const uniteLegale = etablissement.uniteLegale;
-        const address = etablissement.adresseEtablissement;
-        const fullAddress = `${address.numeroVoieEtablissement || ''} ${address.typeVoieEtablissement || ''} ${address.libelleVoieEtablissement || ''}, ${address.codePostalEtablissement} ${address.libelleCommuneEtablissement}`;
+        if (!etablissement?.siret) return null;
         
-        let legalRepName = '';
-        if (uniteLegale.sexeUniteLegale) {
-            legalRepName = `${uniteLegale.prenomUsuelUniteLegale || ''} ${uniteLegale.nomUniteLegale || ''}`.trim();
-        } else {
-            legalRepName = `${uniteLegale.prenom1UniteLegale || ''} ${uniteLegale.nomUniteLegale || ''}`.trim();
-        }
-
-        return {
-            name: uniteLegale.denominationUniteLegale || `${uniteLegale.nomUniteLegale || ''} ${uniteLegale.prenom1UniteLegale || ''}`.trim(),
-            siret: etablissement.siret,
-            address: fullAddress.trim(),
-            legalRepresentative: legalRepName || undefined,
-            fiscalYearEndDate: uniteLegale.moisClotureExerciceUniteLegale ? `31/${uniteLegale.moisClotureExerciceUniteLegale}`.padStart(5, '0') : undefined,
-        };
+        // Fetch full details using the siret for consistency
+        return await searchBySiret(etablissement.siret, token);
      }
      return null;
 }
@@ -125,11 +111,12 @@ const searchByName = async (name: string, token: string) => {
 export const searchCompanyInfoTool = ai.defineTool(
     {
         name: 'searchCompanyInfo',
-        description: "Searches the official French company database (INSEE Sirene) using a company's SIRET number or name.",
+        description: "Searches the official French company database (INSEE Sirene) using a company's SIRET number or name. This tool is now deprecated, use searchCompanyFlow instead.",
         inputSchema: SearchCompanyInfoInputSchema,
         outputSchema: SearchCompanyInfoOutputSchema,
     },
     async ({ searchTerm }) => {
+        console.warn("[Tool] The 'searchCompanyInfoTool' is deprecated and will be removed. Please use 'searchCompanyFlow'.");
         console.log(`[Tool] Searching for term in official database: ${searchTerm}`);
         try {
             const token = await getInseeApiToken();

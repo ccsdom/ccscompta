@@ -42,7 +42,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { AiClientDialog } from '@/components/ai-client-dialog';
 
 
 export default function ClientsPage() {
@@ -323,7 +322,6 @@ export default function ClientsPage() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    <AiClientDialog />
                     <Button onClick={() => router.push('/dashboard/clients/new')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nouveau Client

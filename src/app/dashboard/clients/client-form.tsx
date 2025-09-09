@@ -1,3 +1,4 @@
+
 'use client'
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -6,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
-import { type Client } from '@/lib/client-data';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import type { CompanySearchResult } from "@/ai/flows/search-company-flow";
 
 
 export const formSchema = z.object({
@@ -29,12 +30,12 @@ export const formSchema = z.object({
 
 
 interface ClientFormProps {
-    client?: Partial<Client>;
+    initialData?: Partial<z.infer<typeof formSchema>>;
     onSave: (data: z.infer<typeof formSchema>) => void;
     isSubmitting?: boolean;
 }
 
-export function ClientForm({ client, onSave, isSubmitting }: ClientFormProps) {
+export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProps) {
     const router = useRouter();
     const [accountants, setAccountants] = useState<Accountant[]>([]);
 
@@ -49,15 +50,15 @@ export function ClientForm({ client, onSave, isSubmitting }: ClientFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            name: client?.name || "",
-            siret: client?.siret || "",
-            email: client?.email || "",
-            phone: client?.phone || "",
-            legalRepresentative: client?.legalRepresentative || "",
-            address: client?.address || "",
-            fiscalYearEndDate: client?.fiscalYearEndDate || "",
-            status: client?.status || 'onboarding',
-            assignedAccountantId: client?.assignedAccountantId || "unassigned",
+            name: initialData?.name || "",
+            siret: initialData?.siret || "",
+            email: initialData?.email || "",
+            phone: initialData?.phone || "",
+            legalRepresentative: initialData?.legalRepresentative || "",
+            address: initialData?.address || "",
+            fiscalYearEndDate: initialData?.fiscalYearEndDate || "31/12",
+            status: 'onboarding',
+            assignedAccountantId: "unassigned",
         },
     });
 
@@ -110,7 +111,7 @@ export function ClientForm({ client, onSave, isSubmitting }: ClientFormProps) {
                                     <FormItem>
                                     <FormLabel>Adresse Email (pour la connexion)</FormLabel>
                                     <FormControl>
-                                        <Input type="email" placeholder="contact@entreprise.com" {...field} disabled={!!client?.id} />
+                                        <Input type="email" placeholder="contact@entreprise.com" {...field} disabled={!!initialData?.siret} />
                                     </FormControl>
                                      <FormDescription>
                                         Cette adresse sera utilisée pour la connexion du client.

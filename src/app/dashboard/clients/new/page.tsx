@@ -3,28 +3,19 @@
 
 import { ClientForm, formSchema } from "../client-form";
 import { addClient } from '@/ai/flows/client-actions';
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";
-import { useEffect, useState } from "react";
-import type { Client } from "@/lib/client-data";
+import { useState } from "react";
+import type { CompanySearchResult } from "@/ai/flows/search-company-flow";
+import { CompanySearchCombobox } from "@/components/company-search-combobox";
+
 
 export default function NewClientPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { toast } = useToast();
-    const [initialData, setInitialData] = useState<Partial<Client> | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    useEffect(() => {
-        const queryData: Record<string, any> = {};
-        for (const [key, value] of searchParams.entries()) {
-            queryData[key] = value;
-        }
-        if (Object.keys(queryData).length > 0) {
-            setInitialData(queryData as Partial<Client>);
-        }
-    }, [searchParams]);
+    const [selectedCompany, setSelectedCompany] = useState<CompanySearchResult | null>(null);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
@@ -52,11 +43,22 @@ export default function NewClientPage() {
         <div>
             <div className="mb-6">
                 <h1 className="text-3xl font-bold tracking-tight">Nouveau Client</h1>
-                <p className="text-muted-foreground mt-1">Remplissez les informations ci-dessous pour créer un nouveau dossier client.</p>
+                <p className="text-muted-foreground mt-1">Recherchez une entreprise pour pré-remplir les informations ou saisissez-les manuellement.</p>
             </div>
-            <ClientForm onSave={handleSave} client={initialData} key={JSON.stringify(initialData)} isSubmitting={isSubmitting} />
+             <div className="mb-6 max-w-lg">
+                <CompanySearchCombobox onCompanySelect={setSelectedCompany} />
+            </div>
+            <ClientForm 
+                key={selectedCompany?.siret} // Re-mount form when a company is selected
+                onSave={handleSave} 
+                isSubmitting={isSubmitting} 
+                initialData={selectedCompany ? {
+                    name: selectedCompany.name,
+                    siret: selectedCompany.siret,
+                    address: selectedCompany.address,
+                    legalRepresentative: selectedCompany.legalRepresentative,
+                } : undefined}
+            />
         </div>
     )
 }
-
-    
