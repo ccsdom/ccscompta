@@ -2,7 +2,77 @@
 import type { Document, Bilan } from '@/lib/types';
 import type { Client } from '@/lib/client-data';
 
-export const MOCK_CLIENTS: Client[] = [];
+export const MOCK_CLIENTS: Client[] = [
+    {
+        id: 'client-01',
+        name: 'ACTION AVENTURE',
+        siret: '84042838300010',
+        address: '15 RUE DE LA REPUBLIQUE 69002 LYON 2EME',
+        legalRepresentative: 'JEAN-MICHEL AVENTURIER',
+        fiscalYearEndDate: '31/12',
+        status: 'active',
+        newDocuments: 2,
+        lastActivity: '2024-07-20',
+        email: 'aventure.action@example.com',
+        phone: '0478000001',
+        assignedAccountantId: 'acc-01'
+    },
+    {
+        id: 'client-02',
+        name: 'AUTO ECOLE DE LA MAIRIE',
+        siret: '83972846400018',
+        address: '2 PLACE DE LA MAIRIE 94450 LIMEIL-BREVANNES',
+        legalRepresentative: 'MARIE CONDUITE',
+        fiscalYearEndDate: '31/12',
+        status: 'active',
+        newDocuments: 1,
+        lastActivity: '2024-07-19',
+        email: 'contact.autoecole@example.com',
+        phone: '0145000002',
+        assignedAccountantId: 'acc-01'
+    },
+    {
+        id: 'client-03',
+        name: 'BODY MINUTE',
+        siret: '53293123800019',
+        address: '6 RUE DE LA PAIX 75002 PARIS',
+        legalRepresentative: 'SOPHIE BIENETRE',
+        fiscalYearEndDate: '31/03',
+        status: 'inactive',
+        newDocuments: 0,
+        lastActivity: '2024-05-10',
+        email: 'contact.bodyminute@example.com',
+        phone: '0142000003',
+    },
+    {
+        id: 'client-04',
+        name: 'CABINET FLORET',
+        siret: '81234567800010',
+        address: '12 AVENUE DES FLEURS 06000 NICE',
+        legalRepresentative: 'PIERRE FLORET',
+        fiscalYearEndDate: '30/09',
+        status: 'onboarding',
+        newDocuments: 0,
+        lastActivity: '2024-07-21',
+        email: 'cabinet.floret@example.com',
+        phone: '0493000004',
+        assignedAccountantId: 'acc-02'
+    },
+    {
+        id: 'vsw-sas',
+        name: 'VSW SAS',
+        siret: '98487625800011',
+        address: '10 RUE DE LA PAIX 75002 PARIS',
+        legalRepresentative: 'Victor Hugo',
+        fiscalYearEndDate: '31/12',
+        status: 'active',
+        newDocuments: 5,
+        lastActivity: '2024-07-22',
+        email: 'vsw.contact@gmail.com',
+        phone: '0142000005',
+        assignedAccountantId: 'acc-01'
+    }
+];
 
 export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {
     'client-01': [
