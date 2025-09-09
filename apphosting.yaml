@@ -10,15 +10,6 @@ runConfig:
 # Environment variables are accessible within your application's runtime.
 # https://firebase.google.com/docs/app-hosting/configure#environment-variables
 env:
-  - variable: 'FIREBASE_PROJECT_ID'
-    value: 'ccs-compta'
-  # It is best practice to use a secret manager for sensitive data.
-  # https://firebase.google.com/docs/app-hosting/configure#secret-manager
-  - variable: 'FIREBASE_CLIENT_EMAIL'
-    value: 'firebase-adminsdk-789wz@ccs-compta.iam.gserviceaccount.com'
-  - variable: 'FIREBASE_PRIVATE_KEY'
-    # Use a secret manager in a real production environment
-    value: '-----BEGIN PRIVATE KEY-----\nYourPrivateKeyHere\n-----END PRIVATE KEY-----\n'
   - variable: 'INSEE_API_KEY'
     value: 'AflbxyLK3gZrjT7chwkFZ0t89O0a:CoVP5IF1AK23KCwP66oQM_DjCGIa'
 
