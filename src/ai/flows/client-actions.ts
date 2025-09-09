@@ -52,9 +52,51 @@ const DEMO_USERS = [
 ];
 
 export const ensureDemoUsers = async () => {
-    // This functionality is temporarily disabled due to persistent auth issues.
-    console.warn("ensureDemoUsers is temporarily disabled.");
-    return;
+    if (!auth) {
+        console.error("Firebase Auth Admin not available for ensureDemoUsers.");
+        return;
+    }
+
+    for (const userData of DEMO_USERS) {
+        try {
+            let userRecord: UserRecord;
+            try {
+                userRecord = await auth.getUserByEmail(userData.email);
+                console.log(`User ${userData.email} already exists.`);
+            } catch (error: any) {
+                if (error.code === 'auth/user-not-found') {
+                    console.log(`Creating user ${userData.email}...`);
+                    userRecord = await auth.createUser({
+                        email: userData.email,
+                        password: userData.password,
+                        displayName: userData.name,
+                    });
+                    console.log(`Successfully created user: ${userRecord.uid}`);
+                } else {
+                    throw error;
+                }
+            }
+
+            // Create user profile in Firestore if it doesn't exist
+            const userDocRef = db.collection('users').doc(userRecord.uid);
+            const userDoc = await userDocRef.get();
+            if (!userDoc.exists) {
+                 const profileData: any = {
+                    name: userData.name,
+                    email: userData.email,
+                    role: userData.role,
+                };
+                if (userData.role === 'client' && userData.clientId) {
+                    profileData.clientId = userData.clientId;
+                }
+                await userDocRef.set(profileData);
+                console.log(`Created Firestore profile for ${userData.email}`);
+            }
+
+        } catch (error) {
+            console.error(`Error ensuring demo user ${userData.email}:`, error);
+        }
+    }
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
@@ -167,8 +209,8 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  if (!db) {
-    return { success: false, error: "La base de données n'est pas disponible." };
+  if (!db || !auth) {
+    return { success: false, error: "La base de données ou le service d'authentification n'est pas disponible." };
   }
 
   const clientsCollection = db.collection('clients');
@@ -184,8 +226,7 @@ export async function addClient(
         `Un client avec le SIRET ${validatedData.siret} existe déjà : ${existingClient.name}.`
       );
     }
-
-    // Create client document in Firestore
+    
     const dataToSave = {
       ...validatedData,
       newDocuments: 0,
@@ -197,10 +238,20 @@ export async function addClient(
     if (!newDocSnap.exists) {
       throw new Error('Failed to create and fetch the new client.');
     }
-
     const newClient = fromFirestore(newDocSnap);
-
-    console.warn(`Client ${newClient.name} created in Firestore, but Firebase Auth user creation is temporarily disabled due to server auth issues.`);
+    
+     try {
+        await auth.createUser({
+            email: newClient.email,
+            password: 'password-a-changer',
+            displayName: newClient.legalRepresentative
+        });
+    } catch(authError: any) {
+        if(authError.code !== 'auth/email-already-exists') {
+            throw authError; // re-throw if it's not the error we expect
+        }
+        console.warn(`User with email ${newClient.email} already exists in Firebase Auth. Linking to client.`);
+    }
 
     return { success: true, data: newClient };
   } catch (error) {
