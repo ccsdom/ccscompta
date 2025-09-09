@@ -45,22 +45,90 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   };
 };
 
+const DEMO_USERS = [
+    { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'Mohand@2025' },
+    { email: 'secretaire@ccs.com', name: 'Secrétaire CCS', role: 'secretary', password: 'demodemo' },
+    { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo' },
+];
+
 export const ensureDemoUsers = async () => {
-    // This function is temporarily disabled to diagnose login issues.
-    return;
+    if (!auth || !db) {
+        console.error("Auth or DB service not available for ensureDemoUsers.");
+        return;
+    }
+    const usersCollection = db.collection('users');
+
+    for (const demoUser of DEMO_USERS) {
+        try {
+            let userRecord = await auth.getUserByEmail(demoUser.email).catch(() => null);
+
+            if (!userRecord) {
+                userRecord = await auth.createUser({
+                    email: demoUser.email,
+                    password: demoUser.password,
+                    displayName: demoUser.name,
+                });
+                console.log(`Created auth user: ${demoUser.email}`);
+            } else if (userRecord) {
+                 await auth.updateUser(userRecord.uid, { password: demoUser.password });
+            }
+
+            const userProfileRef = usersCollection.doc(userRecord.uid);
+            const userProfileSnap = await userProfileRef.get();
+            
+            if (!userProfileSnap.exists) {
+                const profileData: any = {
+                    name: demoUser.name,
+                    email: demoUser.email,
+                    role: demoUser.role,
+                };
+                if (demoUser.role === 'client') {
+                    profileData.clientId = demoUser.clientId;
+                }
+                await userProfileRef.set(profileData);
+                console.log(`Created Firestore profile for: ${demoUser.email}`);
+            }
+            
+        } catch (error) {
+            console.error(`Failed to ensure demo user ${demoUser.email}:`, error);
+        }
+    }
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
-    // This is a temporary mock to bypass database issues.
-    console.log(`[MOCK] getUserProfile called for UID: ${uid}`);
-    if (uid) { // This check is just to simulate a valid call
-        return {
-            role: 'accountant',
-            name: 'Comptable CCS',
-            email: 'app.ccs94@gmail.com',
-        };
+    if (!db) {
+        console.error("Firestore Admin DB not available for getUserProfile.");
+        return null;
     }
-    return null;
+    try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+            return userDoc.data() as {role: string, name: string, email: string, clientId?: string};
+        }
+
+        console.warn(`No profile found for UID ${uid}. Attempting to create one.`);
+        const authUser = await auth.getUser(uid);
+        if (!authUser || !authUser.email) {
+            throw new Error(`Auth user could not be found for UID ${uid}`);
+        }
+        
+        const isAccountant = authUser.email === 'app.ccs94@gmail.com';
+        const role = isAccountant ? 'accountant' : 'client';
+        
+        const newProfile = {
+            name: authUser.displayName || 'Utilisateur',
+            email: authUser.email,
+            role: role,
+        };
+
+        await db.collection('users').doc(uid).set(newProfile);
+        console.log(`Created missing profile for UID ${uid}`);
+        return newProfile;
+
+    } catch (error) {
+        console.error(`Error in getUserProfile for UID ${uid}:`, error);
+        return null;
+    }
 }
 
 

@@ -53,11 +53,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false); // Changed initial state to false
+  const [isSeeding, setIsSeeding] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    // Temporarily disable the seeding process to simplify login
     const initializeApp = async () => {
         setIsSeeding(true);
         localStorage.clear();
@@ -65,13 +64,18 @@ export default function LoginPage() {
         try {
             await ensureDemoUsers();
         } catch (e) {
-            // silent fail for now
+            console.error("Failed to seed demo users:", e);
+            toast({
+                variant: 'destructive',
+                title: 'Erreur d\'initialisation',
+                description: "Impossible de créer les utilisateurs de démonstration."
+            })
         } finally {
             setIsSeeding(false);
         }
     }
-    // initializeApp();
-  }, []);
+    initializeApp();
+  }, [toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,13 +83,8 @@ export default function LoginPage() {
     let user: User | null = null;
 
     try {
-      // For the mock, we can bypass actual Firebase auth or use a known demo account
-      if (email === "app.ccs94@gmail.com" && password === "Mohand@2025") {
-          user = { uid: 'mock-accountant-uid' } as User;
-      } else {
-         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-         user = userCredential.user;
-      }
+       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+       user = userCredential.user;
     } catch (error: any) {
         let errorMessage = "Une erreur inconnue est survenue.";
         switch (error.code) {
