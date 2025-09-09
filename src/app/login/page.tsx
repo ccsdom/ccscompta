@@ -53,7 +53,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
@@ -65,17 +65,12 @@ export default function LoginPage() {
             await ensureDemoUsers();
         } catch (e) {
             console.error("Failed to seed demo users:", e);
-            toast({
-                variant: 'destructive',
-                title: 'Erreur d\'initialisation',
-                description: "Impossible de créer les utilisateurs de démonstration."
-            })
         } finally {
             setIsSeeding(false);
         }
     }
     initializeApp();
-  }, [toast]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

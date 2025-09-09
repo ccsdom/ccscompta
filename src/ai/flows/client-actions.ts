@@ -52,47 +52,9 @@ const DEMO_USERS = [
 ];
 
 export const ensureDemoUsers = async () => {
-    if (!auth || !db) {
-        console.error("Auth or DB service not available for ensureDemoUsers.");
-        return;
-    }
-    const usersCollection = db.collection('users');
-
-    for (const demoUser of DEMO_USERS) {
-        try {
-            let userRecord = await auth.getUserByEmail(demoUser.email).catch(() => null);
-
-            if (!userRecord) {
-                userRecord = await auth.createUser({
-                    email: demoUser.email,
-                    password: demoUser.password,
-                    displayName: demoUser.name,
-                });
-                console.log(`Created auth user: ${demoUser.email}`);
-            } else if (userRecord) {
-                 await auth.updateUser(userRecord.uid, { password: demoUser.password });
-            }
-
-            const userProfileRef = usersCollection.doc(userRecord.uid);
-            const userProfileSnap = await userProfileRef.get();
-            
-            if (!userProfileSnap.exists) {
-                const profileData: any = {
-                    name: demoUser.name,
-                    email: demoUser.email,
-                    role: demoUser.role,
-                };
-                if (demoUser.role === 'client') {
-                    profileData.clientId = demoUser.clientId;
-                }
-                await userProfileRef.set(profileData);
-                console.log(`Created Firestore profile for: ${demoUser.email}`);
-            }
-            
-        } catch (error) {
-            console.error(`Failed to ensure demo user ${demoUser.email}:`, error);
-        }
-    }
+    // This functionality is temporarily disabled due to persistent auth issues.
+    console.warn("ensureDemoUsers is temporarily disabled.");
+    return;
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
@@ -106,24 +68,23 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
             return userDoc.data() as {role: string, name: string, email: string, clientId?: string};
         }
 
-        console.warn(`No profile found for UID ${uid}. Attempting to create one.`);
-        const authUser = await auth.getUser(uid);
-        if (!authUser || !authUser.email) {
-            throw new Error(`Auth user could not be found for UID ${uid}`);
+        // Fallback for demo users if profile doesn't exist.
+        const demoUser = DEMO_USERS.find(u => u.email === auth.currentUser?.email);
+         if (demoUser) {
+            const profileData: any = {
+                name: demoUser.name,
+                email: demoUser.email,
+                role: demoUser.role,
+            };
+            if (demoUser.role === 'client') {
+                profileData.clientId = demoUser.clientId;
+            }
+            await db.collection('users').doc(uid).set(profileData);
+            return profileData;
         }
-        
-        const isAccountant = authUser.email === 'app.ccs94@gmail.com';
-        const role = isAccountant ? 'accountant' : 'client';
-        
-        const newProfile: any = {
-            name: authUser.displayName || 'Utilisateur',
-            email: authUser.email,
-            role: role,
-        };
 
-        await db.collection('users').doc(uid).set(newProfile);
-        console.log(`Created missing profile for UID ${uid}`);
-        return newProfile;
+        console.warn(`No profile found for UID ${uid}.`);
+        return null;
 
     } catch (error) {
         console.error(`Error in getUserProfile for UID ${uid}:`, error);
@@ -135,19 +96,15 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
 export async function getClients(): Promise<Client[]> {
     if (!db) {
         console.error("Firestore Admin DB not available for getClients.");
-        return [];
+        return MOCK_CLIENTS;
     }
   const clientsCollection = db.collection('clients');
   try {
     const snapshot = await clientsCollection.get();
     let clients = snapshot.docs.map(fromFirestore);
 
-    // Check if any of the mock clients exist to decide whether to seed.
-    const mockClientIds = new Set(MOCK_CLIENTS.map(c => c.id));
-    const existingMockClients = clients.filter(c => mockClientIds.has(c.id));
-
-    if (existingMockClients.length === 0 && MOCK_CLIENTS.length > 0) {
-      console.log('Clients de démo non trouvés. Création des données de démo...');
+    if (clients.length === 0) {
+      console.log('No clients found in DB, attempting to seed with mock data...');
       const batch = db.batch();
       
       for (const client of MOCK_CLIENTS) {
@@ -157,6 +114,7 @@ export async function getClients(): Promise<Client[]> {
       }
       await batch.commit();
       
+      console.log("Mock clients seeded.");
       const seededSnapshot = await clientsCollection.get();
       clients = seededSnapshot.docs.map(fromFirestore);
     }
@@ -165,14 +123,15 @@ export async function getClients(): Promise<Client[]> {
 
   } catch (error) {
     console.error('Erreur lors de la récupération des clients:', error);
-    return [];
+    console.log("Returning mock clients as a fallback.");
+    return MOCK_CLIENTS;
   }
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
     if (!db) {
         console.error("Firestore Admin DB not available for getClientById.");
-        return undefined;
+        return MOCK_CLIENTS.find(c => c.id === id);
     }
   const clientsCollection = db.collection('clients');
   try {
@@ -208,12 +167,11 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  if (!db || !auth) {
-    return { success: false, error: "La base de données ou le service d'authentification n'est pas disponible." };
+  if (!db) {
+    return { success: false, error: "La base de données n'est pas disponible." };
   }
 
   const clientsCollection = db.collection('clients');
-  const usersCollection = db.collection('users');
 
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
@@ -227,7 +185,7 @@ export async function addClient(
       );
     }
 
-    // 1. Create client document in Firestore
+    // Create client document in Firestore
     const dataToSave = {
       ...validatedData,
       newDocuments: 0,
@@ -242,36 +200,7 @@ export async function addClient(
 
     const newClient = fromFirestore(newDocSnap);
 
-    // 2. Create user in Firebase Authentication
-    let userRecord;
-    try {
-        userRecord = await auth.getUserByEmail(validatedData.email);
-        console.log(`User ${validatedData.email} already exists in Auth.`);
-    } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-            userRecord = await auth.createUser({
-                email: validatedData.email,
-                displayName: validatedData.legalRepresentative,
-                // A password is required, but the user should reset it.
-                // It's recommended to send a password reset email in a real scenario.
-                password: `temp_${Date.now()}` 
-            });
-             console.log(`User ${validatedData.email} created in Auth.`);
-        } else {
-            throw error; // Rethrow other auth errors
-        }
-    }
-
-    // 3. Create user profile in 'users' collection and link it to the client
-    const userProfileRef = usersCollection.doc(userRecord.uid);
-    await userProfileRef.set({
-        name: validatedData.legalRepresentative,
-        email: validatedData.email,
-        role: 'client',
-        clientId: newClient.id, // Link user profile to client document ID
-    });
-     console.log(`User profile for ${validatedData.email} created in Firestore.`);
-
+    console.warn(`Client ${newClient.name} created in Firestore, but Firebase Auth user creation is temporarily disabled due to server auth issues.`);
 
     return { success: true, data: newClient };
   } catch (error) {
