@@ -46,7 +46,7 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
 };
 
 const DEMO_USERS = [
-    { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'Mohand@2025' },
+    { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'demodemo' },
     { email: 'secretaire@ccs.com', name: 'Secrétaire CCS', role: 'secretary', password: 'demodemo' },
     { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo' },
 ];
@@ -393,3 +393,5 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    

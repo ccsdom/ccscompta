@@ -53,7 +53,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
@@ -75,12 +75,10 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    let user: User | null = null;
-    
-    // Clear previous session data to ensure a clean login
     localStorage.clear();
     window.dispatchEvent(new Event('storage'));
-
+    
+    let user: User | null = null;
     try {
        const userCredential = await signInWithEmailAndPassword(auth, email, password);
        user = userCredential.user;
@@ -157,6 +155,7 @@ export default function LoginPage() {
               return;
         }
         
+        console.log(`Login successful. Redirecting to ${targetPath}`);
         window.dispatchEvent(new Event('storage'));
         router.push(targetPath);
 
@@ -188,6 +187,7 @@ export default function LoginPage() {
             src="https://picsum.photos/1202/1800"
             alt="Image"
             fill
+            sizes="50vw"
             className="object-cover"
             data-ai-hint="professional accounting"
         />
@@ -277,3 +277,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
