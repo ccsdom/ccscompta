@@ -41,6 +41,9 @@ const documentConverter: FirestoreDataConverter<Document> = {
 
 
 const getDocumentsCollectionRef = () => {
+    if (!db) {
+        throw new Error("Firestore Admin DB not available.");
+    }
     return db.collection('documents').withConverter(documentConverter);
 }
 
@@ -210,6 +213,10 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
 
 
 export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
+    if (!db) {
+        console.error("Firestore Admin DB not available.");
+        return [];
+    }
     // This is a mock implementation. In a real app, you would fetch this from Firestore.
     return Promise.resolve(MOCK_BILANS[clientId] || []);
 }
