@@ -108,8 +108,7 @@ export const ensureDemoUsers = async () => {
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
     if (!db) {
-        console.error("Firestore Admin DB not available for getUserProfile.");
-        return null;
+        throw new Error("Firestore Admin DB is not available. Check server-side Firebase initialization.");
     }
     try {
         const userDoc = await db.collection('users').doc(uid).get();
@@ -393,5 +392,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
-
-    
