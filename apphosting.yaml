@@ -13,7 +13,7 @@ env:
   - variable: 'INSEE_API_KEY'
     value: 'AflbxyLK3gZrjT7chwkFZ0t89O0a:CoVP5IF1AK23KCwP66oQM_DjCGIa'
 
-# managedSecrets:
-#  - FIREBASE_CLIENT_EMAIL
-#  - FIREBASE_PRIVATE_KEY
-#  - INSEE_API_KEY
+managedSecrets:
+ - FIREBASE_CLIENT_EMAIL
+ - FIREBASE_PRIVATE_KEY
+ - INSEE_API_KEY
