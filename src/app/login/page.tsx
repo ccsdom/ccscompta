@@ -19,15 +19,16 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { getUserProfile } from "@/ai/flows/client-actions";
+import { auth } from '@/lib/firebase-client';
+import { signInWithEmailAndPassword, AuthError } from "firebase/auth";
 
-const DEMO_USERS = [
-    { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'demodemo' },
-    { email: 'secretaire@ccs.com', name: 'Secrétaire CCS', role: 'secretary', password: 'demodemo' },
-    { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo', legalRepresentative: 'Victor Hugo' },
-    { email: 'aventure.action@example.com', name: 'ACTION AVENTURE', role: 'client', clientId: 'client-01', password: 'demodemo', legalRepresentative: 'JEAN-MICHEL AVENTURIER' },
-    { email: 'contact.autoecole@example.com', name: 'AUTO ECOLE DE LA MAIRIE', role: 'client', clientId: 'client-02', password: 'demodemo', legalRepresentative: 'MARIE CONDUITE' },
-
-];
+const DEMO_USERS_CREDENTIALS = {
+    'app.ccs94@gmail.com': 'demodemo',
+    'secretaire@ccs.com': 'demodemo',
+    'vsw.contact@gmail.com': 'demodemo',
+    'aventure.action@example.com': 'demodemo',
+    'contact.autoecole@example.com': 'demodemo'
+};
 
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -57,8 +58,8 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("app.ccs94@gmail.com");
+  const [password, setPassword] = useState("demodemo");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -72,46 +73,64 @@ export default function LoginPage() {
     setIsLoading(true);
     localStorage.clear();
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const user = DEMO_USERS.find(u => u.email === email);
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-    if (!user || user.password !== password) {
+        if (!user) {
+            throw new Error("User object not found after login.");
+        }
+
+        const profile = await getUserProfile(user.uid);
+        
+        if (!profile) {
+            toast({
+                variant: "destructive",
+                title: "Erreur de profil",
+                description: `Votre profil n'a pas été trouvé. Veuillez contacter le support.`,
+            });
+            setIsLoading(false);
+            return;
+        }
+
+        localStorage.setItem('userRole', profile.role);
+        localStorage.setItem('userName', profile.name);
+        localStorage.setItem('userEmail', profile.email);
+
+        let targetPath: string;
+        if (profile.role === 'client') {
+            if (!profile.clientId) {
+                toast({ variant: "destructive", title: "Erreur de configuration client", description: "Votre compte n'est associé à aucun dossier client." });
+                setIsLoading(false); return;
+            }
+            localStorage.setItem('selectedClientId', profile.clientId);
+            targetPath = '/dashboard/my-documents';
+        } else if (profile.role === 'accountant' || profile.role === 'admin') {
+            targetPath = '/dashboard/accountant';
+        } else if (profile.role === 'secretary') {
+            targetPath = '/dashboard/secretary';
+        } else {
+            toast({ variant: "destructive", title: "Rôle utilisateur inconnu", description: `Le rôle '${profile.role}' n'est pas reconnu.` });
+            setIsLoading(false); return;
+        }
+        
+        window.dispatchEvent(new Event('storage'));
+        router.push(targetPath);
+
+    } catch (error) {
+        console.error("Login failed:", error);
+        const firebaseError = error as AuthError;
+        let description = "Une erreur inconnue est survenue.";
+        if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/invalid-credential' || firebaseError.code === 'auth/wrong-password') {
+            description = "L'adresse e-mail ou le mot de passe est incorrect.";
+        }
         toast({
             variant: "destructive",
             title: "Erreur de connexion",
-            description: "Email ou mot de passe incorrect.",
+            description: description,
         });
         setIsLoading(false);
-        return;
     }
-
-    // If credentials are correct, set localStorage and redirect
-    localStorage.setItem('userRole', user.role);
-    localStorage.setItem('userName', user.name);
-    localStorage.setItem('userEmail', user.email);
-
-    let targetPath: string;
-    if (user.role === 'client') {
-        if (!user.clientId) {
-            toast({ variant: "destructive", title: "Erreur de configuration client", description: "Votre compte n'est associé à aucun dossier client." });
-            setIsLoading(false); return;
-        }
-        localStorage.setItem('selectedClientId', user.clientId);
-        localStorage.setItem('userName', user.legalRepresentative);
-        targetPath = '/dashboard/my-documents';
-    } else if (user.role === 'accountant' || user.role === 'admin') {
-        targetPath = '/dashboard/accountant';
-    } else if (user.role === 'secretary') {
-        targetPath = '/dashboard/secretary';
-    } else {
-        toast({ variant: "destructive", title: "Rôle utilisateur inconnu", description: `Le rôle '${user.role}' n'est pas reconnu.` });
-        setIsLoading(false); return;
-    }
-    
-    window.dispatchEvent(new Event('storage'));
-    router.push(targetPath);
   };
   
   const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
