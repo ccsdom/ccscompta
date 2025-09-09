@@ -109,22 +109,7 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
         if (userDoc.exists) {
             return userDoc.data() as {role: string, name: string, email: string, clientId?: string};
         }
-
-        // Fallback for demo users if profile doesn't exist.
-        const demoUser = DEMO_USERS.find(u => u.email === auth.currentUser?.email);
-         if (demoUser) {
-            const profileData: any = {
-                name: demoUser.name,
-                email: demoUser.email,
-                role: demoUser.role,
-            };
-            if (demoUser.role === 'client') {
-                profileData.clientId = demoUser.clientId;
-            }
-            await db.collection('users').doc(uid).set(profileData);
-            return profileData;
-        }
-
+        
         console.warn(`No profile found for UID ${uid}.`);
         return null;
 
@@ -227,6 +212,7 @@ export async function addClient(
       );
     }
     
+    // 1. Create client document in 'clients' collection
     const dataToSave = {
       ...validatedData,
       newDocuments: 0,
@@ -240,18 +226,35 @@ export async function addClient(
     }
     const newClient = fromFirestore(newDocSnap);
     
+    // 2. Create Firebase Auth user for the client
+     let userRecord: UserRecord;
      try {
-        await auth.createUser({
+        userRecord = await auth.createUser({
             email: newClient.email,
-            password: 'password-a-changer',
+            password: 'password-a-changer', // Default password
             displayName: newClient.legalRepresentative
         });
     } catch(authError: any) {
-        if(authError.code !== 'auth/email-already-exists') {
-            throw authError; // re-throw if it's not the error we expect
+        if(authError.code === 'auth/email-already-exists') {
+            console.warn(`User with email ${newClient.email} already exists in Firebase Auth. Linking to client.`);
+            userRecord = await auth.getUserByEmail(newClient.email);
+        } else {
+            // If another error occurs, we might want to roll back the client creation or handle it.
+            // For now, we'll log it and continue, but this is a point for improvement.
+            console.error('Failed to create auth user, client profile will be incomplete.', authError);
+            throw new Error(`Erreur lors de la création de l'authentification : ${authError.message}`);
         }
-        console.warn(`User with email ${newClient.email} already exists in Firebase Auth. Linking to client.`);
     }
+
+    // 3. Create user profile in 'users' collection
+    const userDocRef = db.collection('users').doc(userRecord.uid);
+    await userDocRef.set({
+        name: newClient.legalRepresentative,
+        email: newClient.email,
+        role: 'client',
+        clientId: newClient.id,
+    });
+
 
     return { success: true, data: newClient };
   } catch (error) {
@@ -383,3 +386,5 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
