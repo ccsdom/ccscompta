@@ -13,6 +13,10 @@ env:
   - variable: 'INSEE_API_KEY'
     value: 'AflbxyLK3gZrjT7chwkFZ0t89O0a:CoVP5IF1AK23KCwP66oQM_DjCGIa'
 
+# By listing secrets here, you grant your App Hosting backend permission to access them.
+# These secrets are NOT exposed as environment variables. Your code must be written to
+# fetch them from Secret Manager.
+# https://firebase.google.com/docs/app-hosting/configure#managed-secrets
 managedSecrets:
  - FIREBASE_CLIENT_EMAIL
  - FIREBASE_PRIVATE_KEY
