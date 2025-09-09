@@ -52,8 +52,8 @@ const DEMO_USERS = [
 ];
 
 export const ensureDemoUsers = async () => {
-    if (!auth) {
-        console.error("Firebase Auth Admin not available for ensureDemoUsers.");
+    if (!auth || !db) {
+        console.error("Firebase Admin SDK not available for ensureDemoUsers.");
         return;
     }
 
@@ -393,5 +393,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
-
-    
