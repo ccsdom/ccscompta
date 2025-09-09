@@ -69,28 +69,54 @@ const searchBySiret = async (siret: string, token: string) => {
     const address = etablissement.adresseEtablissement;
     const fullAddress = `${address.numeroVoieEtablissement || ''} ${address.typeVoieEtablissement || ''} ${address.libelleVoieEtablissement || ''}, ${address.codePostalEtablissement} ${address.libelleCommuneEtablissement}`;
     
+    let legalRepName = '';
+    if (uniteLegale.sexeUniteLegale) { // Indicates a natural person
+        legalRepName = `${uniteLegale.prenomUsuelUniteLegale || ''} ${uniteLegale.nomUniteLegale || ''}`.trim();
+    } else { // For legal entities, we might not have this info, but we can try
+        legalRepName = `${uniteLegale.prenom1UniteLegale || ''} ${uniteLegale.nomUniteLegale || ''}`.trim();
+    }
+
+
     return {
         name: uniteLegale.denominationUniteLegale || `${uniteLegale.nomUniteLegale || ''} ${uniteLegale.prenom1UniteLegale || ''}`.trim(),
         siret: etablissement.siret,
         address: fullAddress.trim(),
         // Le représentant légal n'est pas fourni de manière fiable par cette API.
-        legalRepresentative: undefined, 
+        legalRepresentative: legalRepName || undefined, 
         fiscalYearEndDate: uniteLegale.moisClotureExerciceUniteLegale ? `31/${uniteLegale.moisClotureExerciceUniteLegale}`.padStart(5, '0') : undefined,
     };
 }
 
 const searchByName = async (name: string, token: string) => {
      // This query uses SOLR syntax to search for the company name in the denomination field and filter for active companies.
-     const query = `denominationUniteLegale:${name} AND etatAdministratifUniteLegale:A`;
+     const query = `denominationUniteLegale:"${name}" AND etatAdministratifUniteLegale:A`;
      const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret?q=${encodeURIComponent(query)}&nombre=1`, {
         headers: { Authorization: `Bearer ${token}` },
     });
      if (!response.ok) return null;
      const data = await response.json();
 
-     if (data.etablissements && data.etablissements.length > 0 && data.etablissements[0].siret) {
+     if (data.etablissements && data.etablissements.length > 0) {
         // Return the first active result, which is likely the most relevant one.
-        return searchBySiret(data.etablissements[0].siret, token);
+        const etablissement = data.etablissements[0];
+        const uniteLegale = etablissement.uniteLegale;
+        const address = etablissement.adresseEtablissement;
+        const fullAddress = `${address.numeroVoieEtablissement || ''} ${address.typeVoieEtablissement || ''} ${address.libelleVoieEtablissement || ''}, ${address.codePostalEtablissement} ${address.libelleCommuneEtablissement}`;
+        
+        let legalRepName = '';
+        if (uniteLegale.sexeUniteLegale) {
+            legalRepName = `${uniteLegale.prenomUsuelUniteLegale || ''} ${uniteLegale.nomUniteLegale || ''}`.trim();
+        } else {
+            legalRepName = `${uniteLegale.prenom1UniteLegale || ''} ${uniteLegale.nomUniteLegale || ''}`.trim();
+        }
+
+        return {
+            name: uniteLegale.denominationUniteLegale || `${uniteLegale.nomUniteLegale || ''} ${uniteLegale.prenom1UniteLegale || ''}`.trim(),
+            siret: etablissement.siret,
+            address: fullAddress.trim(),
+            legalRepresentative: legalRepName || undefined,
+            fiscalYearEndDate: uniteLegale.moisClotureExerciceUniteLegale ? `31/${uniteLegale.moisClotureExerciceUniteLegale}`.padStart(5, '0') : undefined,
+        };
      }
      return null;
 }
