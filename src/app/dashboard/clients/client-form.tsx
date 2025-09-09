@@ -57,8 +57,8 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
             legalRepresentative: initialData?.legalRepresentative || "",
             address: initialData?.address || "",
             fiscalYearEndDate: initialData?.fiscalYearEndDate || "31/12",
-            status: 'onboarding',
-            assignedAccountantId: "unassigned",
+            status: initialData?.status || 'onboarding',
+            assignedAccountantId: initialData?.assignedAccountantId || "unassigned",
         },
     });
 
@@ -111,7 +111,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                     <FormItem>
                                     <FormLabel>Adresse Email (pour la connexion)</FormLabel>
                                     <FormControl>
-                                        <Input type="email" placeholder="contact@entreprise.com" {...field} disabled={!!initialData?.siret} />
+                                        <Input type="email" placeholder="contact@entreprise.com" {...field} />
                                     </FormControl>
                                      <FormDescription>
                                         Cette adresse sera utilisée pour la connexion du client.

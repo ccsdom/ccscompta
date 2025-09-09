@@ -57,7 +57,7 @@ export default function NewClientPage() {
                     siret: selectedCompany.siret,
                     address: selectedCompany.address,
                     legalRepresentative: selectedCompany.legalRepresentative,
-                } : undefined}
+                } : {}}
             />
         </div>
     )
