@@ -18,9 +18,16 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { signInWithEmailAndPassword, type User } from "firebase/auth";
-import { auth } from "@/lib/firebase-client";
-import { ensureDemoUsers, getUserProfile } from "@/ai/flows/client-actions";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type User } from "firebase/auth";
+import { auth, db } from "@/lib/firebase-client";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { getUserProfile } from "@/ai/flows/client-actions";
+
+const DEMO_USERS = [
+    { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'demodemo' },
+    { email: 'secretaire@ccs.com', name: 'Secrétaire CCS', role: 'secretary', password: 'demodemo' },
+    { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo' },
+];
 
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -53,59 +60,71 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    const initializeApp = async () => {
-        setIsSeeding(true);
-        localStorage.clear();
-        window.dispatchEvent(new Event('storage'));
-        try {
-            // Temporarily disabled to prevent auth errors
-            // await ensureDemoUsers(); 
-        } catch (e) {
-            console.error("Failed to seed demo users:", e);
-        } finally {
-            setIsSeeding(false);
-        }
-    }
-    initializeApp();
+    localStorage.clear();
+    window.dispatchEvent(new Event('storage'));
   }, []);
+
+  const getOrCreateUser = async (): Promise<User | null> => {
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        return userCredential.user;
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          console.log("User not found, attempting to create...");
+          const demoUserConfig = DEMO_USERS.find(u => u.email === email);
+          if (demoUserConfig && demoUserConfig.password === password) {
+              try {
+                  const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                  console.log("User created successfully:", newUserCredential.user.uid);
+                  
+                  // Now create the user profile in Firestore
+                  const userDocRef = doc(db, 'users', newUserCredential.user.uid);
+                  const profileData: any = {
+                      name: demoUserConfig.name,
+                      email: demoUserConfig.email,
+                      role: demoUserConfig.role,
+                  };
+                  if(demoUserConfig.clientId) {
+                    profileData.clientId = demoUserConfig.clientId;
+                  }
+                  await setDoc(userDocRef, profileData);
+                  console.log("User profile created in Firestore.");
+
+                  return newUserCredential.user;
+
+              } catch(creationError: any) {
+                 toast({ variant: "destructive", title: "Erreur de création de compte", description: `Le compte n'a pas pu être créé : ${creationError.message}` });
+                 return null;
+              }
+          } else {
+            toast({ variant: "destructive", title: "Identifiants invalides", description: "Email ou mot de passe incorrect." });
+            return null;
+          }
+        } else {
+            let errorMessage = "Une erreur inconnue est survenue.";
+            switch (error.code) {
+                case 'auth/wrong-password':
+                    errorMessage = "Mot de passe incorrect."; break;
+                case 'auth/invalid-email':
+                    errorMessage = "L'adresse email n'est pas valide."; break;
+                case 'auth/too-many-requests':
+                    errorMessage = "Compte temporairement bloqué. Réessayez plus tard."; break;
+            }
+            toast({ variant: "destructive", title: "Erreur de connexion", description: errorMessage });
+            return null;
+        }
+      }
+  }
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    localStorage.clear();
-    window.dispatchEvent(new Event('storage'));
     
-    let user: User | null = null;
-    try {
-       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-       user = userCredential.user;
-    } catch (error: any) {
-        let errorMessage = "Une erreur inconnue est survenue.";
-        switch (error.code) {
-            case 'auth/user-not-found':
-            case 'auth/wrong-password':
-            case 'auth/invalid-credential':
-                errorMessage = "Email ou mot de passe incorrect. Veuillez réessayer.";
-                break;
-            case 'auth/invalid-email':
-                errorMessage = "L'adresse email n'est pas valide.";
-                break;
-            case 'auth/too-many-requests':
-                errorMessage = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
-                break;
-        }
-      toast({
-        variant: "destructive",
-        title: "Erreur de connexion",
-        description: errorMessage,
-      });
-      setIsLoading(false);
-      return;
-    }
+    let user = await getOrCreateUser();
 
     if (!user) {
         setIsLoading(false);
@@ -113,13 +132,15 @@ export default function LoginPage() {
     }
 
     try {
-        const profile = await getUserProfile(user.uid);
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const profile = userDoc.exists() ? userDoc.data() as {role: string, name: string, email: string, clientId?: string} : null;
 
         if (!profile || !profile.role) {
             toast({
                 variant: "destructive",
-                title: "Erreur de chargement du profil",
-                description: "Votre profil utilisateur est introuvable ou mal configuré. Veuillez contacter le support.",
+                title: "Profil utilisateur introuvable",
+                description: "Votre profil est manquant ou incomplet. Veuillez contacter le support.",
             });
             setIsLoading(false);
             return;
@@ -132,13 +153,8 @@ export default function LoginPage() {
         let targetPath: string;
         if (profile.role === 'client') {
             if (!profile.clientId) {
-              toast({
-                variant: "destructive",
-                title: "Erreur de configuration du client",
-                description: "Votre compte n'est lié à aucun dossier client. Veuillez contacter le support.",
-              });
-              setIsLoading(false);
-              return;
+              toast({ variant: "destructive", title: "Erreur de configuration client", description: "Votre compte n'est associé à aucun dossier client." });
+              setIsLoading(false); return;
             }
             localStorage.setItem('selectedClientId', profile.clientId);
             targetPath = '/dashboard/my-documents';
@@ -147,26 +163,16 @@ export default function LoginPage() {
         } else if (profile.role === 'secretary') {
             targetPath = '/dashboard/secretary';
         } else {
-             toast({
-                variant: "destructive",
-                title: "Rôle utilisateur inconnu",
-                description: `Le rôle '${profile.role}' n'est pas reconnu.`,
-              });
-              setIsLoading(false);
-              return;
+             toast({ variant: "destructive", title: "Rôle utilisateur inconnu", description: `Le rôle '${profile.role}' n'est pas reconnu.` });
+             setIsLoading(false); return;
         }
         
-        console.log(`Login successful. Redirecting to ${targetPath}`);
         window.dispatchEvent(new Event('storage'));
         router.push(targetPath);
 
     } catch (error) {
         console.error("Failed to get user profile:", error);
-        toast({
-            variant: "destructive",
-            title: "Erreur de chargement du profil",
-            description: "La connexion a réussi mais le chargement de votre profil a échoué. Veuillez contacter le support.",
-        });
+        toast({ variant: "destructive", title: "Erreur de chargement du profil", description: "Impossible de charger votre profil après la connexion." });
         setIsLoading(false);
     }
   };
@@ -178,8 +184,6 @@ export default function LoginPage() {
           description: "La connexion via Google sera bientôt disponible.",
       })
   }
-  
-  const isLoginDisabled = isLoading || isSeeding;
 
   return (
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2">
@@ -228,7 +232,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoginDisabled}
+                disabled={isLoading}
               />
             </div>
             <div className="grid gap-2">
@@ -248,7 +252,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
-                  disabled={isLoginDisabled}
+                  disabled={isLoading}
                   className="pr-10"
                 />
                 <button
@@ -261,12 +265,12 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoginDisabled}>
-              {isLoginDisabled && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-              {isSeeding ? "Initialisation..." : "Se connecter"}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+              {isLoading ? "Connexion..." : "Se connecter"}
             </Button>
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoginDisabled}>
-              {isLoginDisabled ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
               Se connecter avec Google
             </Button>
           </form>
@@ -278,3 +282,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    

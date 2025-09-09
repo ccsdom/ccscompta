@@ -45,20 +45,6 @@ const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   };
 };
 
-const DEMO_USERS = [
-    { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'demodemo' },
-    { email: 'secretaire@ccs.com', name: 'Secrétaire CCS', role: 'secretary', password: 'demodemo' },
-    { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo' },
-];
-
-export const ensureDemoUsers = async () => {
-    // This function is temporarily disabled to prevent server-side auth errors.
-    // In a working environment, this would ensure that demo accounts for various roles
-    // are present in Firebase Auth and Firestore for easy testing.
-    console.warn("Demo user seeding is temporarily disabled due to server auth issues.");
-    return;
-};
-
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
     if (!db) {
         throw new Error("Firestore Admin DB is not available. Check server-side Firebase initialization.");
@@ -153,8 +139,8 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  if (!db || !auth) {
-    return { success: false, error: "La base de données ou le service d'authentification n'est pas disponible." };
+  if (!db) {
+    return { success: false, error: "La base de données n'est pas disponible." };
   }
 
   const clientsCollection = db.collection('clients');
@@ -185,36 +171,8 @@ export async function addClient(
     }
     const newClient = fromFirestore(newDocSnap);
     
-    // 2. Create Firebase Auth user for the client
-    // Temporarily disabled due to server-side auth issues
-    /*
-     let userRecord: UserRecord;
-     try {
-        userRecord = await auth.createUser({
-            email: newClient.email,
-            password: 'password-a-changer', // Default password
-            displayName: newClient.legalRepresentative
-        });
-    } catch(authError: any) {
-        if(authError.code === 'auth/email-already-exists') {
-            console.warn(`User with email ${newClient.email} already exists in Firebase Auth. Linking to client.`);
-            userRecord = await auth.getUserByEmail(newClient.email);
-        } else {
-            console.error('Failed to create auth user, client profile will be incomplete.', authError);
-            throw new Error(`Erreur lors de la création de l'authentification : ${authError.message}`);
-        }
-    }
-
-    // 3. Create user profile in 'users' collection
-    const userDocRef = db.collection('users').doc(userRecord.uid);
-    await userDocRef.set({
-        name: newClient.legalRepresentative,
-        email: newClient.email,
-        role: 'client',
-        clientId: newClient.id,
-    });
-    */
-
+    // Create user profile in 'users' collection on the client-side upon first login
+    // This server-side code block is removed to prevent auth errors.
 
     return { success: true, data: newClient };
   } catch (error) {
@@ -346,3 +304,5 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
