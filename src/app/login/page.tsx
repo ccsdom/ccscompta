@@ -76,6 +76,10 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     let user: User | null = null;
+    
+    // Clear previous session data to ensure a clean login
+    localStorage.clear();
+    window.dispatchEvent(new Event('storage'));
 
     try {
        const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -112,11 +116,11 @@ export default function LoginPage() {
     try {
         const profile = await getUserProfile(user.uid);
 
-        if (!profile) {
+        if (!profile || !profile.role) {
             toast({
                 variant: "destructive",
                 title: "Erreur de chargement du profil",
-                description: "Votre profil utilisateur est introuvable. L'authentification a réussi mais le chargement a échoué. Veuillez contacter le support.",
+                description: "Votre profil utilisateur est introuvable ou mal configuré. Veuillez contacter le support.",
             });
             setIsLoading(false);
             return;
@@ -132,7 +136,7 @@ export default function LoginPage() {
               toast({
                 variant: "destructive",
                 title: "Erreur de configuration du client",
-                description: "Votre compte n'est lié à aucun dossier client.",
+                description: "Votre compte n'est lié à aucun dossier client. Veuillez contacter le support.",
               });
               setIsLoading(false);
               return;
@@ -144,7 +148,13 @@ export default function LoginPage() {
         } else if (profile.role === 'secretary') {
             targetPath = '/dashboard/secretary';
         } else {
-            targetPath = '/login';
+             toast({
+                variant: "destructive",
+                title: "Rôle utilisateur inconnu",
+                description: `Le rôle '${profile.role}' n'est pas reconnu.`,
+              });
+              setIsLoading(false);
+              return;
         }
         
         window.dispatchEvent(new Event('storage'));
