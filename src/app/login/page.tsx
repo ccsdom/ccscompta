@@ -18,15 +18,15 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type User } from "firebase/auth";
-import { auth, db } from "@/lib/firebase-client";
-import { doc, setDoc, getDoc } from "firebase/firestore";
 import { getUserProfile } from "@/ai/flows/client-actions";
 
 const DEMO_USERS = [
     { email: 'app.ccs94@gmail.com', name: 'Comptable CCS', role: 'accountant', password: 'demodemo' },
     { email: 'secretaire@ccs.com', name: 'Secrétaire CCS', role: 'secretary', password: 'demodemo' },
-    { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo' },
+    { email: 'vsw.contact@gmail.com', name: 'Victor Hugo', role: 'client', clientId: 'vsw-sas', password: 'demodemo', legalRepresentative: 'Victor Hugo' },
+    { email: 'aventure.action@example.com', name: 'ACTION AVENTURE', role: 'client', clientId: 'client-01', password: 'demodemo', legalRepresentative: 'JEAN-MICHEL AVENTURIER' },
+    { email: 'contact.autoecole@example.com', name: 'AUTO ECOLE DE LA MAIRIE', role: 'client', clientId: 'client-02', password: 'demodemo', legalRepresentative: 'MARIE CONDUITE' },
+
 ];
 
 
@@ -71,68 +71,47 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     localStorage.clear();
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+    const user = DEMO_USERS.find(u => u.email === email);
 
-        if (!user) {
-            throw new Error("Impossible de récupérer les informations utilisateur après la connexion.");
-        }
-
-        const profile = await getUserProfile(user.uid);
-
-        if (!profile || !profile.role) {
-            toast({
-                variant: "destructive",
-                title: "Profil utilisateur introuvable",
-                description: "Votre profil est manquant ou incomplet. Veuillez contacter le support.",
-            });
-            setIsLoading(false);
-            return;
-        }
-        
-        localStorage.setItem('userRole', profile.role);
-        localStorage.setItem('userName', profile.name);
-        localStorage.setItem('userEmail', profile.email);
-        
-        let targetPath: string;
-        if (profile.role === 'client') {
-            if (!profile.clientId) {
-              toast({ variant: "destructive", title: "Erreur de configuration client", description: "Votre compte n'est associé à aucun dossier client." });
-              setIsLoading(false); return;
-            }
-            localStorage.setItem('selectedClientId', profile.clientId);
-            targetPath = '/dashboard/my-documents';
-        } else if (profile.role === 'accountant' || profile.role === 'admin') {
-            targetPath = '/dashboard/accountant';
-        } else if (profile.role === 'secretary') {
-            targetPath = '/dashboard/secretary';
-        } else {
-             toast({ variant: "destructive", title: "Rôle utilisateur inconnu", description: `Le rôle '${profile.role}' n'est pas reconnu.` });
-             setIsLoading(false); return;
-        }
-        
-        window.dispatchEvent(new Event('storage'));
-        router.push(targetPath);
-
-    } catch (error: any) {
-        console.error("Login error:", error);
-        let errorMessage = "Une erreur inconnue est survenue.";
-        switch (error.code) {
-            case 'auth/user-not-found':
-                errorMessage = "Aucun compte n'existe avec cet email."; break;
-            case 'auth/wrong-password':
-            case 'auth/invalid-credential':
-                errorMessage = "Mot de passe incorrect. Veuillez réessayer."; break;
-            case 'auth/invalid-email':
-                errorMessage = "L'adresse email n'est pas valide."; break;
-            case 'auth/too-many-requests':
-                errorMessage = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard."; break;
-        }
-        toast({ variant: "destructive", title: "Erreur de connexion", description: errorMessage });
+    if (!user || user.password !== password) {
+        toast({
+            variant: "destructive",
+            title: "Erreur de connexion",
+            description: "Email ou mot de passe incorrect.",
+        });
         setIsLoading(false);
+        return;
     }
+
+    // If credentials are correct, set localStorage and redirect
+    localStorage.setItem('userRole', user.role);
+    localStorage.setItem('userName', user.name);
+    localStorage.setItem('userEmail', user.email);
+
+    let targetPath: string;
+    if (user.role === 'client') {
+        if (!user.clientId) {
+            toast({ variant: "destructive", title: "Erreur de configuration client", description: "Votre compte n'est associé à aucun dossier client." });
+            setIsLoading(false); return;
+        }
+        localStorage.setItem('selectedClientId', user.clientId);
+        localStorage.setItem('userName', user.legalRepresentative);
+        targetPath = '/dashboard/my-documents';
+    } else if (user.role === 'accountant' || user.role === 'admin') {
+        targetPath = '/dashboard/accountant';
+    } else if (user.role === 'secretary') {
+        targetPath = '/dashboard/secretary';
+    } else {
+        toast({ variant: "destructive", title: "Rôle utilisateur inconnu", description: `Le rôle '${user.role}' n'est pas reconnu.` });
+        setIsLoading(false); return;
+    }
+    
+    window.dispatchEvent(new Event('storage'));
+    router.push(targetPath);
   };
   
   const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
