@@ -62,7 +62,8 @@ export default function LoginPage() {
         localStorage.clear();
         window.dispatchEvent(new Event('storage'));
         try {
-            await ensureDemoUsers();
+            // Temporarily disabled to prevent auth errors
+            // await ensureDemoUsers(); 
         } catch (e) {
             console.error("Failed to seed demo users:", e);
         } finally {

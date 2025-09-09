@@ -52,58 +52,11 @@ const DEMO_USERS = [
 ];
 
 export const ensureDemoUsers = async () => {
-    if (!auth || !db) {
-        console.error("Firebase Admin SDK not available for ensureDemoUsers.");
-        return;
-    }
-
-    for (const userData of DEMO_USERS) {
-        try {
-            let userRecord: UserRecord;
-            
-            // Attempt to create the user first.
-            try {
-                console.log(`Attempting to create user ${userData.email}...`);
-                userRecord = await auth.createUser({
-                    email: userData.email,
-                    password: userData.password,
-                    displayName: userData.name,
-                });
-                console.log(`Successfully created new user: ${userRecord.uid}`);
-            } catch (error: any) {
-                if (error.code === 'auth/email-already-exists') {
-                    console.log(`User ${userData.email} already exists. Fetching record...`);
-                    userRecord = await auth.getUserByEmail(userData.email);
-                } else {
-                    // For other errors during creation, re-throw to be caught by the outer block.
-                    throw error;
-                }
-            }
-
-            // At this point, userRecord should be defined, either from creation or fetching.
-            // Now, ensure the Firestore profile exists.
-            const userDocRef = db.collection('users').doc(userRecord.uid);
-            const userDoc = await userDocRef.get();
-            if (!userDoc.exists) {
-                 console.log(`Creating Firestore profile for ${userData.email}`);
-                 const profileData: any = {
-                    name: userData.name,
-                    email: userData.email,
-                    role: userData.role,
-                };
-                if (userData.role === 'client' && userData.clientId) {
-                    profileData.clientId = userData.clientId;
-                }
-                await userDocRef.set(profileData);
-                console.log(`Successfully created Firestore profile for ${userData.email}`);
-            } else {
-                 console.log(`Firestore profile for ${userData.email} already exists.`);
-            }
-
-        } catch (error) {
-            console.error(`Error ensuring demo user ${userData.email}:`, error);
-        }
-    }
+    // This function is temporarily disabled to prevent server-side auth errors.
+    // In a working environment, this would ensure that demo accounts for various roles
+    // are present in Firebase Auth and Firestore for easy testing.
+    console.warn("Demo user seeding is temporarily disabled due to server auth issues.");
+    return;
 };
 
 export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
@@ -392,3 +345,5 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
+
+    
