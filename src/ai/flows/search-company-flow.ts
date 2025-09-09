@@ -61,15 +61,3 @@ export async function searchCompany(input: CompanySearchInput): Promise<CompanyS
     
     return { results };
 }
-
-// Define a flow for consistency, although it's a simple fetch wrapper.
-const searchCompanyFlow = ai.defineFlow(
-    {
-        name: 'searchCompanyFlow',
-        inputSchema: CompanySearchInputSchema,
-        outputSchema: CompanySearchOutputSchema,
-    },
-    async (input) => {
-        return await searchCompany(input);
-    }
-);
