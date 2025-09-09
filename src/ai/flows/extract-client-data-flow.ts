@@ -46,9 +46,8 @@ Pass the user's input directly to the tool's 'searchTerm' parameter.
 
 User input: "{{searchTerm}}"
 
-Use the data returned by the tool to populate the output fields.
-If the tool returns no data for a field, you can either omit that field or set it to null. Do not make up or infer any information.
-For example, if the tool returns a 'name' and 'siret' but no 'address', your output should only contain 'name' and 'siret'.
+You MUST return the direct and unmodified JSON output from the 'searchCompanyInfo' tool.
+Do not add, remove, or change any fields.
 `,
 });
 
@@ -63,3 +62,4 @@ const extractClientDataFlow = ai.defineFlow(
     return output!;
   }
 );
+
