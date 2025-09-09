@@ -67,74 +67,20 @@ export default function LoginPage() {
     window.dispatchEvent(new Event('storage'));
   }, []);
 
-  const getOrCreateUser = async (): Promise<User | null> => {
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return userCredential.user;
-      } catch (error: any) {
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-          console.log("User not found, attempting to create...");
-          const demoUserConfig = DEMO_USERS.find(u => u.email === email);
-          if (demoUserConfig && demoUserConfig.password === password) {
-              try {
-                  const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-                  console.log("User created successfully:", newUserCredential.user.uid);
-                  
-                  // Now create the user profile in Firestore
-                  const userDocRef = doc(db, 'users', newUserCredential.user.uid);
-                  const profileData: any = {
-                      name: demoUserConfig.name,
-                      email: demoUserConfig.email,
-                      role: demoUserConfig.role,
-                  };
-                  if(demoUserConfig.clientId) {
-                    profileData.clientId = demoUserConfig.clientId;
-                  }
-                  await setDoc(userDocRef, profileData);
-                  console.log("User profile created in Firestore.");
-
-                  return newUserCredential.user;
-
-              } catch(creationError: any) {
-                 toast({ variant: "destructive", title: "Erreur de création de compte", description: `Le compte n'a pas pu être créé : ${creationError.message}` });
-                 return null;
-              }
-          } else {
-            toast({ variant: "destructive", title: "Identifiants invalides", description: "Email ou mot de passe incorrect." });
-            return null;
-          }
-        } else {
-            let errorMessage = "Une erreur inconnue est survenue.";
-            switch (error.code) {
-                case 'auth/wrong-password':
-                    errorMessage = "Mot de passe incorrect."; break;
-                case 'auth/invalid-email':
-                    errorMessage = "L'adresse email n'est pas valide."; break;
-                case 'auth/too-many-requests':
-                    errorMessage = "Compte temporairement bloqué. Réessayez plus tard."; break;
-            }
-            toast({ variant: "destructive", title: "Erreur de connexion", description: errorMessage });
-            return null;
-        }
-      }
-  }
-
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    localStorage.clear();
     
-    let user = await getOrCreateUser();
-
-    if (!user) {
-        setIsLoading(false);
-        return;
-    }
-
     try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        const profile = userDoc.exists() ? userDoc.data() as {role: string, name: string, email: string, clientId?: string} : null;
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        if (!user) {
+            throw new Error("Impossible de récupérer les informations utilisateur après la connexion.");
+        }
+
+        const profile = await getUserProfile(user.uid);
 
         if (!profile || !profile.role) {
             toast({
@@ -170,9 +116,21 @@ export default function LoginPage() {
         window.dispatchEvent(new Event('storage'));
         router.push(targetPath);
 
-    } catch (error) {
-        console.error("Failed to get user profile:", error);
-        toast({ variant: "destructive", title: "Erreur de chargement du profil", description: "Impossible de charger votre profil après la connexion." });
+    } catch (error: any) {
+        console.error("Login error:", error);
+        let errorMessage = "Une erreur inconnue est survenue.";
+        switch (error.code) {
+            case 'auth/user-not-found':
+                errorMessage = "Aucun compte n'existe avec cet email."; break;
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                errorMessage = "Mot de passe incorrect. Veuillez réessayer."; break;
+            case 'auth/invalid-email':
+                errorMessage = "L'adresse email n'est pas valide."; break;
+            case 'auth/too-many-requests':
+                errorMessage = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard."; break;
+        }
+        toast({ variant: "destructive", title: "Erreur de connexion", description: errorMessage });
         setIsLoading(false);
     }
   };
@@ -282,5 +240,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    
