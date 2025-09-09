@@ -9,13 +9,25 @@ let db: Firestore;
 
 // This approach uses the Application Default Credentials (ADC) provided by the
 // App Hosting environment. It's the most reliable way to initialize the Admin SDK.
-if (getApps().length === 0) {
-  app = initializeApp();
-} else {
-  app = getApps()[0];
+try {
+    if (getApps().length === 0) {
+      app = initializeApp();
+    } else {
+      app = getApps()[0];
+    }
+
+    auth = getAuth(app);
+    db = getFirestore(app);
+} catch (error) {
+    console.error("Failed to initialize Firebase Admin SDK:", error);
+    // Set to null or handle appropriately so other parts of the app can check
+    // @ts-ignore
+    app = app || null;
+    // @ts-ignore
+    auth = auth || null;
+    // @ts-ignore
+    db = db || null;
 }
 
-auth = getAuth(app);
-db = getFirestore(app);
 
 export { auth, db };

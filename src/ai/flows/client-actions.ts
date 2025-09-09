@@ -186,6 +186,8 @@ export async function addClient(
     const newClient = fromFirestore(newDocSnap);
     
     // 2. Create Firebase Auth user for the client
+    // Temporarily disabled due to server-side auth issues
+    /*
      let userRecord: UserRecord;
      try {
         userRecord = await auth.createUser({
@@ -198,8 +200,6 @@ export async function addClient(
             console.warn(`User with email ${newClient.email} already exists in Firebase Auth. Linking to client.`);
             userRecord = await auth.getUserByEmail(newClient.email);
         } else {
-            // If another error occurs, we might want to roll back the client creation or handle it.
-            // For now, we'll log it and continue, but this is a point for improvement.
             console.error('Failed to create auth user, client profile will be incomplete.', authError);
             throw new Error(`Erreur lors de la création de l'authentification : ${authError.message}`);
         }
@@ -213,6 +213,7 @@ export async function addClient(
         role: 'client',
         clientId: newClient.id,
     });
+    */
 
 
     return { success: true, data: newClient };
@@ -345,5 +346,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
-
-    
