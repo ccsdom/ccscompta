@@ -18,7 +18,7 @@ const CompanySearchInputSchema = z.object({
 });
 export type CompanySearchInput = z.infer<typeof CompanySearchInputSchema>;
 
-export const CompanySearchResultSchema = z.object({
+const CompanySearchResultSchema = z.object({
     name: z.string().describe("The company's official name (raison sociale)."),
     siret: z.string().describe("The 14-digit SIRET number."),
     address: z.string().describe("The full address of the company's headquarters."),
