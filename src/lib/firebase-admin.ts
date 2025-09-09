@@ -8,18 +8,29 @@ let auth: Auth;
 let db: Firestore;
 
 try {
-  const serviceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  };
-  
-  if (getApps().length) {
-    adminApp = getApps()[0];
+  if (process.env.FIREBASE_PRIVATE_KEY) {
+      const serviceAccount = {
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      };
+      
+      if (getApps().length) {
+        adminApp = getApps()[0];
+      } else {
+        adminApp = initializeApp({
+          credential: cert(serviceAccount),
+        });
+      }
   } else {
-    adminApp = initializeApp({
-      credential: cert(serviceAccount),
-    });
+      // Fallback for local development or when env vars are not set
+      if (getApps().length === 0) {
+        adminApp = initializeApp({
+            projectId: 'ccs-compta',
+        });
+      } else {
+        adminApp = getApps()[0];
+      }
   }
   
   auth = getAuth(adminApp);
@@ -32,6 +43,5 @@ try {
     // @ts-ignore
     auth = null;
 }
-
 
 export { auth, db };

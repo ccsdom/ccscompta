@@ -115,7 +115,7 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
         const isAccountant = authUser.email === 'app.ccs94@gmail.com';
         const role = isAccountant ? 'accountant' : 'client';
         
-        const newProfile = {
+        const newProfile: any = {
             name: authUser.displayName || 'Utilisateur',
             email: authUser.email,
             role: role,
