@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A tool for searching official company data from the INSEE Sirene API.
@@ -80,8 +81,8 @@ const searchBySiret = async (siret: string, token: string) => {
 
 const searchByName = async (name: string, token: string) => {
      // This query uses SOLR syntax to search for the company name in the denomination field and filter for active companies.
-     const query = `denominationUniteLegale:"${name}"~1 AND etatAdministratifUniteLegale:A`;
-     const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret?q=${encodeURIComponent(query)}`, {
+     const query = `denominationUniteLegale:${name} AND etatAdministratifUniteLegale:A`;
+     const response = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siret?q=${encodeURIComponent(query)}&nombre=1`, {
         headers: { Authorization: `Bearer ${token}` },
     });
      if (!response.ok) return null;
