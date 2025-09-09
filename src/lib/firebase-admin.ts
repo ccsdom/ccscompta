@@ -6,9 +6,9 @@ let app: App;
 let auth: Auth;
 let db: Firestore;
 
+// This approach uses the Application Default Credentials (ADC) provided by the
+// App Hosting environment. It's the most reliable way to initialize the Admin SDK.
 if (getApps().length === 0) {
-  // When deployed to App Hosting, the SDK will automatically detect the project
-  // credentials and initialize correctly without any explicit config.
   app = initializeApp();
 } else {
   app = getApps()[0];
