@@ -3,12 +3,12 @@
 
 import { ClientForm, formSchema } from "../client-form";
 import { addClient } from '@/ai/flows/client-actions';
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";
 import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
-import { extractClientData, type ExtractClientDataOutput } from "@/ai/flows/extract-client-data-flow";
+import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 
 
 export default function NewClientPage() {
@@ -16,19 +16,6 @@ export default function NewClientPage() {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
-    const searchParams = useSearchParams();
-
-    useEffect(() => {
-        const queryData: Partial<z.infer<typeof formSchema>> = {};
-        for (const [key, value] of searchParams.entries()) {
-            if (value) {
-                (queryData as any)[key] = value;
-            }
-        }
-        if (Object.keys(queryData).length > 0) {
-            setInitialData(queryData);
-        }
-    }, [searchParams]);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
@@ -39,7 +26,7 @@ export default function NewClientPage() {
                 title: "Client ajouté",
                 description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
-            // Inform other components that the client list has changed
+            // Use a simple mechanism to notify other components to refetch
             localStorage.setItem('clientsLastUpdated', Date.now().toString());
             router.push('/dashboard/clients');
         } else {

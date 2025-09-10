@@ -4,11 +4,9 @@
 import { z } from 'zod';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
-import { db } from '@/lib/firebase-admin';
-import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 // =================================================================================
-// MISE EN PLACE D'UNE SIMULATION DE BASE DE DONNÉES (WORKAROUND)
+// MISE EN PLACE D'UNE SIMULATION DE BASE DE DONNÉES EN MÉMOIRE
 // ---------------------------------------------------------------------------------
 // En raison d'un problème persistant d'authentification du serveur dans cet
 // environnement qui empêche la connexion à Firestore, nous utilisons une
