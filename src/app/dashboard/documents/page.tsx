@@ -9,8 +9,6 @@ import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-fro
 import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
-import { storage } from '@/lib/firebase-client';
-import { ref, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
 import {
   Dialog,
@@ -145,6 +143,13 @@ export default function DocumentsPage() {
     return [...(doc?.auditTrail || []), event];
   };
 
+  const updateLocalDocument = (updatedDoc: Document) => {
+      setDocuments(docs => docs.map(d => d.id === updatedDoc.id ? updatedDoc : d));
+      if (activeDocument?.id === updatedDoc.id) {
+          handleSetActiveDocument(updatedDoc);
+      }
+  }
+
 
   const handleProcessDocument = async (docId: string) => {
     const docToProcess = documents.find(d => d.id === docId);
@@ -152,16 +157,15 @@ export default function DocumentsPage() {
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
-    setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'processing', auditTrail: trail} : d));
+    updateLocalDocument({ ...docToProcess, status: 'processing', auditTrail: trail });
     
     try {
-        let docWithDataUrl = { ...docToProcess };
-        if (!docWithDataUrl.dataUrl) {
-            const url = await getDownloadURL(ref(storage, docWithDataUrl.storagePath));
-            const response = await fetch(url);
-            const blob = await response.blob();
-            docWithDataUrl.dataUrl = await fileToDataUri(new File([blob], docWithDataUrl.name));
-        }
+      let docWithDataUrl = { ...docToProcess };
+      if (!docWithDataUrl.dataUrl) {
+          // In simulation, we assume dataUrl is there if needed, but this is a safe fallback
+          const tempFile = new File([], docToProcess.name);
+          docWithDataUrl.dataUrl = await fileToDataUri(tempFile);
+      }
 
       const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
       trail = await addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
@@ -193,9 +197,9 @@ export default function DocumentsPage() {
               createNotification({ ...docToProcess, ...finalUpdates }, 'a été approuvé automatiquement.');
 
               if (automationSettings.autoSend) {
-                // We need to fetch the updated document state before sending
-                const updatedDocForSend = await getDocumentById(docId);
-                if (updatedDocForSend) await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
+                const sendResult = await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
+                const finalDoc = await getDocumentById(docId);
+                if (finalDoc) updateLocalDocument(finalDoc);
               }
 
           } else {
@@ -207,24 +211,19 @@ export default function DocumentsPage() {
          toast({ title: "Traitement terminé", description: `Données extraites de ${docToProcess.name}. Prêt pour examen.` });
          createNotification({ ...docToProcess, ...finalUpdates }, 'est prêt pour examen.');
       }
-
+      
       await updateDocument({ id: docId, updates: finalUpdates });
-      const finalDoc = {
-        ...docWithDataUrl,
-        ...finalUpdates,
-        id: docId
-      };
-      setDocuments(docs => docs.map(d => d.id === docId ? finalDoc : d));
-      if(activeDocument?.id === docId) {
-        handleSetActiveDocument(finalDoc);
+      const finalDoc = await getDocumentById(docId);
+      if (finalDoc) {
+        updateLocalDocument({ ...finalDoc, dataUrl: docWithDataUrl.dataUrl });
       }
-
 
     } catch (error) {
       console.error("Error processing document:", error);
       trail = await addAuditEvent(docId, 'Erreur de traitement IA');
       await updateDocument({ id: docId, updates: { status: 'error', auditTrail: trail } });
-      setDocuments(docs => docs.map(d => d.id === docId ? {...d, status: 'error', auditTrail: trail} : d));
+      const finalDoc = await getDocumentById(docId);
+      if (finalDoc) updateLocalDocument(finalDoc);
       toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${docToProcess.name}.` });
       createNotification({ ...docToProcess, status: 'error' }, 'a échoué lors du traitement.');
     } finally {
@@ -236,18 +235,17 @@ export default function DocumentsPage() {
     const trail = await addAuditEvent(docId, 'Document approuvé manuellement', getCurrentUser());
     const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
     await updateDocument({ id: docId, updates });
-    const doc = documents.find(d => d.id === docId);
+    const doc = await getDocumentById(docId);
     if(doc) {
-        const updatedDoc = {...doc, ...updates};
-        setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
-        handleSetActiveDocument(updatedDoc);
+        updateLocalDocument(doc);
         createNotification(doc, 'a été approuvé.');
         toast({ title: "Document approuvé", description: "Les données ont été validées et enregistrées." });
     }
   };
 
-   const handleAddComment = async (docId: string, commentText: string) => {
+   const handleAddComment = async (commentText: string) => {
     if (!commentText.trim() || !activeDocument) return;
+    const docId = activeDocument.id;
     const newComment: Comment = {
       id: crypto.randomUUID(),
       text: commentText,
@@ -255,37 +253,26 @@ export default function DocumentsPage() {
       date: new Date().toISOString(),
     };
     const trail = await addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`, getCurrentUser());
-    const doc = documents.find(d => d.id === docId);
+    const doc = await getDocumentById(docId);
     const updatedComments = [...(doc?.comments || []), newComment];
     await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
-    const updatedDoc = {...doc!, comments: updatedComments, auditTrail: trail};
-    setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
-    handleSetActiveDocument(updatedDoc);
+    const updatedDoc = await getDocumentById(docId);
+    if(updatedDoc) updateLocalDocument(updatedDoc);
   };
   
   const handleSetActiveDocument = async (doc: Document | null) => {
     if (doc) {
         setZoom(1);
         setRotation(0);
-        
         let docWithDataUrl = doc;
-
-        if (!doc.dataUrl && doc.storagePath) {
-             try {
-                const url = await getDownloadURL(ref(storage, doc.storagePath));
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const dataUrl = await fileToDataUri(new File([blob], doc.name));
-                docWithDataUrl = {...doc, dataUrl };
-                setDocuments(docs => docs.map(d => d.id === doc.id ? docWithDataUrl : d));
-             } catch (error) {
-                console.error("Failed to get download URL", error);
-                toast({ title: "Erreur de chargement", description: "Impossible de récupérer l'aperçu du document.", variant: "destructive" });
-             }
+        
+        // Data URL is now added during upload in simulation, so this might not be needed
+        // but it's a good fallback.
+        if (!doc.dataUrl) {
+            docWithDataUrl = {...doc, dataUrl: `https://picsum.photos/seed/${doc.id}/800/1100`};
         }
         
         setActiveDocument(docWithDataUrl);
-
     } else {
         setActiveDocument(null);
     }
@@ -330,19 +317,13 @@ export default function DocumentsPage() {
 
   const handleDeleteSingle = async (docId: string) => {
      await deleteDocument(docId);
-     const doc = documents.find(d => d.id === docId);
-     if(doc?.storagePath) await deleteObject(ref(storage, doc.storagePath));
      setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
      if (activeDocument?.id === docId) setActiveDocument(null);
      toast({ variant: 'destructive', title: "Document supprimé" });
   }
 
   const handleBulkDelete = async () => {
-    const promises = selectedDocumentIds.map(async (docId) => {
-        await deleteDocument(docId);
-        const doc = documents.find(d => d.id === docId);
-        if(doc?.storagePath) await deleteObject(ref(storage, doc.storagePath));
-    });
+    const promises = selectedDocumentIds.map(docId => deleteDocument(docId));
     await Promise.all(promises);
     setDocuments(prevDocs => prevDocs.filter(doc => !selectedDocumentIds.includes(doc.id)));
     if (activeDocument && selectedDocumentIds.includes(activeDocument.id)) setActiveDocument(null);
@@ -601,9 +582,10 @@ export default function DocumentsPage() {
                         <DataValidationForm
                             key={activeDocument.id}
                             document={activeDocument}
-                            onUpdate={(data) => handleUpdateDocumentData(activeDocument.id, data)}
+                            onUpdate={handleUpdateDocumentData}
                             isLoading={isProcessing}
-                            onAddComment={(commentText) => handleAddComment(activeDocument.id, commentText)}
+                            onAddComment={handleAddComment}
+                            onUpdateDocumentInList={updateLocalDocument}
                          />
                     </div>
                 </div>

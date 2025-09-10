@@ -20,13 +20,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { getDocuments, sendDocumentToCegid } from '@/ai/flows/document-actions';
+import { getDocuments, sendDocumentToCegid, getDocumentById } from '@/ai/flows/document-actions';
 
 interface DataValidationFormProps {
   document: Document | null;
-  onUpdate: (updatedData: ExtractDataOutput) => void;
+  onUpdate: (docId: string, updatedData: ExtractDataOutput) => void;
   isLoading: boolean;
   onAddComment: (commentText: string) => void;
+  onUpdateDocumentInList: (updatedDoc: Document) => void;
 }
 
 const initialFormState: ExtractDataOutput = {
@@ -261,7 +262,7 @@ const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { for
 }
 
 
-export function DataValidationForm({ document, onUpdate, isLoading, onAddComment }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, isLoading, onAddComment, onUpdateDocumentInList }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSending, setIsSending] = useState(false);
   const [allDocs, setAllDocs] = useState<Document[]>([]);
@@ -304,7 +305,11 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     const result = await sendDocumentToCegid(document.id, currentUser);
     if(result.success) {
       toast({ title: "Données envoyées", description: `${document.name} a été envoyé à CEGID avec succès.` });
-      // The parent component will refetch the documents list which will update the audit trail.
+      // Fetch the updated document to get the new audit trail
+      const updatedDoc = await getDocumentById(document.id);
+      if (updatedDoc) {
+        onUpdateDocumentInList(updatedDoc);
+      }
     } else {
       toast({ variant: 'destructive', title: "Erreur d'envoi", description: result.error });
     }
@@ -313,7 +318,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if(document) onUpdate(formData);
+    if(document) onUpdate(document.id, formData);
   }
 
   const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
@@ -422,5 +427,3 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     </div>
   );
 }
-
-    
