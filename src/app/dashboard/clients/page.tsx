@@ -13,7 +13,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -284,7 +283,7 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={handleClientsImported} />
+                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline">

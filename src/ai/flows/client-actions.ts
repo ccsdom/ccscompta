@@ -2,74 +2,14 @@
 'use server';
 
 import { z } from 'zod';
-import { db, auth } from '@/lib/firebase-admin';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
-import { Timestamp, type DocumentSnapshot, type DocumentData } from 'firebase-admin/firestore';
-import type { Auth } from 'firebase-admin/auth';
-import { UserRecord } from 'firebase-admin/auth';
-
 
 // --- THIS IS NOW A MOCK IMPLEMENTATION TO BYPASS SERVER AUTH ISSUES ---
 // We will operate directly on an in-memory array that is a copy of MOCK_CLIENTS.
 // This is not a production-ready solution, but a workaround for the current environment.
 
-let clientsStore: Client[] = [...MOCK_CLIENTS];
-
-
-// Helper pour convertir les données de Firestore (côté admin)
-const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
-  const data = doc.data();
-  if (!data) {
-    throw new Error(`Document ${doc.id} has no data`);
-  }
-  
-  let lastActivity: string;
-  const activityData = data.lastActivity;
-
-  if (activityData instanceof Timestamp) {
-    lastActivity = activityData.toDate().toISOString().split('T')[0];
-  } else if (typeof typeof activityData === 'string') {
-    // Handle mock data seeding case where date might be a string
-    lastActivity = activityData;
-  } else {
-    lastActivity = new Date().toISOString().split('T')[0];
-  }
-
-  return {
-    id: doc.id,
-    name: data.name ?? '',
-    siret: data.siret ?? '',
-    address: data.address ?? '',
-    legalRepresentative: data.legalRepresentative ?? '',
-    fiscalYearEndDate: data.fiscalYearEndDate ?? '',
-    status: data.status ?? 'inactive',
-    newDocuments: data.newDocuments ?? 0,
-    lastActivity,
-    email: data.email ?? '',
-    phone: data.phone ?? '',
-    assignedAccountantId: data.assignedAccountantId ?? undefined,
-  };
-};
-
-export async function getUserProfile(uid: string): Promise<{role: string, name: string, email: string, clientId?: string} | null> {
-    if (!db) {
-        throw new Error("Firestore Admin DB is not available. Check server-side Firebase initialization.");
-    }
-    try {
-        const userDoc = await db.collection('users').doc(uid).get();
-        if (userDoc.exists) {
-            return userDoc.data() as {role: string, name: string, email: string, clientId?: string};
-        }
-        
-        console.warn(`No profile found for UID ${uid}.`);
-        return null;
-
-    } catch (error) {
-        console.error(`Error in getUserProfile for UID ${uid}:`, error);
-        return null;
-    }
-}
+let clientsStore: Client[] = JSON.parse(JSON.stringify(MOCK_CLIENTS));
 
 
 export async function getClients(): Promise<Client[]> {
