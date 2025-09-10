@@ -10,6 +10,13 @@ import type { Auth } from 'firebase-admin/auth';
 import { UserRecord } from 'firebase-admin/auth';
 
 
+// --- THIS IS NOW A MOCK IMPLEMENTATION TO BYPASS SERVER AUTH ISSUES ---
+// We will operate directly on the MOCK_CLIENTS array.
+// This is not a production-ready solution, but a workaround for the current environment.
+
+let clientsStore: Client[] = [...MOCK_CLIENTS];
+
+
 // Helper pour convertir les données de Firestore (côté admin)
 const fromFirestore = (doc: DocumentSnapshot<DocumentData>): Client => {
   const data = doc.data();
@@ -66,58 +73,13 @@ export async function getUserProfile(uid: string): Promise<{role: string, name: 
 
 
 export async function getClients(): Promise<Client[]> {
-    if (!db) {
-        console.error("Firestore Admin DB not available for getClients.");
-        return MOCK_CLIENTS;
-    }
-  const clientsCollection = db.collection('clients');
-  try {
-    const snapshot = await clientsCollection.get();
-    let clients = snapshot.docs.map(fromFirestore);
-
-    if (clients.length === 0) {
-      console.log('No clients found in DB, attempting to seed with mock data...');
-      const batch = db.batch();
-      
-      for (const client of MOCK_CLIENTS) {
-        const { id, ...clientData } = client;
-        const docRef = clientsCollection.doc(id); 
-        batch.set(docRef, clientData);
-      }
-      await batch.commit();
-      
-      console.log("Mock clients seeded.");
-      const seededSnapshot = await clientsCollection.get();
-      clients = seededSnapshot.docs.map(fromFirestore);
-    }
-    
-    return clients;
-
-  } catch (error) {
-    console.error('Erreur lors de la récupération des clients:', error);
-    console.log("Returning mock clients as a fallback.");
-    return MOCK_CLIENTS;
-  }
+  console.log("MOCK getClients: Returning in-memory clients.");
+  return Promise.resolve(clientsStore);
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
-    if (!db) {
-        console.error("Firestore Admin DB not available for getClientById.");
-        return MOCK_CLIENTS.find(c => c.id === id);
-    }
-  const clientsCollection = db.collection('clients');
-  try {
-    const docRef = clientsCollection.doc(id);
-    const docSnap = await docRef.get();
-
-    if (docSnap.exists) {
-      return fromFirestore(docSnap);
-    }
-    return undefined;
-  } catch (error) {
-    console.error('Erreur lors de la récupération du client:', error);
-    return undefined;
-  }
+  console.log(`MOCK getClientById: Searching for ID ${id}`);
+  return Promise.resolve(clientsStore.find(c => c.id === id));
 }
 
 const AddClientInputSchema = z.object({
@@ -139,30 +101,28 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  if (!db) {
-    return { success: false, error: "La base de données n'est pas disponible." };
-  }
-  const clientsCollection = db.collection('clients');
+  console.log("MOCK addClient: Adding new client to in-memory store.");
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
 
-    const clientWithActivity = {
+    // Check for duplicate SIRET
+    if (clientsStore.some(c => c.siret === validatedData.siret)) {
+        return { success: false, error: "Un client avec ce numéro de SIRET existe déjà." };
+    }
+
+    const newClient: Client = {
       ...validatedData,
+      id: `client-${Date.now()}`, // Generate a unique ID
       newDocuments: 0,
-      lastActivity: Timestamp.fromDate(new Date()),
+      lastActivity: new Date().toISOString().split('T')[0],
     };
     
-    const docRef = await clientsCollection.add(clientWithActivity);
+    clientsStore.push(newClient);
     
-    const newDoc = await docRef.get();
+    return { success: true, data: newClient };
 
-    if (newDoc.exists) {
-        return { success: true, data: fromFirestore(newDoc) };
-    } else {
-        throw new Error("La création du document client a échoué après l'ajout.");
-    }
   } catch (error) {
-    console.error('Error adding client:', error);
+    console.error('MOCK Error adding client:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
@@ -181,28 +141,26 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-   if (!db) {
-    return { success: false, error: "La base de données n'est pas disponible." };
-  }
-  const clientsCollection = db.collection('clients');
+   console.log(`MOCK updateClient: Updating client ${id}`);
   try {
     const validatedUpdates = UpdateClientInputSchema.parse({ id, updates });
-    const docRef = clientsCollection.doc(validatedUpdates.id);
+    const clientIndex = clientsStore.findIndex(c => c.id === validatedUpdates.id);
 
-    const updatesWithActivity = {
+    if (clientIndex === -1) {
+        return { success: false, error: "Client non trouvé." };
+    }
+
+    const updatedClient = {
+      ...clientsStore[clientIndex],
       ...validatedUpdates.updates,
-      lastActivity: Timestamp.fromDate(new Date()),
+      lastActivity: new Date().toISOString().split('T')[0],
     };
 
-    await docRef.update(updatesWithActivity);
+    clientsStore[clientIndex] = updatedClient;
 
-    const updatedDoc = await docRef.get();
-    if (updatedDoc.exists) {
-      return { success: true, data: fromFirestore(updatedDoc) };
-    }
-    throw new Error('Document not found after update.');
+    return { success: true, data: updatedClient };
   } catch (error) {
-    console.error('Error updating client:', error);
+    console.error('MOCK Error updating client:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue.',
@@ -213,21 +171,15 @@ export async function updateClient(
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
-   if (!db) {
-    return { success: false, error: "La base de données n'est pas disponible." };
-  }
-  const clientsCollection = db.collection('clients');
-  try {
-    const docRef = clientsCollection.doc(id);
-    await docRef.delete();
-    return { success: true, data: null };
-  } catch (error) {
-    console.error('Error deleting client:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue.',
-    };
-  }
+   console.log(`MOCK deleteClient: Deleting client ${id}`);
+   const initialLength = clientsStore.length;
+   clientsStore = clientsStore.filter(c => c.id !== id);
+
+   if (clientsStore.length < initialLength) {
+       return { success: true, data: null };
+   } else {
+       return { success: false, error: "Client non trouvé." };
+   }
 }
 
 const UpdateClientsStatusInputSchema = z.object({
@@ -238,28 +190,21 @@ const UpdateClientsStatusInputSchema = z.object({
 export async function updateClientsStatus(
     { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
 ): Promise<{ success: boolean; updatedCount: number, error?: string }> {
-    if (!db) {
-      return { success: false, updatedCount: 0, error: "La base de données n'est pas disponible." };
-    }
-    const batch = db.batch();
-
-    try {
-        if (clientIds.length === 0) {
-            return { success: true, updatedCount: 0 };
+    console.log(`MOCK updateClientsStatus: Updating status for ${clientIds.length} clients to ${status}`);
+    let updatedCount = 0;
+    clientsStore = clientsStore.map(client => {
+        if (clientIds.includes(client.id)) {
+            updatedCount++;
+            return {
+                ...client,
+                status: status,
+                lastActivity: new Date().toISOString().split('T')[0],
+            };
         }
+        return client;
+    });
 
-        clientIds.forEach(id => {
-            const docRef = db.collection('clients').doc(id);
-            batch.update(docRef, { status: status, lastActivity: Timestamp.fromDate(new Date()) });
-        });
-
-        await batch.commit();
-        
-        return { success: true, updatedCount: clientIds.length };
-    } catch (error) {
-        console.error("Error updating clients status:", error);
-        return { success: false, updatedCount: 0, error: error instanceof Error ? error.message : 'Erreur inconnue.' };
-    }
+    return { success: true, updatedCount };
 }
 
 export interface Accountant {
@@ -267,26 +212,12 @@ export interface Accountant {
     name: string;
 }
 
+const MOCK_ACCOUNTANTS: Accountant[] = [
+    { id: 'acc-01', name: 'Alain Comptable' },
+    { id: 'acc-02', name: 'Béatrice Fiscale' },
+];
+
 export async function getAccountants(): Promise<Accountant[]> {
-    if (!db) {
-        console.error("Firestore Admin DB not available for getAccountants.");
-        return [];
-    }
-    try {
-        const usersCollection = db.collection('users');
-        const q = usersCollection.where('role', '==', 'accountant');
-        const querySnapshot = await q.get();
-
-        if (querySnapshot.empty) {
-            return [];
-        }
-
-        return querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            name: doc.data().name || 'Nom inconnu',
-        }));
-    } catch (error) {
-        console.error('Error fetching accountants:', error);
-        return [];
-    }
+    console.log("MOCK getAccountants: Returning mock accountants.");
+    return Promise.resolve(MOCK_ACCOUNTANTS);
 }

@@ -1,11 +1,11 @@
 
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2, LogIn } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, LogIn } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -41,6 +41,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { CompanySearchCombobox } from '@/components/company-search-combobox';
 
 
 export default function ClientsPage() {
@@ -53,7 +54,7 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchClientsAndAccountants = async () => {
+    const fetchClientsAndAccountants = useCallback(async () => {
         setLoading(true);
         try {
             const [clientsData, accountantsData] = await Promise.all([
@@ -73,11 +74,11 @@ export default function ClientsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         fetchClientsAndAccountants();
-    }, [router.asPath]); // Re-fetch when route changes (e.g., after adding a client)
+    }, [fetchClientsAndAccountants]);
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -106,12 +107,10 @@ export default function ClientsPage() {
     }
 
     const handleImpersonate = (client: Client) => {
-        // Store original user info
         localStorage.setItem('originalUserRole', localStorage.getItem('userRole') || 'admin');
         localStorage.setItem('originalUserName', localStorage.getItem('userName') || 'Super Admin');
         localStorage.setItem('originalUserEmail', localStorage.getItem('userEmail') || '');
 
-        // Set new "impersonated" user info
         localStorage.setItem('userRole', 'client');
         localStorage.setItem('userName', client.legalRepresentative);
         localStorage.setItem('userEmail', client.email);
@@ -122,7 +121,6 @@ export default function ClientsPage() {
             description: `Vous naviguez maintenant en tant que ${client.name}.`,
         });
 
-        // Trigger a storage event to update all components and redirect
         window.dispatchEvent(new Event('storage'));
         router.push('/dashboard/my-documents');
     }
@@ -131,7 +129,7 @@ export default function ClientsPage() {
         if (!clientToDelete) return;
         const result = await deleteClient(clientToDelete.id);
         if (result.success) {
-            setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+            fetchClientsAndAccountants(); // Refetch the list
             toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
         } else {
             toast({ variant: 'destructive', title: 'Erreur', description: result.error });
@@ -148,7 +146,7 @@ export default function ClientsPage() {
         if (clientsToExport.length === 0) {
             toast({
                 title: "Aucun client à exporter",
-                description: "La base de données est vide.",
+                description: "La liste des clients est vide.",
                 variant: "destructive"
             });
             return null;

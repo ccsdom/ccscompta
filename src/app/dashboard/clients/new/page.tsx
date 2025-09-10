@@ -27,7 +27,6 @@ export default function NewClientPage() {
                 description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
             router.push('/dashboard/clients');
-            router.refresh(); // Refresh the client list page
         } else {
             console.error("Failed to add client:", result.error);
             toast({
@@ -35,8 +34,8 @@ export default function NewClientPage() {
                 title: "Erreur lors de l'ajout du client",
                 description: result.error
             });
-            setIsSubmitting(false);
         }
+        setIsSubmitting(false);
     }
 
     return (

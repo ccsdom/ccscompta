@@ -24,7 +24,7 @@ export default function EditClientPage() {
         if (params.id) {
             const fetchClient = async () => {
                 setLoading(true);
-                const clientData = await getClientById(params.id);
+                const clientData = await getClientById(params.id as string);
                 if (clientData) {
                     setClient(clientData);
                 }
@@ -37,7 +37,7 @@ export default function EditClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         if (!params.id) return;
         setIsSubmitting(true);
-        const result = await updateClient({id: params.id, updates: data});
+        const result = await updateClient({id: params.id as string, updates: data});
         
         if (result.success) {
             toast({
@@ -45,7 +45,6 @@ export default function EditClientPage() {
                 description: `Les informations de ${data.name} ont été mises à jour.`
             });
             router.push('/dashboard/clients');
-            router.refresh(); // To refetch the list on the clients page
         } else {
             console.error("Failed to update client:", result.error);
             toast({
@@ -53,8 +52,8 @@ export default function EditClientPage() {
                 title: "Erreur",
                 description: result.error
             });
-            setIsSubmitting(false);
         }
+        setIsSubmitting(false);
     }
 
     if (loading) {
@@ -94,5 +93,3 @@ export default function EditClientPage() {
         </div>
     )
 }
-
-    
