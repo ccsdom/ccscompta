@@ -11,7 +11,7 @@ import { UserRecord } from 'firebase-admin/auth';
 
 
 // --- THIS IS NOW A MOCK IMPLEMENTATION TO BYPASS SERVER AUTH ISSUES ---
-// We will operate directly on the MOCK_CLIENTS array.
+// We will operate directly on an in-memory array that is a copy of MOCK_CLIENTS.
 // This is not a production-ready solution, but a workaround for the current environment.
 
 let clientsStore: Client[] = [...MOCK_CLIENTS];
