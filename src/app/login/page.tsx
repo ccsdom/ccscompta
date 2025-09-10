@@ -18,9 +18,6 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { auth } from '@/lib/firebase-client';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type AuthError } from "firebase/auth";
-import { addClient, getClients } from "@/ai/flows/client-actions";
 
 // --- Début de la section de simulation ---
 
@@ -42,21 +39,21 @@ const DEMO_USERS = {
   "aventure.action@example.com": {
     password: "Password123!",
     role: "client",
-    name: "Jean-Michel Aventurier",
+    name: "ACTION AVENTURE",
     email: "aventure.action@example.com",
     clientId: "client-01",
   },
   "contact.autoecole@example.com": {
     password: "Password123!",
     role: "client",
-    name: "Marie Conduite",
+    name: "AUTO ECOLE DE LA MAIRIE",
     email: "contact.autoecole@example.com",
     clientId: "client-02",
   },
    "vsw.contact@gmail.com": {
     password: "Password123!",
     role: "client",
-    name: "Victor Hugo",
+    name: "VSW SAS",
     email: "vsw.contact@gmail.com",
     clientId: "vsw-sas",
   },
@@ -106,39 +103,13 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-        const authError = error as AuthError;
-        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
-             try {
-                // If user not found or creds are wrong, try creating the account
-                await createUserWithEmailAndPassword(auth, email, password);
-             } catch (creationError) {
-                 const creationAuthError = creationError as AuthError;
-                  toast({
-                    variant: "destructive",
-                    title: "Erreur de création de compte",
-                    description: `Le mot de passe est peut-être trop faible ou l'email est invalide.`,
-                });
-                setIsLoading(false);
-                return;
-             }
-        } else {
-             toast({
-                variant: "destructive",
-                title: "Erreur de connexion",
-                description: "Une erreur inattendue est survenue.",
-            });
-            setIsLoading(false);
-            return;
-        }
-    }
-
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const userEmailKey = email as keyof typeof DEMO_USERS;
     const user = DEMO_USERS[userEmailKey];
 
-    if (user) {
+    if (user && user.password === password) {
         localStorage.setItem('userRole', user.role);
         localStorage.setItem('userName', user.name);
         localStorage.setItem('userEmail', user.email);
@@ -166,7 +137,7 @@ export default function LoginPage() {
         toast({
             variant: "destructive",
             title: "Erreur de connexion",
-            description: "Cet utilisateur n'est pas un utilisateur de démo valide.",
+            description: "Adresse email ou mot de passe incorrect.",
         });
         setIsLoading(false);
     }
