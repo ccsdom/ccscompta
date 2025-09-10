@@ -79,7 +79,7 @@ export default function ClientsPage() {
         const handleStorageChange = (event: StorageEvent) => {
              if (event.key === 'clientsLastUpdated') {
                 fetchClientsAndAccountants();
-            }
+             }
         };
 
         window.addEventListener('storage', handleStorageChange);

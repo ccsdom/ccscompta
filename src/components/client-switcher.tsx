@@ -75,7 +75,7 @@ export function ClientSwitcher() {
     
     // This listener handles updates from other components
     const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === 'selectedClientId' || event.key === 'clients' || event.key === 'userRole') {
+        if (event.key === 'selectedClientId' || event.key === 'clientsLastUpdated' || event.key === 'userRole') {
            fetchAndSetClients();
         }
     };

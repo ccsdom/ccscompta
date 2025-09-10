@@ -41,7 +41,6 @@ export default function NewClientPage() {
             });
             // Inform other components that the client list has changed
             localStorage.setItem('clientsLastUpdated', Date.now().toString());
-            window.dispatchEvent(new Event('storage'));
             router.push('/dashboard/clients');
         } else {
             console.error("Failed to add client:", result.error);
