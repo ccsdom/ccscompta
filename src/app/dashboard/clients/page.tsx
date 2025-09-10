@@ -61,17 +61,6 @@ export default function ClientsPage() {
                 getAccountants()
             ]);
             
-            // Check for a newly added client from local storage to handle the mock update
-            const newlyAddedClientJson = localStorage.getItem('newlyAddedClient');
-            if (newlyAddedClientJson) {
-                const newClient = JSON.parse(newlyAddedClientJson);
-                // Avoid adding duplicates
-                if (!clientsData.some(c => c.id === newClient.id)) {
-                    clientsData.push(newClient);
-                }
-                localStorage.removeItem('newlyAddedClient');
-            }
-            
             setClients(clientsData);
             setAccountants(accountantsData);
         } catch (error) {
@@ -88,7 +77,7 @@ export default function ClientsPage() {
 
     useEffect(() => {
         fetchClientsAndAccountants();
-    }, []);
+    }, [router.asPath]); // Re-fetch when route changes (e.g., after adding a client)
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -486,5 +475,3 @@ export default function ClientsPage() {
         </div>
     )
 }
-
-    

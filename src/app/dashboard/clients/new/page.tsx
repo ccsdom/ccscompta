@@ -26,14 +26,8 @@ export default function NewClientPage() {
                 title: "Client ajouté",
                 description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
-            // Store the new client in local storage so the list page can pick it up
-            try {
-                localStorage.setItem('newlyAddedClient', JSON.stringify(result.data));
-            } catch (e) {
-                console.error("Could not save new client to localstorage", e);
-            }
             router.push('/dashboard/clients');
-            router.refresh();
+            router.refresh(); // Refresh the client list page
         } else {
             console.error("Failed to add client:", result.error);
             toast({

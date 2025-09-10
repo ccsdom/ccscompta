@@ -139,38 +139,36 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  // WORKAROUND: Bypass Firestore due to persistent server auth errors. Use mock data instead.
-  console.log("Using mocked addClient function to bypass server auth issues.");
+  if (!db) {
+    return { success: false, error: "La base de données n'est pas disponible." };
+  }
+  const clientsCollection = db.collection('clients');
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
-    
-    const existingClient = MOCK_CLIENTS.find(c => c.siret === validatedData.siret);
-    if (existingClient) {
-      throw new Error(
-        `Un client avec le SIRET ${validatedData.siret} existe déjà dans les données simulées : ${existingClient.name}.`
-      );
-    }
-    
-    const newClient: Client = {
-      id: `client-${Date.now()}`,
+
+    const clientWithActivity = {
       ...validatedData,
       newDocuments: 0,
-      lastActivity: new Date().toISOString(),
+      lastActivity: Timestamp.fromDate(new Date()),
     };
-
-    MOCK_CLIENTS.push(newClient);
     
-    console.log("Successfully added client to mock data array:", newClient);
-    return { success: true, data: newClient };
+    const docRef = await clientsCollection.add(clientWithActivity);
+    
+    const newDoc = await docRef.get();
 
+    if (newDoc.exists) {
+        return { success: true, data: fromFirestore(newDoc) };
+    } else {
+        throw new Error("La création du document client a échoué après l'ajout.");
+    }
   } catch (error) {
-    console.error('Error in mocked addClient:', error);
+    console.error('Error adding client:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue dans la fonction simulée.',
+      error: error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du client.',
     };
   }
 }
@@ -292,5 +290,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return [];
     }
 }
-
-    
