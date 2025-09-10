@@ -18,7 +18,7 @@ export default function NewClientPage() {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // This state is now only used for pre-filling from search, not for re-rendering
+    // This state is now used for pre-filling from search.
     const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>(() => {
         const data: Partial<z.infer<typeof formSchema>> = {};
         searchParams.forEach((value, key) => {
