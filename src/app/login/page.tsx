@@ -26,35 +26,35 @@ import { addClient, getClients } from "@/ai/flows/client-actions";
 
 const DEMO_USERS = {
   "app.ccs94@gmail.com": {
-    password: "demodemo",
+    password: "Password123!",
     role: "admin",
     name: "Comptable Principal",
     email: "app.ccs94@gmail.com",
     clientId: null,
   },
   "secretaire@ccs.com": {
-    password: "demodemo",
+    password: "Password123!",
     role: "secretary",
     name: "Secrétaire Admin",
     email: "secretaire@ccs.com",
     clientId: null,
   },
   "aventure.action@example.com": {
-    password: "demodemo",
+    password: "Password123!",
     role: "client",
     name: "Jean-Michel Aventurier",
     email: "aventure.action@example.com",
     clientId: "client-01",
   },
   "contact.autoecole@example.com": {
-    password: "demodemo",
+    password: "Password123!",
     role: "client",
     name: "Marie Conduite",
     email: "contact.autoecole@example.com",
     clientId: "client-02",
   },
    "vsw.contact@gmail.com": {
-    password: "demodemo",
+    password: "Password123!",
     role: "client",
     name: "Victor Hugo",
     email: "vsw.contact@gmail.com",
@@ -93,7 +93,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState("app.ccs94@gmail.com");
-  const [password, setPassword] = useState("demodemo");
+  const [password, setPassword] = useState("Password123!");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
