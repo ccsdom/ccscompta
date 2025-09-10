@@ -5,8 +5,6 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
-import { storage } from '@/lib/firebase-client';
-import { ref, getDownloadURL, deleteObject, uploadBytes } from "firebase/storage";
 import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -150,6 +148,8 @@ export default function MyDocumentsPage() {
     const processFile = async (file: File) => {
       let docToUpdate: Document | null = null;
       try {
+        const dataUrl = await fileToDataUri(file);
+
         // Create a temporary document object to show in the UI immediately
         const tempId = `temp-${Date.now()}`;
         const tempDoc: Document = {
@@ -157,29 +157,24 @@ export default function MyDocumentsPage() {
             name: file.name,
             uploadDate: new Date().toISOString(),
             status: 'processing',
-            storagePath: '',
+            dataUrl: dataUrl, // Use dataUrl for immediate preview
+            storagePath: `simulated/${clientId}/${file.name}`, // Simulated path
             clientId: clientId,
             auditTrail: addAuditEvent([], 'Document téléversé par le client'),
             comments: [],
         };
         setDocuments(prev => [tempDoc, ...prev]);
 
-        // Upload to Storage
-        const storagePath = `${clientId}/${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, file);
-
-        // Create the document in Firestore
-        const newDocData: Omit<Document, 'id'> = { ...tempDoc, storagePath };
+        // Create the document in the simulated store
+        const newDocData: Omit<Document, 'id'> = { ...tempDoc };
         docToUpdate = await addDocument(newDocData);
 
-        if (!docToUpdate) throw new Error("Failed to create document in Firestore.");
+        if (!docToUpdate) throw new Error("Failed to create document in the simulated store.");
         
-        // Replace temp doc with real one
-        setDocuments(prev => prev.map(d => d.id === tempId ? { ...docToUpdate!, status: 'processing' } : d));
+        // Replace temp doc with real one from the store
+        setDocuments(prev => prev.map(d => d.id === tempId ? { ...docToUpdate!, status: 'processing', dataUrl } : d));
 
         // Start AI processing
-        const dataUrl = await fileToDataUri(file);
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
         const trailWithAI = addAuditEvent(docToUpdate.auditTrail, 'Traitement IA terminé');
@@ -193,6 +188,7 @@ export default function MyDocumentsPage() {
         };
 
         await updateDocument({ id: docToUpdate.id, updates: finalUpdates });
+        // Update the state with the final processed document
         setDocuments(prev => prev.map(d => d.id === docToUpdate!.id ? { ...d, ...finalUpdates } : d));
         createNotification({ ...docToUpdate, ...finalUpdates }, 'est prêt pour examen.');
         successCount++;
@@ -234,29 +230,14 @@ export default function MyDocumentsPage() {
 
   const handleDelete = async (docId: string) => {
      await deleteDocument(docId);
-     const doc = documents.find(d => d.id === docId);
-     if(doc?.storagePath) await deleteObject(ref(storage, doc.storagePath));
      setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
      if (activeDocument?.id === docId) { setActiveDocument(null); setIsSheetOpen(false); }
      toast({ variant: 'destructive', title: "Document supprimé" });
   }
 
   const handleSetActive = async (doc: Document) => {
-    let docWithDataUrl = doc;
-    if (!doc.dataUrl && doc.storagePath) {
-        try {
-            const url = await getDownloadURL(ref(storage, doc.storagePath));
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const dataUrl = await fileToDataUri(new File([blob], doc.name));
-            docWithDataUrl = { ...doc, dataUrl };
-            setDocuments(docs => docs.map(d => d.id === doc.id ? docWithDataUrl : d));
-        } catch (error) {
-            console.error("Failed to get download URL", error);
-            toast({ title: "Erreur de chargement", description: "Impossible de récupérer l'aperçu du document.", variant: "destructive" });
-        }
-    }
-    setActiveDocument(docWithDataUrl);
+    // dataUrl is already set during upload in the simulation
+    setActiveDocument(doc);
     setIsSheetOpen(true);
   }
   

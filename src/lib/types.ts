@@ -1,3 +1,4 @@
+
 export interface AuditEvent {
     action: string;
     date: string;
@@ -45,8 +46,8 @@ export interface Document {
   name: string;
   uploadDate: string; // ISO 8601 string date
   status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error';
-  dataUrl?: string; // Kept for immediate preview, but not stored in Firestore
-  storagePath: string; // Path to the file in Firebase Storage
+  dataUrl?: string; // Stored in memory for preview, not in DB
+  storagePath: string; // Can be a real path or a simulated one
   type?: string;
   confidence?: number;
   extractedData?: {
