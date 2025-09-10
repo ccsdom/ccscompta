@@ -15,7 +15,9 @@ export default function DashboardRedirect() {
       const role = localStorage.getItem('userRole');
       
       let targetPath = '/login';
-      if (role === 'admin' || role === 'accountant') {
+      if (role === 'admin') {
+        targetPath = '/dashboard/admin';
+      } else if (role === 'accountant') {
         targetPath = '/dashboard/accountant';
       } else if (role === 'client') {
         targetPath = '/dashboard/my-documents';
