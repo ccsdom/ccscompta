@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Check, ChevronsUpDown, Building } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -34,46 +34,53 @@ export function ClientSwitcher() {
   const [clients, setClients] = useState<PopoverClient[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchAndSetClients = async () => {
-        const clientsData = await getClients();
-        const role = localStorage.getItem('userRole');
-        setUserRole(role);
+  const fetchAndSetClients = useCallback(async () => {
+      try {
+          const clientsData = await getClients();
+          const role = localStorage.getItem('userRole');
+          setUserRole(role);
 
-        if (role === 'client') {
-            const userEmail = localStorage.getItem('userEmail');
-            // In a real app, you'd have a more robust way of linking user to client.
-            // Here, we find the client by their name, assuming it's in localStorage.
-            const clientName = localStorage.getItem('userName');
-            const client = clientsData.find(c => c.name === clientName || c.email === userEmail);
-            if(client) {
-                setClients([{ value: client.id, label: client.name }]);
-                setSelectedValue(client.id);
-                localStorage.setItem('selectedClientId', client.id);
-            }
-        } else {
-            setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
-            const storedClientId = localStorage.getItem('selectedClientId');
-            if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
-              setSelectedValue(storedClientId);
-            }
-        }
-    };
+          if (role === 'client') {
+              const userEmail = localStorage.getItem('userEmail');
+              const clientName = localStorage.getItem('userName');
+              const client = clientsData.find(c => c.name === clientName || c.email === userEmail);
+              if (client) {
+                  setClients([{ value: client.id, label: client.name }]);
+                  setSelectedValue(client.id);
+                  if (localStorage.getItem('selectedClientId') !== client.id) {
+                    localStorage.setItem('selectedClientId', client.id);
+                  }
+              }
+          } else {
+              setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
+              const storedClientId = localStorage.getItem('selectedClientId');
+              if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
+                setSelectedValue(storedClientId);
+              }
+          }
+      } catch (error) {
+        console.error("Failed to fetch clients for switcher:", error);
+      }
+  }, []);
+
+
+  useEffect(() => {
     fetchAndSetClients();
     
-    const handleStorageChange = () => {
-          const storedClientId = localStorage.getItem('selectedClientId');
-          if (storedClientId) {
-              setSelectedValue(storedClientId);
-          }
-      };
+    const handleStorageChange = (event: StorageEvent) => {
+        // If the 'clients' or 'selectedClientId' in localStorage changes, refetch everything.
+        if (event.key === 'clients' || event.key === 'selectedClientId') {
+           fetchAndSetClients();
+        }
+    };
+    
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     };
 
-  }, []);
+  }, [fetchAndSetClients]);
 
   const handleClientChange = (value: string) => {
       setSelectedValue(value);
