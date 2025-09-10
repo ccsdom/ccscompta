@@ -23,38 +23,20 @@ import {
 } from "@/components/ui/select"
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Client } from '@/lib/client-data';
+import type { Invoice, Client } from '@/lib/types';
 import { getClients } from '@/ai/flows/client-actions';
+import { getInvoices, updateInvoice } from '@/ai/flows/invoice-actions';
 import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
-
-
-interface Invoice {
-    id: string;
-    clientId: string;
-    clientName: string;
-    number: string;
-    date: string;
-    dueDate: string;
-    amount: number;
-    status: 'paid' | 'pending' | 'overdue';
-}
-
-const mockInvoices: Invoice[] = [
-    { id: '1', clientId: 'client-01', clientName: 'ACTION AVENTURE', number: 'FACT-2024-007', date: '2024-07-01', dueDate: '2024-07-31', amount: 350.00, status: 'pending' },
-    { id: '2', clientId: 'client-02', clientName: 'AUTO ECOLE DE LA MAIRIE', number: 'FACT-2024-006', date: '2024-06-01', dueDate: '2024-06-30', amount: 350.00, status: 'paid' },
-    { id: '3', clientId: 'client-03', clientName: 'BODY MINUTE', number: 'FACT-2024-005', date: '2024-05-01', dueDate: '2024-05-31', amount: 350.00, status: 'paid' },
-    { id: '4', clientId: 'client-04', clientName: 'CABINET FLORET', number: 'FACT-2023-BILAN', date: '2024-04-15', dueDate: '2024-05-15', amount: 1800.00, status: 'overdue' },
-    { id: '5', clientId: 'client-05', clientName: 'CABINET MEDICAL GALEA', number: 'FACT-2024-004', date: '2024-04-01', dueDate: '2024-04-30', amount: 350.00, status: 'paid' },
-    { id: '6', clientId: 'client-06', clientName: 'CHICKEN SPOT', number: 'FACT-2024-008', date: '2024-07-05', dueDate: '2024-08-05', amount: 450.00, status: 'pending' },
-];
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function BillingPage() {
-    const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+    const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
     // Filters state
@@ -64,12 +46,23 @@ export default function BillingPage() {
     const [endDateFilter, setEndDateFilter] = useState('');
 
      useEffect(() => {
-        const fetchClients = async () => {
-            const clientsData = await getClients();
-            setClients(clientsData);
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [clientsData, invoicesData] = await Promise.all([
+                    getClients(),
+                    getInvoices()
+                ]);
+                setClients(clientsData);
+                setInvoices(invoicesData);
+            } catch(e) {
+                 toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les données de facturation.' });
+            } finally {
+                setLoading(false);
+            }
         }
-        fetchClients();
-    }, []);
+        fetchData();
+    }, [toast]);
 
     const filteredInvoices = useMemo(() => {
         return invoices.filter(invoice => {
@@ -84,7 +77,7 @@ export default function BillingPage() {
                    (statusFilter === 'all' || invoice.status === statusFilter) &&
                    (!start || invoiceDate >= start) &&
                    (!end || invoiceDate <= end);
-        });
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [invoices, clientFilter, statusFilter, startDateFilter, endDateFilter]);
 
     const handleSelectAll = (checked: boolean | 'indeterminate') => {
@@ -105,10 +98,16 @@ export default function BillingPage() {
         setSelectedInvoiceIds([]);
     }
 
-    const handleBulkMarkAsPaid = () => {
+    const handleBulkMarkAsPaid = async () => {
+        const updates = selectedInvoiceIds.map(id => 
+            updateInvoice(id, { status: 'paid' })
+        );
+        await Promise.all(updates);
+
         setInvoices(prev => prev.map(inv => 
             selectedInvoiceIds.includes(inv.id) ? { ...inv, status: 'paid' } : inv
         ));
+
         toast({
             title: "Factures mises à jour",
             description: `${selectedInvoiceIds.length} facture(s) ont été marquées comme payées.`,
@@ -168,6 +167,23 @@ export default function BillingPage() {
     }
 
     const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
+
+     if (loading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <Card>
+                    <CardHeader><Skeleton className="h-10 w-full" /></CardHeader>
+                    <CardContent>
+                        <Skeleton className="h-64 w-full" />
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">

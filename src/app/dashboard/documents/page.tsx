@@ -10,6 +10,8 @@ import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
+import { getClients } from '@/ai/flows/client-actions';
+import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +35,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import type { Comment, AuditEvent, Notification, Document } from '@/lib/types';
+import type { Comment, AuditEvent, Notification, Document, Client } from '@/lib/types';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -56,6 +58,7 @@ const TABS_CONFIG = [
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,14 +74,18 @@ export default function DocumentsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-   const fetchDocuments = useCallback(async (clientId: string) => {
+   const fetchDocumentsAndClients = useCallback(async (clientId: string) => {
     setIsLoading(true);
     try {
-      const docs = await getDocuments(clientId);
+      const [docs, allClients] = await Promise.all([
+          getDocuments(clientId),
+          getClients()
+      ]);
       setDocuments(docs);
+      setClients(allClients);
     } catch (error) {
-      console.error("Failed to fetch documents:", error);
-      toast({ title: "Erreur de chargement", description: "Impossible de récupérer les documents.", variant: "destructive" });
+      console.error("Failed to fetch data:", error);
+      toast({ title: "Erreur de chargement", description: "Impossible de récupérer les données.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -97,10 +104,11 @@ export default function DocumentsPage() {
              const clientId = localStorage.getItem('selectedClientId');
              if (clientId && clientId !== selectedClientId) {
                 setSelectedClientId(clientId);
-                fetchDocuments(clientId);
+                fetchDocumentsAndClients(clientId);
                 setActiveDocument(null);
              } else if (!clientId) {
                 setDocuments([]);
+                setClients([]);
                 setSelectedClientId(null);
                 setActiveDocument(null);
              }
@@ -115,7 +123,7 @@ export default function DocumentsPage() {
     loadState();
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
-  }, [selectedClientId, fetchDocuments, searchParams])
+  }, [selectedClientId, fetchDocumentsAndClients, searchParams])
 
 
   const createNotification = (doc: Document, message: string) => {
@@ -195,6 +203,11 @@ export default function DocumentsPage() {
               finalUpdates.status = 'approved';
               toast({ title: "Document auto-approuvé", description: `${docToProcess.name} a été traité et approuvé automatiquement.` });
               createNotification({ ...docToProcess, ...finalUpdates }, 'a été approuvé automatiquement.');
+              
+              const client = clients.find(c => c.id === docToProcess.clientId);
+              if (client) {
+                  await createInvoiceForDocument(client, docId);
+              }
 
               if (automationSettings.autoSend) {
                 const sendResult = await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
@@ -232,14 +245,23 @@ export default function DocumentsPage() {
   };
   
   const handleUpdateDocumentData = async (docId: string, updatedData: ExtractDataOutput) => {
+    const doc = await getDocumentById(docId);
+    if (!doc || !doc.clientId) return;
+
     const trail = await addAuditEvent(docId, 'Document approuvé manuellement', getCurrentUser());
     const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
     await updateDocument({ id: docId, updates });
-    const doc = await getDocumentById(docId);
-    if(doc) {
-        updateLocalDocument(doc);
-        createNotification(doc, 'a été approuvé.');
-        toast({ title: "Document approuvé", description: "Les données ont été validées et enregistrées." });
+    
+    const client = clients.find(c => c.id === doc.clientId);
+    if (client) {
+        await createInvoiceForDocument(client, docId);
+    }
+    
+    const updatedDoc = await getDocumentById(docId);
+    if(updatedDoc) {
+        updateLocalDocument(updatedDoc);
+        createNotification(updatedDoc, 'a été approuvé.');
+        toast({ title: "Document approuvé", description: "Les données ont été validées et une facture de traitement a été générée." });
     }
   };
 
@@ -280,18 +302,30 @@ export default function DocumentsPage() {
 
   const handleBulkApprove = async () => {
     let approvedCount = 0;
-    const promises = selectedDocumentIds.map(async (docId) => {
+    const docIdsToApprove = selectedDocumentIds.filter(docId => {
       const doc = documents.find(d => d.id === docId);
-      if (doc && doc.status === 'reviewing') {
+      return doc && doc.status === 'reviewing';
+    });
+
+    for(const docId of docIdsToApprove) {
+        const doc = documents.find(d => d.id === docId)!;
         const trail = await addAuditEvent(docId, 'Document approuvé (en masse)', getCurrentUser());
         await updateDocument({ id: docId, updates: { status: 'approved', auditTrail: trail } });
         createNotification(doc, 'a été approuvé.');
+        
+        const client = clients.find(c => c.id === doc.clientId);
+        if (client) {
+            await createInvoiceForDocument(client, docId);
+        }
         approvedCount++;
-      }
-    });
-    await Promise.all(promises);
-    if(selectedClientId) fetchDocuments(selectedClientId);
-    toast({ title: "Documents approuvés", description: `${approvedCount} documents ont été approuvés.` });
+    }
+
+    if(selectedClientId && approvedCount > 0) {
+        fetchDocumentsAndClients(selectedClientId);
+        toast({ title: "Documents approuvés", description: `${approvedCount} documents ont été approuvés et les factures correspondantes générées.` });
+    } else if (approvedCount === 0) {
+        toast({ title: "Aucun document à approuver", description: "Seuls les documents 'Prêt pour examen' peuvent être approuvés.", variant: 'destructive' });
+    }
     setSelectedDocumentIds([]);
   }
 
@@ -311,7 +345,7 @@ export default function DocumentsPage() {
     if (sentCount > 0) {
         toast({ title: "Données envoyées", description: `${sentCount} documents ont été envoyés à CEGID.` });
     }
-    if(selectedClientId) fetchDocuments(selectedClientId);
+    if(selectedClientId) fetchDocumentsAndClients(selectedClientId);
     setSelectedDocumentIds([]);
   }
 

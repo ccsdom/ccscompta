@@ -40,6 +40,33 @@ export interface AgendaEvent {
     clientName: string;
 }
 
+export interface Client {
+    id: string;
+    name: string;
+    siret: string;
+    address: string;
+    legalRepresentative: string;
+    fiscalYearEndDate: string;
+    status: 'active' | 'inactive' | 'onboarding';
+    newDocuments: number;
+    lastActivity: string;
+    email: string;
+    phone: string;
+    assignedAccountantId?: string;
+}
+
+export interface Invoice {
+    id: string;
+    clientId: string;
+    clientName: string;
+    documentId?: string;
+    number: string;
+    date: string;
+    dueDate: string;
+    amount: number;
+    status: 'paid' | 'pending' | 'overdue';
+}
+
 
 export interface Document {
   id: string;
