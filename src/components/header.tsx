@@ -312,17 +312,17 @@ export function Header() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                         <Link href={userRole === 'accountant' ? "/dashboard/settings" : "/dashboard/my-settings"}>
+                         <Link href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/settings" : "/dashboard/my-settings"}>
                             <User className="mr-2 h-4 w-4" /> Profil
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                         <Link href="/dashboard/billing">
+                         <Link href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/billing" : "/dashboard/my-invoices"}>
                             <CreditCard className="mr-2 h-4 w-4" /> Facturation
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <Link href={userRole === 'accountant' ? "/dashboard/settings" : "/dashboard/my-settings"}>
+                        <Link href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/settings" : "/dashboard/my-settings"}>
                             <Settings className="mr-2 h-4 w-4" /> Paramètres
                         </Link>
                     </DropdownMenuItem>
@@ -337,3 +337,5 @@ export function Header() {
     </header>
   );
 }
+
+    

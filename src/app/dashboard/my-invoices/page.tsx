@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,41 +19,33 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
-
-interface Invoice {
-    id: string;
-    clientId: string;
-    clientName: string;
-    number: string;
-    date: string;
-    dueDate: string;
-    amount: number;
-    status: 'paid' | 'pending' | 'overdue';
-}
-
-const mockInvoices: Invoice[] = [
-    { id: '1', clientId: 'client-01', clientName: 'ACTION AVENTURE', number: 'FACT-2024-007', date: '2024-07-01', dueDate: '2024-07-31', amount: 350.00, status: 'pending' },
-    { id: '2', clientId: 'client-02', clientName: 'AUTO ECOLE DE LA MAIRIE', number: 'FACT-2024-006', date: '2024-06-01', dueDate: '2024-06-30', amount: 350.00, status: 'paid' },
-    { id: '3', clientId: 'client-03', clientName: 'BODY MINUTE', number: 'FACT-2024-005', date: '2024-05-01', dueDate: '2024-05-31', amount: 350.00, status: 'paid' },
-    { id: '4', clientId: 'client-04', clientName: 'CABINET FLORET', number: 'FACT-2023-BILAN', date: '2024-04-15', dueDate: '2024-05-15', amount: 1800.00, status: 'overdue' },
-    { id: '5', clientId: 'client-05', clientName: 'CABINET MEDICAL GALEA', number: 'FACT-2024-004', date: '2024-04-01', dueDate: '2024-04-30', amount: 350.00, status: 'paid' },
-];
+import type { Invoice } from '@/lib/types';
+import { getInvoices, updateInvoice } from '@/ai/flows/invoice-actions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default function MyInvoicesPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
 
-    useState(() => {
-        const clientId = localStorage.getItem('selectedClientId');
-        // In a real app, you would fetch invoices for the specific client
-        // Here we just filter the mock data
-        if (clientId) {
-            setInvoices(mockInvoices.filter(inv => inv.clientId === clientId));
-        } else {
-             setInvoices(mockInvoices.slice(0,2)); // Fallback for demo
+    useEffect(() => {
+        const fetchClientInvoices = async () => {
+            setIsLoading(true);
+            const clientId = localStorage.getItem('selectedClientId');
+            if (clientId) {
+                try {
+                    const allInvoices = await getInvoices();
+                    const clientInvoices = allInvoices.filter(inv => inv.clientId === clientId);
+                    setInvoices(clientInvoices);
+                } catch(e) {
+                    toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger vos factures.' });
+                }
+            }
+            setIsLoading(false);
         }
-    })
+        fetchClientInvoices();
+    }, [toast])
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch(status) {
@@ -64,12 +56,32 @@ export default function MyInvoicesPage() {
         }
     }
     
-    const handlePayment = (invoiceId: string) => {
-        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? {...inv, status: 'paid'} : inv));
-        toast({
-            title: "Paiement réussi !",
-            description: "Votre facture a été marquée comme payée. Merci.",
-        });
+    const handlePayment = async (invoiceId: string) => {
+        const updated = await updateInvoice(invoiceId, { status: 'paid' });
+        if(updated) {
+            setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updated : inv));
+             toast({
+                title: "Paiement réussi !",
+                description: "Votre facture a été marquée comme payée. Merci.",
+            });
+        }
+    }
+
+     if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <Card>
+                    <CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader>
+                    <CardContent>
+                        <Skeleton className="h-48 w-full" />
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
     return (
@@ -149,5 +161,8 @@ export default function MyInvoicesPage() {
             </Card>
         </div>
     )
+
+    
+}
 
     

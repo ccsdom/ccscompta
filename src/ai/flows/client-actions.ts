@@ -5,8 +5,11 @@ import { z } from 'zod';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 
-// This file is now a pure simulation and does not interact with any database.
-// It returns mock responses to allow the UI to function.
+// --- Simulation de la base de données en mémoire ---
+let clientsStore: Client[] = [...MOCK_CLIENTS];
+// Utiliser un Set pour une recherche de SIRET rapide
+let siretSet = new Set(MOCK_CLIENTS.map(c => c.siret));
+// --- Fin de la simulation ---
 
 type ServerActionResponse<T> =
   | { success: true; data: T }
@@ -25,19 +28,32 @@ const AddClientInputSchema = z.object({
 });
 
 
-// This function now only simulates a successful addition for the UI.
-// The actual state management is handled in the page component.
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
-): Promise<ServerActionResponse<any>> {
-  console.log("MOCK addClient: Simulating successful addition.");
+): Promise<ServerActionResponse<Client>> {
+  console.log("[SIMULATION] Adding client:", newClientData.name);
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
-    // Return a success message. The page component will handle the redirection.
-    return { success: true, data: validatedData };
+    
+    if (siretSet.has(validatedData.siret)) {
+        return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
+    }
+
+    const newClient: Client = {
+      ...validatedData,
+      id: `client-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      newDocuments: 0,
+      lastActivity: new Date().toISOString(),
+    };
+
+    clientsStore.push(newClient);
+    siretSet.add(newClient.siret);
+
+    console.log("[SIMULATION] Client added:", newClient.name);
+    return { success: true, data: newClient };
 
   } catch (error) {
-    console.error('MOCK Error adding client:', error);
+    console.error('[SIMULATION] Error adding client:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
@@ -45,6 +61,59 @@ export async function addClient(
     return { success: false, error: errorMessage };
   }
 }
+
+export async function getClients(): Promise<Client[]> {
+    console.log("[SIMULATION] Fetching all clients.");
+    return Promise.resolve([...clientsStore]);
+}
+
+export async function getClientById(id: string): Promise<Client | null> {
+    console.log(`[SIMULATION] Fetching client by ID: ${id}`);
+    const client = clientsStore.find(c => c.id === id);
+    return Promise.resolve(client || null);
+}
+
+export async function updateClient({id, updates}: {id: string, updates: Partial<Client>}): Promise<ServerActionResponse<Client>> {
+    console.log(`[SIMULATION] Updating client ID: ${id}`);
+    const clientIndex = clientsStore.findIndex(c => c.id === id);
+    
+    if(clientIndex === -1) {
+        return { success: false, error: 'Client non trouvé.'};
+    }
+    
+    // Si le SIRET est mis à jour, vérifier qu'il n'est pas déjà pris par un autre client
+    if (updates.siret && updates.siret !== clientsStore[clientIndex].siret) {
+        if(siretSet.has(updates.siret)) {
+             return { success: false, error: 'Un autre client utilise déjà ce SIRET.'};
+        }
+         // Mettre à jour le Set des SIRETs
+        siretSet.delete(clientsStore[clientIndex].siret);
+        siretSet.add(updates.siret);
+    }
+    
+    clientsStore[clientIndex] = { ...clientsStore[clientIndex], ...updates };
+    console.log(`[SIMULATION] Client ${id} updated.`);
+    return { success: true, data: clientsStore[clientIndex] };
+}
+
+
+export async function deleteClient(id: string): Promise<{success: boolean}> {
+    console.log(`[SIMULATION] Deleting client ID: ${id}`);
+    const initialLength = clientsStore.length;
+    const clientToDelete = clientsStore.find(c => c.id === id);
+
+    clientsStore = clientsStore.filter(c => c.id !== id);
+
+    if (clientToDelete && clientsStore.length < initialLength) {
+        siretSet.delete(clientToDelete.siret);
+        console.log(`[SIMULATION] Client ${id} deleted.`);
+        return { success: true };
+    }
+    
+    console.log(`[SIMULATION] Client ${id} not found for deletion.`);
+    return { success: false };
+}
+
 
 export interface Accountant {
     id: string;
@@ -57,12 +126,8 @@ const MOCK_ACCOUNTANTS: Accountant[] = [
 ];
 
 export async function getAccountants(): Promise<Accountant[]> {
-    console.log("MOCK getAccountants: Returning mock accountants.");
+    console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
 
-// Re-add getClients to fix build errors in other dashboard pages
-export async function getClients(): Promise<Client[]> {
-    console.log("MOCK getClients: Returning mock clients for dashboard pages.");
-    return Promise.resolve(MOCK_CLIENTS);
-}
+    

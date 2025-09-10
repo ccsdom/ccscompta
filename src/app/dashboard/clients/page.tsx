@@ -33,8 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
-import { MOCK_CLIENTS } from '@/data/mock-data';
+import { getAccountants, type Accountant, getClients, addClient, updateClient, deleteClient as deleteClientAction } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,7 +45,6 @@ import { AiClientDialog } from '@/components/ai-client-dialog';
 
 
 export default function ClientsPage() {
-    // STATE IS NOW LOCAL TO THIS COMPONENT
     const [clients, setClients] = useState<Client[]>([]);
     const [accountants, setAccountants] = useState<Accountant[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -56,27 +54,30 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    // Load initial data into local state
-    useEffect(() => {
+    const fetchClientsAndAccountants = useCallback(async () => {
         setLoading(true);
-        // Simulate fetching data
-        Promise.all([
-            Promise.resolve(MOCK_CLIENTS), // Using mock data directly
-            getAccountants() // This can remain as it's likely a static list
-        ]).then(([clientsData, accountantsData]) => {
+        try {
+            const [clientsData, accountantsData] = await Promise.all([
+                getClients(),
+                getAccountants()
+            ]);
             setClients(clientsData);
             setAccountants(accountantsData);
-        }).catch(error => {
-             console.error("Failed to fetch data:", error);
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
             toast({
                 title: "Erreur de chargement",
                 description: "Impossible de récupérer les données des clients.",
                 variant: "destructive",
             });
-        }).finally(() => {
+        } finally {
             setLoading(false);
-        });
+        }
     }, [toast]);
+
+    useEffect(() => {
+        fetchClientsAndAccountants();
+    }, [fetchClientsAndAccountants]);
     
     const filteredClients = useMemo(() => clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -119,23 +120,25 @@ export default function ClientsPage() {
         router.push('/dashboard/my-documents');
     }
     
-    // Deletion is now handled locally
     const handleDeleteClient = async () => {
         if (!clientToDelete) return;
         
-        setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
-        toast({ title: 'Client supprimé (Simulation)', description: `Le client ${clientToDelete.name} a été supprimé de la liste.` });
+        await deleteClientAction(clientToDelete.id);
+        toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
         setClientToDelete(null);
+        fetchClientsAndAccountants(); // Refetch data
     }
 
-    // Bulk status change is now handled locally
     const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
-        setClients(prev => prev.map(c => selectedClientIds.includes(c.id) ? { ...c, status } : c));
+        const promises = selectedClientIds.map(id => updateClient({id, updates: { status }}));
+        await Promise.all(promises);
+        
         toast({
-            title: "Statuts mis à jour (Simulation)",
+            title: "Statuts mis à jour",
             description: `${selectedClientIds.length} clients ont été mis à jour.`
         });
         setSelectedClientIds([]);
+        fetchClientsAndAccountants(); // Refetch data
     }
     
     const getClientsToExport = () => {
@@ -261,7 +264,7 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={() => { /* No longer needed to refetch */ }} />
+                    <ClientImportDialog onClientsImported={() => { fetchClientsAndAccountants() }} />
                     <AiClientDialog />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -453,3 +456,5 @@ export default function ClientsPage() {
         </div>
     )
 }
+
+    
