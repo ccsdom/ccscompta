@@ -4,30 +4,79 @@
 import { z } from 'zod';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
+import { db } from '@/lib/firebase-admin';
+import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
-// --- THIS IS NOW A MOCK IMPLEMENTATION TO BYPASS SERVER AUTH ISSUES ---
-// We will operate directly on an in-memory array that is a copy of MOCK_CLIENTS.
-// The actual state management will be handled on the client-side via localStorage.
-// These server actions now only simulate success/failure and return data.
+// Firestore data converter to ensure type safety with Firestore
+const clientConverter: FirestoreDataConverter<Client> = {
+    toFirestore: (clientData: Omit<Client, 'id'>) => {
+        const dataToSave = { ...clientData };
+         if (typeof dataToSave.lastActivity === 'string') {
+            (dataToSave as any).lastActivity = Timestamp.fromDate(new Date(dataToSave.lastActivity));
+        }
+        return dataToSave;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot): Client => {
+        const data = snapshot.data();
+        const lastActivityTimestamp = data.lastActivity as Timestamp;
+        return {
+            id: snapshot.id,
+            name: data.name,
+            siret: data.siret,
+            address: data.address,
+            legalRepresentative: data.legalRepresentative,
+            fiscalYearEndDate: data.fiscalYearEndDate,
+            status: data.status,
+            newDocuments: data.newDocuments,
+            lastActivity: lastActivityTimestamp.toDate().toISOString().split('T')[0],
+            email: data.email,
+            phone: data.phone,
+            assignedAccountantId: data.assignedAccountantId,
+        };
+    }
+};
+
+const getClientsCollectionRef = () => {
+    if (!db) {
+        throw new Error("Firestore Admin DB not available.");
+    }
+    return db.collection('clients').withConverter(clientConverter);
+}
+
 
 export async function getClients(): Promise<Client[]> {
-  console.log("MOCK getClients: Returning the initial list of clients for hydration.");
-  // This will always return the base list. The client-side will manage the actual state.
-  return Promise.resolve(JSON.parse(JSON.stringify(MOCK_CLIENTS)));
+    const clientsCollection = getClientsCollectionRef();
+    try {
+        let snapshot = await clientsCollection.orderBy('name').get();
+
+        // If no documents are found, seed with mock data
+        if (snapshot.empty) {
+            console.log("No clients found. Seeding with mock data...");
+            const batch = db.batch();
+            for (const clientData of MOCK_CLIENTS) {
+                const docRef = clientsCollection.doc(clientData.id);
+                batch.set(docRef, clientData);
+            }
+            await batch.commit();
+            snapshot = await clientsCollection.orderBy('name').get(); // Re-fetch after seeding
+        }
+
+        return snapshot.docs.map(doc => doc.data());
+    } catch (error) {
+        console.error("Error fetching clients:", error);
+        return []; // Return empty array on error
+    }
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
-  console.log(`MOCK getClientById: Searching for ID ${id} in base mock data.`);
-  // This function is still needed for the edit page initial load.
-  // It checks the base MOCK_CLIENTS, client-side state handles dynamic additions.
-  let clients: Client[] = MOCK_CLIENTS;
-  if (typeof window !== 'undefined' && window.localStorage) {
-    const localClients = localStorage.getItem('clients');
-    if (localClients) {
-        clients = JSON.parse(localClients);
+    try {
+        const docRef = getClientsCollectionRef().doc(id);
+        const snapshot = await docRef.get();
+        return snapshot.exists ? snapshot.data() : undefined;
+    } catch (error) {
+        console.error(`Error fetching client by ID ${id}:`, error);
+        return undefined;
     }
-  }
-  return Promise.resolve(clients.find(c => c.id === id));
 }
 
 const AddClientInputSchema = z.object({
@@ -49,30 +98,37 @@ type ServerActionResponse<T> =
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  console.log("MOCK addClient: Simulating adding a client.");
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
     
-    // Simulate creating a new client object. The client-side will handle persistence.
-    const newClient: Client = {
+    const newClient: Omit<Client, 'id'> = {
       ...validatedData,
-      id: `client-${Date.now()}`, // Generate a unique ID
       newDocuments: 0,
       lastActivity: new Date().toISOString().split('T')[0],
     };
     
-    // We return success, and the client-side will handle adding it to its local state.
-    return { success: true, data: newClient };
+    const docRef = await getClientsCollectionRef().add(newClient);
+    const createdClient = await getClientById(docRef.id);
+
+    if (!createdClient) {
+        throw new Error("Failed to retrieve the newly created client.");
+    }
+
+    return { success: true, data: createdClient };
 
   } catch (error) {
-    console.error('MOCK Error adding client:', error);
+    console.error('Error adding client:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du client.',
-    };
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du client.';
+    
+    // Check for specific Firestore errors if possible
+    if (errorMessage.includes('ALREADY_EXISTS')) {
+        return { success: false, error: 'Un client avec cet identifiant existe déjà.' };
+    }
+
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -84,19 +140,33 @@ const UpdateClientInputSchema = z.object({
 export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-   console.log(`MOCK updateClient: Simulating update for client ${id}`);
-   // Simulate success, client-side will perform the update on its local state.
-    const updatedClient = { id, ...updates };
-    // This isn't the full client object, but the client-side will merge it.
-    return { success: true, data: updatedClient as Client };
+   try {
+       const docRef = getClientsCollectionRef().doc(id);
+       await docRef.update(updates);
+       const updatedClient = await getClientById(id);
+       if (!updatedClient) {
+           throw new Error("Failed to retrieve updated client.");
+       }
+       return { success: true, data: updatedClient };
+   } catch(error) {
+       console.error(`Error updating client ${id}:`, error);
+       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la mise à jour.';
+       return { success: false, error: errorMessage };
+   }
 }
 
 export async function deleteClient(
   id: string
 ): Promise<ServerActionResponse<null>> {
-   console.log(`MOCK deleteClient: Simulating deletion for client ${id}`);
-   // This is just a simulation, client-side will handle the actual removal from the UI.
-   return { success: true, data: null };
+   try {
+       const docRef = getClientsCollectionRef().doc(id);
+       await docRef.delete();
+       return { success: true, data: null };
+   } catch (error) {
+       console.error(`Error deleting client ${id}:`, error);
+       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la suppression.';
+       return { success: false, error: errorMessage };
+   }
 }
 
 const UpdateClientsStatusInputSchema = z.object({
@@ -107,9 +177,20 @@ const UpdateClientsStatusInputSchema = z.object({
 export async function updateClientsStatus(
     { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
 ): Promise<{ success: boolean; updatedCount: number, error?: string }> {
-    console.log(`MOCK updateClientsStatus: Simulating status update for ${clientIds.length} clients to ${status}`);
-    // Simulate success, client-side will perform the update on its local state.
-    return { success: true, updatedCount: clientIds.length };
+    const batch = db.batch();
+    const clientsCollection = getClientsCollectionRef();
+    clientIds.forEach(id => {
+        const docRef = clientsCollection.doc(id);
+        batch.update(docRef, { status });
+    });
+    try {
+        await batch.commit();
+        return { success: true, updatedCount: clientIds.length };
+    } catch(error) {
+        console.error("Error updating client statuses:", error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la mise à jour des statuts.';
+        return { success: false, updatedCount: 0, error: errorMessage };
+    }
 }
 
 export interface Accountant {

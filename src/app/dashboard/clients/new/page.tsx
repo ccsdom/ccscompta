@@ -35,20 +35,12 @@ export default function NewClientPage() {
         const result = await addClient(data);
 
         if (result.success) {
-            // Store the newly created client in localStorage to be picked up by the clients list page.
-            try {
-                const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
-                localStorage.setItem('clients', JSON.stringify([...existingClients, result.data]));
-                window.dispatchEvent(new Event('storage')); // Notify other tabs/windows
-            } catch (e) {
-                console.error("Could not write to localStorage", e);
-            }
-
             toast({
                 title: "Client ajouté",
                 description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
             router.push('/dashboard/clients');
+            router.refresh(); // Refresh the client list page
         } else {
             console.error("Failed to add client:", result.error);
             toast({

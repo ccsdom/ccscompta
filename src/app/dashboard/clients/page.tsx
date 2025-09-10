@@ -33,7 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, getAccountants, type Accountant, deleteClient as deleteClientAction, updateClient } from '@/ai/flows/client-actions';
+import { getClients, getAccountants, type Accountant, deleteClient as deleteClientAction, updateClientsStatus } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,20 +57,10 @@ export default function ClientsPage() {
     const fetchClientsAndAccountants = useCallback(async () => {
         setLoading(true);
         try {
-            const baseClients = await getClients();
+            const clientsData = await getClients();
             const accountantsData = await getAccountants();
+            setClients(clientsData);
             setAccountants(accountantsData);
-            
-            // Client-side state management using localStorage
-            const localClientsRaw = localStorage.getItem('clients');
-            const localClients = localClientsRaw ? JSON.parse(localClientsRaw) : null;
-            
-            if (localClients && Array.isArray(localClients)) {
-                setClients(localClients);
-            } else {
-                setClients(baseClients);
-                localStorage.setItem('clients', JSON.stringify(baseClients));
-            }
         } catch (error) {
              console.error("Failed to fetch data:", error);
             toast({
@@ -85,19 +75,7 @@ export default function ClientsPage() {
 
     useEffect(() => {
         fetchClientsAndAccountants();
-        
-        const handleStorageChange = (event: StorageEvent) => {
-             if (event.key === 'clients') {
-                fetchClientsAndAccountants();
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, [fetchClientsAndAccountants]);
+    }, [fetchClientsAndAccountants, router]);
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -149,13 +127,10 @@ export default function ClientsPage() {
         
         const res = await deleteClientAction(clientToDelete.id);
         if (res.success) {
-            const newClients = clients.filter(c => c.id !== clientToDelete.id);
-            setClients(newClients);
-            localStorage.setItem('clients', JSON.stringify(newClients));
-
             toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
+            fetchClientsAndAccountants(); // Refetch the list
         } else {
-            toast({ title: 'Erreur', description: `Impossible de supprimer le client.`, variant: 'destructive'});
+            toast({ title: 'Erreur', description: `Impossible de supprimer le client: ${res.error}`, variant: 'destructive'});
         }
         setClientToDelete(null);
     }
@@ -233,16 +208,21 @@ export default function ClientsPage() {
     }
 
 
-    const handleBulkStatusChange = (status: 'active' | 'inactive' | 'onboarding') => {
-        const updatedClients = clients.map(client => 
-            selectedClientIds.includes(client.id) ? { ...client, status: status } : client
-        );
-        setClients(updatedClients);
-        localStorage.setItem('clients', JSON.stringify(updatedClients));
-        toast({
-            title: "Statuts mis à jour",
-            description: `${selectedClientIds.length} clients ont été mis à jour.`
-        });
+    const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
+        const res = await updateClientsStatus({ clientIds: selectedClientIds, status });
+        if (res.success) {
+            toast({
+                title: "Statuts mis à jour",
+                description: `${res.updatedCount} clients ont été mis à jour.`
+            });
+            fetchClientsAndAccountants(); // Refetch
+        } else {
+            toast({
+                title: "Erreur",
+                description: `Impossible de mettre à jour les statuts: ${res.error}`,
+                variant: 'destructive',
+            });
+        }
         setSelectedClientIds([]);
     }
 

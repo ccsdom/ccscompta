@@ -49,6 +49,7 @@ export function ClientSwitcher() {
                   setSelectedValue(client.id);
                   if (localStorage.getItem('selectedClientId') !== client.id) {
                     localStorage.setItem('selectedClientId', client.id);
+                    window.dispatchEvent(new Event('storage'));
                   }
               }
           } else {
@@ -56,6 +57,11 @@ export function ClientSwitcher() {
               const storedClientId = localStorage.getItem('selectedClientId');
               if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
                 setSelectedValue(storedClientId);
+              } else if (clientsData.length > 0) {
+                // Default to the first client if none is selected
+                // setSelectedValue(clientsData[0].id);
+                // localStorage.setItem('selectedClientId', clientsData[0].id);
+                // window.dispatchEvent(new Event('storage'));
               }
           }
       } catch (error) {
@@ -67,9 +73,9 @@ export function ClientSwitcher() {
   useEffect(() => {
     fetchAndSetClients();
     
+    // This listener handles updates from other components
     const handleStorageChange = (event: StorageEvent) => {
-        // If the 'clients' or 'selectedClientId' in localStorage changes, refetch everything.
-        if (event.key === 'clients' || event.key === 'selectedClientId') {
+        if (event.key === 'selectedClientId' || event.key === 'clients' || event.key === 'userRole') {
            fetchAndSetClients();
         }
     };

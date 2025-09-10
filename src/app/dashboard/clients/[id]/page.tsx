@@ -24,18 +24,8 @@ export default function EditClientPage() {
         if (params.id) {
             const fetchClient = async () => {
                 setLoading(true);
-                // In our new client-side model, we get the client from localStorage
-                try {
-                    const localClientsRaw = localStorage.getItem('clients');
-                    if (localClientsRaw) {
-                        const localClients = JSON.parse(localClientsRaw) as Client[];
-                        const foundClient = localClients.find(c => c.id === params.id);
-                        setClient(foundClient || null);
-                    }
-                } catch (e) {
-                    console.error("Failed to load client from localStorage", e);
-                    setClient(null);
-                }
+                const fetchedClient = await getClientById(params.id);
+                setClient(fetchedClient || null);
                 setLoading(false);
             };
             fetchClient();
@@ -46,28 +36,22 @@ export default function EditClientPage() {
         if (!params.id) return;
         setIsSubmitting(true);
         
-        // Client-side update
-        try {
-            const localClientsRaw = localStorage.getItem('clients');
-            let clients = localClientsRaw ? JSON.parse(localClientsRaw) as Client[] : [];
-            clients = clients.map(c => 
-                c.id === params.id ? { ...c, ...data } : c
-            );
-            localStorage.setItem('clients', JSON.stringify(clients));
-            window.dispatchEvent(new Event('storage')); // Notify other components
+        const result = await updateClient({ id: params.id, updates: data });
 
+        if (result.success) {
             toast({
                 title: "Modifications enregistrées",
                 description: `Les informations de ${data.name} ont été mises à jour.`
             });
+            // Force a refresh of the clients list page by navigating
             router.push('/dashboard/clients');
-
-        } catch (error) {
-             console.error("Failed to update client:", error);
+            router.refresh(); 
+        } else {
+            console.error("Failed to update client:", result.error);
             toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: "Impossible de mettre à jour le client."
+                description: `Impossible de mettre à jour le client: ${result.error}`
             });
         }
         
