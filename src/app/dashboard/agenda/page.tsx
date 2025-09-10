@@ -24,9 +24,14 @@ const eventTypeConfig = {
 
 export default function AgendaPage() {
     const [events, setEvents] = useState<AgendaEvent[]>([]);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Set initial date on client-side only to avoid hydration mismatch
+        setSelectedDate(new Date());
+    }, []);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -57,6 +62,7 @@ export default function AgendaPage() {
     }, [events]);
 
     const selectedDayEvents = useMemo(() => {
+        if (!selectedDate) return [];
         const dateKey = format(selectedDate, 'yyyy-MM-dd');
         return eventsByDate[dateKey] || [];
     }, [selectedDate, eventsByDate]);
@@ -77,6 +83,21 @@ export default function AgendaPage() {
             </div>
         );
     };
+    
+    if (!selectedDate) {
+        return (
+             <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
+                    <Skeleton className="lg:col-span-2 h-full" />
+                    <Skeleton className="h-full" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
