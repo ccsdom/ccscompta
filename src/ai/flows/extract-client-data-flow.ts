@@ -11,7 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { searchCompanyInfoTool } from '../tools/search-company-info';
+import { searchCompany } from './search-company-flow';
 
 const ExtractClientDataInputSchema = z.object({
   searchTerm: z.string().describe('A company name or SIRET number.'),
@@ -35,21 +35,6 @@ export async function extractClientData(
   return extractClientDataFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'extractClientDataPrompt',
-  input: {schema: ExtractClientDataInputSchema},
-  output: {schema: ExtractClientDataOutputSchema},
-  tools: [searchCompanyInfoTool],
-  prompt: `You are an agent whose only purpose is to use the 'searchCompanyInfo' tool.
-You MUST call the 'searchCompanyInfo' tool with the user's input.
-Pass the user's input directly to the tool's 'searchTerm' parameter.
-
-User input: "{{searchTerm}}"
-
-You MUST return the direct and unmodified JSON output from the 'searchCompanyInfo' tool.
-Do not add, remove, or change any fields.
-`,
-});
 
 const extractClientDataFlow = ai.defineFlow(
   {
@@ -57,9 +42,39 @@ const extractClientDataFlow = ai.defineFlow(
     inputSchema: ExtractClientDataInputSchema,
     outputSchema: ExtractClientDataOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async ({searchTerm}) => {
+    console.log(`[Flow] Searching for company with term: ${searchTerm}`);
+    
+    // Use the direct search flow instead of the Genkit tool
+    const searchResult = await searchCompany({ query: searchTerm });
+
+    if (searchResult.results.length > 0) {
+      const bestMatch = searchResult.results[0];
+      console.log(`[Flow] Found company:`, bestMatch);
+      // The output schema is compatible, so we can return it directly.
+      return {
+        name: bestMatch.name,
+        siret: bestMatch.siret,
+        address: bestMatch.address,
+        legalRepresentative: bestMatch.legalRepresentative,
+        // The searchCompany flow does not return these, so we leave them empty
+        email: null,
+        phone: null,
+        fiscalYearEndDate: null, 
+      };
+    }
+
+    console.log(`[Flow] No company found for term: ${searchTerm}`);
+    return {
+        name: null,
+        siret: null,
+        address: null,
+        legalRepresentative: null,
+        email: null,
+        phone: null,
+        fiscalYearEndDate: null,
+    };
   }
 );
+
 
