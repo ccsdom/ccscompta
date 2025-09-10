@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, FileUp, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2, LogIn, RefreshCw } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, Wand2, LogIn } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -29,7 +29,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -50,7 +49,6 @@ export default function ClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isResetting, setIsResetting] = useState(false);
     const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
     const router = useRouter();
     const { toast } = useToast();
@@ -152,18 +150,6 @@ export default function ClientsPage() {
         setClientToDelete(null);
     }
 
-    const handleReset = async () => {
-        setIsResetting(true);
-        // This is a placeholder for where the `resetClients` logic would go.
-        // The function itself is removed to fix the build error.
-        // You would typically call a server action here.
-        // For now, we simulate a delay and success.
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        console.warn("La fonction de réinitialisation n'est pas connectée.");
-        toast({ title: 'Fonctionnalité désactivée', description: "La réinitialisation est temporairement désactivée." });
-        setIsResetting(false);
-    }
-    
     const handleClientsImported = () => {
         fetchClientsAndAccountants();
     }
@@ -362,27 +348,6 @@ export default function ClientsPage() {
                                     />
                                 </div>
                             </div>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" disabled={isResetting}>
-                                        <RefreshCw className={`mr-2 h-4 w-4 ${isResetting ? 'animate-spin' : ''}`} />
-                                        Réinitialiser la liste
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Cette action supprimera DÉFINITIVEMENT tous les clients de votre base de données.
-                                            Cette action est irréversible.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/90">Confirmer et supprimer tout</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
                         </div>
                     </div>
                 </CardHeader>
@@ -521,3 +486,5 @@ export default function ClientsPage() {
         </div>
     )
 }
+
+    
