@@ -6,28 +6,40 @@ import { addClient } from '@/ai/flows/client-actions';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
+import { useSearchParams } from 'next/navigation'
 
 
 export default function NewClientPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
+    
+    // This state is now only used for pre-filling from search, not for re-rendering
+    const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>(() => {
+        const data: Partial<z.infer<typeof formSchema>> = {};
+        searchParams.forEach((value, key) => {
+            if (key in formSchema.shape) {
+                data[key as keyof typeof data] = value;
+            }
+        });
+        return data;
+    });
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
+        // This addClient is now a mock that just returns success
         const result = await addClient(data);
 
         if (result.success) {
             toast({
-                title: "Client ajouté",
-                description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
+                title: "Client ajouté (Simulation)",
+                description: `Le client "${data.name}" a été ajouté avec succès dans cette session. Il n'apparaîtra pas dans la liste en raison des limitations de la simulation.`
             });
-            // Use a simple mechanism to notify other components to refetch
-            localStorage.setItem('clientsLastUpdated', Date.now().toString());
+            // Redirect to the list page
             router.push('/dashboard/clients');
         } else {
             console.error("Failed to add client:", result.error);
@@ -40,16 +52,16 @@ export default function NewClientPage() {
         setIsSubmitting(false);
     }
     
-    const handleCompanySelect = async (company: ExtractClientDataOutput | null) => {
+    const handleCompanySelect = (company: ExtractClientDataOutput | null) => {
         if (company) {
-             setInitialData({
-                name: company.name ?? '',
-                siret: company.siret ?? '',
-                address: company.address ?? '',
-                legalRepresentative: company.legalRepresentative ?? '',
-            });
+             const queryParams = new URLSearchParams();
+             Object.entries(company).forEach(([key, value]) => {
+                if(value) queryParams.set(key, value);
+             });
+             // We'll just reload the page with new query params to repopulate the form
+             router.replace(`/dashboard/clients/new?${queryParams.toString()}`);
         } else {
-            setInitialData({});
+            router.replace('/dashboard/clients/new');
         }
     }
 

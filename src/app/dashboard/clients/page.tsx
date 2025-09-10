@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,7 +33,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, getAccountants, type Accountant, deleteClient as deleteClientAction, updateClientsStatus } from '@/ai/flows/client-actions';
+import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
+import { MOCK_CLIENTS } from '@/data/mock-data';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +46,7 @@ import { AiClientDialog } from '@/components/ai-client-dialog';
 
 
 export default function ClientsPage() {
+    // STATE IS NOW LOCAL TO THIS COMPONENT
     const [clients, setClients] = useState<Client[]>([]);
     const [accountants, setAccountants] = useState<Accountant[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -54,44 +56,31 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchClientsAndAccountants = useCallback(async () => {
+    // Load initial data into local state
+    useEffect(() => {
         setLoading(true);
-        try {
-            const clientsData = await getClients();
-            const accountantsData = await getAccountants();
+        // Simulate fetching data
+        Promise.all([
+            Promise.resolve(MOCK_CLIENTS), // Using mock data directly
+            getAccountants() // This can remain as it's likely a static list
+        ]).then(([clientsData, accountantsData]) => {
             setClients(clientsData);
             setAccountants(accountantsData);
-        } catch (error) {
+        }).catch(error => {
              console.error("Failed to fetch data:", error);
             toast({
                 title: "Erreur de chargement",
                 description: "Impossible de récupérer les données des clients.",
                 variant: "destructive",
             });
-        } finally {
+        }).finally(() => {
             setLoading(false);
-        }
+        });
     }, [toast]);
-
-    useEffect(() => {
-        fetchClientsAndAccountants();
-        
-        const handleStorageChange = (event: StorageEvent) => {
-             if (event.key === 'clientsLastUpdated') {
-                fetchClientsAndAccountants();
-             }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, [fetchClientsAndAccountants]);
-
-    const filteredClients = clients.filter(client =>
+    
+    const filteredClients = useMemo(() => clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ), [clients, searchTerm]);
     
     const handleSelectAll = (checked: boolean | string) => {
         if (checked) {
@@ -102,11 +91,7 @@ export default function ClientsPage() {
     }
     
     const handleSelectRow = (id: string, checked: boolean) => {
-        if (checked) {
-            setSelectedClientIds(prev => [...prev, id]);
-        } else {
-            setSelectedClientIds(prev => prev.filter(clientId => clientId !== id));
-        }
+        setSelectedClientIds(prev => checked ? [...prev, id] : prev.filter(clientId => clientId !== id));
     }
 
     const handleSelectClient = (clientId: string) => {
@@ -134,17 +119,23 @@ export default function ClientsPage() {
         router.push('/dashboard/my-documents');
     }
     
+    // Deletion is now handled locally
     const handleDeleteClient = async () => {
         if (!clientToDelete) return;
         
-        const res = await deleteClientAction(clientToDelete.id);
-        if (res.success) {
-            toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
-            fetchClientsAndAccountants(); // Refetch the list
-        } else {
-            toast({ title: 'Erreur', description: `Impossible de supprimer le client: ${res.error}`, variant: 'destructive'});
-        }
+        setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+        toast({ title: 'Client supprimé (Simulation)', description: `Le client ${clientToDelete.name} a été supprimé de la liste.` });
         setClientToDelete(null);
+    }
+
+    // Bulk status change is now handled locally
+    const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
+        setClients(prev => prev.map(c => selectedClientIds.includes(c.id) ? { ...c, status } : c));
+        toast({
+            title: "Statuts mis à jour (Simulation)",
+            description: `${selectedClientIds.length} clients ont été mis à jour.`
+        });
+        setSelectedClientIds([]);
     }
     
     const getClientsToExport = () => {
@@ -219,25 +210,6 @@ export default function ClientsPage() {
         });
     }
 
-
-    const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
-        const res = await updateClientsStatus({ clientIds: selectedClientIds, status });
-        if (res.success) {
-            toast({
-                title: "Statuts mis à jour",
-                description: `${res.updatedCount} clients ont été mis à jour.`
-            });
-            fetchClientsAndAccountants(); // Refetch
-        } else {
-            toast({
-                title: "Erreur",
-                description: `Impossible de mettre à jour les statuts: ${res.error}`,
-                variant: 'destructive',
-            });
-        }
-        setSelectedClientIds([]);
-    }
-
     const getStatusBadge = (status: string) => {
         switch(status) {
             case 'active': return <Badge>Actif</Badge>
@@ -289,7 +261,7 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
+                    <ClientImportDialog onClientsImported={() => { /* No longer needed to refetch */ }} />
                     <AiClientDialog />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>

@@ -2,35 +2,12 @@
 'use server';
 
 import { z } from 'zod';
-import { MOCK_CLIENTS } from '@/data/mock-data';
-import type { Client } from '@/lib/client-data';
-
-// =================================================================================
-// MISE EN PLACE D'UNE SIMULATION DE BASE DE DONNÉES EN MÉMOIRE
-// ---------------------------------------------------------------------------------
-// En raison d'un problème persistant d'authentification du serveur dans cet
-// environnement qui empêche la connexion à Firestore, nous utilisons une
-// simulation en mémoire pour permettre le développement de l'interface.
-// Toutes les opérations (ajout, modification, suppression) sont effectuées sur
-// cette liste simulée et ne sont PAS persistées dans une base de données réelle.
-// =================================================================================
-
-let clientsStore: Client[] = JSON.parse(JSON.stringify(MOCK_CLIENTS));
+// This file is now a pure simulation and does not interact with any database.
+// It returns mock responses to allow the UI to function.
 
 type ServerActionResponse<T> =
   | { success: true; data: T }
   | { success: false; error: string };
-
-export async function getClients(): Promise<Client[]> {
-    console.log("MOCK getClients: Returning in-memory clients.");
-    return Promise.resolve(clientsStore);
-}
-
-export async function getClientById(id: string): Promise<Client | undefined> {
-    console.log(`MOCK getClientById: Searching for ID ${id}`);
-    const client = clientsStore.find(c => c.id === id);
-    return Promise.resolve(client);
-}
 
 const AddClientInputSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
@@ -44,27 +21,17 @@ const AddClientInputSchema = z.object({
   assignedAccountantId: z.string().optional(),
 });
 
+
+// This function now only simulates a successful addition for the UI.
+// The actual state management is handled in the page component.
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
-): Promise<ServerActionResponse<Client>> {
-  console.log("MOCK addClient: Adding new client to in-memory store.");
+): Promise<ServerActionResponse<any>> {
+  console.log("MOCK addClient: Simulating successful addition.");
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
-
-    if (clientsStore.some(c => c.siret === validatedData.siret)) {
-      return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
-    }
-    
-    const newClient: Client = {
-      ...validatedData,
-      id: `client-${Date.now()}`,
-      newDocuments: 0,
-      lastActivity: new Date().toISOString().split('T')[0],
-    };
-    
-    clientsStore.push(newClient);
-
-    return { success: true, data: newClient };
+    // Return a success message. The page component will handle the redirection.
+    return { success: true, data: validatedData };
 
   } catch (error) {
     console.error('MOCK Error adding client:', error);
@@ -74,55 +41,6 @@ export async function addClient(
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du client.';
     return { success: false, error: errorMessage };
   }
-}
-
-const UpdateClientInputSchema = z.object({
-  id: z.string(),
-  updates: AddClientInputSchema.partial(),
-});
-
-export async function updateClient(
-  { id, updates }: z.infer<typeof UpdateClientInputSchema>
-): Promise<ServerActionResponse<Client>> {
-   console.log(`MOCK updateClient: Updating client ${id}`);
-   const clientIndex = clientsStore.findIndex(c => c.id === id);
-   if (clientIndex === -1) {
-       return { success: false, error: "Client non trouvé." };
-   }
-   clientsStore[clientIndex] = { ...clientsStore[clientIndex], ...updates };
-   return { success: true, data: clientsStore[clientIndex] };
-}
-
-export async function deleteClient(
-  id: string
-): Promise<ServerActionResponse<null>> {
-   console.log(`MOCK deleteClient: Deleting client ${id}`);
-   const initialLength = clientsStore.length;
-   clientsStore = clientsStore.filter(c => c.id !== id);
-   if (clientsStore.length === initialLength) {
-       return { success: false, error: "Client non trouvé." };
-   }
-   return { success: true, data: null };
-}
-
-const UpdateClientsStatusInputSchema = z.object({
-  clientIds: z.array(z.string()),
-  status: z.enum(['active', 'inactive', 'onboarding']),
-});
-
-export async function updateClientsStatus(
-    { clientIds, status }: z.infer<typeof UpdateClientsStatusInputSchema>
-): Promise<{ success: boolean; updatedCount: number, error?: string }> {
-    console.log("MOCK updateClientsStatus: Updating statuses.");
-    let updatedCount = 0;
-    clientsStore = clientsStore.map(client => {
-        if (clientIds.includes(client.id)) {
-            client.status = status;
-            updatedCount++;
-        }
-        return client;
-    });
-    return { success: true, updatedCount };
 }
 
 export interface Accountant {
