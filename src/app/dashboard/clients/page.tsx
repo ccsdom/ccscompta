@@ -75,7 +75,19 @@ export default function ClientsPage() {
 
     useEffect(() => {
         fetchClientsAndAccountants();
-    }, [fetchClientsAndAccountants, router]);
+        
+        const handleStorageChange = (event: StorageEvent) => {
+             if (event.key === 'clientsLastUpdated') {
+                fetchClientsAndAccountants();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [fetchClientsAndAccountants]);
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())

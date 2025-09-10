@@ -39,8 +39,10 @@ export default function NewClientPage() {
                 title: "Client ajouté",
                 description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
+            // Inform other components that the client list has changed
+            localStorage.setItem('clientsLastUpdated', Date.now().toString());
+            window.dispatchEvent(new Event('storage'));
             router.push('/dashboard/clients');
-            router.refresh(); // Refresh the client list page
         } else {
             console.error("Failed to add client:", result.error);
             toast({
