@@ -1,162 +1,80 @@
 
 'use server';
 
-import { z } from 'genkit';
-import { db } from '@/lib/firebase-admin';
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
-import { Timestamp, type FirestoreDataConverter, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { createSupplier, findSupplier } from '@/services/cegid';
 
-
-// Firestore data converter to ensure type safety with Firestore
-const documentConverter: FirestoreDataConverter<Document> = {
-    toFirestore: (docData: Omit<Document, 'id'>) => {
-        // The dataUrl is for client-side use only and should not be persisted.
-        const { dataUrl, ...rest } = docData;
-        const dataToSave = { ...rest };
-        if (typeof dataToSave.uploadDate === 'string') {
-            dataToSave.uploadDate = Timestamp.fromDate(new Date(dataToSave.uploadDate));
-        }
-        return dataToSave;
-    },
-    fromFirestore: (snapshot: QueryDocumentSnapshot): Document => {
-        const data = snapshot.data();
-        const uploadDateTimestamp = data.uploadDate as Timestamp;
-        return {
-            id: snapshot.id,
-            name: data.name,
-            uploadDate: uploadDateTimestamp.toDate().toISOString(),
-            status: data.status,
-            storagePath: data.storagePath,
-            type: data.type,
-            confidence: data.confidence,
-            extractedData: data.extractedData,
-            auditTrail: data.auditTrail,
-            comments: data.comments,
-            clientId: data.clientId,
-        };
-    }
-};
-
-
-const getDocumentsCollectionRef = () => {
-    if (!db) {
-        throw new Error("Firestore Admin DB not available.");
-    }
-    return db.collection('documents').withConverter(documentConverter);
+// --- Simulation de la base de données en mémoire ---
+let documentsStore: Record<string, Document[]> = {};
+// Initialiser avec les données mock
+for (const clientId in MOCK_DOCUMENTS) {
+    documentsStore[clientId] = MOCK_DOCUMENTS[clientId].map((doc, index) => ({
+        ...doc,
+        id: `${clientId}-doc-${index + 1}`
+    }));
 }
 
+let bilansStore: Record<string, Bilan[]> = { ...MOCK_BILANS };
+// --- Fin de la simulation ---
+
+
 export async function getDocuments(clientId: string): Promise<Document[]> {
-    if (!db) {
-        console.error("Firestore Admin DB not available.");
-        return MOCK_DOCUMENTS[clientId] || [];
-    }
-
-    const documentsCollection = getDocumentsCollectionRef();
-
-    try {
-        const q = documentsCollection.where("clientId", "==", clientId);
-        let snapshot = await q.get();
-
-        // If no documents are found for the client, seed with mock data for demo purposes
-        if (snapshot.empty && MOCK_DOCUMENTS[clientId]) {
-            console.log(`No documents found for client ${clientId}. Seeding with mock data...`);
-            const batch = db.batch();
-            for (const docData of MOCK_DOCUMENTS[clientId]) {
-                 const docRef = documentsCollection.doc();
-                 batch.set(docRef, docData);
-            }
-            await batch.commit();
-            snapshot = await q.get(); // Re-fetch after seeding
-        }
-
-        return snapshot.docs.map(doc => doc.data());
-    } catch (error) {
-        console.error("Error fetching documents:", error);
-        return [];
-    }
+    console.log(`[SIMULATION] Fetching documents for client: ${clientId}`);
+    return Promise.resolve(documentsStore[clientId] || []);
 }
 
 export async function getDocumentById(docId: string): Promise<Document | null> {
-    const documentsCollection = getDocumentsCollectionRef();
-    try {
-        const docRef = documentsCollection.doc(docId);
-        const snapshot = await docRef.get();
-        if (snapshot.exists) {
-            return snapshot.data() as Document;
+    for (const clientId in documentsStore) {
+        const doc = documentsStore[clientId].find(d => d.id === docId);
+        if (doc) {
+            console.log(`[SIMULATION] Found document by ID: ${docId}`);
+            return Promise.resolve(doc);
         }
-        return null;
-    } catch (error) {
-        console.error("Error fetching document by ID:", error);
-        return null;
     }
+    console.log(`[SIMULATION] Document with ID ${docId} not found.`);
+    return Promise.resolve(null);
 }
 
-// Zod schema for validating data when adding a new document
-const DocumentSchemaForAdd = z.object({
-    name: z.string(),
-    uploadDate: z.string(),
-    status: z.enum(['pending', 'processing', 'reviewing', 'approved', 'error']),
-    dataUrl: z.string().optional(), // dataUrl is optional and client-side only
-    storagePath: z.string(),
-    type: z.string().optional(),
-    confidence: z.number().optional(),
-    extractedData: z.any().optional(),
-    auditTrail: z.array(z.any()),
-    comments: z.array(z.any()),
-    clientId: z.string(),
-});
-
-export async function addDocument(docData: z.infer<typeof DocumentSchemaForAdd>): Promise<Document | null> {
-    const documentsCollection = getDocumentsCollectionRef();
-    const validatedData = DocumentSchemaForAdd.parse(docData);
-    try {
-        const docRef = await documentsCollection.add(validatedData);
-        const newDocSnap = await docRef.get();
-        if (newDocSnap.exists) {
-             return newDocSnap.data() as Document;
-        }
-        return null;
-    } catch (error) {
-        console.error("Error adding document:", error);
-        throw new Error("Failed to add document to Firestore.");
+export async function addDocument(docData: Omit<Document, 'id'>): Promise<Document | null> {
+    const { clientId } = docData;
+    if (!documentsStore[clientId]) {
+        documentsStore[clientId] = [];
     }
+    const newDoc: Document = {
+        ...docData,
+        id: `${clientId}-doc-${Date.now()}`
+    };
+    documentsStore[clientId].push(newDoc);
+    console.log(`[SIMULATION] Added new document for client ${clientId}:`, newDoc.name);
+    return Promise.resolve(newDoc);
 }
 
-const UpdateDocumentInputSchema = z.object({
-    id: z.string(),
-    updates: DocumentSchemaForAdd.partial(),
-});
 
-export async function updateDocument({ id, updates }: z.infer<typeof UpdateDocumentInputSchema>): Promise<void> {
-    const documentsCollection = getDocumentsCollectionRef();
-    const validatedData = UpdateDocumentInputSchema.parse({ id, updates });
-    try {
-        const docRef = documentsCollection.doc(validatedData.id);
-        
-        // Convert any date strings to Timestamps before updating
-        const updatePayload = { ...validatedData.updates };
-        if (updatePayload.uploadDate && typeof updatePayload.uploadDate === 'string') {
-            updatePayload.uploadDate = Timestamp.fromDate(new Date(updatePayload.uploadDate)) as any;
+export async function updateDocument({ id, updates }: {id: string, updates: Partial<Document> }): Promise<void> {
+    for (const clientId in documentsStore) {
+        const docIndex = documentsStore[clientId].findIndex(d => d.id === id);
+        if (docIndex !== -1) {
+            documentsStore[clientId][docIndex] = { ...documentsStore[clientId][docIndex], ...updates };
+            console.log(`[SIMULATION] Updated document ${id} for client ${clientId}`);
+            return Promise.resolve();
         }
-
-        await docRef.update(updatePayload);
-    } catch (error) {
-        console.error("Error updating document:", error);
-        throw new Error("Failed to update document.");
     }
+    console.log(`[SIMULATION] Failed to update document ${id}, not found.`);
+    return Promise.resolve();
 }
 
 export async function deleteDocument(docId: string): Promise<void> {
-    const documentsCollection = getDocumentsCollectionRef();
-    try {
-        const docRef = documentsCollection.doc(docId);
-        await docRef.delete();
-    } catch (error) {
-        console.error("Error deleting document:", error);
-        throw new Error("Failed to delete document.");
+    for (const clientId in documentsStore) {
+        const initialLength = documentsStore[clientId].length;
+        documentsStore[clientId] = documentsStore[clientId].filter(d => d.id !== docId);
+        if (documentsStore[clientId].length < initialLength) {
+            console.log(`[SIMULATION] Deleted document ${docId} for client ${clientId}`);
+            return Promise.resolve();
+        }
     }
+     console.log(`[SIMULATION] Failed to delete document ${docId}, not found.`);
+    return Promise.resolve();
 }
 
 const addAuditEvent = (trail: AuditEvent[], action: string, user: string = 'Système'): AuditEvent[] => {
@@ -178,7 +96,6 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
         let trail = addAuditEvent(doc.auditTrail, `Envoi vers Cegid initié par ${user}`, user);
         await updateDocument({ id: docId, updates: { auditTrail: trail } });
 
-        // 1. Check if supplier exists in Cegid
         const existingSupplier = await findSupplier(vendorName);
         
         if (!existingSupplier) {
@@ -193,7 +110,6 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
              await updateDocument({ id: docId, updates: { auditTrail: trail } });
         }
 
-        // 2. Simulate sending the accounting entry
         trail = addAuditEvent(trail, "Écriture comptable envoyée avec succès à Cegid.");
         await updateDocument({ id: docId, updates: { auditTrail: trail } });
 
@@ -211,12 +127,7 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
     }
 }
 
-
 export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
-    if (!db) {
-        console.error("Firestore Admin DB not available.");
-        return [];
-    }
-    // This is a mock implementation. In a real app, you would fetch this from Firestore.
-    return Promise.resolve(MOCK_BILANS[clientId] || []);
+    console.log(`[SIMULATION] Fetching bilans for client: ${clientId}`);
+    return Promise.resolve(bilansStore[clientId] || []);
 }
