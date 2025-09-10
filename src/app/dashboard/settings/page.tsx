@@ -10,10 +10,13 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound, Bot } from "lucide-react";
+import { Copy, KeyRound, Bot, Shield, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsProfileSecurity } from "@/components/settings-profile-security";
 import { Slider } from "@/components/ui/slider";
+import { configureStorageSecurityRules } from "@/ai/flows/security-rules-actions";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -23,6 +26,8 @@ export default function SettingsPage() {
         confidenceThreshold: 0.95,
         autoSend: false,
     });
+    const [securityRules, setSecurityRules] = useState<string | null>(null);
+    const [isLoadingRules, setIsLoadingRules] = useState(false);
 
     useEffect(() => {
         const storedSettings = localStorage.getItem('automationSettings');
@@ -38,6 +43,30 @@ export default function SettingsPage() {
             description: "Les nouvelles règles d'automatisation ont été appliquées.",
         });
         window.dispatchEvent(new Event('storage'));
+    }
+    
+    const handleFetchRules = async () => {
+        setIsLoadingRules(true);
+        const result = await configureStorageSecurityRules();
+        if (result.success) {
+            setSecurityRules(result.rules);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: "Erreur",
+                description: "Impossible de récupérer les règles de sécurité.",
+            });
+        }
+        setIsLoadingRules(false);
+    }
+
+    const copyRulesToClipboard = () => {
+        if (!securityRules) return;
+        navigator.clipboard.writeText(securityRules);
+        toast({
+            title: "Copié !",
+            description: "Les règles de sécurité ont été copiées dans le presse-papiers.",
+        });
     }
 
 
@@ -72,6 +101,7 @@ export default function SettingsPage() {
             <TabsTrigger value="profile">Profil</TabsTrigger>
             <TabsTrigger value="security">Sécurité</TabsTrigger>
             <TabsTrigger value="automation">Automatisation</TabsTrigger>
+            <TabsTrigger value="storage-security">Sécurité du Stockage</TabsTrigger>
             <TabsTrigger value="integrations">Intégrations</TabsTrigger>
             <TabsTrigger value="email-upload">Téléversement par Email</TabsTrigger>
             <TabsTrigger value="preferences">Préférences</TabsTrigger>
@@ -135,6 +165,41 @@ export default function SettingsPage() {
                  <CardFooter className="border-t px-6 py-4 justify-end">
                     <Button onClick={handleAutomationSave}>Enregistrer les automatisations</Button>
                 </CardFooter>
+            </Card>
+        </TabsContent>
+        
+        <TabsContent value="storage-security">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Shield className="h-6 w-6"/> Sécurité du Stockage</CardTitle>
+                    <CardDescription>Configurez les règles de sécurité pour l'accès aux fichiers dans Firebase Storage.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {securityRules ? (
+                        <div className="space-y-4">
+                            <Alert>
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Action Manuelle Requise</AlertTitle>
+                                <AlertDescription>
+                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Storage</strong> de votre console Firebase.
+                                </AlertDescription>
+                            </Alert>
+                             <Textarea
+                                readOnly
+                                value={securityRules}
+                                className="h-72 font-mono text-xs bg-muted"
+                            />
+                            <Button onClick={copyRulesToClipboard}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
+                        </div>
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour votre projet.</p>
+                             <Button onClick={handleFetchRules} disabled={isLoadingRules}>
+                                {isLoadingRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles de sécurité"}
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
             </Card>
         </TabsContent>
 
