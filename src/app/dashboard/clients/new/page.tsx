@@ -3,19 +3,32 @@
 
 import { ClientForm, formSchema } from "../client-form";
 import { addClient } from '@/ai/flows/client-actions';
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";
-import { useState } from "react";
-import type { CompanySearchResult } from "@/ai/flows/search-company-flow";
+import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
+import { extractClientData, type ExtractClientDataOutput } from "@/ai/flows/extract-client-data-flow";
 
 
 export default function NewClientPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedCompany, setSelectedCompany] = useState<CompanySearchResult | null>(null);
+    const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const queryData: Partial<z.infer<typeof formSchema>> = {};
+        for (const [key, value] of searchParams.entries()) {
+            if (value) {
+                (queryData as any)[key] = value;
+            }
+        }
+        if (Object.keys(queryData).length > 0) {
+            setInitialData(queryData);
+        }
+    }, [searchParams]);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
@@ -23,7 +36,6 @@ export default function NewClientPage() {
 
         if (result.success) {
             // Store the newly created client in localStorage to be picked up by the clients list page.
-            // This is a client-side workaround for the non-persistent server state.
             try {
                 const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
                 localStorage.setItem('clients', JSON.stringify([...existingClients, result.data]));
@@ -47,6 +59,19 @@ export default function NewClientPage() {
         }
         setIsSubmitting(false);
     }
+    
+    const handleCompanySelect = async (company: ExtractClientDataOutput | null) => {
+        if (company) {
+             setInitialData({
+                name: company.name ?? '',
+                siret: company.siret ?? '',
+                address: company.address ?? '',
+                legalRepresentative: company.legalRepresentative ?? '',
+            });
+        } else {
+            setInitialData({});
+        }
+    }
 
     return (
         <div>
@@ -55,18 +80,13 @@ export default function NewClientPage() {
                 <p className="text-muted-foreground mt-1">Recherchez une entreprise pour pré-remplir les informations ou saisissez-les manuellement.</p>
             </div>
              <div className="mb-6 max-w-lg">
-                <CompanySearchCombobox onCompanySelect={setSelectedCompany} />
+                <CompanySearchCombobox onCompanySelect={handleCompanySelect} />
             </div>
             <ClientForm 
-                key={selectedCompany?.siret} // Re-mount form when a company is selected
+                key={initialData?.siret || 'new'} // Re-mount form when data changes
                 onSave={handleSave} 
                 isSubmitting={isSubmitting} 
-                initialData={selectedCompany ? {
-                    name: selectedCompany.name,
-                    siret: selectedCompany.siret,
-                    address: selectedCompany.address,
-                    legalRepresentative: selectedCompany.legalRepresentative,
-                } : {}}
+                initialData={initialData}
             />
         </div>
     )

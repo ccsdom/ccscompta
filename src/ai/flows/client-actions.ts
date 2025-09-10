@@ -7,23 +7,27 @@ import type { Client } from '@/lib/client-data';
 
 // --- THIS IS NOW A MOCK IMPLEMENTATION TO BYPASS SERVER AUTH ISSUES ---
 // We will operate directly on an in-memory array that is a copy of MOCK_CLIENTS.
-// This is not a production-ready solution, but a workaround for the current environment.
-
-// The serverless nature of the environment means this store is reset on each call.
 // The actual state management will be handled on the client-side via localStorage.
-let clientsStore: Client[] = JSON.parse(JSON.stringify(MOCK_CLIENTS));
-
+// These server actions now only simulate success/failure and return data.
 
 export async function getClients(): Promise<Client[]> {
-  console.log("MOCK getClients: Returning the initial list of clients.");
-  // This will always return the base list, client-side will manage additions.
+  console.log("MOCK getClients: Returning the initial list of clients for hydration.");
+  // This will always return the base list. The client-side will manage the actual state.
   return Promise.resolve(JSON.parse(JSON.stringify(MOCK_CLIENTS)));
 }
 
 export async function getClientById(id: string): Promise<Client | undefined> {
-  console.log(`MOCK getClientById: Searching for ID ${id}`);
-  // We need to check the mock data as the store is not persistent.
-  return Promise.resolve(MOCK_CLIENTS.find(c => c.id === id));
+  console.log(`MOCK getClientById: Searching for ID ${id} in base mock data.`);
+  // This function is still needed for the edit page initial load.
+  // It checks the base MOCK_CLIENTS, client-side state handles dynamic additions.
+  let clients: Client[] = MOCK_CLIENTS;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const localClients = localStorage.getItem('clients');
+    if (localClients) {
+        clients = JSON.parse(localClients);
+    }
+  }
+  return Promise.resolve(clients.find(c => c.id === id));
 }
 
 const AddClientInputSchema = z.object({
@@ -48,12 +52,8 @@ export async function addClient(
   console.log("MOCK addClient: Simulating adding a client.");
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
-
-    // This check is against the base list, as the store is not persistent.
-    if (MOCK_CLIENTS.some(c => c.siret === validatedData.siret)) {
-        return { success: false, error: "Un client avec ce numéro de SIRET existe déjà dans la liste de base." };
-    }
-
+    
+    // Simulate creating a new client object. The client-side will handle persistence.
     const newClient: Client = {
       ...validatedData,
       id: `client-${Date.now()}`, // Generate a unique ID
@@ -85,11 +85,9 @@ export async function updateClient(
   { id, updates }: z.infer<typeof UpdateClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
    console.log(`MOCK updateClient: Simulating update for client ${id}`);
-    const clientToUpdate = MOCK_CLIENTS.find(c => c.id === id);
-    if (!clientToUpdate) {
-       return { success: false, error: "Client non trouvé." };
-    }
-    const updatedClient = { ...clientToUpdate, ...updates };
+   // Simulate success, client-side will perform the update on its local state.
+    const updatedClient = { id, ...updates };
+    // This isn't the full client object, but the client-side will merge it.
     return { success: true, data: updatedClient as Client };
 }
 

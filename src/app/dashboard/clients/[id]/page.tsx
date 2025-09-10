@@ -24,9 +24,17 @@ export default function EditClientPage() {
         if (params.id) {
             const fetchClient = async () => {
                 setLoading(true);
-                const clientData = await getClientById(params.id as string);
-                if (clientData) {
-                    setClient(clientData);
+                // In our new client-side model, we get the client from localStorage
+                try {
+                    const localClientsRaw = localStorage.getItem('clients');
+                    if (localClientsRaw) {
+                        const localClients = JSON.parse(localClientsRaw) as Client[];
+                        const foundClient = localClients.find(c => c.id === params.id);
+                        setClient(foundClient || null);
+                    }
+                } catch (e) {
+                    console.error("Failed to load client from localStorage", e);
+                    setClient(null);
                 }
                 setLoading(false);
             };
@@ -37,22 +45,32 @@ export default function EditClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         if (!params.id) return;
         setIsSubmitting(true);
-        const result = await updateClient({id: params.id as string, updates: data});
         
-        if (result.success) {
+        // Client-side update
+        try {
+            const localClientsRaw = localStorage.getItem('clients');
+            let clients = localClientsRaw ? JSON.parse(localClientsRaw) as Client[] : [];
+            clients = clients.map(c => 
+                c.id === params.id ? { ...c, ...data } : c
+            );
+            localStorage.setItem('clients', JSON.stringify(clients));
+            window.dispatchEvent(new Event('storage')); // Notify other components
+
             toast({
                 title: "Modifications enregistrées",
                 description: `Les informations de ${data.name} ont été mises à jour.`
             });
             router.push('/dashboard/clients');
-        } else {
-            console.error("Failed to update client:", result.error);
+
+        } catch (error) {
+             console.error("Failed to update client:", error);
             toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: result.error
+                description: "Impossible de mettre à jour le client."
             });
         }
+        
         setIsSubmitting(false);
     }
 
@@ -89,7 +107,7 @@ export default function EditClientPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Modifier le Client</h1>
                 <p className="text-muted-foreground mt-1">Mettez à jour les informations du dossier pour <span className="font-semibold text-foreground">{client.name}</span>.</p>
             </div>
-            <ClientForm client={client} onSave={handleSave} isSubmitting={isSubmitting} />
+            <ClientForm initialData={client} onSave={handleSave} isSubmitting={isSubmitting} />
         </div>
     )
 }

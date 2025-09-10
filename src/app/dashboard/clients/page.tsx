@@ -33,7 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, getAccountants, type Accountant } from '@/ai/flows/client-actions';
+import { getClients, getAccountants, type Accountant, deleteClient as deleteClientAction, updateClient } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,6 +41,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { AiClientDialog } from '@/components/ai-client-dialog';
 
 
 export default function ClientsPage() {
@@ -53,7 +54,7 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchAndInitializeClients = useCallback(async () => {
+    const fetchClientsAndAccountants = useCallback(async () => {
         setLoading(true);
         try {
             const baseClients = await getClients();
@@ -61,9 +62,11 @@ export default function ClientsPage() {
             setAccountants(accountantsData);
             
             // Client-side state management using localStorage
-            const localClients = localStorage.getItem('clients');
-            if (localClients) {
-                setClients(JSON.parse(localClients));
+            const localClientsRaw = localStorage.getItem('clients');
+            const localClients = localClientsRaw ? JSON.parse(localClientsRaw) : null;
+            
+            if (localClients && Array.isArray(localClients)) {
+                setClients(localClients);
             } else {
                 setClients(baseClients);
                 localStorage.setItem('clients', JSON.stringify(baseClients));
@@ -81,10 +84,12 @@ export default function ClientsPage() {
     }, [toast]);
 
     useEffect(() => {
-        fetchAndInitializeClients();
+        fetchClientsAndAccountants();
         
-        const handleStorageChange = () => {
-            fetchAndInitializeClients();
+        const handleStorageChange = (event: StorageEvent) => {
+             if (event.key === 'clients') {
+                fetchClientsAndAccountants();
+            }
         };
 
         window.addEventListener('storage', handleStorageChange);
@@ -92,7 +97,7 @@ export default function ClientsPage() {
         return () => {
             window.removeEventListener('storage', handleStorageChange);
         };
-    }, [fetchAndInitializeClients]);
+    }, [fetchClientsAndAccountants]);
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -142,19 +147,20 @@ export default function ClientsPage() {
     const handleDeleteClient = async () => {
         if (!clientToDelete) return;
         
-        const newClients = clients.filter(c => c.id !== clientToDelete.id);
-        setClients(newClients);
-        localStorage.setItem('clients', JSON.stringify(newClients));
+        const res = await deleteClientAction(clientToDelete.id);
+        if (res.success) {
+            const newClients = clients.filter(c => c.id !== clientToDelete.id);
+            setClients(newClients);
+            localStorage.setItem('clients', JSON.stringify(newClients));
 
-        toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
+            toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
+        } else {
+            toast({ title: 'Erreur', description: `Impossible de supprimer le client.`, variant: 'destructive'});
+        }
         setClientToDelete(null);
     }
-
-    const handleClientsImported = () => {
-        fetchAndInitializeClients();
-    }
     
-    const getClientsToExport = async () => {
+    const getClientsToExport = () => {
         if (clients.length === 0) {
             toast({
                 title: "Aucun client à exporter",
@@ -166,8 +172,8 @@ export default function ClientsPage() {
         return clients;
     }
 
-    const handleExportXLSX = async () => {
-        const clientsToExport = await getClientsToExport();
+    const handleExportXLSX = () => {
+        const clientsToExport = getClientsToExport();
         if (!clientsToExport) return;
 
         const worksheet = XLSX.utils.json_to_sheet(clientsToExport);
@@ -183,8 +189,8 @@ export default function ClientsPage() {
         });
     }
 
-    const handleExportCSV = async () => {
-        const clientsToExport = await getClientsToExport();
+    const handleExportCSV = () => {
+        const clientsToExport = getClientsToExport();
         if (!clientsToExport) return;
 
         const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(clientsToExport));
@@ -205,8 +211,8 @@ export default function ClientsPage() {
         });
     }
 
-    const handleExportPDF = async () => {
-        const clientsToExport = await getClientsToExport();
+    const handleExportPDF = () => {
+        const clientsToExport = getClientsToExport();
         if (!clientsToExport) return;
 
         const doc = new jsPDF();
@@ -291,7 +297,8 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={fetchAndInitializeClients} />
+                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
+                    <AiClientDialog />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline">
