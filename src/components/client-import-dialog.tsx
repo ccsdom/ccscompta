@@ -27,8 +27,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
-    const REQUIRED_HEADERS_STANDARD = ['name', 'siret', 'address', 'legalRepresentative', 'fiscalYearEndDate', 'email', 'phone'];
-    const CUSTOM_HEADERS = ['RAISON SOCIALE', 'SIRET', 'REPRESENTEE PAR', 'Adresse EMAIL', 'TELEPHONE'];
+    const REQUIRED_HEADERS = ['name', 'siret', 'address', 'legalRepresentative', 'fiscalYearEndDate', 'email', 'phone'];
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -55,11 +54,10 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
             skipEmptyLines: true,
             complete: (results) => {
                 const headers = results.meta.fields || [];
-                const isStandardFormat = REQUIRED_HEADERS_STANDARD.every(h => headers.includes(h));
-                const isCustomFormat = CUSTOM_HEADERS.every(h => headers.includes(h));
+                const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
 
-                if (!isStandardFormat && !isCustomFormat) {
-                     setErrors([`Les en-têtes de votre fichier CSV ne correspondent à aucun format attendu. Veuillez utiliser soit le format standard (${REQUIRED_HEADERS_STANDARD.join(', ')}), soit votre format personnalisé (${CUSTOM_HEADERS.join(', ')}).`]);
+                if (missingHeaders.length > 0) {
+                    setErrors([`Les en-têtes suivants sont manquants dans votre fichier CSV : ${missingHeaders.join(', ')}.`]);
                     setIsLoading(false);
                     return;
                 }
@@ -68,23 +66,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                     setErrors(results.errors.map(e => `Ligne ${e.row}: ${e.message}`));
                 }
 
-                let processedData: ParsedClient[];
-
-                if (isCustomFormat) {
-                    processedData = (results.data as any[]).map(row => ({
-                        name: row['RAISON SOCIALE'] || '',
-                        siret: row['SIRET'] || '',
-                        legalRepresentative: row['REPRESENTEE PAR'] || '',
-                        email: row['Adresse EMAIL'] || '',
-                        phone: row['TELEPHONE'] || '',
-                        address: '', // champ manquant
-                        fiscalYearEndDate: '', // champ manquant
-                    }));
-                } else {
-                     processedData = results.data as ParsedClient[];
-                }
-
-                const validData = processedData.filter(row => row.name && row.name.trim() !== "");
+                const validData = (results.data as ParsedClient[]).filter(row => row.name && row.name.trim() !== "");
                 setParsedData(validData);
                 setIsLoading(false);
             },
@@ -164,14 +146,14 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
             <DialogTrigger asChild>
                 <Button variant="outline">
                     <FileUp className="mr-2 h-4 w-4" />
-                    Importer des clients
+                    Importer
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Importer des clients depuis un fichier CSV</DialogTitle>
                     <DialogDescription>
-                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Les champs Adresse et Date de clôture peuvent être complétés manuellement après l'import.
+                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les en-têtes : {REQUIRED_HEADERS.join(', ')}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -199,9 +181,9 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
                             </div>
                         </label>
                         <div className="mt-6 text-center">
-                           <a href="/clients-a-importer.csv" download="clients-a-importer.csv" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2">
+                           <a href="/clients-template.csv" download="clients-template.csv" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2">
                                  <Download className="mr-2 h-4 w-4"/>
-                                 Télécharger le fichier d'exemple
+                                 Télécharger le modèle CSV
                                </a>
                         </div>
                     </div>
