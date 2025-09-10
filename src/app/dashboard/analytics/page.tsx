@@ -19,8 +19,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as ShadcnTableFooter } from '@/components/ui/table';
 import { getDocuments } from '@/ai/flows/document-actions';
+import { getClients } from '@/ai/flows/client-actions';
+import type { Client } from '@/lib/client-data';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -42,7 +44,8 @@ const chartConfig = {
   "Repas et divertissement": { label: "Repas", color: "hsl(var(--chart-3))" },
   "Services informatiques": { label: "IT", color: "hsl(var(--chart-4))" },
   "Déplacements": { label: "Déplacements", color: "hsl(var(--chart-5))" },
-  "Autre": { label: "Autre", color: "hsl(var(--chart-1))" }, // Fallback color
+  "Loyer": { label: "Loyer", color: "hsl(var(--chart-1))" },
+  "Autre": { label: "Autre", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig
 
 const defaultVisibleComponents = {
@@ -55,6 +58,7 @@ const defaultVisibleComponents = {
 
 export default function AnalyticsPage() {
     const [documents, setDocuments] = useState<Document[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
@@ -69,16 +73,13 @@ export default function AnalyticsPage() {
                 const storedClientId = localStorage.getItem('selectedClientId');
                 setSelectedClientId(storedClientId);
                 
+                 const allClients = await getClients();
+                 setClients(allClients);
+
                 if (storedClientId) {
                     const docs = await getDocuments(storedClientId);
                     setDocuments(docs);
-                    const client = [ // This mock data should be replaced with a proper data source
-                        { id: 'alpha', name: 'Entreprise Alpha'},
-                        { id: 'beta', name: 'Bêta SARL'},
-                        { id: 'gamma', name: 'Gamma Inc.'},
-                        { id: 'delta', name: 'Delta Industries'},
-                        { id: 'epsilon', name: 'Epsilon Global'},
-                    ].find(c => c.id === storedClientId);
+                    const client = allClients.find(c => c.id === storedClientId);
                     setClientName(client ? `Analyse pour ${client.name}` : 'Vue d\'ensemble');
                 } else {
                     setDocuments([]);
@@ -116,27 +117,26 @@ export default function AnalyticsPage() {
         let docs = [...documents];
         
         if (searchCriteria) {
-            // AI Search Logic
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
             if (documentTypes && documentTypes.length > 0) {
                 docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
-            if (minAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a! >= minAmount));
+            if (minAmount != null) {
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
             }
-            if (maxAmount) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.amounts && d.extractedData.amounts.some(a => a! <= maxAmount));
+            if (maxAmount != null) {
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date!) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData && d.extractedData.dates && d.extractedData.dates.some(date => new Date(date!) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                docs = docs.filter(d => d.extractedData && d.extractedData.vendorNames && d.extractedData.vendorNames.some(v => v!.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
@@ -148,36 +148,35 @@ export default function AnalyticsPage() {
                  const lowercasedQuery = originalQuery.toLowerCase();
                  docs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v!.toLowerCase().includes(lowercasedQuery)))
+                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v != null && v.toLowerCase().includes(lowercasedQuery)))
                 );
             }
 
         } else if (searchQuery) {
-             // Fallback to simple search
-            const lowercasedQuery = searchQuery.toLowerCase();
+             const lowercasedQuery = searchQuery.toLowerCase();
             docs = docs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
-                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor!.toLowerCase().includes(lowercasedQuery)))
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor != null && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
         return docs;
     }, [documents, searchQuery, searchCriteria]);
 
     const analyticsData = useMemo(() => {
-        const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
+        const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData?.amounts?.[0] && d.extractedData?.dates?.[0]);
 
         if (approvedDocs.length === 0) {
             return null;
         }
 
-        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a! + b!, 0) ?? 0), 0);
+        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
         const totalVat = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.vatAmount ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
             const date = new Date(doc.extractedData!.dates[0]!);
             const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
             if (!acc[month]) {
                 acc[month] = 0;
             }
@@ -198,7 +197,7 @@ export default function AnalyticsPage() {
 
         const expensesByVendor = approvedDocs.reduce((acc, doc) => {
             const vendor = doc.extractedData!.vendorNames![0]! || 'Inconnu';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
              if (!acc[vendor]) {
                 acc[vendor] = 0;
             }
@@ -217,7 +216,7 @@ export default function AnalyticsPage() {
              if (!acc[category]) {
                 acc[category] = 0;
             }
-            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
             return acc;
         }, {} as Record<string, number>);
 
@@ -229,7 +228,7 @@ export default function AnalyticsPage() {
         
         const spendByType = approvedDocs.reduce((acc, doc) => {
             const type = doc.type || 'other';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
             if (!acc[type]) {
                 acc[type] = { total: 0, count: 0 };
             }
@@ -540,7 +539,9 @@ export default function AnalyticsPage() {
                             </TableHeader>
                             <TableBody>
                                 {analyticsData.approvedDocs.filter(d => d.extractedData?.vatAmount).map(doc => {
-                                    const ht = (doc.extractedData!.amounts?.[0]! || 0) - (doc.extractedData!.vatAmount || 0);
+                                    const totalTTC = doc.extractedData!.amounts?.[0] ?? 0;
+                                    const vatAmount = doc.extractedData!.vatAmount ?? 0;
+                                    const ht = totalTTC - vatAmount;
                                     return (
                                         <TableRow key={doc.id}>
                                             <TableCell>{new Date(doc.extractedData!.dates![0]!).toLocaleDateString('fr-FR')}</TableCell>
@@ -548,17 +549,17 @@ export default function AnalyticsPage() {
                                             <TableCell>{doc.extractedData!.vendorNames?.[0]}</TableCell>
                                             <TableCell className="text-right">{ht.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
                                             <TableCell className="text-right">{doc.extractedData!.vatRate}%</TableCell>
-                                            <TableCell className="text-right font-semibold">{(doc.extractedData!.vatAmount || 0).toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                            <TableCell className="text-right font-semibold">{vatAmount.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
                                         </TableRow>
                                     )
                                 })}
                             </TableBody>
-                             <TableFooter>
+                             <ShadcnTableFooter>
                                 <TableRow className="font-bold text-base bg-muted/50">
                                     <TableCell colSpan={5} className="text-right">Total TVA Déductible</TableCell>
                                     <TableCell className="text-right">{analyticsData.totalVat.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
                                 </TableRow>
-                            </TableFooter>
+                            </ShadcnTableFooter>
                         </Table>
                     </CardContent>
                 </Card>
