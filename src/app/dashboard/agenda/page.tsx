@@ -66,11 +66,13 @@ export default function AgendaPage() {
         const dayEvents = eventsByDate[dateKey];
         if (!dayEvents || dayEvents.length === 0) return null;
         
+        const uniqueEventTypes = [...new Set(dayEvents.map(e => e.type))];
+
         return (
             <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex space-x-1">
-                {dayEvents.slice(0, 3).map(event => {
-                    const config = eventTypeConfig[event.type];
-                    return <div key={event.id} className={`h-2 w-2 rounded-full ${config.color}`} />;
+                {uniqueEventTypes.slice(0, 3).map(eventType => {
+                    const config = eventTypeConfig[eventType];
+                    return <div key={eventType} className={`h-1.5 w-1.5 rounded-full ${config.color}`} />;
                 })}
             </div>
         );
