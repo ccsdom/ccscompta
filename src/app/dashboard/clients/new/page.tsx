@@ -6,7 +6,7 @@ import { addClient } from '@/ai/flows/client-actions';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import type * as z from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
@@ -19,15 +19,17 @@ export default function NewClientPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // This state is now used for pre-filling from search.
-    const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>(() => {
+    const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
+
+    useEffect(() => {
         const data: Partial<z.infer<typeof formSchema>> = {};
         searchParams.forEach((value, key) => {
             if (key in formSchema.shape) {
                 data[key as keyof typeof data] = value;
             }
         });
-        return data;
-    });
+        setInitialData(data);
+    }, [searchParams]);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
