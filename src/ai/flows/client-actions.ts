@@ -2,6 +2,9 @@
 'use server';
 
 import { z } from 'zod';
+import { MOCK_CLIENTS } from '@/data/mock-data';
+import type { Client } from '@/lib/client-data';
+
 // This file is now a pure simulation and does not interact with any database.
 // It returns mock responses to allow the UI to function.
 
@@ -56,4 +59,10 @@ const MOCK_ACCOUNTANTS: Accountant[] = [
 export async function getAccountants(): Promise<Accountant[]> {
     console.log("MOCK getAccountants: Returning mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
+}
+
+// Re-add getClients to fix build errors in other dashboard pages
+export async function getClients(): Promise<Client[]> {
+    console.log("MOCK getClients: Returning mock clients for dashboard pages.");
+    return Promise.resolve(MOCK_CLIENTS);
 }
