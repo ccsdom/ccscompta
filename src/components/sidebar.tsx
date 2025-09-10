@@ -49,7 +49,7 @@ const clientBottomNavItems = [
 
 
 const roleConfig = {
-    admin: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' }, // Admin is now an accountant
+    admin: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Administrateur' },
     accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
     secretary: { items: secretaryNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Secrétariat' },
     client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
@@ -70,12 +70,15 @@ export function Sidebar() {
         
         document.body.classList.remove('accountant-theme', 'admin-theme');
 
-        if (role === 'admin' || role === 'accountant' || role === 'secretary') {
-          setCurrentRole(role);
-          document.body.classList.add('accountant-theme');
-        }
-        else {
-          setCurrentRole('client');
+        if (role) {
+            setCurrentRole(role);
+            if (role === 'admin') {
+                document.body.classList.add('admin-theme');
+            } else if (role === 'accountant' || role === 'secretary') {
+                document.body.classList.add('accountant-theme');
+            }
+        } else {
+            setCurrentRole('client');
         }
     }
 
