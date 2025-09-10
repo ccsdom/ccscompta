@@ -18,6 +18,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { auth } from '@/lib/firebase-client';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type AuthError } from "firebase/auth";
+import { addClient, getClients } from "@/ai/flows/client-actions";
 
 // --- Début de la section de simulation ---
 
@@ -102,15 +105,40 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    localStorage.clear();
 
-    // Simulation de la latence du réseau
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        const authError = error as AuthError;
+        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
+             try {
+                // If user not found or creds are wrong, try creating the account
+                await createUserWithEmailAndPassword(auth, email, password);
+             } catch (creationError) {
+                 const creationAuthError = creationError as AuthError;
+                  toast({
+                    variant: "destructive",
+                    title: "Erreur de création de compte",
+                    description: `Le mot de passe est peut-être trop faible ou l'email est invalide.`,
+                });
+                setIsLoading(false);
+                return;
+             }
+        } else {
+             toast({
+                variant: "destructive",
+                title: "Erreur de connexion",
+                description: "Une erreur inattendue est survenue.",
+            });
+            setIsLoading(false);
+            return;
+        }
+    }
 
     const userEmailKey = email as keyof typeof DEMO_USERS;
     const user = DEMO_USERS[userEmailKey];
 
-    if (user && user.password === password) {
+    if (user) {
         localStorage.setItem('userRole', user.role);
         localStorage.setItem('userName', user.name);
         localStorage.setItem('userEmail', user.email);
@@ -138,7 +166,7 @@ export default function LoginPage() {
         toast({
             variant: "destructive",
             title: "Erreur de connexion",
-            description: "L'adresse e-mail ou le mot de passe est incorrect.",
+            description: "Cet utilisateur n'est pas un utilisateur de démo valide.",
         });
         setIsLoading(false);
     }
