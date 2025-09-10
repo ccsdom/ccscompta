@@ -192,16 +192,15 @@ export async function updateClientsStatus(
 ): Promise<{ success: boolean; updatedCount: number, error?: string }> {
     console.log(`MOCK updateClientsStatus: Updating status for ${clientIds.length} clients to ${status}`);
     let updatedCount = 0;
-    clientsStore = clientsStore.map(client => {
+    clientsStore.forEach((client, index) => {
         if (clientIds.includes(client.id)) {
-            updatedCount++;
-            return {
+            clientsStore[index] = {
                 ...client,
                 status: status,
                 lastActivity: new Date().toISOString().split('T')[0],
             };
+            updatedCount++;
         }
-        return client;
     });
 
     return { success: true, updatedCount };

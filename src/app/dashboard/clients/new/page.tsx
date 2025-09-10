@@ -26,6 +26,7 @@ export default function NewClientPage() {
                 title: "Client ajouté",
                 description: `Le nouveau client "${result.data.name}" a été créé avec succès.`
             });
+            // Instead of router.refresh(), which might not work with the mock, we navigate
             router.push('/dashboard/clients');
         } else {
             console.error("Failed to add client:", result.error);
