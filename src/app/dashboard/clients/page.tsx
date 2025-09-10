@@ -33,7 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getClients, deleteClient, updateClientsStatus, getAccountants, type Accountant } from '@/ai/flows/client-actions';
+import { getClients, getAccountants, type Accountant } from '@/ai/flows/client-actions';
 import type { Client } from '@/lib/client-data';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,7 +41,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { CompanySearchCombobox } from '@/components/company-search-combobox';
 
 
 export default function ClientsPage() {
@@ -54,21 +53,26 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchClientsAndAccountants = useCallback(async () => {
+    const fetchAndInitializeClients = useCallback(async () => {
         setLoading(true);
         try {
-            const [clientsData, accountantsData] = await Promise.all([
-                getClients(),
-                getAccountants()
-            ]);
-            
-            setClients(clientsData);
+            const baseClients = await getClients();
+            const accountantsData = await getAccountants();
             setAccountants(accountantsData);
+            
+            // Client-side state management using localStorage
+            const localClients = localStorage.getItem('clients');
+            if (localClients) {
+                setClients(JSON.parse(localClients));
+            } else {
+                setClients(baseClients);
+                localStorage.setItem('clients', JSON.stringify(baseClients));
+            }
         } catch (error) {
-            console.error("Failed to fetch data:", error);
+             console.error("Failed to fetch data:", error);
             toast({
                 title: "Erreur de chargement",
-                description: "Impossible de récupérer les données des clients et des comptables.",
+                description: "Impossible de récupérer les données des clients.",
                 variant: "destructive",
             });
         } finally {
@@ -77,8 +81,18 @@ export default function ClientsPage() {
     }, [toast]);
 
     useEffect(() => {
-        fetchClientsAndAccountants();
-    }, [fetchClientsAndAccountants]);
+        fetchAndInitializeClients();
+        
+        const handleStorageChange = () => {
+            fetchAndInitializeClients();
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [fetchAndInitializeClients]);
 
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -127,23 +141,21 @@ export default function ClientsPage() {
     
     const handleDeleteClient = async () => {
         if (!clientToDelete) return;
-        const result = await deleteClient(clientToDelete.id);
-        if (result.success) {
-            fetchClientsAndAccountants(); // Refetch the list
-            toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
-        } else {
-            toast({ variant: 'destructive', title: 'Erreur', description: result.error });
-        }
+        
+        const newClients = clients.filter(c => c.id !== clientToDelete.id);
+        setClients(newClients);
+        localStorage.setItem('clients', JSON.stringify(newClients));
+
+        toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
         setClientToDelete(null);
     }
 
     const handleClientsImported = () => {
-        fetchClientsAndAccountants();
+        fetchAndInitializeClients();
     }
     
     const getClientsToExport = async () => {
-        const clientsToExport = await getClients();
-        if (clientsToExport.length === 0) {
+        if (clients.length === 0) {
             toast({
                 title: "Aucun client à exporter",
                 description: "La liste des clients est vide.",
@@ -151,7 +163,7 @@ export default function ClientsPage() {
             });
             return null;
         }
-        return clientsToExport;
+        return clients;
     }
 
     const handleExportXLSX = async () => {
@@ -215,21 +227,16 @@ export default function ClientsPage() {
     }
 
 
-    const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
-        const result = await updateClientsStatus({ clientIds: selectedClientIds, status });
-        if (result.success) {
-            await fetchClientsAndAccountants(); // Refetch all clients to get the updates
-            toast({
-                title: "Statuts mis à jour",
-                description: `${result.updatedCount} clients ont été mis à jour.`
-            });
-        } else {
-            toast({
-                title: "Erreur de mise à jour",
-                description: result.error,
-                variant: "destructive"
-            });
-        }
+    const handleBulkStatusChange = (status: 'active' | 'inactive' | 'onboarding') => {
+        const updatedClients = clients.map(client => 
+            selectedClientIds.includes(client.id) ? { ...client, status: status } : client
+        );
+        setClients(updatedClients);
+        localStorage.setItem('clients', JSON.stringify(updatedClients));
+        toast({
+            title: "Statuts mis à jour",
+            description: `${selectedClientIds.length} clients ont été mis à jour.`
+        });
         setSelectedClientIds([]);
     }
 
@@ -284,7 +291,7 @@ export default function ClientsPage() {
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
+                    <ClientImportDialog onClientsImported={fetchAndInitializeClients} />
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline">
@@ -384,7 +391,9 @@ export default function ClientsPage() {
                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                                             <Building className="h-5 w-5 text-muted-foreground" />
                                         </div>
-                                        {client.name}
+                                        <button className="text-left hover:underline" onClick={() => handleSelectClient(client.id)}>
+                                            {client.name}
+                                        </button>
                                     </TableCell>
                                     <TableCell>{getStatusBadge(client.status)}</TableCell>
                                     <TableCell className="hidden md:table-cell">
