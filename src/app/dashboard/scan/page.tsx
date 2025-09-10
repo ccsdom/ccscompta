@@ -11,8 +11,6 @@ import { addDocument, updateDocument, deleteDocument } from '@/ai/flows/document
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
-import { ref, uploadString } from 'firebase/storage';
-import { storage } from '@/lib/firebase-client';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -113,23 +111,25 @@ export default function ScanPage() {
         let createdDoc: Document | null = null;
         try {
             const fileName = `scan-${new Date().toISOString()}.jpg`;
-            const storagePath = `${selectedClientId}/${fileName}`;
-            const storageRef = ref(storage, storagePath);
-
-            await uploadString(storageRef, capturedImage, 'data_url');
             
-            const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
+            // SIMULATION: Create document directly in the simulated store
+            // without uploading to Firebase Storage.
+            const newDocData: Omit<Document, 'id'> = {
                 name: fileName,
                 uploadDate: new Date().toISOString(),
                 status: 'processing',
-                storagePath: storagePath,
+                storagePath: `simulated/${selectedClientId}/${fileName}`, // Simulated path
+                dataUrl: capturedImage, // Store dataUrl for preview
                 clientId: selectedClientId,
                 comments: [],
                 auditTrail: addAuditEvent([], 'Document scanné par le client'),
             };
 
             createdDoc = await addDocument(newDocData);
-            if (!createdDoc) throw new Error("Failed to create document in database.");
+            if (!createdDoc) throw new Error("Failed to create document in the simulated store.");
+            
+            // Now that we have the final doc from the store (with a real ID), we can continue
+            createdDoc.dataUrl = capturedImage; 
 
             const recognition = await recognizeDocumentType({ documentDataUri: capturedImage });
             const extracted = await extractData({ documentDataUri: capturedImage, documentType: recognition.documentType, clientId: selectedClientId });
