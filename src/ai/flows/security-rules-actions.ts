@@ -47,4 +47,32 @@ service firebase.storage {
 }
 
 
+/**
+ * Provides the recommended Firestore security rules to allow authenticated access.
+ *
+ * @returns {Promise<{success: boolean, rules: string}>} An object containing the success status and the recommended Firestore rules.
+ */
+export async function configureFirestoreSecurityRules(): Promise<{success: boolean, rules: string}> {
+  const rules = `
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Règle générale : Autorise la lecture et l'écriture à tous les utilisateurs connectés.
+    // C'est une bonne base pour le développement, mais pour la production,
+    // vous devriez affiner ces règles pour être plus restrictif.
+    // Par exemple, un client ne devrait pouvoir lire/écrire que ses propres documents.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+  `.trim();
+
+  return {
+    success: true,
+    rules: rules,
+  };
+}
     
