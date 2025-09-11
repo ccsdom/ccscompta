@@ -3,6 +3,8 @@
 
 import type { Invoice, Client } from '@/lib/types';
 import { db } from '@/lib/firebase-admin';
+import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer } from 'firebase/firestore';
+
 
 const MOCK_INVOICES: Omit<Invoice, 'id'>[] = [
     { clientId: 'client-01', clientName: 'ACTION AVENTURE', number: 'FACT-2024-007', date: '2024-07-01', dueDate: '2024-07-31', amount: 350.00, status: 'pending' },
@@ -16,17 +18,14 @@ const MOCK_INVOICES: Omit<Invoice, 'id'>[] = [
 export async function getInvoices(): Promise<Invoice[]> {
     console.log('[Firestore] Fetching all invoices.');
     try {
-        const snapshot = await db.collection('invoices').get();
+        const snapshot = await getDocs(collection(db, 'invoices'));
         if (snapshot.empty) {
             console.log("No invoices found in Firestore, seeding with mock data...");
-            const batch = db.batch();
-            MOCK_INVOICES.forEach(invoice => {
-                const docRef = db.collection('invoices').doc();
-                batch.set(docRef, invoice);
-            });
-            await batch.commit();
+            for(const invoice of MOCK_INVOICES) {
+                await addDoc(collection(db, 'invoices'), invoice);
+            }
             console.log(`${MOCK_INVOICES.length} mock invoices seeded.`);
-            const seededSnapshot = await db.collection('invoices').get();
+            const seededSnapshot = await getDocs(collection(db, 'invoices'));
             return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
@@ -39,8 +38,9 @@ export async function getInvoices(): Promise<Invoice[]> {
 export async function addInvoice(invoice: Omit<Invoice, 'id' | 'number'>): Promise<Invoice> {
     console.log(`[Firestore] Adding new invoice for client ${invoice.clientId}`);
     try {
-        const countQuery = await db.collection('invoices').count().get();
-        const invoiceCount = countQuery.data().count;
+        const coll = collection(db, "invoices");
+        const snapshot = await getCountFromServer(coll);
+        const invoiceCount = snapshot.data().count;
         const newInvoiceNumber = `FACT-2024-${String(invoiceCount + 1).padStart(3, '0')}`;
 
         const newInvoiceData = {
@@ -48,7 +48,7 @@ export async function addInvoice(invoice: Omit<Invoice, 'id' | 'number'>): Promi
             number: newInvoiceNumber
         };
 
-        const docRef = await db.collection('invoices').add(newInvoiceData);
+        const docRef = await addDoc(collection(db, 'invoices'), newInvoiceData);
         return { ...newInvoiceData, id: docRef.id };
     } catch(e) {
         console.error("[Firestore] Error adding invoice:", e);
@@ -59,10 +59,10 @@ export async function addInvoice(invoice: Omit<Invoice, 'id' | 'number'>): Promi
 export async function updateInvoice(invoiceId: string, updates: Partial<Invoice>): Promise<Invoice | null> {
     console.log(`[Firestore] Updating invoice ${invoiceId}`);
     try {
-        const docRef = db.collection('invoices').doc(invoiceId);
-        await docRef.update(updates);
-        const updatedDoc = await docRef.get();
-        return { id: updatedDoc.id, ...updatedDoc.data() } as Invoice;
+        const docRef = doc(db, 'invoices', invoiceId);
+        await updateDoc(docRef, updates);
+        const updatedSnapshot = await getDoc(docRef);
+        return { id: updatedSnapshot.id, ...updatedSnapshot.data() } as Invoice;
     } catch(e) {
         console.error(`[Firestore] Error updating invoice ${invoiceId}:`, e);
         return null;
@@ -86,3 +86,4 @@ export async function createInvoiceForDocument(client: Client, documentId: strin
     
     return addInvoice(newInvoiceData);
 }
+

@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
+import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Client } from '@/lib/client-data';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 
@@ -31,8 +32,9 @@ export async function addClient(
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
     
-    const siretQuery = await db.collection('clients').where('siret', '==', validatedData.siret).limit(1).get();
-    if (!siretQuery.empty) {
+    const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
+    const siretSnapshot = await getDocs(siretQuery);
+    if (!siretSnapshot.empty) {
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
@@ -42,7 +44,7 @@ export async function addClient(
       lastActivity: new Date().toISOString(),
     };
 
-    const docRef = await db.collection('clients').add(newClient);
+    const docRef = await addDoc(collection(db, 'clients'), newClient);
 
     console.log("[Firestore] Client added with ID:", docRef.id);
     return { success: true, data: { ...newClient, id: docRef.id } };
@@ -60,20 +62,16 @@ export async function addClient(
 export async function getClients(): Promise<Client[]> {
     console.log("[Firestore] Fetching all clients.");
     try {
-        const snapshot = await db.collection('clients').get();
+        const snapshot = await getDocs(collection(db, 'clients'));
         if (snapshot.empty) {
             console.log("No clients found in Firestore, seeding with mock data...");
-            const batch = db.batch();
-            MOCK_CLIENTS.forEach(client => {
-                // remove id from mock object before sending to firestore
-                const { id, ...clientData } = client; 
-                const docRef = db.collection('clients').doc();
-                batch.set(docRef, clientData);
-            });
-            await batch.commit();
+            for (const client of MOCK_CLIENTS) {
+                 const { id, ...clientData } = client; 
+                 await addDoc(collection(db, 'clients'), clientData);
+            }
             console.log(`${MOCK_CLIENTS.length} mock clients seeded.`);
             // Fetch again after seeding
-            const seededSnapshot = await db.collection('clients').get();
+            const seededSnapshot = await getDocs(collection(db, 'clients'));
             return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
@@ -86,11 +84,12 @@ export async function getClients(): Promise<Client[]> {
 export async function getClientById(id: string): Promise<Client | null> {
     console.log(`[Firestore] Fetching client by ID: ${id}`);
     try {
-        const doc = await db.collection('clients').doc(id).get();
-        if (!doc.exists) {
+        const docRef = doc(db, 'clients', id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
             return null;
         }
-        return { id: doc.id, ...doc.data() } as Client;
+        return { id: docSnap.id, ...docSnap.data() } as Client;
     } catch(error) {
         console.error(`Error fetching client ${id}:`, error);
         return null;
@@ -101,14 +100,16 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
     console.log(`[Firestore] Updating client ID: ${id}`);
     try {
          if (updates.siret) {
-            const siretQuery = await db.collection('clients').where('siret', '==', updates.siret).get();
-            const conflictingDoc = siretQuery.docs.find(doc => doc.id !== id);
+            const siretQuery = query(collection(db, 'clients'), where('siret', '==', updates.siret));
+            const siretSnapshot = await getDocs(siretQuery);
+            const conflictingDoc = siretSnapshot.docs.find(docData => docData.id !== id);
              if (conflictingDoc) {
                 return { success: false, error: 'Un autre client utilise déjà ce SIRET.'};
             }
         }
-
-        await db.collection('clients').doc(id).update(updates);
+        
+        const docRef = doc(db, 'clients', id);
+        await updateDoc(docRef, updates);
         const updatedDoc = await getClientById(id);
         if (!updatedDoc) throw new Error("Failed to fetch updated document.");
 
@@ -126,7 +127,7 @@ export async function deleteClient(id: string): Promise<{success: boolean}> {
     console.log(`[Firestore] Deleting client ID: ${id}`);
     try {
         // In a real app, you would also delete subcollections (documents, etc.)
-        await db.collection('clients').doc(id).delete();
+        await deleteDoc(doc(db, 'clients', id));
         console.log(`[Firestore] Client ${id} deleted.`);
         return { success: true };
     } catch (error) {

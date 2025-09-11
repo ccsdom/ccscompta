@@ -33,13 +33,12 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
-        // This addClient is now a mock that just returns success
         const result = await addClient(data);
 
         if (result.success) {
             toast({
-                title: "Client ajouté (Simulation)",
-                description: `Le client "${data.name}" a été ajouté avec succès dans cette session. Il n'apparaîtra pas dans la liste en raison des limitations de la simulation.`
+                title: "Client ajouté",
+                description: `Le client "${data.name}" a été ajouté avec succès.`
             });
             // Redirect to the list page
             router.push('/dashboard/clients');
@@ -85,3 +84,4 @@ export default function NewClientPage() {
         </div>
     )
 }
+
