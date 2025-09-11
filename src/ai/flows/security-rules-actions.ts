@@ -59,12 +59,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Règle générale : Autorise la lecture et l'écriture à tous les utilisateurs connectés.
-    // C'est une bonne base pour le développement, mais pour la production,
-    // vous devriez affiner ces règles pour être plus restrictif.
-    // Par exemple, un client ne devrait pouvoir lire/écrire que ses propres documents.
+    // Règle générale pour le développement : Autorise la lecture et l'écriture à tout le monde.
+    // ATTENTION : Ces règles sont trop permissives pour un environnement de production.
+    // Elles permettent à n'importe qui de lire/écrire/supprimer vos données.
+    // À remplacer par "allow read, write: if request.auth != null;" une fois l'authentification réelle mise en place.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
