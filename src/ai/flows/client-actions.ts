@@ -2,14 +2,10 @@
 'use server';
 
 import { z } from 'zod';
-import { MOCK_CLIENTS } from '@/data/mock-data';
+import { db } from '@/lib/firebase-admin';
 import type { Client } from '@/lib/client-data';
+import { MOCK_CLIENTS } from '@/data/mock-data';
 
-// --- Simulation de la base de données en mémoire ---
-let clientsStore: Client[] = [...MOCK_CLIENTS];
-// Utiliser un Set pour une recherche de SIRET rapide
-let siretSet = new Set(MOCK_CLIENTS.map(c => c.siret));
-// --- Fin de la simulation ---
 
 type ServerActionResponse<T> =
   | { success: true; data: T }
@@ -31,29 +27,28 @@ const AddClientInputSchema = z.object({
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  console.log("[SIMULATION] Adding client:", newClientData.name);
+  console.log("[Firestore] Adding client:", newClientData.name);
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
     
-    if (siretSet.has(validatedData.siret)) {
+    const siretQuery = await db.collection('clients').where('siret', '==', validatedData.siret).limit(1).get();
+    if (!siretQuery.empty) {
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
-    const newClient: Client = {
+    const newClient: Omit<Client, 'id'> = {
       ...validatedData,
-      id: `client-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };
 
-    clientsStore.push(newClient);
-    siretSet.add(newClient.siret);
+    const docRef = await db.collection('clients').add(newClient);
 
-    console.log("[SIMULATION] Client added:", newClient.name);
-    return { success: true, data: newClient };
+    console.log("[Firestore] Client added with ID:", docRef.id);
+    return { success: true, data: { ...newClient, id: docRef.id } };
 
   } catch (error) {
-    console.error('[SIMULATION] Error adding client:', error);
+    console.error('[Firestore] Error adding client:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
@@ -63,55 +58,81 @@ export async function addClient(
 }
 
 export async function getClients(): Promise<Client[]> {
-    console.log("[SIMULATION] Fetching all clients.");
-    return Promise.resolve([...clientsStore]);
+    console.log("[Firestore] Fetching all clients.");
+    try {
+        const snapshot = await db.collection('clients').get();
+        if (snapshot.empty) {
+            console.log("No clients found in Firestore, seeding with mock data...");
+            const batch = db.batch();
+            MOCK_CLIENTS.forEach(client => {
+                // remove id from mock object before sending to firestore
+                const { id, ...clientData } = client; 
+                const docRef = db.collection('clients').doc();
+                batch.set(docRef, clientData);
+            });
+            await batch.commit();
+            console.log(`${MOCK_CLIENTS.length} mock clients seeded.`);
+            // Fetch again after seeding
+            const seededSnapshot = await db.collection('clients').get();
+            return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+    } catch (error) {
+        console.error("Error fetching clients:", error);
+        return [];
+    }
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
-    console.log(`[SIMULATION] Fetching client by ID: ${id}`);
-    const client = clientsStore.find(c => c.id === id);
-    return Promise.resolve(client || null);
+    console.log(`[Firestore] Fetching client by ID: ${id}`);
+    try {
+        const doc = await db.collection('clients').doc(id).get();
+        if (!doc.exists) {
+            return null;
+        }
+        return { id: doc.id, ...doc.data() } as Client;
+    } catch(error) {
+        console.error(`Error fetching client ${id}:`, error);
+        return null;
+    }
 }
 
 export async function updateClient({id, updates}: {id: string, updates: Partial<Client>}): Promise<ServerActionResponse<Client>> {
-    console.log(`[SIMULATION] Updating client ID: ${id}`);
-    const clientIndex = clientsStore.findIndex(c => c.id === id);
-    
-    if(clientIndex === -1) {
-        return { success: false, error: 'Client non trouvé.'};
-    }
-    
-    // Si le SIRET est mis à jour, vérifier qu'il n'est pas déjà pris par un autre client
-    if (updates.siret && updates.siret !== clientsStore[clientIndex].siret) {
-        if(siretSet.has(updates.siret)) {
-             return { success: false, error: 'Un autre client utilise déjà ce SIRET.'};
+    console.log(`[Firestore] Updating client ID: ${id}`);
+    try {
+         if (updates.siret) {
+            const siretQuery = await db.collection('clients').where('siret', '==', updates.siret).get();
+            const conflictingDoc = siretQuery.docs.find(doc => doc.id !== id);
+             if (conflictingDoc) {
+                return { success: false, error: 'Un autre client utilise déjà ce SIRET.'};
+            }
         }
-         // Mettre à jour le Set des SIRETs
-        siretSet.delete(clientsStore[clientIndex].siret);
-        siretSet.add(updates.siret);
+
+        await db.collection('clients').doc(id).update(updates);
+        const updatedDoc = await getClientById(id);
+        if (!updatedDoc) throw new Error("Failed to fetch updated document.");
+
+        console.log(`[Firestore] Client ${id} updated.`);
+        return { success: true, data: updatedDoc };
+    } catch(error) {
+        console.error(`Error updating client ${id}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue.';
+        return { success: false, error: errorMessage};
     }
-    
-    clientsStore[clientIndex] = { ...clientsStore[clientIndex], ...updates };
-    console.log(`[SIMULATION] Client ${id} updated.`);
-    return { success: true, data: clientsStore[clientIndex] };
 }
 
 
 export async function deleteClient(id: string): Promise<{success: boolean}> {
-    console.log(`[SIMULATION] Deleting client ID: ${id}`);
-    const initialLength = clientsStore.length;
-    const clientToDelete = clientsStore.find(c => c.id === id);
-
-    clientsStore = clientsStore.filter(c => c.id !== id);
-
-    if (clientToDelete && clientsStore.length < initialLength) {
-        siretSet.delete(clientToDelete.siret);
-        console.log(`[SIMULATION] Client ${id} deleted.`);
+    console.log(`[Firestore] Deleting client ID: ${id}`);
+    try {
+        // In a real app, you would also delete subcollections (documents, etc.)
+        await db.collection('clients').doc(id).delete();
+        console.log(`[Firestore] Client ${id} deleted.`);
         return { success: true };
+    } catch (error) {
+        console.error(`Error deleting client ${id}:`, error);
+        return { success: false };
     }
-    
-    console.log(`[SIMULATION] Client ${id} not found for deletion.`);
-    return { success: false };
 }
 
 
@@ -129,5 +150,3 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
-
-    

@@ -1,16 +1,19 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCcw, Send, CheckCircle, Loader2, VideoOff, AlertTriangle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Camera, RefreshCcw, Send, Loader2, VideoOff, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
+import { addDocument, updateDocument } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
+import { fileToDataUri } from '@/lib/utils';
+import { ref, uploadBytes } from "firebase/storage";
+import { storage } from '@/lib/firebase-client';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -48,7 +51,6 @@ export default function ScanPage() {
         getCameraPermission();
 
         return () => {
-            // Stop camera stream when component unmounts
             if (videoRef.current && videoRef.current.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
@@ -57,22 +59,14 @@ export default function ScanPage() {
     }, []);
 
      const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
-        const event: AuditEvent = {
-            action,
-            date: new Date().toISOString(),
-            user: getCurrentUser(),
-        };
+        const event: AuditEvent = { action, date: new Date().toISOString(), user: getCurrentUser() };
         return [...trail, event];
     }
 
      const createNotification = (doc: Document, message: string) => {
         const newNotification: Notification = {
-          id: crypto.randomUUID(),
-          documentId: doc.id,
-          documentName: doc.name,
-          message,
-          date: new Date().toISOString(),
-          isRead: false
+          id: crypto.randomUUID(), documentId: doc.id, documentName: doc.name,
+          message, date: new Date().toISOString(), isRead: false
         };
         const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
         localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
@@ -94,9 +88,7 @@ export default function ScanPage() {
         }
     };
 
-    const handleRetake = () => {
-        setCapturedImage(null);
-    };
+    const handleRetake = () => { setCapturedImage(null); };
 
     const handleSend = async () => {
         if (!capturedImage) return;
@@ -111,33 +103,27 @@ export default function ScanPage() {
         let createdDoc: Document | null = null;
         try {
             const fileName = `scan-${new Date().toISOString()}.jpg`;
+            const file = await (await fetch(capturedImage)).blob();
+            const storagePath = `${selectedClientId}/${Date.now()}-${fileName}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
             
-            // SIMULATION: Create document directly in the simulated store
-            // without uploading to Firebase Storage.
             const newDocData: Omit<Document, 'id'> = {
-                name: fileName,
-                uploadDate: new Date().toISOString(),
-                status: 'processing',
-                storagePath: `simulated/${selectedClientId}/${fileName}`, // Simulated path
-                dataUrl: capturedImage, // Store dataUrl for preview
-                clientId: selectedClientId,
-                comments: [],
+                name: fileName, uploadDate: new Date().toISOString(), status: 'processing',
+                storagePath: storagePath, clientId: selectedClientId, comments: [],
                 auditTrail: addAuditEvent([], 'Document scanné par le client'),
             };
 
             createdDoc = await addDocument(newDocData);
-            if (!createdDoc) throw new Error("Failed to create document in the simulated store.");
+            if (!createdDoc) throw new Error("Failed to create document entry in database.");
             
-            // Now that we have the final doc from the store (with a real ID), we can continue
             createdDoc.dataUrl = capturedImage; 
 
             const recognition = await recognizeDocumentType({ documentDataUri: capturedImage });
             const extracted = await extractData({ documentDataUri: capturedImage, documentType: recognition.documentType, clientId: selectedClientId });
 
             const finalUpdates: Partial<Document> = {
-                status: 'reviewing',
-                extractedData: extracted,
-                type: recognition.documentType,
+                status: 'reviewing', extractedData: extracted, type: recognition.documentType,
                 confidence: recognition.confidence,
                 auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé, en attente de validation')
             };
@@ -146,24 +132,19 @@ export default function ScanPage() {
 
             createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
 
-            toast({
-                title: 'Document envoyé !',
-                description: 'Votre document a été traité et envoyé à votre comptable.',
-                className: 'bg-green-100 dark:bg-green-900 border-green-200 dark:border-green-800'
-            });
+            toast({ title: 'Document envoyé !', description: 'Votre document a été traité et envoyé à votre comptable.' });
             setCapturedImage(null);
             
         } catch (error) {
             console.error("Erreur lors de l'envoi du scan:", error);
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
             if (createdDoc) {
-                // If AI processing fails, set status to error
                 const trail = addAuditEvent(createdDoc.auditTrail, 'Erreur de traitement IA');
                 await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
             }
         } finally {
             setIsProcessing(false);
-            window.dispatchEvent(new Event('storage')); // Notify other components (like my-documents)
+            window.dispatchEvent(new Event('storage'));
         }
     };
 

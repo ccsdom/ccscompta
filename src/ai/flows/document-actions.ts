@@ -4,77 +4,75 @@
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
 import { createSupplier, findSupplier } from '@/services/cegid';
-
-// --- Simulation de la base de données en mémoire ---
-let documentsStore: Record<string, Document[]> = {};
-// Initialiser avec les données mock
-for (const clientId in MOCK_DOCUMENTS) {
-    documentsStore[clientId] = MOCK_DOCUMENTS[clientId].map((doc, index) => ({
-        ...doc,
-        id: `${clientId}-doc-${index + 1}`
-    }));
-}
-
-let bilansStore: Record<string, Bilan[]> = { ...MOCK_BILANS };
-// --- Fin de la simulation ---
+import { db } from '@/lib/firebase-admin';
 
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
-    console.log(`[SIMULATION] Fetching documents for client: ${clientId}`);
-    return Promise.resolve(documentsStore[clientId] || []);
+    console.log(`[Firestore] Fetching documents for client: ${clientId}`);
+    try {
+        const snapshot = await db.collection('documents').where('clientId', '==', clientId).get();
+        if (snapshot.empty && (clientId === 'client-01' || clientId === 'client-02')) {
+            console.log(`No documents found for mock client ${clientId}, seeding...`);
+            const batch = db.batch();
+            const docsToSeed = MOCK_DOCUMENTS[clientId];
+            docsToSeed.forEach(doc => {
+                 const docRef = db.collection('documents').doc();
+                 batch.set(docRef, doc);
+            });
+            await batch.commit();
+            console.log(`${docsToSeed.length} mock documents seeded for client ${clientId}.`);
+            const seededSnapshot = await db.collection('documents').where('clientId', '==', clientId).get();
+            return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
+    } catch (error) {
+        console.error(`Error fetching documents for client ${clientId}:`, error);
+        return [];
+    }
 }
 
 export async function getDocumentById(docId: string): Promise<Document | null> {
-    for (const clientId in documentsStore) {
-        const doc = documentsStore[clientId].find(d => d.id === docId);
-        if (doc) {
-            console.log(`[SIMULATION] Found document by ID: ${docId}`);
-            return Promise.resolve(doc);
+    console.log(`[Firestore] Fetching document by ID: ${docId}`);
+    try {
+        const doc = await db.collection('documents').doc(docId).get();
+        if (doc.exists) {
+            return { id: doc.id, ...doc.data() } as Document;
         }
+        return null;
+    } catch(e) {
+         console.error(`[Firestore] Error fetching document ${docId}:`, e);
+         return null;
     }
-    console.log(`[SIMULATION] Document with ID ${docId} not found.`);
-    return Promise.resolve(null);
 }
 
 export async function addDocument(docData: Omit<Document, 'id'>): Promise<Document | null> {
-    const { clientId } = docData;
-    if (!documentsStore[clientId]) {
-        documentsStore[clientId] = [];
+    try {
+        const docRef = await db.collection('documents').add(docData);
+        console.log(`[Firestore] Added new document for client ${docData.clientId} with ID: ${docRef.id}`);
+        return { ...docData, id: docRef.id };
+    } catch (error) {
+        console.error(`[Firestore] Error adding document:`, error);
+        return null;
     }
-    const newDoc: Document = {
-        ...docData,
-        id: `${clientId}-doc-${Date.now()}`
-    };
-    documentsStore[clientId].push(newDoc);
-    console.log(`[SIMULATION] Added new document for client ${clientId}:`, newDoc.name);
-    return Promise.resolve(newDoc);
 }
 
 
 export async function updateDocument({ id, updates }: {id: string, updates: Partial<Document> }): Promise<void> {
-    for (const clientId in documentsStore) {
-        const docIndex = documentsStore[clientId].findIndex(d => d.id === id);
-        if (docIndex !== -1) {
-            documentsStore[clientId][docIndex] = { ...documentsStore[clientId][docIndex], ...updates };
-            console.log(`[SIMULATION] Updated document ${id} for client ${clientId}`);
-            return Promise.resolve();
-        }
+    console.log(`[Firestore] Updating document ${id}`);
+    try {
+        await db.collection('documents').doc(id).update(updates);
+    } catch (error) {
+        console.error(`[Firestore] Failed to update document ${id}:`, error);
     }
-    console.log(`[SIMULATION] Failed to update document ${id}, not found.`);
-    return Promise.resolve();
 }
 
 export async function deleteDocument(docId: string): Promise<void> {
-    for (const clientId in documentsStore) {
-        const initialLength = documentsStore[clientId].length;
-        documentsStore[clientId] = documentsStore[clientId].filter(d => d.id !== docId);
-        if (documentsStore[clientId].length < initialLength) {
-            console.log(`[SIMULATION] Deleted document ${docId} for client ${clientId}`);
-            return Promise.resolve();
-        }
+     console.log(`[Firestore] Deleting document ${docId}`);
+    try {
+        await db.collection('documents').doc(docId).delete();
+    } catch (error) {
+        console.error(`[Firestore] Failed to delete document ${docId}:`, error);
     }
-     console.log(`[SIMULATION] Failed to delete document ${docId}, not found.`);
-    return Promise.resolve();
 }
 
 const addAuditEvent = (trail: AuditEvent[], action: string, user: string = 'Système'): AuditEvent[] => {
@@ -128,6 +126,23 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
 }
 
 export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
-    console.log(`[SIMULATION] Fetching bilans for client: ${clientId}`);
-    return Promise.resolve(bilansStore[clientId] || []);
+    console.log(`[Firestore] Fetching bilans for client: ${clientId}`);
+    try {
+        const snapshot = await db.collection('bilans').where('clientId', '==', clientId).get();
+        if (snapshot.empty && MOCK_BILANS[clientId]) {
+            console.log(`Seeding bilans for client ${clientId}`);
+            const batch = db.batch();
+            MOCK_BILANS[clientId].forEach(bilan => {
+                const docRef = db.collection('bilans').doc();
+                batch.set(docRef, bilan);
+            });
+            await batch.commit();
+            const seededSnapshot = await db.collection('bilans').where('clientId', '==', clientId).get();
+            return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bilan));
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bilan));
+    } catch (error) {
+        console.error(`Error fetching bilans for client ${clientId}:`, error);
+        return [];
+    }
 }

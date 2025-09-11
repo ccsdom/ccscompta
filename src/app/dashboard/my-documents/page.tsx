@@ -22,6 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
+import { storage } from '@/lib/firebase-client';
+import { ref, uploadBytes } from 'firebase/storage';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -146,38 +148,35 @@ export default function MyDocumentsPage() {
     let successCount = 0;
 
     const processFile = async (file: File) => {
-      let docToUpdate: Document | null = null;
+      let docToUpdateId: string | null = null;
       try {
         const dataUrl = await fileToDataUri(file);
 
-        // Create a temporary document object to show in the UI immediately
-        const tempId = `temp-${Date.now()}`;
-        const tempDoc: Document = {
-            id: tempId,
+        // Upload to Firebase Storage
+        const storagePath = `${clientId}/${Date.now()}-${file.name}`;
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+
+        const newDocData: Omit<Document, 'id'> = {
             name: file.name,
             uploadDate: new Date().toISOString(),
             status: 'processing',
-            dataUrl: dataUrl, // Use dataUrl for immediate preview
-            storagePath: `simulated/${clientId}/${file.name}`, // Simulated path
+            storagePath: storagePath,
             clientId: clientId,
             auditTrail: addAuditEvent([], 'Document téléversé par le client'),
             comments: [],
         };
-        setDocuments(prev => [tempDoc, ...prev]);
 
-        // Create the document in the simulated store
-        const newDocData: Omit<Document, 'id'> = { ...tempDoc };
-        docToUpdate = await addDocument(newDocData);
-
-        if (!docToUpdate) throw new Error("Failed to create document in the simulated store.");
+        const newDoc = await addDocument(newDocData);
+        if (!newDoc) throw new Error("Failed to create document in the database.");
         
-        // Replace temp doc with real one from the store
-        setDocuments(prev => prev.map(d => d.id === tempId ? { ...docToUpdate!, status: 'processing', dataUrl } : d));
+        docToUpdateId = newDoc.id;
+        setDocuments(prev => [{...newDoc, dataUrl}, ...prev]);
 
         // Start AI processing
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
-        const trailWithAI = addAuditEvent(docToUpdate.auditTrail, 'Traitement IA terminé');
+        const trailWithAI = addAuditEvent(newDoc.auditTrail, 'Traitement IA terminé');
         
         const finalUpdates: Partial<Document> = {
             status: 'reviewing',
@@ -187,20 +186,22 @@ export default function MyDocumentsPage() {
             auditTrail: trailWithAI,
         };
 
-        await updateDocument({ id: docToUpdate.id, updates: finalUpdates });
-        // Update the state with the final processed document
-        setDocuments(prev => prev.map(d => d.id === docToUpdate!.id ? { ...d, ...finalUpdates } : d));
-        createNotification({ ...docToUpdate, ...finalUpdates }, 'est prêt pour examen.');
+        await updateDocument({ id: docToUpdateId, updates: finalUpdates });
+        setDocuments(prev => prev.map(d => d.id === docToUpdateId ? { ...d, ...finalUpdates, dataUrl } : d));
+        createNotification({ ...newDoc, ...finalUpdates }, 'est prêt pour examen.');
         successCount++;
 
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
         toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.` });
-        if (docToUpdate) {
-            const trail = addAuditEvent(docToUpdate.auditTrail, 'Erreur de traitement IA');
-            await updateDocument({ id: docToUpdate.id, updates: { status: 'error', auditTrail: trail } });
-            setDocuments(prev => prev.map(d => d.id === docToUpdate!.id ? {...d, status: 'error', auditTrail: trail} : d));
-            createNotification({ ...docToUpdate, status: 'error' }, 'a échoué lors du traitement.');
+        if (docToUpdateId) {
+            const doc = documents.find(d => d.id === docToUpdateId);
+            if(doc) {
+                const trail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
+                await updateDocument({ id: docToUpdateId, updates: { status: 'error', auditTrail: trail } });
+                setDocuments(prev => prev.map(d => d.id === docToUpdateId ? {...d, status: 'error', auditTrail: trail} : d));
+                createNotification({ ...doc, status: 'error' }, 'a échoué lors du traitement.');
+            }
         }
       }
     };
@@ -236,8 +237,13 @@ export default function MyDocumentsPage() {
   }
 
   const handleSetActive = async (doc: Document) => {
-    // dataUrl is already set during upload in the simulation
-    setActiveDocument(doc);
+    let docWithDataUrl = {...doc};
+    if (!doc.dataUrl) {
+       // In a real app, you would get a download URL from Firebase Storage here.
+       // For simplicity, we'll use a placeholder.
+       docWithDataUrl.dataUrl = `https://picsum.photos/seed/${doc.id}/800/1100`;
+    }
+    setActiveDocument(docWithDataUrl);
     setIsSheetOpen(true);
   }
   

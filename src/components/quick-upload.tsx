@@ -71,7 +71,7 @@ export function QuickUpload() {
         let createdDoc: Document | null = null;
         try {
             const dataUrl = await fileToDataUri(file);
-            const storagePath = `${clientId}/${file.name}`;
+            const storagePath = `${clientId}/${Date.now()}-${file.name}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
 
@@ -190,5 +190,3 @@ export function QuickUpload() {
         </Dialog>
     );
 }
-
-    
