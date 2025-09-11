@@ -5,7 +5,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyC1Wu-pJ12Ionb9dsjWmaGusuxGmh5LZB4",
   authDomain: "ccs-compta.firebaseapp.com",
   projectId: "ccs-compta",
