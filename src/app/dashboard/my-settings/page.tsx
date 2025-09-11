@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SettingsProfileSecurity } from "@/components/settings-profile-security";
