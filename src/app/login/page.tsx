@@ -202,6 +202,12 @@ export default function LoginPage() {
               Entrez vos identifiants pour accéder à votre espace.
             </p>
           </div>
+          <Alert>
+              <AlertTitle>Comptes de démonstration</AlertTitle>
+              <AlertDescription>
+                Pour vous connecter en tant que <strong>comptable@ccs.com</strong> ou <strong>admin@ccs.com</strong>, vous devez d'abord créer ces utilisateurs manuellement dans la console <strong>Firebase Authentication</strong> avec le mot de passe de votre choix.
+              </AlertDescription>
+            </Alert>
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
