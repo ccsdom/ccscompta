@@ -12,6 +12,7 @@ import { addClient } from '@/ai/flows/client-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
+import { auth } from '@/lib/firebase-admin';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
@@ -120,7 +121,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
              toast({
                 variant: 'destructive',
                 title: `Erreurs lors de l'importation`,
-                description: `${errorCount} clients n'ont pas pu être importés (ex: SIRET déjà existant ou données invalides). Consultez la console pour plus de détails.`
+                description: `${errorCount} clients n'ont pas pu être importés (ex: SIRET ou email déjà existant). Consultez la console pour plus de détails.`
             });
         }
 

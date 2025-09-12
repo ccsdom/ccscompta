@@ -1,7 +1,8 @@
+
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase-admin';
+import { db, auth } from '@/lib/firebase-admin';
 import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
@@ -31,11 +32,24 @@ export async function addClient(
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
     
+    // Check for existing SIRET
     const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
     const siretSnapshot = await getDocs(siretQuery);
     if (!siretSnapshot.empty) {
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
+
+    // Check for existing email in Firebase Auth
+     try {
+        await auth.getUserByEmail(validatedData.email);
+        return { success: false, error: 'Un utilisateur avec cet email existe déjà.' };
+    } catch (error: any) {
+        if (error.code !== 'auth/user-not-found') {
+            throw error; // Re-throw unexpected errors
+        }
+        // If user is not found, we can proceed.
+    }
+
 
     const newClient: Omit<Client, 'id'> = {
       ...validatedData,
