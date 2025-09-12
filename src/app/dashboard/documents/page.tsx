@@ -43,6 +43,8 @@ import { BilanHistory } from '@/components/bilan-history';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { storage } from '@/lib/firebase-client';
+import { ref, getDownloadURL } from 'firebase/storage';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -170,8 +172,11 @@ export default function DocumentsPage() {
     try {
       let docWithDataUrl = { ...docToProcess };
       if (!docWithDataUrl.dataUrl) {
-          // In simulation, we assume dataUrl is there if needed, but this is a safe fallback
-          const tempFile = new File([], docToProcess.name);
+          const storageRef = ref(storage, docToProcess.storagePath);
+          const downloadUrl = await getDownloadURL(storageRef);
+          const response = await fetch(downloadUrl);
+          const blob = await response.blob();
+          const tempFile = new File([blob], docToProcess.name, { type: blob.type });
           docWithDataUrl.dataUrl = await fileToDataUri(tempFile);
       }
 
@@ -286,15 +291,32 @@ export default function DocumentsPage() {
     if (doc) {
         setZoom(1);
         setRotation(0);
-        let docWithDataUrl = doc;
         
-        // Data URL is now added during upload in simulation, so this might not be needed
-        // but it's a good fallback.
-        if (!doc.dataUrl) {
-            docWithDataUrl = {...doc, dataUrl: `https://picsum.photos/seed/${doc.id}/800/1100`};
+        setActiveDocument({ ...doc, dataUrl: undefined }); // Set active doc but clear previous dataUrl
+
+        try {
+            // Fetch the download URL from Firebase Storage
+            const storageRef = ref(storage, doc.storagePath);
+            const downloadUrl = await getDownloadURL(storageRef);
+
+            // Fetch the file as a blob
+            const response = await fetch(downloadUrl);
+            const blob = await response.blob();
+            
+            // Create a file object (optional, but good practice)
+            const file = new File([blob], doc.name, { type: blob.type });
+
+            // Convert the file to a data URI for display in iframe/img
+            const dataUrl = await fileToDataUri(file);
+            
+            setActiveDocument({ ...doc, dataUrl });
+
+        } catch (error) {
+            console.error("Error getting document preview:", error);
+            toast({ variant: "destructive", title: "Erreur d'aperçu", description: "Impossible de charger l'aperçu du document." });
+            // Keep the active document but with no preview
+            setActiveDocument(doc);
         }
-        
-        setActiveDocument(docWithDataUrl);
     } else {
         setActiveDocument(null);
     }
@@ -637,3 +659,4 @@ export default function DocumentsPage() {
   );
 }
 
+    
