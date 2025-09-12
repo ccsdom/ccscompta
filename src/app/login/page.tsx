@@ -21,6 +21,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { getClients } from "@/ai/flows/client-actions";
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const DEMO_USERS = {
   "secretaire@ccs.com": {
@@ -261,5 +262,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    
