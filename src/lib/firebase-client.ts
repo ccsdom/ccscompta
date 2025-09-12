@@ -16,16 +16,11 @@ export const firebaseConfig = {
 
 
 // Singleton pattern to ensure Firebase is initialized only once
-let clientApp: FirebaseApp;
-if (!getApps().length) {
-  clientApp = initializeApp(firebaseConfig);
-} else {
-  clientApp = getApp();
-}
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-const auth = getAuth(clientApp);
-const storage = getStorage(clientApp);
-const db = getFirestore(clientApp);
+const auth = getAuth(app);
+const storage = getStorage(app);
+const db = getFirestore(app);
 
 // Centralized auth state observer
 onAuthStateChanged(auth, user => {
@@ -36,4 +31,4 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-export { clientApp as app, auth, storage, db };
+export { app, auth, storage, db };
