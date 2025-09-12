@@ -141,17 +141,9 @@ export default function MyDocumentsPage() {
     return [...trail, event];
   };
 
-  const handleFileDrop = async (files: File[]) => {
-    if (!clientId) {
-      toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
-      return;
-    }
-    setIsUploading(true);
-    let successCount = 0;
-
-    const processFile = async (file: File) => {
-      let docToUpdateId: string | null = null;
-      try {
+  const processSingleFile = async (file: File, clientId: string) => {
+    let docToUpdateId: string | null = null;
+    try {
         const dataUrl = await fileToDataUri(file);
 
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
@@ -167,16 +159,19 @@ export default function MyDocumentsPage() {
             auditTrail: addAuditEvent([], 'Document téléversé par le client'),
             comments: [],
         };
+        
+        // Add doc to local state immediately with processing status
+        const tempId = `temp-${Math.random()}`;
+        setDocuments(prev => [{...newDocData, id: tempId } as Document, ...prev]);
 
         const newDoc = await addDocument(newDocData);
         if (!newDoc) throw new Error("Failed to create document in the database.");
         
         docToUpdateId = newDoc.id;
         
-        // Don't update local state here, we'll refetch at the end.
-        // setDocuments(prev => [{...newDoc, dataUrl}, ...prev]);
+        // Replace temp doc with real doc from DB
+        setDocuments(prev => prev.map(d => d.id === tempId ? newDoc : d));
 
-        // Start AI processing
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
         const trailWithAI = addAuditEvent(newDoc.auditTrail, 'Traitement IA terminé');
@@ -191,7 +186,8 @@ export default function MyDocumentsPage() {
 
         await updateDocument({ id: docToUpdateId, updates: finalUpdates });
         createNotification({ ...newDoc, ...finalUpdates }, 'est prêt pour examen.');
-        successCount++;
+        
+        return { success: true };
 
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
@@ -207,17 +203,33 @@ export default function MyDocumentsPage() {
                 console.error('Failed to update document to error state:', updateError);
             }
         }
-        // Don't toast here to avoid multiple toasts, a summary toast will be shown at the end.
+        return { success: false };
       }
-    };
+  }
 
-    await Promise.all(files.map(processFile));
+
+  const handleFileDrop = async (files: File[]) => {
+    if (!clientId) {
+      toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
+      return;
+    }
+    setIsUploading(true);
+    
+    let successCount = 0;
+    
+    const processingPromises = files.map(file => 
+        processSingleFile(file, clientId).then(result => {
+            if (result.success) successCount++;
+        })
+    );
+
+    await Promise.all(processingPromises);
     
     setIsUploading(false);
 
     if (successCount > 0) {
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été traités et envoyés.` });
-    } else {
+    } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être traité. Veuillez réessayer.` });
     }
 
