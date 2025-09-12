@@ -80,10 +80,6 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    let userRole: string | null = null;
-    let userName: string | null = null;
-    let userClientId: string | null = null;
-
     try {
         // 1. Authenticate with Firebase
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -94,8 +90,12 @@ export default function LoginPage() {
         const demoUserEmailKey = userEmail.toLowerCase() as keyof typeof DEMO_USERS;
         const demoUser = DEMO_USERS[demoUserEmailKey];
 
+        let userRole: string | null = null;
+        let userName: string | null = null;
+        let userClientId: string | null = null;
+
         if (demoUser) {
-            // User is a predefined staff member
+            // User is a predefined staff member (admin, accountant, secretary)
             userRole = demoUser.role;
             userName = demoUser.name;
         } else {
@@ -107,15 +107,17 @@ export default function LoginPage() {
                 userRole = "client";
                 userName = clientUser.legalRepresentative;
                 userClientId = clientUser.id;
-            } else {
-                // This case should be rare if user creation is handled correctly
-                throw new Error("Profil utilisateur introuvable dans l'application.");
             }
         }
         
-        // 3. Set session and redirect
+        // 3. If no role found after checking everything, throw an error
+        if (!userRole || !userName) {
+            throw new Error("Profil utilisateur introuvable dans l'application.");
+        }
+        
+        // 4. Set session and redirect
         localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', userName!);
+        localStorage.setItem('userName', userName);
         localStorage.setItem('userEmail', userEmail);
 
         let targetPath: string;

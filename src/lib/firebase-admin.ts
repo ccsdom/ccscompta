@@ -1,28 +1,19 @@
+import * as admin from 'firebase-admin';
 
-import { initializeApp, getApps, getApp, type App } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { firebaseConfig } from "./firebase-client";
-
-let app: App;
-let auth: Auth;
-let db: Firestore;
-
-try {
-    const appName = 'admin-app';
-    const existingApp = getApps().find(app => app.name === appName);
-    app = existingApp || initializeApp(firebaseConfig, appName);
-    auth = getAuth(app);
-    db = getFirestore(app);
-} catch (error) {
-    console.error("Failed to initialize Firebase Admin SDK:", error);
-    // Fallback in case of error
-    // @ts-ignore
-    app = app || null;
-     // @ts-ignore
-    auth = auth || null;
-     // @ts-ignore
-    db = db || null;
+// Check if the app is already initialized to prevent errors
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      // The Project ID can be found in your Firebase project settings.
+      // It's a unique identifier for your project.
+      // projectId: 'VOTRE_PROJECT_ID', // You might need to set this explicitly in some environments
+    });
+  } catch (error) {
+    console.error('Firebase admin initialization error', error);
+  }
 }
+
+const auth = admin.auth();
+const db = admin.firestore();
 
 export { auth, db };
