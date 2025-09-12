@@ -24,6 +24,8 @@ import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { storage } from '@/lib/firebase-client';
 import { ref, uploadBytes } from 'firebase/storage';
+import { auth } from '@/lib/firebase-client';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -152,7 +154,6 @@ export default function MyDocumentsPage() {
       try {
         const dataUrl = await fileToDataUri(file);
 
-        // Upload to Firebase Storage
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
@@ -171,7 +172,9 @@ export default function MyDocumentsPage() {
         if (!newDoc) throw new Error("Failed to create document in the database.");
         
         docToUpdateId = newDoc.id;
-        setDocuments(prev => [{...newDoc, dataUrl}, ...prev]);
+        
+        // Don't update local state here, we'll refetch at the end.
+        // setDocuments(prev => [{...newDoc, dataUrl}, ...prev]);
 
         // Start AI processing
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
@@ -187,31 +190,40 @@ export default function MyDocumentsPage() {
         };
 
         await updateDocument({ id: docToUpdateId, updates: finalUpdates });
-        setDocuments(prev => prev.map(d => d.id === docToUpdateId ? { ...d, ...finalUpdates, dataUrl } : d));
         createNotification({ ...newDoc, ...finalUpdates }, 'est prêt pour examen.');
         successCount++;
 
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        toast({ variant: "destructive", title: "Erreur de téléversement", description: `Impossible de traiter le fichier ${file.name}.` });
         if (docToUpdateId) {
-            const doc = documents.find(d => d.id === docToUpdateId);
-            if(doc) {
-                const trail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
-                await updateDocument({ id: docToUpdateId, updates: { status: 'error', auditTrail: trail } });
-                setDocuments(prev => prev.map(d => d.id === docToUpdateId ? {...d, status: 'error', auditTrail: trail} : d));
-                createNotification({ ...doc, status: 'error' }, 'a échoué lors du traitement.');
+            try {
+                const doc = await getDocuments(clientId).then(docs => docs.find(d => d.id === docToUpdateId));
+                if (doc) {
+                    const trail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
+                    await updateDocument({ id: docToUpdateId, updates: { status: 'error', auditTrail: trail } });
+                    createNotification({ ...doc, status: 'error' }, 'a échoué lors du traitement.');
+                }
+            } catch (updateError) {
+                console.error('Failed to update document to error state:', updateError);
             }
         }
+        // Don't toast here to avoid multiple toasts, a summary toast will be shown at the end.
       }
     };
 
     await Promise.all(files.map(processFile));
     
     setIsUploading(false);
+
     if (successCount > 0) {
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été traités et envoyés.` });
-      if(clientId) fetchDocuments(clientId);
+    } else {
+       toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être traité. Veuillez réessayer.` });
+    }
+
+    // Always refetch documents to get the final state of all uploads
+    if (clientId) {
+      fetchDocuments(clientId);
     }
   };
 
