@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { ref, uploadBytes } from 'firebase/storage';
 import { storage } from '@/lib/firebase-client';
-import { addDocument, updateDocument } from '@/ai/flows/document-actions';
+import { addDocument, updateDocument, getDocuments } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, Notification, AuditEvent } from '@/lib/types';
@@ -68,7 +68,7 @@ export function QuickUpload() {
     };
 
     const processSingleFile = useCallback(async (file: File, clientId: string) => {
-        let createdDoc: Document | null = null;
+        let createdDocId: string | null = null;
         try {
             const dataUrl = await fileToDataUri(file);
             const storagePath = `${clientId}/${Date.now()}-${file.name}`;
@@ -85,8 +85,10 @@ export function QuickUpload() {
                 auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
             };
 
-            createdDoc = await addDocument(newDocData);
+            const createdDoc = await addDocument(newDocData);
             if (!createdDoc) throw new Error("Failed to save document metadata.");
+            
+            createdDocId = createdDoc.id;
             
             const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
             const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
@@ -104,9 +106,9 @@ export function QuickUpload() {
 
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
-            if (createdDoc) {
-                const trail = addAuditEvent(createdDoc.auditTrail, 'Erreur de traitement IA');
-                await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
+            if (createdDocId) {
+                const trail = addAuditEvent([], 'Erreur de traitement IA');
+                await updateDocument({ id: createdDocId, updates: { status: 'error', auditTrail: trail } });
             }
             toast({
                 variant: "destructive",
@@ -163,7 +165,7 @@ export function QuickUpload() {
                 {isLoading && filesToProcessCount > 0 && (
                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Traitement de {processedFiles.length + 1} / {filesToProcessCount} document(s)...</span>
+                        <span>Traitement de {processedFiles.length + 1} / {filesToProcessCount}...</span>
                     </div>
                 )}
                 

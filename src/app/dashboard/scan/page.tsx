@@ -11,7 +11,6 @@ import { addDocument, updateDocument } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
-import { fileToDataUri } from '@/lib/utils';
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from '@/lib/firebase-client';
 
@@ -117,8 +116,6 @@ export default function ScanPage() {
             createdDoc = await addDocument(newDocData);
             if (!createdDoc) throw new Error("Failed to create document entry in database.");
             
-            createdDoc.dataUrl = capturedImage; 
-
             const recognition = await recognizeDocumentType({ documentDataUri: capturedImage });
             const extracted = await extractData({ documentDataUri: capturedImage, documentType: recognition.documentType, clientId: selectedClientId });
 

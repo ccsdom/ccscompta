@@ -211,6 +211,7 @@ export default function MyDocumentsPage() {
     setIsUploading(false);
     if (successCount > 0) {
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été traités et envoyés.` });
+      if(clientId) fetchDocuments(clientId);
     }
   };
 
