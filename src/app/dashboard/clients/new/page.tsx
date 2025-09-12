@@ -1,3 +1,4 @@
+
 'use client'
 
 import { ClientForm, formSchema } from "../client-form";
@@ -10,6 +11,10 @@ import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
 import { Copy } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 
 export default function NewClientPage() {
@@ -18,7 +23,6 @@ export default function NewClientPage() {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // This state is now used for pre-filling from search.
     const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
 
     useEffect(() => {
@@ -33,17 +37,43 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
-        // Important: Create user in Firebase Auth first, then create client in Firestore.
-        // For this demo, we assume the user is created manually in the Firebase Console
-        // and we are just adding the client profile to Firestore.
-
         const result = await addClient(data);
 
         if (result.success) {
+             const tempPassword = result.data.password;
              toast({
-                duration: 20000,
+                duration: 60000, // 1 minute
                 title: "Client ajouté avec succès !",
-                description: `Le profil pour ${result.data.name} a été créé. Vous devez maintenant créer un utilisateur correspondant dans Firebase Authentication avec l'email ${result.data.email} pour qu'il puisse se connecter.`,
+                description: (
+                    <div className="space-y-4">
+                        <p>Le profil et le compte de connexion pour <strong>{result.data.name}</strong> ont été créés.</p>
+                        <p className="font-semibold">Veuillez communiquer les identifiants suivants au client :</p>
+                        <div className="space-y-2">
+                             <div>
+                                <Label htmlFor="email-toast">Email</Label>
+                                <Input id="email-toast" readOnly value={result.data.email} />
+                            </div>
+                             <div>
+                                <Label htmlFor="password-toast">Mot de Passe Temporaire</Label>
+                                 <div className="flex gap-2">
+                                    <Input id="password-toast" readOnly value={tempPassword} />
+                                    <Button size="icon" variant="outline" onClick={() => {
+                                        navigator.clipboard.writeText(tempPassword || '');
+                                        toast({title: "Mot de passe copié !"});
+                                    }}>
+                                        <Copy className="h-4 w-4"/>
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                         <Alert variant="destructive">
+                            <AlertTitle>Important</AlertTitle>
+                            <AlertDescription>
+                              Le client devra utiliser ce mot de passe temporaire pour sa première connexion. Il est fortement recommandé de changer ce mot de passe depuis les paramètres de son compte.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                ),
             });
             router.push('/dashboard/clients');
         } else {
@@ -63,7 +93,6 @@ export default function NewClientPage() {
              Object.entries(company).forEach(([key, value]) => {
                 if(value) queryParams.set(key, value);
              });
-             // We'll just reload the page with new query params to repopulate the form
              router.replace(`/dashboard/clients/new?${queryParams.toString()}`);
         } else {
             router.replace('/dashboard/clients/new');
@@ -80,7 +109,7 @@ export default function NewClientPage() {
                 <CompanySearchCombobox onCompanySelect={handleCompanySelect} />
             </div>
             <ClientForm 
-                key={initialData?.siret || 'new'} // Re-mount form when data changes
+                key={initialData?.siret || 'new'}
                 onSave={handleSave} 
                 isSubmitting={isSubmitting} 
                 initialData={initialData}

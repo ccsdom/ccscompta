@@ -53,6 +53,7 @@ export interface Client {
     email: string;
     phone: string;
     assignedAccountantId?: string;
+    password?: string; // Optional: only used to pass temp password from server to client on creation
 }
 
 export interface Invoice {

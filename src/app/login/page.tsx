@@ -71,9 +71,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    // Clear any previous session state when loading the login page
     localStorage.clear();
-    signOut(auth).catch(() => {}); // Sign out any lingering session from Firebase
+    signOut(auth).catch(() => {});
     window.dispatchEvent(new Event('storage'));
   }, []);
 
@@ -81,71 +80,71 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    let userRole: string | null = null;
+    let userName: string | null = null;
+    let userClientId: string | null = null;
+
     try {
+        // 1. Authenticate with Firebase
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
+        const userEmail = firebaseUser.email!;
 
-        let userRole: string | null = null;
-        let userName: string | null = null;
-        let userClientId: string | null = null;
-        
-        // Check if the user is a predefined admin/secretary/accountant
-        const demoUserEmailKey = email.toLowerCase() as keyof typeof DEMO_USERS;
+        // 2. Determine user role and name
+        const demoUserEmailKey = userEmail.toLowerCase() as keyof typeof DEMO_USERS;
         const demoUser = DEMO_USERS[demoUserEmailKey];
 
         if (demoUser) {
+            // User is a predefined staff member
             userRole = demoUser.role;
             userName = demoUser.name;
         } else {
-            // If not a predefined user, check if they are a client in Firestore
+            // User is not staff, check if they are a client
             const allClients = await getClients();
-            const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
+            const clientUser = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
             
             if (clientUser) {
                 userRole = "client";
                 userName = clientUser.legalRepresentative;
                 userClientId = clientUser.id;
             } else {
-                // If the user exists in Firebase Auth but not in our predefined list or clients DB,
-                // we can't assign a role.
+                // This case should be rare if user creation is handled correctly
                 throw new Error("Profil utilisateur introuvable dans l'application.");
             }
         }
         
-        if (userRole && userName) {
-            localStorage.setItem('userRole', userRole);
-            localStorage.setItem('userName', userName);
-            localStorage.setItem('userEmail', email);
+        // 3. Set session and redirect
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', userName!);
+        localStorage.setItem('userEmail', userEmail);
 
-            let targetPath: string;
-            if (userRole === 'client') {
-                if (!userClientId) throw new Error("Compte client non associé à un dossier.");
-                localStorage.setItem('selectedClientId', userClientId);
-                targetPath = '/dashboard/my-documents';
-            } else if (userRole === 'accountant') {
-                targetPath = '/dashboard/accountant';
-            } else if (userRole === 'admin') {
-                targetPath = '/dashboard/admin';
-            } else if (userRole === 'secretary') {
-                targetPath = '/dashboard/secretary';
-            } else {
-                throw new Error(`Rôle utilisateur inconnu: ${userRole}`);
-            }
-            
-            window.dispatchEvent(new Event('storage'));
-            router.push(targetPath);
+        let targetPath: string;
+        if (userRole === 'client') {
+            if (!userClientId) throw new Error("Compte client non associé à un dossier.");
+            localStorage.setItem('selectedClientId', userClientId);
+            targetPath = '/dashboard/my-documents';
+        } else if (userRole === 'accountant') {
+            targetPath = '/dashboard/accountant';
+        } else if (userRole === 'admin') {
+            targetPath = '/dashboard/admin';
+        } else if (userRole === 'secretary') {
+            targetPath = '/dashboard/secretary';
         } else {
-            throw new Error("Profil utilisateur introuvable dans l'application.");
+            throw new Error(`Rôle utilisateur inconnu: ${userRole}`);
         }
+        
+        window.dispatchEvent(new Event('storage'));
+        router.push(targetPath);
+
     } catch (error: any) {
-        console.error("Firebase Auth Error:", error);
+        console.error("Login Error:", error);
         let title = "Erreur de connexion";
         let description = "Une erreur inattendue est survenue. Veuillez réessayer.";
 
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-             description = "L'adresse email ou le mot de passe est incorrect. Veuillez réessayer.";
+             description = "L'adresse email ou le mot de passe est incorrect.";
         } else if (error.message.includes('Profil utilisateur introuvable')) {
-            description = "Votre compte existe mais n'a pas de profil correspondant dans l'application. Veuillez contacter le support.";
+            description = "Votre compte existe mais n'a pas de profil correspondant dans notre application. Veuillez contacter le support.";
         }
 
         toast({ variant: "destructive", title, description });
@@ -258,5 +257,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    

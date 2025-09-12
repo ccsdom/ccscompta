@@ -7,10 +7,19 @@ import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDo
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 
-
 type ServerActionResponse<T> =
   | { success: true; data: T }
   | { success: false; error: string };
+  
+// Helper to generate a random password
+const generatePassword = (length = 12) => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
 
 const AddClientInputSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
@@ -31,39 +40,55 @@ export async function addClient(
   console.log("[Firestore] Adding client:", newClientData.name);
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
+    const tempPassword = generatePassword();
     
-    // Check for existing SIRET
+    // 1. Check for existing SIRET in Firestore
     const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
     const siretSnapshot = await getDocs(siretQuery);
     if (!siretSnapshot.empty) {
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
-    // Check for existing email in Firebase Auth
-     try {
-        await auth.getUserByEmail(validatedData.email);
-        return { success: false, error: 'Un utilisateur avec cet email existe déjà.' };
+    // 2. Create user in Firebase Auth
+    let firebaseUser;
+    try {
+        firebaseUser = await auth.createUser({
+            email: validatedData.email,
+            password: tempPassword,
+            displayName: validatedData.legalRepresentative,
+        });
+        console.log("[Auth] Successfully created new user:", firebaseUser.uid);
     } catch (error: any) {
-        if (error.code !== 'auth/user-not-found') {
-            throw error; // Re-throw unexpected errors
+        if (error.code === 'auth/email-already-exists') {
+            return { success: false, error: 'Un utilisateur avec cet email existe déjà dans le système d\'authentification.' };
         }
-        // If user is not found, we can proceed.
+        console.error('[Auth] Error creating user:', error);
+        throw new Error(`Erreur lors de la création de l'utilisateur d'authentification: ${error.message}`);
     }
 
 
-    const newClient: Omit<Client, 'id'> = {
+    // 3. Add client profile to Firestore
+    const newClient: Omit<Client, 'id' | 'password'> = {
       ...validatedData,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };
 
     const docRef = await addDoc(collection(db, 'clients'), newClient);
-
     console.log("[Firestore] Client added with ID:", docRef.id);
-    return { success: true, data: { ...newClient, id: docRef.id } };
+    
+    // Return client data along with the temporary password
+    return { 
+        success: true, 
+        data: { 
+            ...newClient, 
+            id: docRef.id,
+            password: tempPassword // Include password for display to accountant
+        } 
+    };
 
   } catch (error) {
-    console.error('[Firestore] Error adding client:', error);
+    console.error('[Firestore/Auth] Error adding client:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
@@ -79,7 +104,7 @@ export async function getClients(): Promise<Client[]> {
         if (snapshot.empty) {
             console.log("No clients found in Firestore, seeding with mock data...");
             for (const client of MOCK_CLIENTS) {
-                const { id, ...clientData } = client; // Don't seed with a hardcoded ID
+                const { id, password, ...clientData } = client; // Don't seed with a hardcoded ID
                 await addDoc(collection(db, 'clients'), clientData);
             }
             const seededSnapshot = await getDocs(collection(db, 'clients'));
@@ -137,8 +162,20 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
 export async function deleteClient(id: string): Promise<{success: boolean}> {
     console.log(`[Firestore] Deleting client ID: ${id}`);
     try {
+        const client = await getClientById(id);
         // In a real app, you would also delete subcollections (documents, etc.)
         await deleteDoc(doc(db, 'clients', id));
+        if (client && client.email) {
+            try {
+                const user = await auth.getUserByEmail(client.email);
+                await auth.deleteUser(user.uid);
+                console.log(`[Auth] Deleted auth user for email: ${client.email}`);
+            } catch(authError: any) {
+                if (authError.code !== 'auth/user-not-found') {
+                    console.error(`[Auth] Failed to delete auth user for ${client.email}:`, authError);
+                }
+            }
+        }
         console.log(`[Firestore] Client ${id} deleted.`);
         return { success: true };
     } catch (error) {
