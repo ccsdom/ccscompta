@@ -1,11 +1,10 @@
-import * as admin from 'firebase-admin';
+// This file is being temporarily neutralized to resolve server-side initialization errors.
+// All Firebase interactions will be handled by the client-side SDK (firebase-client.ts).
 
-// Check if the app is already initialized to prevent errors
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
+// We keep the file to prevent import errors in other files for now.
+// A future step will be to remove all dependencies on this file.
 
-const auth = admin.auth();
-const db = admin.firestore();
+const db = {};
+const auth = {};
 
 export { auth, db };

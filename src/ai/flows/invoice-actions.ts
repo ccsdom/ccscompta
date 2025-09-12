@@ -2,8 +2,8 @@
 'use server';
 
 import type { Invoice, Client } from '@/lib/types';
-import { db } from '@/lib/firebase-admin';
-import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer } from 'firebase/firestore';
+import { db } from '@/lib/firebase-client'; // CHANGED: Use client SDK
+import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer, getDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
 
 
 const MOCK_INVOICES: Omit<Invoice, 'id'>[] = [
@@ -86,4 +86,3 @@ export async function createInvoiceForDocument(client: Client, documentId: strin
     
     return addInvoice(newInvoiceData);
 }
-

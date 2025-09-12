@@ -2,8 +2,8 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase-admin';
-import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase-client'; // CHANGED: Use client SDK
+import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 

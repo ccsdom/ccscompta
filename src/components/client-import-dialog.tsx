@@ -12,7 +12,6 @@ import { addClient } from '@/ai/flows/client-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
-import { auth } from '@/lib/firebase-admin';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
@@ -97,6 +96,7 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         let errorCount = 0;
         
         for (const clientData of parsedData) {
+            // Note: This flow now requires manual user creation in Firebase Auth
             const result = await addClient({
                 ...clientData,
                 status: 'onboarding',
@@ -111,8 +111,14 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
 
         if (importedCount > 0) {
             toast({
+                duration: 20000,
                 title: 'Importation terminée',
-                description: `${importedCount} clients ont été ajoutés avec succès.`
+                description: (
+                    <div className="space-y-2">
+                        <p>{importedCount} clients ont été ajoutés avec succès.</p>
+                        <p className="font-bold">Action requise : Vous devez maintenant créer manuellement un utilisateur dans Firebase Authentication pour chaque client importé afin qu'il puisse se connecter.</p>
+                    </div>
+                )
             });
             onClientsImported();
         }
