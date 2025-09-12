@@ -6,6 +6,7 @@ import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
+import { updateClient } from '@/ai/flows/client-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
@@ -26,6 +27,7 @@ import { storage } from '@/lib/firebase-client';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { increment } from 'firebase/firestore';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -142,7 +144,6 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = async (file: File, clientId: string) => {
-    // 1. Create a "pending" document in Firestore first.
     const storagePath = `${clientId}/${Date.now()}-${file.name}`;
     const initialTrail = addAuditEvent([], 'Document téléversé par le client');
     const docForDb: Omit<Document, 'id'> = {
@@ -161,22 +162,21 @@ export default function MyDocumentsPage() {
       return { success: false };
     }
     
-    // Refresh list immediately to show the pending doc
-    if(clientId) fetchDocuments(clientId);
+    // Increment the new documents counter for the accountant
+    await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
+    window.dispatchEvent(new Event('storage'));
+
+    if(clientId) fetchDocuments(clientId); // Refresh list immediately
 
     let trail = createdDoc.auditTrail;
 
     try {
-        // 2. Upload file to Firebase Storage.
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
         trail = addAuditEvent(trail, 'Fichier stocké');
-        await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail } });
+        await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail, status: 'processing' } });
 
-        // 3. Mark as processing and start AI analysis
-        trail = addAuditEvent(trail, 'Traitement IA initié');
-        await updateDocument({ id: createdDoc.id, updates: { status: 'processing', auditTrail: trail } });
-        if(clientId) fetchDocuments(clientId);
+        if(clientId) fetchDocuments(clientId); // Refresh to show 'processing'
 
         const dataUrl = await fileToDataUri(file);
 

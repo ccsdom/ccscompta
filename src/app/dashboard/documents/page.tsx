@@ -10,7 +10,7 @@ import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
-import { getClients } from '@/ai/flows/client-actions';
+import { getClients, updateClient } from '@/ai/flows/client-actions';
 import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
 import {
   Dialog,
@@ -45,6 +45,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL } from 'firebase/storage';
+import { increment } from 'firebase/firestore';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -223,6 +224,7 @@ export default function DocumentsPage() {
               const client = clients.find(c => c.id === docToProcess.clientId);
               if (client) {
                   await createInvoiceForDocument(client, docId);
+                   await updateClient({id: client.id, updates: { newDocuments: increment(-1) as unknown as number }});
               }
 
               if (automationSettings.autoSend) {
@@ -271,6 +273,7 @@ export default function DocumentsPage() {
     const client = clients.find(c => c.id === doc.clientId);
     if (client) {
         await createInvoiceForDocument(client, docId);
+         await updateClient({id: client.id, updates: { newDocuments: increment(-1) as unknown as number }});
     }
     
     const updatedDoc = await getDocumentById(docId);
@@ -278,6 +281,7 @@ export default function DocumentsPage() {
         updateLocalDocument(updatedDoc);
         createNotification(updatedDoc, 'a été approuvé.');
         toast({ title: "Document approuvé", description: "Les données ont été validées et une facture de traitement a été générée." });
+        window.dispatchEvent(new Event('storage'));
     }
   };
 
@@ -339,6 +343,7 @@ export default function DocumentsPage() {
         const client = clients.find(c => c.id === doc.clientId);
         if (client) {
             await createInvoiceForDocument(client, docId);
+            await updateClient({id: client.id, updates: { newDocuments: increment(-1) as unknown as number }});
         }
         approvedCount++;
     }
@@ -346,6 +351,7 @@ export default function DocumentsPage() {
     if(selectedClientId && approvedCount > 0) {
         fetchDocumentsAndClients(selectedClientId);
         toast({ title: "Documents approuvés", description: `${approvedCount} documents ont été approuvés et les factures correspondantes générées.` });
+         window.dispatchEvent(new Event('storage'));
     } else if (approvedCount === 0) {
         toast({ title: "Aucun document à approuver", description: "Seuls les documents 'Prêt pour examen' peuvent être approuvés.", variant: 'destructive' });
     }
