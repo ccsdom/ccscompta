@@ -45,7 +45,6 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL } from 'firebase/storage';
-import 'isomorphic-fetch';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -175,10 +174,21 @@ export default function DocumentsPage() {
       if (!docWithDataUrl.dataUrl) {
           const storageRef = ref(storage, docToProcess.storagePath);
           const downloadUrl = await getDownloadURL(storageRef);
-          const response = await fetch(downloadUrl);
-          const blob = await response.blob();
-          const tempFile = new File([blob], docToProcess.name, { type: blob.type });
-          docWithDataUrl.dataUrl = await fileToDataUri(tempFile);
+          
+          // Use fetch in a try-catch to get the blob for AI processing
+          let tempFile;
+          try {
+              const response = await fetch(downloadUrl);
+              const blob = await response.blob();
+              tempFile = new File([blob], docToProcess.name, { type: blob.type });
+              docWithDataUrl.dataUrl = await fileToDataUri(tempFile);
+          } catch(fetchError) {
+              console.error("Fetch error for AI processing, this can happen with CORS. The document can still be previewed.", fetchError);
+              // We'll try to process without the data URL if fetch fails.
+              // In a real app, this would be handled server-side.
+              // For now, we will have to let it fail.
+              throw fetchError;
+          }
       }
 
       const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
@@ -300,22 +310,12 @@ export default function DocumentsPage() {
             const storageRef = ref(storage, doc.storagePath);
             const downloadUrl = await getDownloadURL(storageRef);
 
-            // Fetch the file as a blob
-            const response = await fetch(downloadUrl);
-            const blob = await response.blob();
-            
-            // Create a file object (optional, but good practice)
-            const file = new File([blob], doc.name, { type: blob.type });
-
-            // Convert the file to a data URI for display in iframe/img
-            const dataUrl = await fileToDataUri(file);
-            
-            setActiveDocument({ ...doc, dataUrl });
+            // Directly set the URL for the iframe to use, bypassing client-side fetch.
+            setActiveDocument({ ...doc, dataUrl: downloadUrl });
 
         } catch (error) {
-            console.error("Error getting document preview:", error);
-            toast({ variant: "destructive", title: "Erreur d'aperçu", description: "Impossible de charger l'aperçu du document." });
-            // Keep the active document but with no preview
+            console.error("Error getting document preview URL:", error);
+            toast({ variant: "destructive", title: "Erreur d'aperçu", description: "Impossible de charger l'URL de l'aperçu du document." });
             setActiveDocument(doc);
         }
     } else {
@@ -659,5 +659,7 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
 
     
