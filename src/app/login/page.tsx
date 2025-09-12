@@ -102,7 +102,7 @@ export default function LoginPage() {
       if (clientUser && password === "Password123!") { // Using a default password for dynamic clients
         user = {
           role: "client",
-          name: clientUser.name,
+          name: clientUser.legalRepresentative,
           email: clientUser.email,
           clientId: clientUser.id,
         };

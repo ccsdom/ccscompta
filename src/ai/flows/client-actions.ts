@@ -63,38 +63,18 @@ export async function getClients(): Promise<Client[]> {
     console.log("[Firestore] Fetching all clients.");
     try {
         const snapshot = await getDocs(collection(db, 'clients'));
-        const firestoreClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        
-        // Combine mock clients and firestore clients, ensuring no duplicates by ID
-        const allClients = [...MOCK_CLIENTS];
-        const firestoreClientIds = new Set(firestoreClients.map(c => c.id));
-        
-        firestoreClients.forEach(fc => {
-            const existingIndex = allClients.findIndex(mc => mc.id === fc.id);
-            if (existingIndex !== -1) {
-                allClients[existingIndex] = fc; // Update mock with firestore data if ID matches
-            } else {
-                allClients.push(fc); // Add new client from firestore
-            }
-        });
-
-        // Seed initial mock data if the collection is completely empty
         if (snapshot.empty) {
-             console.log("No clients found in Firestore, seeding with mock data...");
+            console.log("No clients found in Firestore, seeding with mock data...");
             for (const client of MOCK_CLIENTS) {
-                // Do not re-add if it was just added to the combined list
-                if (!firestoreClientIds.has(client.id)) {
-                    await addDoc(collection(db, 'clients'), client);
-                }
+                await addDoc(collection(db, 'clients'), client);
             }
-             console.log(`${MOCK_CLIENTS.length} mock clients may have been seeded.`);
+            const seededSnapshot = await getDocs(collection(db, 'clients'));
+             return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
         }
-        
-        return allClients;
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
     } catch (error) {
         console.error("Error fetching clients:", error);
-        // Fallback to mock data in case of firestore error
-        return MOCK_CLIENTS;
+        return [];
     }
 }
 
@@ -104,8 +84,7 @@ export async function getClientById(id: string): Promise<Client | null> {
         const docRef = doc(db, 'clients', id);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
-            // Fallback to check mock clients
-            return MOCK_CLIENTS.find(c => c.id === id) || null;
+            return null;
         }
         return { id: docSnap.id, ...docSnap.data() } as Client;
     } catch(error) {
