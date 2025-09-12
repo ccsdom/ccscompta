@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
-import { getDocuments, addDocument, updateDocument, deleteDocument } from '@/ai/flows/document-actions';
+import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
@@ -23,7 +23,7 @@ import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { storage } from '@/lib/firebase-client';
-import { ref, uploadBytes } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
@@ -142,30 +142,46 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = async (file: File, clientId: string) => {
-    let createdDoc: Document | null = null;
-    let trail: AuditEvent[] = addAuditEvent([], 'Document téléversé par le client');
+    // 1. Create a "pending" document in Firestore first.
+    const storagePath = `${clientId}/${Date.now()}-${file.name}`;
+    const initialTrail = addAuditEvent([], 'Document téléversé par le client');
+    const docForDb: Omit<Document, 'id'> = {
+        name: file.name,
+        uploadDate: new Date().toISOString(),
+        status: 'pending',
+        storagePath: storagePath,
+        clientId: clientId,
+        auditTrail: initialTrail,
+        comments: [],
+    };
+    
+    let createdDoc = await addDocument(docForDb);
+    if (!createdDoc) {
+      toast({ variant: 'destructive', title: `Échec de la création pour ${file.name}` });
+      return { success: false };
+    }
+    
+    // Refresh list immediately to show the pending doc
+    if(clientId) fetchDocuments(clientId);
+
+    let trail = createdDoc.auditTrail;
 
     try {
-        const dataUrl = await fileToDataUri(file);
-        const storagePath = `${clientId}/${Date.now()}-${file.name}`;
+        // 2. Upload file to Firebase Storage.
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
+        trail = addAuditEvent(trail, 'Fichier stocké');
+        await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail } });
 
-        const docForDb: Omit<Document, 'id'> = {
-            name: file.name,
-            uploadDate: new Date().toISOString(),
-            status: 'processing',
-            storagePath: storagePath,
-            clientId: clientId,
-            auditTrail: trail,
-            comments: [],
-        };
+        // 3. Mark as processing and start AI analysis
+        trail = addAuditEvent(trail, 'Traitement IA initié');
+        await updateDocument({ id: createdDoc.id, updates: { status: 'processing', auditTrail: trail } });
+        if(clientId) fetchDocuments(clientId);
 
-        createdDoc = await addDocument(docForDb);
-        if (!createdDoc) throw new Error("Failed to create document in the database.");
+        const dataUrl = await fileToDataUri(file);
 
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-        trail = addAuditEvent(createdDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+        trail = addAuditEvent(trail, `Type reconnu: ${recognition.documentType}`);
         
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
         trail = addAuditEvent(trail, 'Traitement IA terminé');
@@ -191,6 +207,8 @@ export default function MyDocumentsPage() {
              createNotification({ ...createdDoc, status: 'error' }, 'a échoué lors du traitement.');
         }
         return { success: false };
+      } finally {
+         if(clientId) fetchDocuments(clientId);
       }
   }
 
@@ -218,22 +236,24 @@ export default function MyDocumentsPage() {
     } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être traité. Veuillez réessayer.` });
     }
-
-    // Refresh the document list from the database to show final statuses
-    fetchDocuments(clientId);
   };
 
   const handleAddComment = async (docId: string, commentText: string) => {
     if (!commentText.trim()) return;
-    const newComment: Comment = { id: crypto.randomUUID(), text: commentText, user: getCurrentUser(), date: new Date().toISOString() };
     const doc = documents.find(d => d.id === docId);
-    if(doc){
-        const trail = addAuditEvent(doc.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
-        const updatedComments = [...(doc.comments || []), newComment];
-        await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
-        const updatedDoc = {...doc, comments: updatedComments, auditTrail: trail};
-        setDocuments(docs => docs.map(d => d.id === docId ? updatedDoc : d));
-        setActiveDocument(updatedDoc);
+    if (!doc) return;
+    
+    const newComment: Comment = { id: crypto.randomUUID(), text: commentText, user: getCurrentUser(), date: new Date().toISOString() };
+    const trail = addAuditEvent(doc.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
+    const updatedComments = [...(doc.comments || []), newComment];
+    await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
+    
+    const updatedDoc = await getDocumentById(docId);
+    if(updatedDoc) {
+        const docs = await getDocuments(doc.clientId);
+        setDocuments(docs);
+        const active = docs.find(d => d.id === docId);
+        setActiveDocument(active || null);
     }
   };
 
@@ -247,9 +267,14 @@ export default function MyDocumentsPage() {
   const handleSetActive = async (doc: Document) => {
     let docWithDataUrl = {...doc};
     if (!doc.dataUrl) {
-       // In a real app, you would get a download URL from Firebase Storage here.
-       // For simplicity, we'll use a placeholder.
-       docWithDataUrl.dataUrl = `https://picsum.photos/seed/${doc.id}/800/1100`;
+       try {
+        const storageRef = ref(storage, doc.storagePath);
+        const downloadUrl = await getDownloadURL(storageRef);
+        docWithDataUrl.dataUrl = downloadUrl;
+      } catch (error) {
+        console.error("Could not get document URL for preview:", error);
+        toast({ variant: "destructive", title: "Erreur de prévisualisation", description: "Impossible de charger l'aperçu du document."});
+      }
     }
     setActiveDocument(docWithDataUrl);
     setIsSheetOpen(true);
@@ -404,7 +429,7 @@ export default function MyDocumentsPage() {
                             ) : ( <div className="text-center text-sm text-muted-foreground py-8"><p>Les données du document n'ont pas encore été validées par votre comptable.</p></div> )}
                         </div></div>
                     <div className="h-full flex flex-col border-l bg-muted/20">
-                         <CommentsSectionClient comments={activeDocument.comments} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
+                         <CommentsSectionClient comments={activeDocument.comments || []} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
                     </div>
                 </div>
                  <div className="p-6 border-t"><Button onClick={() => setIsSheetOpen(false)} className="w-full">Fermer</Button></div>
@@ -513,3 +538,5 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    

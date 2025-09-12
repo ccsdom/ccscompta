@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, RefreshCcw, Send, Loader2, VideoOff, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from '@/lib/firebase-client';
+import { fileToDataUri } from '@/lib/utils';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -71,6 +72,65 @@ export default function ScanPage() {
         localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
         window.dispatchEvent(new Event('storage'));
     };
+    
+    const processScannedDocument = useCallback(async (dataUrl: string, clientId: string) => {
+         const fileName = `scan-${new Date().toISOString()}.jpg`;
+         const file = await (await fetch(dataUrl)).blob();
+
+        const storagePath = `${clientId}/${Date.now()}-${fileName}`;
+        const initialTrail = addAuditEvent([], 'Document scanné par le client');
+        const docForDb: Omit<Document, 'id'> = {
+            name: fileName,
+            uploadDate: new Date().toISOString(),
+            status: 'pending',
+            storagePath: storagePath,
+            clientId: clientId,
+            auditTrail: initialTrail,
+            comments: [],
+        };
+        
+        let createdDoc = await addDocument(docForDb);
+        if (!createdDoc) {
+          throw new Error("Échec de la création de l'entrée du document dans la base de données.");
+        }
+        
+        window.dispatchEvent(new Event('storage')); // Refresh lists
+
+        let trail = createdDoc.auditTrail;
+
+        try {
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
+            trail = addAuditEvent(trail, 'Fichier stocké (scan)');
+            await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail, status: 'processing' } });
+
+            const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+            trail = addAuditEvent(trail, `Type reconnu: ${recognition.documentType}`);
+            
+            const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
+            trail = addAuditEvent(trail, 'Traitement IA terminé');
+            
+            const finalUpdates: Partial<Document> = {
+                status: 'reviewing',
+                extractedData: extracted,
+                type: recognition.documentType,
+                confidence: recognition.confidence,
+                auditTrail: trail,
+            };
+
+            await updateDocument({ id: createdDoc.id, updates: finalUpdates });
+            createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
+
+        } catch (error) {
+            console.error(`Error processing scanned file:`, error);
+            trail = addAuditEvent(trail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`);
+            if (createdDoc) {
+                 await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
+                 createNotification({ ...createdDoc, status: 'error' }, 'a échoué lors du traitement.');
+            }
+            throw error; // Re-throw to be caught by handleSend
+        }
+    }, []);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
@@ -90,55 +150,20 @@ export default function ScanPage() {
     const handleRetake = () => { setCapturedImage(null); };
 
     const handleSend = async () => {
-        if (!capturedImage) return;
-        
-        if (!selectedClientId) {
-             toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
+        if (!capturedImage || !selectedClientId) {
+             toast({ variant: "destructive", title: "Erreur", description: "Aucune image capturée ou client non identifié." });
              return;
         }
 
         setIsProcessing(true);
         toast({ title: 'Envoi en cours...', description: 'Votre document est en cours de traitement.' });
-        let createdDoc: Document | null = null;
+        
         try {
-            const fileName = `scan-${new Date().toISOString()}.jpg`;
-            const file = await (await fetch(capturedImage)).blob();
-            const storagePath = `${selectedClientId}/${Date.now()}-${fileName}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, file);
-            
-            const newDocData: Omit<Document, 'id'> = {
-                name: fileName, uploadDate: new Date().toISOString(), status: 'processing',
-                storagePath: storagePath, clientId: selectedClientId, comments: [],
-                auditTrail: addAuditEvent([], 'Document scanné par le client'),
-            };
-
-            createdDoc = await addDocument(newDocData);
-            if (!createdDoc) throw new Error("Failed to create document entry in database.");
-            
-            const recognition = await recognizeDocumentType({ documentDataUri: capturedImage });
-            const extracted = await extractData({ documentDataUri: capturedImage, documentType: recognition.documentType, clientId: selectedClientId });
-
-            const finalUpdates: Partial<Document> = {
-                status: 'reviewing', extractedData: extracted, type: recognition.documentType,
-                confidence: recognition.confidence,
-                auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé, en attente de validation')
-            };
-
-            await updateDocument({ id: createdDoc.id, updates: finalUpdates });
-
-            createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
-
+            await processScannedDocument(capturedImage, selectedClientId);
             toast({ title: 'Document envoyé !', description: 'Votre document a été traité et envoyé à votre comptable.' });
             setCapturedImage(null);
-            
         } catch (error) {
-            console.error("Erreur lors de l'envoi du scan:", error);
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
-            if (createdDoc) {
-                const trail = addAuditEvent(createdDoc.auditTrail, 'Erreur de traitement IA');
-                await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
-            }
+             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
         } finally {
             setIsProcessing(false);
             window.dispatchEvent(new Event('storage'));
@@ -215,3 +240,5 @@ export default function ScanPage() {
         </div>
     );
 }
+
+    
