@@ -142,21 +142,9 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = async (file: File, clientId: string) => {
-    const tempId = `temp-${Math.random()}`;
-    const newDocData: Omit<Document, 'id'> = {
-        name: file.name,
-        uploadDate: new Date().toISOString(),
-        status: 'processing',
-        storagePath: '', // Will be updated later
-        clientId: clientId,
-        auditTrail: addAuditEvent([], 'Document téléversé par le client'),
-        comments: [],
-    };
-    
-    // Add doc to local state immediately with processing status
-    setDocuments(prev => [{...newDocData, id: tempId } as Document, ...prev]);
-
     let createdDoc: Document | null = null;
+    let trail: AuditEvent[] = addAuditEvent([], 'Document téléversé par le client');
+
     try {
         const dataUrl = await fileToDataUri(file);
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
@@ -164,47 +152,44 @@ export default function MyDocumentsPage() {
         await uploadBytes(storageRef, file);
 
         const docForDb: Omit<Document, 'id'> = {
-            ...newDocData,
+            name: file.name,
+            uploadDate: new Date().toISOString(),
+            status: 'processing',
             storagePath: storagePath,
+            clientId: clientId,
+            auditTrail: trail,
+            comments: [],
         };
 
         createdDoc = await addDocument(docForDb);
         if (!createdDoc) throw new Error("Failed to create document in the database.");
 
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+        trail = addAuditEvent(createdDoc.auditTrail, `Type reconnu: ${recognition.documentType}`);
+        
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
-        const trailWithAI = addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé');
+        trail = addAuditEvent(trail, 'Traitement IA terminé');
         
         const finalUpdates: Partial<Document> = {
             status: 'reviewing',
             extractedData: extracted,
             type: recognition.documentType,
             confidence: recognition.confidence,
-            auditTrail: trailWithAI,
+            auditTrail: trail,
         };
 
         await updateDocument({ id: createdDoc.id, updates: finalUpdates });
-        
-        const finalDoc = { ...createdDoc, ...finalUpdates };
-        setDocuments(prev => prev.map(d => d.id === tempId ? finalDoc : d));
-        createNotification(finalDoc, 'est prêt pour examen.');
-        
+        createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
         return { success: true };
 
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        let finalStatus: Partial<Document> = { status: 'error', auditTrail: addAuditEvent(newDocData.auditTrail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`) };
+        trail = addAuditEvent(trail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`);
         
         if (createdDoc) {
-             await updateDocument({ id: createdDoc.id, updates: finalStatus });
-             const finalDoc = { ...createdDoc, ...finalStatus };
-             setDocuments(prev => prev.map(d => d.id === tempId ? finalDoc : d));
-             createNotification(finalDoc, 'a échoué lors du traitement.');
-        } else {
-            // Error happened before document was created in DB, just update local state
-            setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, ...finalStatus } as Document : d));
+             await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
+             createNotification({ ...createdDoc, status: 'error' }, 'a échoué lors du traitement.');
         }
-
         return { success: false };
       }
   }
@@ -233,6 +218,9 @@ export default function MyDocumentsPage() {
     } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être traité. Veuillez réessayer.` });
     }
+
+    // Refresh the document list from the database to show final statuses
+    fetchDocuments(clientId);
   };
 
   const handleAddComment = async (docId: string, commentText: string) => {
@@ -525,5 +513,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    
