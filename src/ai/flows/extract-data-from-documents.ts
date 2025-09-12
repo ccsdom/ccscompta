@@ -53,7 +53,7 @@ const ExtractDataOutputSchema = z.object({
   amounts: z.array(z.number()).optional().describe('Total amounts (TTC) found in the document (for invoices/receipts).'),
   vendorNames: z.array(z.string()).optional().describe('Vendor names found in the document (for invoices/receipts).'),
   vatAmount: z.number().nullable().optional().describe('The total VAT amount found in the document. If multiple VAT rates are present, sum them up.'),
-  vatRate: z.number().nullable().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
+  vatRate: z-number().nullable().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
   
   // Fields for multi-transaction documents like bank statements
   transactions: z.array(TransactionSchema).optional().describe('List of transactions extracted from the document (for bank statements).'),
@@ -104,7 +104,7 @@ You are also a vigilant financial controller. For ALL document types, you must s
 - Are dates inconsistent?
 - Is the document quality poor?
 - Does anything seem out of the ordinary?
-- If you find any such issues, describe them in the 'anomalies' array. If not, leave the array empty.
+- If you find any such issues, describe them in the 'anomalies' array. The descriptions MUST be in French. If not, leave the array empty.
 `;
 
 const prompt = ai.definePrompt({
