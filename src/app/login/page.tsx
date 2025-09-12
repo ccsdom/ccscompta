@@ -81,7 +81,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-        // 1. Authenticate with Firebase
+        // 1. Authenticate with Firebase using the CLIENT SDK
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         const userEmail = firebaseUser.email!;
@@ -99,7 +99,7 @@ export default function LoginPage() {
             userRole = demoUser.role;
             userName = demoUser.name;
         } else {
-            // User is not staff, check if they are a client
+            // User is not staff, check if they are a client by querying Firestore
             const allClients = await getClients();
             const clientUser = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
             
@@ -112,10 +112,12 @@ export default function LoginPage() {
         
         // 3. If no role found after checking everything, throw an error
         if (!userRole || !userName) {
+            // This error means the user exists in Firebase Auth, but not in our app's logic (either demo users or clients DB)
+            // This is expected if a user is created in Firebase Console but not added as a client in the app.
             throw new Error("Profil utilisateur introuvable dans l'application.");
         }
         
-        // 4. Set session and redirect
+        // 4. Set session info in localStorage and redirect
         localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', userName);
         localStorage.setItem('userEmail', userEmail);

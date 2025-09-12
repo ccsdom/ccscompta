@@ -10,11 +10,7 @@ import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
-import { Copy } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 
 export default function NewClientPage() {
@@ -40,36 +36,16 @@ export default function NewClientPage() {
         const result = await addClient(data);
 
         if (result.success) {
-             const tempPassword = result.data.password;
              toast({
-                duration: 60000, // 1 minute
+                duration: 20000,
                 title: "Client ajouté avec succès !",
                 description: (
                     <div className="space-y-4">
-                        <p>Le profil et le compte de connexion pour <strong>{result.data.name}</strong> ont été créés.</p>
-                        <p className="font-semibold">Veuillez communiquer les identifiants suivants au client :</p>
-                        <div className="space-y-2">
-                             <div>
-                                <Label htmlFor="email-toast">Email</Label>
-                                <Input id="email-toast" readOnly value={result.data.email} />
-                            </div>
-                             <div>
-                                <Label htmlFor="password-toast">Mot de Passe Temporaire</Label>
-                                 <div className="flex gap-2">
-                                    <Input id="password-toast" readOnly value={tempPassword} />
-                                    <Button size="icon" variant="outline" onClick={() => {
-                                        navigator.clipboard.writeText(tempPassword || '');
-                                        toast({title: "Mot de passe copié !"});
-                                    }}>
-                                        <Copy className="h-4 w-4"/>
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                        <p>Le profil pour <strong>{result.data.name}</strong> a été créé.</p>
                          <Alert variant="destructive">
-                            <AlertTitle>Important</AlertTitle>
+                            <AlertTitle>Action Manuelle Requise</AlertTitle>
                             <AlertDescription>
-                              Le client devra utiliser ce mot de passe temporaire pour sa première connexion. Il est fortement recommandé de changer ce mot de passe depuis les paramètres de son compte.
+                              Vous devez maintenant créer manuellement un utilisateur dans <strong>Firebase Authentication</strong> avec l'email <strong>{result.data.email}</strong> pour que ce client puisse se connecter.
                             </AlertDescription>
                         </Alert>
                     </div>
