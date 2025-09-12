@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { getClients } from "@/ai/flows/client-actions";
-import type { Client } from "@/lib/client-data";
+import type { Client } from "@/lib/types";
 
 type PopoverClient = {
   value: string;
@@ -42,8 +42,7 @@ export function ClientSwitcher() {
 
           if (role === 'client') {
               const userEmail = localStorage.getItem('userEmail');
-              const clientName = localStorage.getItem('userName');
-              const client = clientsData.find(c => c.name === clientName || c.email === userEmail);
+              const client = clientsData.find(c => c.email.toLowerCase() === userEmail?.toLowerCase());
               if (client) {
                   setClients([{ value: client.id, label: client.name }]);
                   setSelectedValue(client.id);
@@ -57,11 +56,8 @@ export function ClientSwitcher() {
               const storedClientId = localStorage.getItem('selectedClientId');
               if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
                 setSelectedValue(storedClientId);
-              } else if (clientsData.length > 0) {
-                // Default to the first client if none is selected
-                // setSelectedValue(clientsData[0].id);
-                // localStorage.setItem('selectedClientId', clientsData[0].id);
-                // window.dispatchEvent(new Event('storage'));
+              } else {
+                setSelectedValue(null);
               }
           }
       } catch (error) {
@@ -74,10 +70,8 @@ export function ClientSwitcher() {
     fetchAndSetClients();
     
     // This listener handles updates from other components
-    const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === 'selectedClientId' || event.key === 'clientsLastUpdated' || event.key === 'userRole') {
-           fetchAndSetClients();
-        }
+    const handleStorageChange = () => {
+       fetchAndSetClients();
     };
     
     window.addEventListener('storage', handleStorageChange);

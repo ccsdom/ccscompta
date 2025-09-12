@@ -34,7 +34,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
 import { getAccountants, type Accountant, getClients, addClient, updateClient, deleteClient as deleteClientAction } from '@/ai/flows/client-actions';
-import type { Client } from '@/lib/client-data';
+import type { Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';

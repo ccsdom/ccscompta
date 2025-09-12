@@ -23,13 +23,17 @@ import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 const DEMO_USERS = {
-  "app.ccs94@gmail.com": {
-    role: "admin",
-    name: "Comptable Principal",
-  },
   "secretaire@ccs.com": {
     role: "secretary",
     name: "Secrétaire Admin",
+  },
+   "comptable@ccs.com": {
+    role: "accountant",
+    name: "Alain Comptable",
+  },
+  "admin@ccs.com": {
+    role: "admin",
+    name: "Super Admin",
   },
 };
 
@@ -85,7 +89,7 @@ export default function LoginPage() {
         let userName: string | null = null;
         let userClientId: string | null = null;
         
-        // Check if the user is a predefined admin/secretary
+        // Check if the user is a predefined admin/secretary/accountant
         const demoUserEmailKey = email.toLowerCase() as keyof typeof DEMO_USERS;
         const demoUser = DEMO_USERS[demoUserEmailKey];
 
@@ -93,17 +97,18 @@ export default function LoginPage() {
             userRole = demoUser.role;
             userName = demoUser.name;
         } else {
-            // If not a demo user, check if they are a client in Firestore
+            // If not a predefined user, check if they are a client in Firestore
             const allClients = await getClients();
             const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
+            
             if (clientUser) {
                 userRole = "client";
                 userName = clientUser.legalRepresentative;
                 userClientId = clientUser.id;
             } else {
-                // For now, assume any other authenticated user is an accountant
-                userRole = "accountant";
-                userName = "Comptable";
+                // If the user exists in Firebase Auth but not in our predefined list or clients DB,
+                // we can't assign a role.
+                throw new Error("Profil utilisateur introuvable dans l'application.");
             }
         }
         
@@ -114,13 +119,13 @@ export default function LoginPage() {
 
             let targetPath: string;
             if (userRole === 'client') {
-                if (!userClientId) {
-                    throw new Error("Compte client non associé à un dossier.");
-                }
+                if (!userClientId) throw new Error("Compte client non associé à un dossier.");
                 localStorage.setItem('selectedClientId', userClientId);
                 targetPath = '/dashboard/my-documents';
-            } else if (userRole === 'accountant' || userRole === 'admin') {
+            } else if (userRole === 'accountant') {
                 targetPath = '/dashboard/accountant';
+            } else if (userRole === 'admin') {
+                targetPath = '/dashboard/admin';
             } else if (userRole === 'secretary') {
                 targetPath = '/dashboard/secretary';
             } else {
@@ -253,5 +258,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    

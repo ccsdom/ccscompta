@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as ShadcnTableFooter } from '@/components/ui/table';
 import { getDocuments } from '@/ai/flows/document-actions';
 import { getClients } from '@/ai/flows/client-actions';
-import type { Client } from '@/lib/client-data';
+import type { Client } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];

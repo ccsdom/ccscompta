@@ -4,7 +4,7 @@
 import { ClientForm, formSchema } from "../client-form";
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { getClientById, updateClient } from "@/ai/flows/client-actions";
-import type { Client } from "@/lib/client-data";
+import type { Client } from "@/lib/types";
 import { useEffect, useState } from "react";
 import type * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
