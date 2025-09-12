@@ -1,10 +1,9 @@
-
 'use server';
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase-admin';
 import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
-import type { Client } from '@/lib/client-data';
+import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 
 
@@ -37,9 +36,12 @@ export async function addClient(
     if (!siretSnapshot.empty) {
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
+    
+    const generatedPassword = Math.random().toString(36).slice(-8);
 
     const newClient: Omit<Client, 'id'> = {
       ...validatedData,
+      password: generatedPassword,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };

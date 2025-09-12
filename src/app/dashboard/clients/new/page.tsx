@@ -1,4 +1,3 @@
-
 'use client'
 
 import { ClientForm, formSchema } from "../client-form";
@@ -10,6 +9,7 @@ import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
+import { Copy } from "lucide-react";
 
 
 export default function NewClientPage() {
@@ -35,10 +35,27 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         const result = await addClient(data);
 
-        if (result.success) {
-            toast({
-                title: "Client ajouté",
-                description: `Le client "${data.name}" a été ajouté avec succès.`
+        if (result.success && result.data.password) {
+             const password = result.data.password;
+             const email = result.data.email;
+             toast({
+                duration: 20000, // 20 seconds
+                title: "Client ajouté avec succès !",
+                description: (
+                    <div className="space-y-2">
+                        <p>Veuillez communiquer les identifiants suivants au client :</p>
+                        <div className="text-sm">
+                            <span className="font-medium">Email :</span> {email}
+                        </div>
+                         <div className="flex items-center gap-2">
+                            <span className="font-medium">Mot de passe :</span> 
+                            <span className="font-mono bg-muted px-2 py-1 rounded">{password}</span>
+                            <button onClick={() => navigator.clipboard.writeText(password)} className="p-1 hover:bg-muted-foreground/20 rounded-md">
+                                <Copy className="h-4 w-4"/>
+                            </button>
+                        </div>
+                    </div>
+                ),
             });
             // Redirect to the list page
             router.push('/dashboard/clients');
@@ -84,4 +101,3 @@ export default function NewClientPage() {
         </div>
     )
 }
-

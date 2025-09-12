@@ -1,4 +1,3 @@
-
 'use client';
 import { Button } from "@/components/ui/button"
 import {
@@ -99,7 +98,7 @@ export default function LoginPage() {
       const allClients = await getClients();
       const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
       
-      if (clientUser && password === "Password123!") { // Using a default password for dynamic clients
+      if (clientUser && clientUser.password === password) { 
         user = {
           role: "client",
           name: clientUser.legalRepresentative,

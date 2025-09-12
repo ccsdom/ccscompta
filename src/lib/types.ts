@@ -53,6 +53,7 @@ export interface Client {
     email: string;
     phone: string;
     assignedAccountantId?: string;
+    password?: string;
 }
 
 export interface Invoice {
