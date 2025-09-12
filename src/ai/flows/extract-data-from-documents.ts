@@ -53,7 +53,7 @@ const ExtractDataOutputSchema = z.object({
   amounts: z.array(z.number()).optional().describe('Total amounts (TTC) found in the document (for invoices/receipts).'),
   vendorNames: z.array(z.string()).optional().describe('Vendor names found in the document (for invoices/receipts).'),
   vatAmount: z.number().nullable().optional().describe('The total VAT amount found in the document. If multiple VAT rates are present, sum them up.'),
-  vatRate: z-number().nullable().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
+  vatRate: z.number().nullable().optional().describe('The VAT rate found in the document (e.g., 20, 5.5). If multiple, provide the most prominent one.'),
   
   // Fields for multi-transaction documents like bank statements
   transactions: z.array(TransactionSchema).optional().describe('List of transactions extracted from the document (for bank statements).'),
