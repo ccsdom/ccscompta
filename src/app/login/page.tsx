@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { getClients } from "@/ai/flows/client-actions";
 
 // --- Début de la section de simulation ---
 
@@ -35,27 +36,6 @@ const DEMO_USERS = {
     name: "Secrétaire Admin",
     email: "secretaire@ccs.com",
     clientId: null,
-  },
-  "aventure.action@example.com": {
-    password: "Password123!",
-    role: "client",
-    name: "ACTION AVENTURE",
-    email: "aventure.action@example.com",
-    clientId: "client-01",
-  },
-  "contact.autoecole@example.com": {
-    password: "Password123!",
-    role: "client",
-    name: "AUTO ECOLE DE LA MAIRIE",
-    email: "contact.autoecole@example.com",
-    clientId: "client-02",
-  },
-   "vsw.contact@gmail.com": {
-    password: "Password123!",
-    role: "client",
-    name: "VSW SAS",
-    email: "vsw.contact@gmail.com",
-    clientId: "vsw-sas",
   },
 };
 
@@ -103,13 +83,35 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    const userEmailKey = email as keyof typeof DEMO_USERS;
-    const user = DEMO_USERS[userEmailKey];
+    let user: { role: string; name: string; email: string; clientId: string | null; } | null = null;
+    let successfulLogin = false;
+    
+    const demoUserEmailKey = email as keyof typeof DEMO_USERS;
+    const demoUser = DEMO_USERS[demoUserEmailKey];
 
-    if (user && user.password === password) {
+    if (demoUser && demoUser.password === password) {
+      user = { ...demoUser };
+      successfulLogin = true;
+    } else {
+      // If not a demo user, check Firestore clients
+      const allClients = await getClients();
+      const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
+      
+      if (clientUser && password === "Password123!") { // Using a default password for dynamic clients
+        user = {
+          role: "client",
+          name: clientUser.name,
+          email: clientUser.email,
+          clientId: clientUser.id,
+        };
+        successfulLogin = true;
+      }
+    }
+
+
+    if (user && successfulLogin) {
         localStorage.setItem('userRole', user.role);
         localStorage.setItem('userName', user.name);
         localStorage.setItem('userEmail', user.email);
@@ -241,7 +243,7 @@ export default function LoginPage() {
             </Button>
           </form>
            <p className="text-xs text-muted-foreground text-center">
-              La connexion via Google ne fonctionne que si votre comptable vous a enregistré avec une adresse Gmail.
+              Pour un client nouvellement créé, le mot de passe par défaut est 'Password123!'.
           </p>
         </div>
       </div>
