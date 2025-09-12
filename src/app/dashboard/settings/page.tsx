@@ -10,11 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle } from "lucide-react";
+import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsProfileSecurity } from "@/components/settings-profile-security";
 import { Slider } from "@/components/ui/slider";
-import { configureStorageSecurityRules } from "@/ai/flows/security-rules-actions";
+import { configureStorageSecurityRules, configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -26,8 +26,10 @@ export default function SettingsPage() {
         confidenceThreshold: 0.95,
         autoSend: false,
     });
-    const [securityRules, setSecurityRules] = useState<string | null>(null);
-    const [isLoadingRules, setIsLoadingRules] = useState(false);
+    const [storageRules, setStorageRules] = useState<string | null>(null);
+    const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
+    const [isLoadingStorageRules, setIsLoadingStorageRules] = useState(false);
+    const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
 
     useEffect(() => {
         const storedSettings = localStorage.getItem('automationSettings');
@@ -45,30 +47,44 @@ export default function SettingsPage() {
         window.dispatchEvent(new Event('storage'));
     }
     
-    const handleFetchRules = async () => {
-        setIsLoadingRules(true);
+    const handleFetchStorageRules = async () => {
+        setIsLoadingStorageRules(true);
         const result = await configureStorageSecurityRules();
         if (result.success) {
-            setSecurityRules(result.rules);
+            setStorageRules(result.rules);
         } else {
              toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: "Impossible de récupérer les règles de sécurité.",
+                description: "Impossible de récupérer les règles de sécurité du stockage.",
             });
         }
-        setIsLoadingRules(false);
+        setIsLoadingStorageRules(false);
+    }
+    
+    const handleFetchFirestoreRules = async () => {
+        setIsLoadingFirestoreRules(true);
+        const result = await configureFirestoreSecurityRules();
+        if (result.success) {
+            setFirestoreRules(result.rules);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: "Erreur",
+                description: "Impossible de récupérer les règles de sécurité de Firestore.",
+            });
+        }
+        setIsLoadingFirestoreRules(false);
     }
 
-    const copyRulesToClipboard = () => {
-        if (!securityRules) return;
-        navigator.clipboard.writeText(securityRules);
+    const copyToClipboard = (text: string | null) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
         toast({
             title: "Copié !",
             description: "Les règles de sécurité ont été copiées dans le presse-papiers.",
         });
     }
-
 
     const uploadEmail = `uploads-{ID_CLIENT}@ccs-compta-in.com`;
 
@@ -81,7 +97,7 @@ export default function SettingsPage() {
         });
     }
     
-    const copyToClipboard = () => {
+    const copyUploadEmailToClipboard = () => {
         navigator.clipboard.writeText(uploadEmail);
         toast({
             title: "Copié !",
@@ -102,6 +118,7 @@ export default function SettingsPage() {
             <TabsTrigger value="security">Sécurité</TabsTrigger>
             <TabsTrigger value="automation">Automatisation</TabsTrigger>
             <TabsTrigger value="storage-security">Sécurité du Stockage</TabsTrigger>
+            <TabsTrigger value="firestore-security">Sécurité Firestore</TabsTrigger>
             <TabsTrigger value="integrations">Intégrations</TabsTrigger>
             <TabsTrigger value="email-upload">Téléversement par Email</TabsTrigger>
             <TabsTrigger value="preferences">Préférences</TabsTrigger>
@@ -171,37 +188,73 @@ export default function SettingsPage() {
         <TabsContent value="storage-security">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Shield className="h-6 w-6"/> Sécurité du Stockage</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Shield className="h-6 w-6"/> Sécurité du Stockage (Fichiers)</CardTitle>
                     <CardDescription>Configurez les règles de sécurité pour l'accès aux fichiers dans Firebase Storage.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {securityRules ? (
+                    {storageRules ? (
                         <div className="space-y-4">
                             <Alert>
                                 <AlertCircle className="h-4 w-4" />
                                 <AlertTitle>Action Manuelle Requise</AlertTitle>
                                 <AlertDescription>
-                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Storage</strong> de votre console Firebase.
+                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Storage</strong> de votre console Firebase, puis publiez.
                                 </AlertDescription>
                             </Alert>
                              <Textarea
                                 readOnly
-                                value={securityRules}
+                                value={storageRules}
                                 className="h-72 font-mono text-xs bg-muted"
                             />
-                            <Button onClick={copyRulesToClipboard}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
+                            <Button onClick={() => copyToClipboard(storageRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
                         </div>
                     ) : (
                          <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour votre projet.</p>
-                             <Button onClick={handleFetchRules} disabled={isLoadingRules}>
-                                {isLoadingRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles de sécurité"}
+                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour autoriser le téléversement de fichiers.</p>
+                             <Button onClick={handleFetchStorageRules} disabled={isLoadingStorageRules}>
+                                {isLoadingStorageRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles de stockage"}
                             </Button>
                         </div>
                     )}
                 </CardContent>
             </Card>
         </TabsContent>
+
+        <TabsContent value="firestore-security">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-6 w-6"/> Sécurité Firestore (Données)</CardTitle>
+                    <CardDescription>Configurez les règles de sécurité pour l'accès à la base de données Firestore.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {firestoreRules ? (
+                        <div className="space-y-4">
+                            <Alert>
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Action Manuelle Requise</AlertTitle>
+                                <AlertDescription>
+                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase, puis publiez.
+                                </AlertDescription>
+                            </Alert>
+                             <Textarea
+                                readOnly
+                                value={firestoreRules}
+                                className="h-60 font-mono text-xs bg-muted"
+                            />
+                            <Button onClick={() => copyToClipboard(firestoreRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
+                        </div>
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour autoriser l'accès aux données.</p>
+                             <Button onClick={handleFetchFirestoreRules} disabled={isLoadingFirestoreRules}>
+                                {isLoadingFirestoreRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles Firestore"}
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
 
         <TabsContent value="integrations">
             <Card>
@@ -248,7 +301,7 @@ export default function SettingsPage() {
                         <Label htmlFor="upload-email">Adresse de téléversement pour vos clients</Label>
                         <div className="flex items-center gap-2">
                             <Input id="upload-email" value={uploadEmail} readOnly />
-                            <Button variant="outline" size="icon" type="button" onClick={copyToClipboard}>
+                            <Button variant="outline" size="icon" type="button" onClick={copyUploadEmailToClipboard}>
                                 <Copy className="h-4 w-4" />
                                 <span className="sr-only">Copier</span>
                             </Button>

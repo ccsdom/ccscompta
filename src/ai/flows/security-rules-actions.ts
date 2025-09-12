@@ -60,7 +60,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // Règle de base sécurisée : Autorise la lecture et l'écriture
-    // uniquement si l'utilisateur est authentifié.
+    // sur n'importe quel document ({document=**})
+    // uniquement si l'utilisateur est authentifié (request.auth != null).
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
