@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from "@/components/ui/button"
 import {
@@ -60,14 +61,15 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState("app.ccs94@gmail.com");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
+    // Clear any previous session state when loading the login page
     localStorage.clear();
-    signOut(auth);
+    signOut(auth).catch(() => {}); // Sign out any lingering session from Firebase
     window.dispatchEvent(new Event('storage'));
   }, []);
 
@@ -82,20 +84,26 @@ export default function LoginPage() {
         let userRole: string | null = null;
         let userName: string | null = null;
         let userClientId: string | null = null;
-
-        const demoUserEmailKey = email as keyof typeof DEMO_USERS;
+        
+        // Check if the user is a predefined admin/secretary
+        const demoUserEmailKey = email.toLowerCase() as keyof typeof DEMO_USERS;
         const demoUser = DEMO_USERS[demoUserEmailKey];
 
         if (demoUser) {
             userRole = demoUser.role;
             userName = demoUser.name;
         } else {
+            // If not a demo user, check if they are a client in Firestore
             const allClients = await getClients();
             const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
             if (clientUser) {
                 userRole = "client";
                 userName = clientUser.legalRepresentative;
                 userClientId = clientUser.id;
+            } else {
+                // For now, assume any other authenticated user is an accountant
+                userRole = "accountant";
+                userName = "Comptable";
             }
         }
         
@@ -127,14 +135,12 @@ export default function LoginPage() {
     } catch (error: any) {
         console.error("Firebase Auth Error:", error);
         let title = "Erreur de connexion";
-        let description = "Adresse email ou mot de passe incorrect.";
+        let description = "Une erreur inattendue est survenue. Veuillez réessayer.";
 
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
              description = "L'adresse email ou le mot de passe est incorrect. Veuillez réessayer.";
         } else if (error.message.includes('Profil utilisateur introuvable')) {
-            description = "Votre compte existe dans Firebase mais n'a pas de profil correspondant dans l'application. Veuillez contacter le support.";
-        } else {
-            description = "Une erreur inattendue est survenue. Veuillez réessayer."
+            description = "Votre compte existe mais n'a pas de profil correspondant dans l'application. Veuillez contacter le support.";
         }
 
         toast({ variant: "destructive", title, description });
@@ -184,7 +190,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-3xl font-bold">Connectez-vous</h1>
             <p className="text-balance text-muted-foreground">
-              Utilisez les identifiants de votre compte CCS Compta.
+              Entrez vos identifiants pour accéder à votre espace.
             </p>
           </div>
           <form onSubmit={handleLogin} className="grid gap-4">
@@ -193,7 +199,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="nom@exemple.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -247,3 +253,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
