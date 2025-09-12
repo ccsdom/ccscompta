@@ -26,7 +26,7 @@ const AddClientInputSchema = z.object({
 
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
-): Promise<ServerActionResponse<Client>> {
+): Promise<ServerActionResponse<Omit<Client, 'id'>>> {
   console.log("[Firestore] Adding client:", newClientData.name);
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
@@ -36,12 +36,9 @@ export async function addClient(
     if (!siretSnapshot.empty) {
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
-    
-    const generatedPassword = Math.random().toString(36).slice(-8);
 
     const newClient: Omit<Client, 'id'> = {
       ...validatedData,
-      password: generatedPassword,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };
@@ -68,7 +65,8 @@ export async function getClients(): Promise<Client[]> {
         if (snapshot.empty) {
             console.log("No clients found in Firestore, seeding with mock data...");
             for (const client of MOCK_CLIENTS) {
-                await addDoc(collection(db, 'clients'), client);
+                const { id, ...clientData } = client; // Don't seed with a hardcoded ID
+                await addDoc(collection(db, 'clients'), clientData);
             }
             const seededSnapshot = await getDocs(collection(db, 'clients'));
              return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));

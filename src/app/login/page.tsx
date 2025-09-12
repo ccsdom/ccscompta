@@ -18,27 +18,19 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { getClients } from "@/ai/flows/client-actions";
-
-// --- Début de la section de simulation ---
+import { auth } from '@/lib/firebase-client';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 const DEMO_USERS = {
   "app.ccs94@gmail.com": {
-    password: "Password123!",
     role: "admin",
     name: "Comptable Principal",
-    email: "app.ccs94@gmail.com",
-    clientId: null,
   },
   "secretaire@ccs.com": {
-    password: "Password123!",
     role: "secretary",
     name: "Secrétaire Admin",
-    email: "secretaire@ccs.com",
-    clientId: null,
   },
 };
-
-// --- Fin de la section de simulation ---
 
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -75,6 +67,7 @@ export default function LoginPage() {
   
   useEffect(() => {
     localStorage.clear();
+    signOut(auth);
     window.dispatchEvent(new Event('storage'));
   }, []);
 
@@ -82,64 +75,69 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    let user: { role: string; name: string; email: string; clientId: string | null; } | null = null;
-    let successfulLogin = false;
-    
-    const demoUserEmailKey = email as keyof typeof DEMO_USERS;
-    const demoUser = DEMO_USERS[demoUserEmailKey];
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
 
-    if (demoUser && demoUser.password === password) {
-      user = { ...demoUser };
-      successfulLogin = true;
-    } else {
-      // If not a demo user, check Firestore clients
-      const allClients = await getClients();
-      const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
-      
-      if (clientUser && clientUser.password === password) { 
-        user = {
-          role: "client",
-          name: clientUser.legalRepresentative,
-          email: clientUser.email,
-          clientId: clientUser.id,
-        };
-        successfulLogin = true;
-      }
-    }
+        let userRole: string | null = null;
+        let userName: string | null = null;
+        let userClientId: string | null = null;
 
+        const demoUserEmailKey = email as keyof typeof DEMO_USERS;
+        const demoUser = DEMO_USERS[demoUserEmailKey];
 
-    if (user && successfulLogin) {
-        localStorage.setItem('userRole', user.role);
-        localStorage.setItem('userName', user.name);
-        localStorage.setItem('userEmail', user.email);
-
-        let targetPath: string;
-        if (user.role === 'client') {
-            if (!user.clientId) {
-                toast({ variant: "destructive", title: "Erreur de configuration client", description: "Votre compte n'est associé à aucun dossier client." });
-                setIsLoading(false); return;
-            }
-            localStorage.setItem('selectedClientId', user.clientId);
-            targetPath = '/dashboard/my-documents';
-        } else if (user.role === 'accountant' || user.role === 'admin') {
-            targetPath = '/dashboard/accountant';
-        } else if (user.role === 'secretary') {
-            targetPath = '/dashboard/secretary';
+        if (demoUser) {
+            userRole = demoUser.role;
+            userName = demoUser.name;
         } else {
-            toast({ variant: "destructive", title: "Rôle utilisateur inconnu", description: `Le rôle '${user.role}' n'est pas reconnu.` });
-            setIsLoading(false); return;
+            const allClients = await getClients();
+            const clientUser = allClients.find(c => c.email.toLowerCase() === email.toLowerCase());
+            if (clientUser) {
+                userRole = "client";
+                userName = clientUser.legalRepresentative;
+                userClientId = clientUser.id;
+            }
         }
         
-        window.dispatchEvent(new Event('storage'));
-        router.push(targetPath);
-    } else {
-        toast({
-            variant: "destructive",
-            title: "Erreur de connexion",
-            description: "Adresse email ou mot de passe incorrect.",
-        });
+        if (userRole && userName) {
+            localStorage.setItem('userRole', userRole);
+            localStorage.setItem('userName', userName);
+            localStorage.setItem('userEmail', email);
+
+            let targetPath: string;
+            if (userRole === 'client') {
+                if (!userClientId) {
+                    throw new Error("Compte client non associé à un dossier.");
+                }
+                localStorage.setItem('selectedClientId', userClientId);
+                targetPath = '/dashboard/my-documents';
+            } else if (userRole === 'accountant' || userRole === 'admin') {
+                targetPath = '/dashboard/accountant';
+            } else if (userRole === 'secretary') {
+                targetPath = '/dashboard/secretary';
+            } else {
+                throw new Error(`Rôle utilisateur inconnu: ${userRole}`);
+            }
+            
+            window.dispatchEvent(new Event('storage'));
+            router.push(targetPath);
+        } else {
+            throw new Error("Profil utilisateur introuvable dans l'application.");
+        }
+    } catch (error: any) {
+        console.error("Firebase Auth Error:", error);
+        let title = "Erreur de connexion";
+        let description = "Adresse email ou mot de passe incorrect.";
+
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+             description = "L'adresse email ou le mot de passe est incorrect. Veuillez réessayer.";
+        } else if (error.message.includes('Profil utilisateur introuvable')) {
+            description = "Votre compte existe dans Firebase mais n'a pas de profil correspondant dans l'application. Veuillez contacter le support.";
+        } else {
+            description = "Une erreur inattendue est survenue. Veuillez réessayer."
+        }
+
+        toast({ variant: "destructive", title, description });
         setIsLoading(false);
     }
   };
@@ -242,7 +240,7 @@ export default function LoginPage() {
             </Button>
           </form>
            <p className="text-xs text-muted-foreground text-center">
-              Pour un client nouvellement créé, le mot de passe par défaut est 'Password123!'.
+             Contactez votre comptable si vous n'avez pas encore de compte.
           </p>
         </div>
       </div>

@@ -33,31 +33,18 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
+        // Important: Create user in Firebase Auth first, then create client in Firestore.
+        // For this demo, we assume the user is created manually in the Firebase Console
+        // and we are just adding the client profile to Firestore.
+
         const result = await addClient(data);
 
-        if (result.success && result.data.password) {
-             const password = result.data.password;
-             const email = result.data.email;
+        if (result.success) {
              toast({
-                duration: 20000, // 20 seconds
+                duration: 20000,
                 title: "Client ajouté avec succès !",
-                description: (
-                    <div className="space-y-2">
-                        <p>Veuillez communiquer les identifiants suivants au client :</p>
-                        <div className="text-sm">
-                            <span className="font-medium">Email :</span> {email}
-                        </div>
-                         <div className="flex items-center gap-2">
-                            <span className="font-medium">Mot de passe :</span> 
-                            <span className="font-mono bg-muted px-2 py-1 rounded">{password}</span>
-                            <button onClick={() => navigator.clipboard.writeText(password)} className="p-1 hover:bg-muted-foreground/20 rounded-md">
-                                <Copy className="h-4 w-4"/>
-                            </button>
-                        </div>
-                    </div>
-                ),
+                description: `Le profil pour ${result.data.name} a été créé. Vous devez maintenant créer un utilisateur correspondant dans Firebase Authentication avec l'email ${result.data.email} pour qu'il puisse se connecter.`,
             });
-            // Redirect to the list page
             router.push('/dashboard/clients');
         } else {
             console.error("Failed to add client:", result.error);
