@@ -142,39 +142,38 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = async (file: File, clientId: string) => {
-    let docToUpdateId: string | null = null;
+    const tempId = `temp-${Math.random()}`;
+    const newDocData: Omit<Document, 'id'> = {
+        name: file.name,
+        uploadDate: new Date().toISOString(),
+        status: 'processing',
+        storagePath: '', // Will be updated later
+        clientId: clientId,
+        auditTrail: addAuditEvent([], 'Document téléversé par le client'),
+        comments: [],
+    };
+    
+    // Add doc to local state immediately with processing status
+    setDocuments(prev => [{...newDocData, id: tempId } as Document, ...prev]);
+
+    let createdDoc: Document | null = null;
     try {
         const dataUrl = await fileToDataUri(file);
-
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
 
-        const newDocData: Omit<Document, 'id'> = {
-            name: file.name,
-            uploadDate: new Date().toISOString(),
-            status: 'processing',
+        const docForDb: Omit<Document, 'id'> = {
+            ...newDocData,
             storagePath: storagePath,
-            clientId: clientId,
-            auditTrail: addAuditEvent([], 'Document téléversé par le client'),
-            comments: [],
         };
-        
-        // Add doc to local state immediately with processing status
-        const tempId = `temp-${Math.random()}`;
-        setDocuments(prev => [{...newDocData, id: tempId } as Document, ...prev]);
 
-        const newDoc = await addDocument(newDocData);
-        if (!newDoc) throw new Error("Failed to create document in the database.");
-        
-        docToUpdateId = newDoc.id;
-        
-        // Replace temp doc with real doc from DB
-        setDocuments(prev => prev.map(d => d.id === tempId ? newDoc : d));
+        createdDoc = await addDocument(docForDb);
+        if (!createdDoc) throw new Error("Failed to create document in the database.");
 
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
-        const trailWithAI = addAuditEvent(newDoc.auditTrail, 'Traitement IA terminé');
+        const trailWithAI = addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé');
         
         const finalUpdates: Partial<Document> = {
             status: 'reviewing',
@@ -184,29 +183,31 @@ export default function MyDocumentsPage() {
             auditTrail: trailWithAI,
         };
 
-        await updateDocument({ id: docToUpdateId, updates: finalUpdates });
-        createNotification({ ...newDoc, ...finalUpdates }, 'est prêt pour examen.');
+        await updateDocument({ id: createdDoc.id, updates: finalUpdates });
+        
+        const finalDoc = { ...createdDoc, ...finalUpdates };
+        setDocuments(prev => prev.map(d => d.id === tempId ? finalDoc : d));
+        createNotification(finalDoc, 'est prêt pour examen.');
         
         return { success: true };
 
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        if (docToUpdateId) {
-            try {
-                const doc = await getDocuments(clientId).then(docs => docs.find(d => d.id === docToUpdateId));
-                if (doc) {
-                    const trail = addAuditEvent(doc.auditTrail, 'Erreur de traitement IA');
-                    await updateDocument({ id: docToUpdateId, updates: { status: 'error', auditTrail: trail } });
-                    createNotification({ ...doc, status: 'error' }, 'a échoué lors du traitement.');
-                }
-            } catch (updateError) {
-                console.error('Failed to update document to error state:', updateError);
-            }
+        let finalStatus: Partial<Document> = { status: 'error', auditTrail: addAuditEvent(newDocData.auditTrail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`) };
+        
+        if (createdDoc) {
+             await updateDocument({ id: createdDoc.id, updates: finalStatus });
+             const finalDoc = { ...createdDoc, ...finalStatus };
+             setDocuments(prev => prev.map(d => d.id === tempId ? finalDoc : d));
+             createNotification(finalDoc, 'a échoué lors du traitement.');
+        } else {
+            // Error happened before document was created in DB, just update local state
+            setDocuments(prev => prev.map(d => d.id === tempId ? { ...d, ...finalStatus } as Document : d));
         }
+
         return { success: false };
       }
   }
-
 
   const handleFileDrop = async (files: File[]) => {
     if (!clientId) {
@@ -232,13 +233,7 @@ export default function MyDocumentsPage() {
     } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être traité. Veuillez réessayer.` });
     }
-
-    // Always refetch documents to get the final state of all uploads
-    if (clientId) {
-      fetchDocuments(clientId);
-    }
   };
-
 
   const handleAddComment = async (docId: string, commentText: string) => {
     if (!commentText.trim()) return;
@@ -530,3 +525,5 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    
