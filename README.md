@@ -27,7 +27,7 @@ chmod +x apply-cors.sh
 
 #### Pour Windows (Invite de commandes ou PowerShell)
 
-Copiez et exécutez la commande suivante directement :
+Assurez-vous que votre terminal est bien ouvert **à la racine de ce projet**. Copiez et exécutez la commande suivante directement :
 
 ```bash
 gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=./cors.json
