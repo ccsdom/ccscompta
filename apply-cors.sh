@@ -13,10 +13,11 @@
 #    dans les paramètres de votre projet sur la console Firebase.
 #    Remplacez "VOTRE_ID_PROJET" ci-dessous par votre ID de projet.
 
-PROJECT_ID="ccs-compta" # REMPLACEZ PAR VOTRE ID DE PROJET SI DIFFÉRENT
+PROJECT_ID="ccs-compta" # L'ID de projet utilisé par l'application
 BUCKET="gs://${PROJECT_ID}.appspot.com"
 
 echo "Application des règles CORS au bucket : ${BUCKET}"
+echo "Assurez-vous que votre CLI gcloud est configurée pour utiliser le projet '${PROJECT_ID}'."
 
 # Applique la configuration CORS depuis le fichier cors.json
 gcloud storage buckets update ${BUCKET} --cors-file=./cors.json
