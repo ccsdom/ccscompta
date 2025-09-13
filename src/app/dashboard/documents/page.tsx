@@ -172,25 +172,29 @@ export default function DocumentsPage() {
     
     try {
       let docWithDataUrl = { ...docToProcess };
-      if (!docWithDataUrl.dataUrl) {
-          const storageRef = ref(storage, docToProcess.storagePath);
-          const downloadUrl = await getDownloadURL(storageRef);
-          
-          // Use fetch in a try-catch to get the blob for AI processing
-          let tempFile;
-          try {
-              const response = await fetch(downloadUrl);
-              const blob = await response.blob();
-              tempFile = new File([blob], docToProcess.name, { type: blob.type });
-              docWithDataUrl.dataUrl = await fileToDataUri(tempFile);
-          } catch(fetchError) {
-              console.error("Fetch error for AI processing, this can happen with CORS. The document can still be previewed.", fetchError);
-              // We'll try to process without the data URL if fetch fails.
-              // In a real app, this would be handled server-side.
-              // For now, we will have to let it fail.
-              throw fetchError;
-          }
+      
+      const storageRef = ref(storage, docToProcess.storagePath);
+      const downloadUrl = await getDownloadURL(storageRef);
+      
+      // Use fetch in a try-catch to get the blob for AI processing
+      // This can fail due to CORS if not configured, but the app should still work
+      let tempFile;
+      let dataUrl: string | undefined;
+      try {
+          const response = await fetch(downloadUrl);
+          const blob = await response.blob();
+          tempFile = new File([blob], docToProcess.name, { type: blob.type });
+          dataUrl = await fileToDataUri(tempFile);
+      } catch(fetchError) {
+          console.error("CORS error fetching file for AI processing:", fetchError);
+          toast({
+            variant: "destructive",
+            title: "Erreur de CORS",
+            description: "Impossible de lire le fichier pour l'IA. Veuillez suivre les instructions du README pour configurer les permissions CORS de votre bucket Storage."
+          });
+          throw fetchError;
       }
+      docWithDataUrl.dataUrl = dataUrl;
 
       const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
       trail = await addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
@@ -255,7 +259,10 @@ export default function DocumentsPage() {
       await updateDocument({ id: docId, updates: { status: 'error', auditTrail: trail } });
       const finalDoc = await getDocumentById(docId);
       if (finalDoc) updateLocalDocument(finalDoc);
-      toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${docToProcess.name}.` });
+      // The toast for CORS error is already shown inside the try block
+      if (!(error as Error).message.includes('CORS')) {
+          toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${docToProcess.name}.` });
+      }
       createNotification({ ...docToProcess, status: 'error' }, 'a échoué lors du traitement.');
     } finally {
       setIsProcessing(false);
@@ -665,7 +672,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
-    
-
-    

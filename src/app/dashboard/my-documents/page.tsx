@@ -20,13 +20,9 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
-import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { storage } from '@/lib/firebase-client';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { increment } from 'firebase/firestore';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -144,8 +140,10 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = async (file: File, clientId: string) => {
+    setIsUploading(true);
     const storagePath = `${clientId}/${Date.now()}-${file.name}`;
     const initialTrail = addAuditEvent([], 'Document téléversé par le client');
+    
     const docForDb: Omit<Document, 'id'> = {
         name: file.name,
         uploadDate: new Date().toISOString(),
@@ -156,59 +154,34 @@ export default function MyDocumentsPage() {
         comments: [],
     };
     
-    let createdDoc = await addDocument(docForDb);
-    if (!createdDoc) {
-      toast({ variant: 'destructive', title: `Échec de la création pour ${file.name}` });
-      return { success: false };
-    }
-    
-    // Increment the new documents counter for the accountant
-    await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
-    window.dispatchEvent(new Event('storage'));
-
-    if(clientId) fetchDocuments(clientId); // Refresh list immediately
-
-    let trail = createdDoc.auditTrail;
-
     try {
+        // Upload to storage
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
-        trail = addAuditEvent(trail, 'Fichier stocké');
-        await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail, status: 'processing' } });
 
-        if(clientId) fetchDocuments(clientId); // Refresh to show 'processing'
-
-        const dataUrl = await fileToDataUri(file);
-
-        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-        trail = addAuditEvent(trail, `Type reconnu: ${recognition.documentType}`);
+        // Create doc in Firestore
+        let createdDoc = await addDocument(docForDb);
+        if (!createdDoc) {
+          throw new Error("Failed to create document entry in Firestore.");
+        }
         
-        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
-        trail = addAuditEvent(trail, 'Traitement IA terminé');
+        // Increment new documents counter for accountant
+        await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
         
-        const finalUpdates: Partial<Document> = {
-            status: 'reviewing',
-            extractedData: extracted,
-            type: recognition.documentType,
-            confidence: recognition.confidence,
-            auditTrail: trail,
-        };
-
-        await updateDocument({ id: createdDoc.id, updates: finalUpdates });
-        createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
+        toast({ title: `Document "${file.name}" envoyé`, description: "Il est en attente de traitement par votre comptable." });
         return { success: true };
 
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        trail = addAuditEvent(trail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`);
-        
-        if (createdDoc) {
-             await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
-             createNotification({ ...createdDoc, status: 'error' }, 'a échoué lors du traitement.');
-        }
+        toast({
+            variant: 'destructive',
+            title: `Échec du téléversement pour ${file.name}`,
+            description: "Veuillez réessayer. Si le problème persiste, contactez le support."
+        });
         return { success: false };
       } finally {
-         if(clientId) fetchDocuments(clientId);
+        if (clientId) fetchDocuments(clientId);
+        setIsUploading(false);
       }
   }
 
@@ -217,7 +190,6 @@ export default function MyDocumentsPage() {
       toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
       return;
     }
-    setIsUploading(true);
     
     let successCount = 0;
     
@@ -229,12 +201,10 @@ export default function MyDocumentsPage() {
 
     await Promise.all(processingPromises);
     
-    setIsUploading(false);
-
     if (successCount > 0) {
-      toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été traités et envoyés.` });
+      toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été envoyés avec succès.` });
     } else if (files.length > 0) {
-       toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être traité. Veuillez réessayer.` });
+       toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être envoyé. Veuillez réessayer.` });
     }
   };
 
@@ -449,7 +419,7 @@ export default function MyDocumentsPage() {
       <Card>
         <CardHeader>
             <CardTitle>Nouveau document</CardTitle>
-            <CardDescription>Déposez vos fichiers ici. Ils seront automatiquement traités et envoyés à votre comptable pour examen.</CardDescription>
+            <CardDescription>Déposez vos fichiers ici. Ils seront automatiquement envoyés à votre comptable pour traitement.</CardDescription>
         </CardHeader>
         <CardContent>
              <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} />
@@ -538,5 +508,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    
