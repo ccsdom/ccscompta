@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Script pour appliquer les règles CORS à votre bucket Firebase Storage.
@@ -19,8 +18,8 @@ BUCKET="gs://${PROJECT_ID}.appspot.com"
 echo "Application des règles CORS au bucket : ${BUCKET}"
 echo "Assurez-vous que votre CLI gcloud est configurée pour utiliser le projet '${PROJECT_ID}'."
 
-# Applique la configuration CORS depuis le fichier cors.json
-gcloud storage buckets update ${BUCKET} --cors-file=./cors.json
+# Applique la configuration CORS directement dans la commande
+gcloud storage buckets update ${BUCKET} --update-labels=cors_config='[{"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600}]'
 
 echo "Configuration CORS appliquée avec succès."
 echo "Veuillez rafraîchir votre application. L'erreur de fetch devrait être résolue."
