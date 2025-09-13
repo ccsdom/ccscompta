@@ -22,7 +22,7 @@ Si vous rencontrez des erreurs `Failed to fetch`, `storage/retry-limit-exceeded`
 Copiez et exécutez la commande suivante directement dans votre terminal :
 
 ```bash
-gcloud storage buckets update gs://ccs-compta.appspot.com --update-labels=cors_config='[{"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600}]'
+gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=./cors.json
 ```
 
 #### Pour Windows (Invite de commandes ou PowerShell)

@@ -18,8 +18,22 @@ BUCKET="gs://${PROJECT_ID}.appspot.com"
 echo "Application des règles CORS au bucket : ${BUCKET}"
 echo "Assurez-vous que votre CLI gcloud est configurée pour utiliser le projet '${PROJECT_ID}'."
 
-# Applique la configuration CORS directement dans la commande
-gcloud storage buckets update ${BUCKET} --update-labels=cors_config='[{"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600}]'
+# Crée le fichier de configuration CORS temporaire
+cat <<EOF > cors-config.json
+[
+  {
+    "origin": ["*"],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]
+EOF
+
+# Applique la configuration CORS depuis le fichier
+gcloud storage buckets update ${BUCKET} --cors-file=./cors-config.json
+
+# Supprime le fichier temporaire
+rm cors-config.json
 
 echo "Configuration CORS appliquée avec succès."
 echo "Veuillez rafraîchir votre application. L'erreur de fetch devrait être résolue."
