@@ -18,7 +18,7 @@ Cette méthode est la plus fiable et fonctionne sur tous les systèmes d'exploit
 
 2.  En haut à droite de la page, cliquez sur l'icône **"Activer Cloud Shell"** (`>_`). Une nouvelle fenêtre de terminal s'ouvrira en bas de votre écran. Patientez quelques instants pendant son initialisation.
 
-    ![Activer Cloud Shell](httpshttps://raw.githubusercontent.com/firebase/studio-images/main/cors-guide/activate-cloud-shell.png)
+    ![Activer Cloud Shell](https://raw.githubusercontent.com/firebase/studio-images/main/cors-guide/activate-cloud-shell.png)
 
 3.  Une fois le terminal Cloud Shell prêt, copiez et collez la commande suivante, puis appuyez sur **Entrée**. Cela créera le fichier de configuration `cors.json`.
 
