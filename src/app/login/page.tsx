@@ -17,7 +17,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { getClients } from "@/ai/flows/client-actions";
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -169,69 +169,73 @@ export default function LoginPage() {
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2">
       <div className="hidden bg-gray-100 lg:block relative">
         <Image
-            src="https://picsum.photos/1202/1800"
-            alt="Image"
+            src="https://picsum.photos/seed/login/1200/1800"
+            alt="Image de fond représentant un espace de travail de comptabilité"
             fill
             sizes="50vw"
             className="object-cover"
+            priority
             data-ai-hint="professional accounting"
         />
-         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/0" />
+         <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-primary/20" />
          <div className="relative h-full flex flex-col justify-between p-12 text-white">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-white">
+            <Link href="/" className="flex items-center gap-2 font-semibold text-white z-10">
                 <Logo className="h-8 w-8" />
-                <span className="text-xl">CCS Compta</span>
+                <span className="text-xl">PaperTrail</span>
             </Link>
-            <div className="text-left">
-                <h1 className="text-4xl font-bold leading-tight">Gérez votre comptabilité en toute simplicité</h1>
-                <p className="text-balance text-white/80 mt-4 text-lg">
+            <div className="text-left z-10">
+                <h1 className="text-5xl font-bold leading-tight tracking-tight">La comptabilité, réinventée.</h1>
+                <p className="text-balance text-white/80 mt-4 text-lg max-w-md">
                     Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
                 </p>
             </div>
-             <p className="text-xs text-white/60">&copy; 2025 CCS, Consulting Conseil Services. Tous droits réservés.</p>
+             <p className="text-xs text-white/60 z-10">&copy; {new Date().getFullYear()} PaperTrail. Tous droits réservés.</p>
          </div>
       </div>
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
+      <div className="flex items-center justify-center py-12 px-4">
+        <div className="mx-auto grid w-full max-w-[400px] gap-8">
           <div className="grid gap-2 text-center">
              <div className="flex justify-center mb-4 lg:hidden">
-                <Logo className="h-10 w-10 text-primary" />
+                <Link href="/" className="flex items-center gap-2 font-semibold">
+                    <Logo className="h-8 w-8 text-primary" />
+                    <span className="text-xl">PaperTrail</span>
+                </Link>
             </div>
-            <h1 className="text-3xl font-bold">Connectez-vous</h1>
+            <h1 className="text-3xl font-bold">Bienvenue</h1>
             <p className="text-balance text-muted-foreground">
-              Entrez vos identifiants pour accéder à votre espace.
+              Connectez-vous à votre espace pour commencer.
             </p>
           </div>
-          <Alert>
-              <AlertTitle>Comptes de démonstration</AlertTitle>
-              <AlertDescription>
-                Pour vous connecter en tant que <strong>comptable@ccs.com</strong> ou <strong>admin@ccs.com</strong>, vous devez d'abord créer ces utilisateurs manuellement dans la console <strong>Firebase Authentication</strong> avec le mot de passe de votre choix.
-              </AlertDescription>
-            </Alert>
+          
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="nom@exemple.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="nom@exemple.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="pl-10"
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Mot de passe</Label>
                 <Link
                   href="#"
-                  className="ml-auto inline-block text-sm underline"
+                  className="ml-auto inline-block text-sm text-primary hover:underline"
                 >
                   Mot de passe oublié?
                 </Link>
               </div>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   id="password" 
                   type={showPassword ? "text" : "password"} 
@@ -239,12 +243,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required 
                   disabled={isLoading}
-                  className="pr-10"
+                  className="pl-10 pr-10"
                 />
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
                     aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -255,14 +259,27 @@ export default function LoginPage() {
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               {isLoading ? "Connexion..." : "Se connecter"}
             </Button>
+            <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                    Ou continuer avec
+                    </span>
+                </div>
+            </div>
             <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
-              Se connecter avec Google
+              Google
             </Button>
           </form>
-           <p className="text-xs text-muted-foreground text-center">
-             Contactez votre comptable si vous n'avez pas encore de compte.
-          </p>
+           <Alert className="mt-4">
+              <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
+              <AlertDescription className="text-xs">
+                Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Créez-les d'abord dans Firebase Auth avec le mot de passe de votre choix.
+              </AlertDescription>
+            </Alert>
         </div>
       </div>
     </div>
