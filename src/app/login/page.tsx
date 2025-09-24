@@ -280,6 +280,9 @@ export default function LoginPage() {
                 Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Créez-les d'abord dans Firebase Auth avec le mot de passe de votre choix.
               </AlertDescription>
             </Alert>
+            <p className="mt-4 text-center text-xs text-muted-foreground lg:hidden">
+                &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
+            </p>
         </div>
       </div>
     </div>
