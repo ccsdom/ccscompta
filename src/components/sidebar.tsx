@@ -86,7 +86,7 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
 export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
     const router = useRouter();
     const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
-    const { setTheme } = useTheme();
+    const { theme, setTheme } = useTheme();
 
     const handleLogout = () => {
         localStorage.clear();
@@ -121,13 +121,9 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                 </nav>
             </ScrollArea>
              <div className="mt-auto p-4 border-t">
-                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('light')}>
-                    <Sun className="mr-2 h-4 w-4" />
-                    Clair
-                </Button>
-                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('dark')}>
-                    <Moon className="mr-2 h-4 w-4" />
-                    Sombre
+                <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                    {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
+                    <span>{theme === 'light' ? 'Mode Sombre' : 'Mode Clair'}</span>
                 </Button>
             </div>
         </div>
@@ -234,8 +230,7 @@ export function Sidebar() {
                  <Tooltip>
                     <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-                             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                            {theme === 'light' ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
                             <span className="sr-only">Changer de thème</span>
                         </Button>
                     </TooltipTrigger>
