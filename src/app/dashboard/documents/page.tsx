@@ -569,55 +569,69 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const MainContent = () => (
-    <div className="flex flex-col gap-6 h-full">
-        {selectedDocumentIds.length > 0 && <BulkActionsToolbar />}
-        <FilterDisplay />
-        <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col">
-            <TabsList className="grid grid-cols-2 w-full max-w-sm">
-                <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
-                <TabsTrigger value="bilans">Bilans</TabsTrigger>
-            </TabsList>
-            <TabsContent value="documents" className="flex-1 mt-4">
-                 <Tabs defaultValue="achats" className="w-full">
-                     <TabsList className="grid w-full grid-cols-5">
-                        {TABS_CONFIG.map(tab => (
-                            <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
-                        ))}
-                     </TabsList>
-                     {TABS_CONFIG.map(tab => {
-                        const docsForTab = filteredDocuments.filter(doc => tab.types.includes(doc.type) || (tab.value === 'autres' && !TABS_CONFIG.flatMap(t=>t.types).filter(Boolean).includes(doc.type)));
-                         return (
-                             <TabsContent key={tab.value} value={tab.value} className="mt-4">
-                                <DocumentHistory
-                                    documents={docsForTab}
-                                    onProcess={handleProcessDocument}
-                                    onDelete={handleDeleteSingle}
-                                    activeDocumentId={activeDocument?.id}
-                                    setActiveDocument={handleSetActiveDocument}
-                                    selectedDocumentIds={selectedDocumentIds}
-                                    setSelectedDocumentIds={setSelectedDocumentIds}
-                                    isLoading={isLoading}
-                                />
-                             </TabsContent>
-                         )
-                     })}
-                 </Tabs>
-            </TabsContent>
-            <TabsContent value="bilans" className="flex-1 mt-4">
-                {selectedClientId ? <BilanHistory clientId={selectedClientId} /> : (
-                    <Card className="h-full flex items-center justify-center">
-                        <CardContent className="text-center p-6">
-                            <BookCopy className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client pour voir l'historique des bilans.</p>
-                        </CardContent>
-                    </Card>
-                )}
-            </TabsContent>
-        </Tabs>
-    </div>
-  );
+  const MainContent = () => {
+    const clientName = clients.find(c => c.id === selectedClientId)?.name;
+
+    if (!selectedClientId) {
+      return (
+        <Card className="h-full flex items-center justify-center">
+            <CardContent className="text-center p-6">
+                <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
+                <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client dans la barre latérale pour voir ses documents.</p>
+            </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+        <Card className="flex flex-col h-full">
+            <CardHeader>
+                <CardTitle>Documents pour {clientName}</CardTitle>
+                <CardDescription>Traitez, validez et gérez les pièces comptables du client.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-0">
+                {selectedDocumentIds.length > 0 && <div className="px-6 pt-6"><BulkActionsToolbar /></div>}
+                <div className="px-6"><FilterDisplay /></div>
+                <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col px-6">
+                    <TabsList className="grid grid-cols-2 w-full max-w-sm">
+                        <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
+                        <TabsTrigger value="bilans">Bilans</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="documents" className="flex-1 mt-4 overflow-hidden">
+                        <Tabs defaultValue="achats" className="w-full h-full flex flex-col">
+                            <TabsList className="grid w-full grid-cols-5">
+                                {TABS_CONFIG.map(tab => (
+                                    <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+                                ))}
+                            </TabsList>
+                            {TABS_CONFIG.map(tab => {
+                                const docsForTab = filteredDocuments.filter(doc => tab.types.includes(doc.type) || (tab.value === 'autres' && !TABS_CONFIG.flatMap(t=>t.types).filter(Boolean).includes(doc.type)));
+                                return (
+                                    <TabsContent key={tab.value} value={tab.value} className="mt-4 flex-1 overflow-auto">
+                                        <DocumentHistory
+                                            documents={docsForTab}
+                                            onProcess={handleProcessDocument}
+                                            onDelete={handleDeleteSingle}
+                                            activeDocumentId={activeDocument?.id}
+                                            setActiveDocument={handleSetActiveDocument}
+                                            selectedDocumentIds={selectedDocumentIds}
+                                            setSelectedDocumentIds={setSelectedDocumentIds}
+                                            isLoading={isLoading}
+                                        />
+                                    </TabsContent>
+                                )
+                            })}
+                        </Tabs>
+                    </TabsContent>
+                    <TabsContent value="bilans" className="flex-1 mt-4">
+                        <BilanHistory clientId={selectedClientId} />
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
+        </Card>
+    );
+  }
 
   const DetailViewDialog = () => {
     if (!activeDocument) return null;

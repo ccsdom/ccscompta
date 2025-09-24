@@ -1,5 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +18,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Skeleton } from "./ui/skeleton";
 import { format } from "date-fns";
 import { fr } from 'date-fns/locale';
 
@@ -78,16 +77,36 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
   
     if (isLoading) {
          return (
-            <div className="space-y-4">
-                <div className="h-10 w-1/3 bg-muted rounded-md animate-pulse"></div>
-                <div className="border rounded-lg">
-                    <div className="h-14 bg-muted/50 rounded-t-lg"></div>
-                    <div className="p-4 space-y-2">
-                        <div className="h-12 bg-muted rounded-md animate-pulse"></div>
-                        <div className="h-12 bg-muted rounded-md animate-pulse"></div>
-                    </div>
-                </div>
-            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[40px] px-4"><Checkbox disabled /></TableHead>
+                        <TableHead>Document</TableHead>
+                        <TableHead className="hidden lg:table-cell">Fournisseur</TableHead>
+                        <TableHead className="hidden md:table-cell text-right">Montant</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead className="text-right w-[140px]">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                 <TableBody>
+                    {Array.from({length: 5}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell className="px-4"><Checkbox disabled /></TableCell>
+                            <TableCell className="space-y-1">
+                                <div className="h-4 bg-muted rounded w-3/4 animate-pulse"></div>
+                                <div className="h-3 bg-muted rounded w-1/2 animate-pulse"></div>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell"><div className="h-4 bg-muted rounded w-20 animate-pulse"></div></TableCell>
+                            <TableCell className="hidden md:table-cell"><div className="h-4 bg-muted rounded w-16 ml-auto animate-pulse"></div></TableCell>
+                            <TableCell><div className="h-6 bg-muted rounded-full w-24 animate-pulse"></div></TableCell>
+                            <TableCell className="text-right space-x-1">
+                                <div className="h-8 w-8 bg-muted rounded-md inline-block animate-pulse"></div>
+                                <div className="h-8 w-8 bg-muted rounded-md inline-block animate-pulse"></div>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                 </TableBody>
+            </Table>
         )
     }
 
@@ -96,13 +115,11 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
 
     if (documents.length === 0) {
         return (
-            <Card className="border-dashed">
-                <CardContent className="h-48 flex flex-col items-center justify-center text-center">
-                    <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold">Aucun document dans cette catégorie</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Le client n'a pas encore téléversé de documents de ce type, ou aucun ne correspond à vos filtres.</p>
-                </CardContent>
-            </Card>
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 border rounded-lg border-dashed">
+                <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold">Aucun document ici</h3>
+                <p className="text-sm text-muted-foreground mt-1">Pas de documents de ce type ou correspondant à vos filtres.</p>
+            </div>
         )
     }
 
@@ -225,5 +242,3 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
         </div>
     );
 }
-
-    
