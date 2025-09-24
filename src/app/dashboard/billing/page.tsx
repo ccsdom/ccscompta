@@ -211,14 +211,14 @@ export default function BillingPage() {
             </div>
              <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div>
                             <CardTitle>Suivi des factures</CardTitle>
                             <CardDescription>Filtrez et gérez les factures de vos clients.</CardDescription>
                         </div>
                          <div className="flex flex-wrap items-center gap-4">
                              <Select value={clientFilter} onValueChange={setClientFilter}>
-                                <SelectTrigger className="min-w-[160px] flex-1 sm:flex-none">
+                                <SelectTrigger className="w-full sm:w-auto min-w-[160px]">
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -227,7 +227,7 @@ export default function BillingPage() {
                                 </SelectContent>
                             </Select>
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="min-w-[140px] flex-1 sm:flex-none">
+                                <SelectTrigger className="w-full sm:w-auto min-w-[140px]">
                                     <SelectValue placeholder="Statut" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -238,10 +238,10 @@ export default function BillingPage() {
                                 </SelectContent>
                             </Select>
                              <div className="flex items-center gap-2 flex-wrap">
-                                 <Label className="hidden sm:block text-sm font-medium">Période:</Label>
-                                 <Input type="date" value={startDateFilter} onChange={handleStartDateChange} className="min-w-[140px] flex-1"/>
-                                 <span className="text-muted-foreground">-</span>
-                                 <Input type="date" value={endDateFilter} onChange={handleEndDateChange} className="min-w-[140px] flex-1"/>
+                                 <Label htmlFor="start-date" className="text-sm font-medium">Période:</Label>
+                                 <Input id="start-date" type="date" value={startDateFilter} onChange={handleStartDateChange} className="w-full sm:w-auto"/>
+                                 <span className="text-muted-foreground">à</span>
+                                 <Input type="date" value={endDateFilter} onChange={handleEndDateChange} className="w-full sm:w-auto"/>
                              </div>
                              {hasActiveFilters && (
                                 <Button variant="ghost" onClick={handleResetFilters}>
