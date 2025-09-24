@@ -22,7 +22,11 @@ export function SupportChatbot() {
     const [isLoading, setIsLoading] = useState(false);
     const [documentation, setDocumentation] = useState<string | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -80,6 +84,10 @@ export function SupportChatbot() {
             setIsLoading(false);
         }
     };
+
+    if (!isMounted) {
+        return null;
+    }
     
     return (
         <>
