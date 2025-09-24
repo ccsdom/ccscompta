@@ -30,6 +30,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu';
 
 export default function BillingPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -192,14 +193,14 @@ export default function BillingPage() {
             </div>
              <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div>
                             <CardTitle>Suivi des factures</CardTitle>
                             <CardDescription>Filtrez et gérez les factures de vos clients.</CardDescription>
                         </div>
-                         <div className="grid grid-cols-2 md:flex md:items-center gap-2">
+                         <div className="flex flex-wrap items-center gap-2">
                              <Select value={clientFilter} onValueChange={setClientFilter}>
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="min-w-[160px] flex-1">
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -208,7 +209,7 @@ export default function BillingPage() {
                                 </SelectContent>
                             </Select>
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="min-w-[140px] flex-1">
                                     <SelectValue placeholder="Statut" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -218,10 +219,10 @@ export default function BillingPage() {
                                     <SelectItem value="overdue">En retard</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Input type="date" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} className="w-full"/>
-                            <Input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} className="w-full"/>
+                            <Input type="date" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} className="min-w-[140px] flex-1"/>
+                            <Input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} className="min-w-[140px] flex-1"/>
                              {hasActiveFilters && (
-                                <Button variant="ghost" onClick={handleResetFilters} className="col-span-2">
+                                <Button variant="ghost" onClick={handleResetFilters}>
                                     <FilterX className="mr-2 h-4 w-4"/>
                                     Réinitialiser
                                 </Button>
@@ -309,19 +310,19 @@ export default function BillingPage() {
                     <div className="md:hidden space-y-4">
                        {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
                            <Card key={invoice.id}>
-                               <CardHeader className="flex flex-row justify-between items-start pb-2">
+                               <CardHeader className="flex flex-row justify-between items-start p-4 pb-2">
                                    <div>
                                        <CardTitle className="text-base">{invoice.clientName}</CardTitle>
                                        <CardDescription>{invoice.number}</CardDescription>
                                    </div>
                                    {getStatusBadge(invoice.status)}
                                </CardHeader>
-                               <CardContent className="p-4 flex items-center justify-between">
+                               <CardContent className="p-4 pt-2 flex items-end justify-between">
                                     <div>
                                         <p className="text-2xl font-bold">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
                                         <p className="text-xs text-muted-foreground">Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1">
                                         <Button variant="ghost" size="icon">
                                             <Download className="h-4 w-4" />
                                             <span className="sr-only">Télécharger</span>
@@ -352,3 +353,5 @@ export default function BillingPage() {
     )
 
     
+
+}
