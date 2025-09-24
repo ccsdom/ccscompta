@@ -78,7 +78,7 @@ export async function getAgendaEvents(year?: number, month?: number): Promise<Ag
 
     if (year !== undefined && month !== undefined) {
          return allEvents.filter(event => 
-            getYear(event.date) === year && getMonth(event.date) === month
+            getYear(new Date(event.date)) === year && getMonth(new Date(event.date)) === month
         );
     }
     
