@@ -750,11 +750,11 @@ export default function DocumentsPage() {
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-5rem)] w-full rounded-lg border">
-        <ResizablePanel defaultSize={30} minSize={25} maxSize={40}>
+        <ResizablePanel defaultSize={35} minSize={30} maxSize={50}>
             <DocumentList />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={70} minSize={60}>
+        <ResizablePanel defaultSize={65} minSize={50}>
             <DocumentPreviewAndForm />
         </ResizablePanel>
     </ResizablePanelGroup>
