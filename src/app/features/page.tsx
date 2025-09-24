@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Logo } from '@/components/logo';
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Bot, Users, ShieldCheck, FileJson, CalendarCheck2, BarChart2 } from "lucide-react";
 import Image from "next/image";
 
