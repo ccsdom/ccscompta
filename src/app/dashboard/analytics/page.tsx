@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -169,7 +168,7 @@ export default function AnalyticsPage() {
             return null;
         }
 
-        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
+        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
         const totalVat = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.vatAmount ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
@@ -569,4 +568,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
+    
