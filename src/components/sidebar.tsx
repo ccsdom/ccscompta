@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -10,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Skeleton } from './ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from './ui/scroll-area';
 
 type NavItem = {
     href: string;
@@ -111,6 +113,50 @@ export function BottomNavItems({ currentRole }: { currentRole: 'client' | 'accou
     );
 }
 
+export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
+    const router = useRouter();
+    const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
+
+    const handleLogout = () => {
+        localStorage.clear();
+        router.push('/login');
+    };
+
+    return (
+        <div className="flex h-full flex-col">
+            <div className="flex items-center h-16 border-b px-6">
+                <Link href="/" className="flex items-center gap-2 font-semibold">
+                    <Logo className="h-6 w-6" />
+                    <span>CCS Compta</span>
+                </Link>
+            </div>
+            <div className="p-4 border-b space-y-4">
+                <div className="text-center">
+                    <span className={cn("text-sm font-semibold uppercase text-primary")}>
+                        {roleLabel}
+                    </span>
+                </div>
+                {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
+                    <ClientSwitcher />
+                )}
+            </div>
+            <ScrollArea className="flex-1">
+                <nav className="grid items-start px-4 py-4 text-sm font-medium space-y-2">
+                    <NavItems currentRole={currentRole} />
+                </nav>
+            </ScrollArea>
+            <div className="mt-auto p-4 border-t space-y-2">
+                <BottomNavItems currentRole={currentRole} />
+                <Separator className="my-2" />
+                <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Déconnexion
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 
 export function Sidebar() {
   const router = useRouter();
@@ -195,7 +241,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="p-4 border-b space-y-4 mb-4">
+      <div className="p-4 border-b space-y-4">
         <div className="text-center">
             <span className={cn("text-sm font-semibold uppercase", "text-primary")}>
                 {roleLabel}

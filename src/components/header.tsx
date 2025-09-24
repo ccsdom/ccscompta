@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import Link from "next/link"
@@ -42,7 +43,7 @@ import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { NavItems, BottomNavItems } from './sidebar'; // Import navigation items
+import { BottomNavItems, MobileNav } from './sidebar'; 
 
 export function Header() {
   const [mounted, setMounted] = useState(false);
@@ -227,21 +228,19 @@ export function Header() {
     <header className={cn("sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", isImpersonating ? 'pt-[40px]': '')}>
       {isImpersonating && <ImpersonationBanner />}
       <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
-        <Sheet>
-            <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="md:hidden">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Ouvrir le menu</span>
-                </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-                <nav className="grid gap-6 text-lg font-medium">
-                    <NavItems currentRole={userRole as any} />
-                    <hr />
-                    <BottomNavItems currentRole={userRole as any} />
-                </nav>
-            </SheetContent>
-        </Sheet>
+        <div className="md:hidden">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu className="h-5 w-5" />
+                        <span className="sr-only">Ouvrir le menu</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0">
+                    <MobileNav currentRole={userRole as any} />
+                </SheetContent>
+            </Sheet>
+        </div>
         
         <div className="flex-1 md:flex-initial">
            <form onSubmit={handleSearchSubmit}>
