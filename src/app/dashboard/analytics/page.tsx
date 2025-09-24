@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-    const [clientName, setClientName] = useState<string>('Vue d\'ensemble');
+    const [clientName, setClientName] = useState('Vue d\'ensemble');
 
     useEffect(() => {
         const loadState = async () => {
@@ -569,3 +569,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
