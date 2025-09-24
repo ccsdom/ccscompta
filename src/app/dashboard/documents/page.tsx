@@ -629,7 +629,7 @@ export default function DocumentsPage() {
                     <AccordionItem value={group.status} key={group.status}>
                       <AccordionTrigger>
                         <div className="flex items-center gap-2 text-sm font-medium">
-                          <Icon className={cn("h-4 w-4", color)} />
+                           <Icon className={cn("h-4 w-4", color)} />
                           {group.label}
                           <Badge variant="secondary">{docsInGroup.length}</Badge>
                         </div>
@@ -752,11 +752,11 @@ export default function DocumentsPage() {
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-5rem)] w-full rounded-lg border">
-        <ResizablePanel defaultSize={35} minSize={30} maxSize={50}>
+        <ResizablePanel defaultSize={50} minSize={30}>
             <DocumentList />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={65} minSize={50}>
+        <ResizablePanel defaultSize={50} minSize={30}>
             <DocumentPreviewAndForm />
         </ResizablePanel>
     </ResizablePanelGroup>
