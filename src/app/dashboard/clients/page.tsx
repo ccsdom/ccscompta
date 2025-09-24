@@ -286,18 +286,19 @@ export default function ClientsPage() {
     )
 
     return (
-        <div className="space-y-6 pb-20 md:pb-0">
-             <div className="flex justify-between items-center">
+        <div className="space-y-6">
+             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Gestion des clients</h1>
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
-                 <div className="hidden md:flex items-center gap-2">
+                 <div className="flex items-center gap-2">
+                    <div className="md:hidden flex-grow" />
                     <ClientImportDialog onClientsImported={() => { fetchClientsAndAccountants() }} />
                     <AiClientDialog />
-                     <DropdownMenu>
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
+                            <Button variant="outline" className="hidden md:inline-flex">
                                 <Download className="mr-2 h-4 w-4" />
                                 Exporter
                             </Button>
@@ -317,9 +318,12 @@ export default function ClientsPage() {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    <Button onClick={() => router.push('/dashboard/clients/new')}>
+                    <Button onClick={() => router.push('/dashboard/clients/new')} className="hidden md:inline-flex">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Nouveau Client
+                    </Button>
+                    <Button onClick={() => router.push('/dashboard/clients/new')} size="icon" className="md:hidden">
+                        <PlusCircle className="h-4 w-4" />
                     </Button>
                 </div>
             </div>
@@ -523,27 +527,6 @@ export default function ClientsPage() {
                 )}
             </div>
 
-            {/* Mobile FAB */}
-            <div className="md:hidden fixed bottom-20 right-4 z-50">
-                 <Popover>
-                    <PopoverTrigger asChild>
-                        <Button className="rounded-full w-14 h-14 shadow-lg" size="icon">
-                            <PlusCircle className="h-6 w-6"/>
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2 mb-2" align="end">
-                        <div className="flex flex-col gap-1">
-                            <Button variant="ghost" className="justify-start" onClick={() => router.push('/dashboard/clients/new')}>
-                                <PlusCircle className="mr-2 h-4 w-4"/> Nouveau Client
-                            </Button>
-                            <AiClientDialog />
-                            <ClientImportDialog onClientsImported={() => fetchClientsAndAccountants()} />
-                        </div>
-                    </PopoverContent>
-                </Popover>
-            </div>
-
-
             <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -561,4 +544,3 @@ export default function ClientsPage() {
         </div>
     )
 }
-
