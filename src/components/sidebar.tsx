@@ -114,10 +114,10 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                     <NavItems currentRole={currentRole} />
                 </nav>
             </ScrollArea>
-             <div className="mt-auto p-4 border-t">
-                <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-                    {theme === 'light' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-                    <span>{theme === 'light' ? 'Mode Sombre' : 'Mode Clair'}</span>
+             <div className="mt-auto p-4 border-t flex items-center justify-center">
+                <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                    {theme === 'light' ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
+                    <span className="sr-only">Changer de thème</span>
                 </Button>
             </div>
         </div>
