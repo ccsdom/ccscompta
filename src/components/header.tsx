@@ -16,6 +16,7 @@ import {
   LogIn,
   LogOut as LogOutIcon,
   AlertTriangle,
+  Menu, // Import Menu icon
 } from "lucide-react"
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -40,6 +41,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { NavItems, BottomNavItems } from './sidebar'; // Import navigation items
 
 export function Header() {
   const [mounted, setMounted] = useState(false);
@@ -224,15 +227,30 @@ export function Header() {
     <header className={cn("sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", isImpersonating ? 'pt-[40px]': '')}>
       {isImpersonating && <ImpersonationBanner />}
       <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="md:hidden">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Ouvrir le menu</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left">
+                <nav className="grid gap-6 text-lg font-medium">
+                    <NavItems currentRole={userRole as any} />
+                    <hr />
+                    <BottomNavItems currentRole={userRole as any} />
+                </nav>
+            </SheetContent>
+        </Sheet>
         
-        <div className="flex-1">
+        <div className="flex-1 md:flex-initial">
            <form onSubmit={handleSearchSubmit}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Rechercher ou utiliser la recherche intelligente..."
-                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-2/3 lg:w-1/2 focus-visible:ring-0"
+                  placeholder="Rechercher..."
+                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-full lg:w-[300px] focus-visible:ring-0"
                   value={searchQuery}
                   onChange={handleSearchChange}
                 />
