@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { MessageSquare, Bot, Send, X, Loader2 } from 'lucide-react';
+import { MessageSquare, Bot, Send, X, Loader2, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card';
 import { Input } from './ui/input';
@@ -94,31 +93,39 @@ export function SupportChatbot() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
+                        drag
+                        dragMomentum={false}
+                        dragControls={{}}
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ duration: 0.3, ease: 'easeOut' }}
                         className="fixed bottom-0 right-0 z-[51] h-full w-full md:h-auto md:w-auto md:max-h-[calc(100vh-4rem)] md:max-w-sm md:bottom-20 md:right-4"
                     >
-                        <Card className="h-full w-full flex flex-col shadow-2xl rounded-none md:rounded-lg">
-                             <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <Avatar className="h-10 w-10 border-2 border-primary/50">
-                                            <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
-                                        </Avatar>
-                                        <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                        <Card className="h-full w-full flex flex-col shadow-2xl rounded-none md:rounded-lg overflow-hidden">
+                             <motion.div drag="x" dragMomentum={false} className="cursor-move">
+                                <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative">
+                                            <Avatar className="h-10 w-10 border-2 border-primary/50">
+                                                <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
+                                            </Avatar>
+                                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-base">ComptaBot</CardTitle>
+                                            <p className="text-xs text-muted-foreground flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500"></span> En ligne</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <CardTitle className="text-base">ComptaBot</CardTitle>
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500"></span> En ligne</p>
+                                    <div className="flex items-center">
+                                      <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                                      <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+                                          <X className="h-4 w-4" />
+                                          <span className="sr-only">Fermer le chat</span>
+                                      </Button>
                                     </div>
-                                </div>
-                                 <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-                                    <X className="h-4 w-4" />
-                                    <span className="sr-only">Fermer le chat</span>
-                                </Button>
-                            </CardHeader>
+                                </CardHeader>
+                            </motion.div>
                             <CardContent className="flex-1 p-0 overflow-hidden">
                                 <ScrollArea className="h-full" ref={scrollAreaRef}>
                                     <div className="p-4 space-y-4">
@@ -170,11 +177,13 @@ export function SupportChatbot() {
             </AnimatePresence>
 
             <motion.div
-                className="fixed bottom-20 right-4 z-[51] md:bottom-4"
+                drag
+                dragMomentum={false}
+                className="fixed bottom-24 right-4 z-[51] md:bottom-4"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
             >
-                <Button size="icon" className="rounded-full w-14 h-14 shadow-lg" onClick={() => setIsOpen(!isOpen)}>
+                <Button size="icon" className="rounded-full w-14 h-14 shadow-lg cursor-grab" onClick={() => setIsOpen(!isOpen)}>
                     <AnimatePresence>
                          {isOpen ? (
                             <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}><X className="h-6 w-6" /></motion.div>

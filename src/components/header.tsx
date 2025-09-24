@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import Link from "next/link"
@@ -19,6 +18,7 @@ import {
   AlertTriangle,
   Menu, // Import Menu icon
   LifeBuoy,
+  Users,
 } from "lucide-react"
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -58,7 +58,8 @@ export function Header({children}: {children?: React.ReactNode}) {
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("client");
   const [isImpersonating, setIsImpersonating] = useState(false);
-  const [impersonatedUserName, setImpersonatedUserName] = useState('');
+  const [originalUserName, setOriginalUserName] = useState('');
+  const [impersonatedClientName, setImpersonatedClientName] = useState('');
 
   const { toast } = useToast();
   const router = useRouter();
@@ -91,10 +92,12 @@ export function Header({children}: {children?: React.ReactNode}) {
           const originalRole = localStorage.getItem('originalUserRole');
           if (originalRole) {
               setIsImpersonating(true);
-              setImpersonatedUserName(localStorage.getItem('userName') || '');
+              setOriginalUserName(localStorage.getItem('originalUserName') || '');
+              setImpersonatedClientName(localStorage.getItem('userName') || '');
           } else {
               setIsImpersonating(false);
-              setImpersonatedUserName('');
+              setOriginalUserName('');
+              setImpersonatedClientName('');
           }
 
         } catch (e) {
@@ -159,7 +162,7 @@ export function Header({children}: {children?: React.ReactNode}) {
 
       toast({
           title: "Vue Client terminée",
-          description: "Vous êtes retourné à votre compte.",
+          description: `Vous êtes retourné à votre compte ${originalName}.`,
       });
       
       window.dispatchEvent(new Event('storage'));
@@ -205,7 +208,7 @@ export function Header({children}: {children?: React.ReactNode}) {
   const ImpersonationBanner = () => (
      <div className="absolute top-0 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg">
         <AlertTriangle className="h-4 w-4 mr-2"/>
-        Vous naviguez en tant que <span className="font-bold mx-1">{impersonatedUserName}</span>.
+        Vous naviguez en tant que <span className="font-bold mx-1">{impersonatedClientName}</span>.
         <Button variant="link" size="sm" className="text-yellow-900 hover:text-black font-bold h-auto p-0 ml-2" onClick={handleStopImpersonating}>
             Revenir à mon compte
         </Button>
@@ -228,8 +231,7 @@ export function Header({children}: {children?: React.ReactNode}) {
   }
 
   return (
-    <header className={cn("sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", isImpersonating ? 'pt-[40px]': '')}>
-      {isImpersonating && <ImpersonationBanner />}
+    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
         {children}
         
@@ -260,6 +262,15 @@ export function Header({children}: {children?: React.ReactNode}) {
         </div>
         
         <div className="flex items-center space-x-1 md:space-x-2">
+            {isImpersonating && (
+              <Badge variant="destructive" className="hidden sm:flex items-center gap-2 h-9">
+                <LogIn className="h-4 w-4"/>
+                <div className="flex flex-col items-start">
+                  <span className="text-xs -mb-1">Vue Client</span>
+                  <span className="font-bold">{impersonatedClientName}</span>
+                </div>
+              </Badge>
+            )}
             {userRole === 'client' && <QuickUpload />}
 
              <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
@@ -310,7 +321,10 @@ export function Header({children}: {children?: React.ReactNode}) {
                     <DropdownMenuGroup>
                         <DropdownMenuLabel className="font-normal">
                              <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium leading-none">{userName}</p>
+                                {isImpersonating && (
+                                  <div className="text-xs text-muted-foreground">Connecté en tant que:</div>
+                                )}
+                                <p className="text-sm font-medium leading-none">{isImpersonating ? originalUserName : userName}</p>
                                 <p className="text-xs leading-none text-muted-foreground">
                                 {userEmail}
                                 </p>
@@ -318,6 +332,15 @@ export function Header({children}: {children?: React.ReactNode}) {
                         </DropdownMenuLabel>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
+                    {isImpersonating && (
+                       <>
+                        <DropdownMenuItem onClick={handleStopImpersonating} className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer">
+                          <LogOutIcon className="mr-2 h-4 w-4" />
+                          Quitter le mode client
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                       </>
+                    )}
                     <DropdownMenuItem asChild>
                          <Link href={"/dashboard/settings"}>
                             <User className="mr-2 h-4 w-4" /> Profil
