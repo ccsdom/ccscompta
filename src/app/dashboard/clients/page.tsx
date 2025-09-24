@@ -318,10 +318,10 @@ export default function ClientsPage() {
                              <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <ClientImportDialog onClientsImported={fetchClientsAndAccountants} isMenuItem />
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <AiClientDialog isMenuItem />
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
