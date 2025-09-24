@@ -94,8 +94,6 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
         router.push('/login');
     };
     
-    const settingsPath = (currentRole === 'accountant' || currentRole === 'admin' || currentRole === 'secretary') ? '/dashboard/settings' : '/dashboard/my-settings';
-
     return (
         <div className="flex h-full flex-col">
             <SheetHeader className="p-4 border-b">
@@ -123,27 +121,9 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                     <NavItems currentRole={currentRole} />
                 </nav>
             </ScrollArea>
-            <div className="mt-auto p-4 border-t space-y-2">
-                 <Link
-                    href="/dashboard/support"
-                    className='flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted'
-                 >
-                    <LifeBuoy className="h-4 w-4" />
-                    Aide & Support
-                </Link>
-                 <Link
-                    href={settingsPath}
-                    className='flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted'
-                 >
-                    <Settings className="h-4 w-4" />
-                    Paramètres
-                </Link>
+             <div className="mt-auto p-4 border-t space-y-2">
                  <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('light')}>Clair</Button>
                  <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('dark')}>Sombre</Button>
-                <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Déconnexion
-                </Button>
             </div>
         </div>
     );
@@ -192,9 +172,6 @@ export function Sidebar() {
   }
 
   const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
-
-  const settingsPath = (currentRole === 'accountant' || currentRole === 'admin' || currentRole === 'secretary') ? '/dashboard/settings' : '/dashboard/my-settings';
-
 
   if (!mounted) {
       return (
@@ -248,20 +225,7 @@ export function Sidebar() {
       
       <div className="mt-auto p-2 border-t">
         <TooltipProvider>
-            <div className="flex items-center justify-center gap-2">
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Link href={settingsPath}>
-                            <Button variant="ghost" size="icon">
-                                <Settings className="h-5 w-5" />
-                                <span className="sr-only">Paramètres</span>
-                            </Button>
-                        </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                        <p>Paramètres</p>
-                    </TooltipContent>
-                </Tooltip>
+            <div className="flex items-center justify-center">
                  <Tooltip>
                     <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
@@ -280,5 +244,3 @@ export function Sidebar() {
     </aside>
   );
 }
-
-    
