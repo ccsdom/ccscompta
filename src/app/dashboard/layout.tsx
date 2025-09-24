@@ -9,9 +9,10 @@ import { SupportChatbot } from "@/components/support-chatbot";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Home, Menu } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Home, Menu, UserCheck, UserCog, UserSquare } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const clientBottomNav = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Documents' },
@@ -30,6 +31,13 @@ const secretaryBottomNav = [
   { href: '/dashboard/clients', icon: Users, label: 'Clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents' },
 ];
+
+const roleConfig = {
+    admin: { label: 'Espace Administrateur', icon: UserCog },
+    accountant: { label: 'Espace Comptable', icon: UserCheck },
+    secretary: { label: 'Espace Secrétariat', icon: UserSquare },
+    client: { label: 'Espace Client', icon: User }
+};
 
 
 function BottomNavBar() {
@@ -111,6 +119,21 @@ export default function DashboardLayout({
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+  
+  const RoleDisplay = () => {
+      const { label, icon: Icon } = roleConfig[currentRole] || roleConfig.client;
+      const hideOnPaths = ['/dashboard/settings', '/dashboard/support'];
+      if(hideOnPaths.includes(pathname)) return null;
+
+      return (
+          <div className="flex justify-end mb-4">
+              <Badge variant="outline" className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <span>{label}</span>
+              </Badge>
+          </div>
+      )
+  }
 
 
   return (
@@ -134,6 +157,7 @@ export default function DashboardLayout({
         </Header>
         <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6 pb-24 md:pb-6">
           {showBreadcrumb && <Breadcrumb />}
+          <RoleDisplay />
           {children}
         </main>
         <SupportChatbot />

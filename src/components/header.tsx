@@ -47,13 +47,6 @@ import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { MobileNav } from './sidebar'; 
 
-const roleConfig = {
-    admin: { label: 'Espace Administrateur' },
-    accountant: { label: 'Espace Comptable' },
-    secretary: { label: 'Espace Secrétariat' },
-    client: { label: 'Espace Client' }
-};
-
 
 export function Header({children}: {children?: React.ReactNode}) {
   const [mounted, setMounted] = useState(false);
@@ -219,7 +212,6 @@ export function Header({children}: {children?: React.ReactNode}) {
      </div>
   );
 
-  const { label: roleLabel } = roleConfig[userRole as keyof typeof roleConfig] || roleConfig.client;
 
   if (!mounted) {
     return (
@@ -248,7 +240,7 @@ export function Header({children}: {children?: React.ReactNode}) {
                 <Input
                   type="search"
                   placeholder="Rechercher..."
-                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none max-w-sm lg:max-w-md focus-visible:ring-0"
+                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:max-w-sm lg:max-w-md focus-visible:ring-0"
                   value={searchQuery}
                   onChange={handleSearchChange}
                 />
@@ -317,7 +309,6 @@ export function Header({children}: {children?: React.ReactNode}) {
                 <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuGroup>
                         <DropdownMenuLabel className="font-normal">
-                             <div className="text-xs text-muted-foreground -mb-1">{roleLabel}</div>
                              <div className="flex flex-col space-y-1">
                                 <p className="text-sm font-medium leading-none">{userName}</p>
                                 <p className="text-xs leading-none text-muted-foreground">
