@@ -170,7 +170,7 @@ export function SupportChatbot() {
             </AnimatePresence>
 
             <motion.div
-                className="fixed bottom-4 right-4 z-[51]"
+                className="fixed bottom-20 right-4 z-[51] md:bottom-4"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
             >
