@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import { updateClient } from '@/ai/flows/client-actions';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
@@ -440,58 +440,89 @@ export default function MyDocumentsPage() {
         ) : groupedDocuments.length > 0 ? (
              (groupedDocuments as { title: string; icon: React.ElementType; monthlyGroups: { month: string; documents: Document[] } }[]).map((group) => (
                 group && (
-                    <Card key={group.title}>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <group.icon className="h-6 w-6" /> {group.title}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                           {group.monthlyGroups.map(monthGroup => (
-                               <div key={monthGroup.month} className="border-t">
-                                  <h4 className="text-sm font-semibold p-3 bg-muted/50 capitalize">{monthGroup.month}</h4>
-                                  <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Document</TableHead>
-                                            <TableHead>Date de téléversement</TableHead>
-                                            <TableHead>Statut</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                    {monthGroup.documents.map(doc => (
-                                            <TableRow key={doc.id}>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="bg-muted p-2 rounded-md">
-                                                            <FileText className="h-5 w-5 text-muted-foreground"/>
+                    <div key={group.title}>
+                        <h3 className="text-xl font-semibold tracking-tight flex items-center gap-3 my-6">
+                           <group.icon className="h-6 w-6" /> {group.title}
+                        </h3>
+                        {group.monthlyGroups.map(monthGroup => (
+                            <div key={monthGroup.month} className="mb-6">
+                                <h4 className="text-sm font-semibold p-3 capitalize">{monthGroup.month}</h4>
+                                
+                                {/* Desktop Table */}
+                                <div className="hidden md:block">
+                                  <Card>
+                                    <CardContent className="p-0">
+                                      <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Document</TableHead>
+                                                <TableHead>Date de téléversement</TableHead>
+                                                <TableHead>Statut</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                        {monthGroup.documents.map(doc => (
+                                                <TableRow key={doc.id}>
+                                                    <TableCell className="font-medium">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="bg-muted p-2 rounded-md">
+                                                                <FileText className="h-5 w-5 text-muted-foreground"/>
+                                                            </div>
+                                                            <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
                                                         </div>
-                                                        <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
-                                                <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                                <TableCell className="text-right space-x-2">
-                                                    <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
+                                                    </TableCell>
+                                                    <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
+                                                    <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                                    <TableCell className="text-right space-x-2">
+                                                        <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                                                <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                      </Table>
+                                    </CardContent>
+                                  </Card>
+                                </div>
+
+                                {/* Mobile Card List */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+                                    {monthGroup.documents.map(doc => (
+                                        <Card key={doc.id}>
+                                            <CardHeader className="p-4">
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="font-medium truncate" title={doc.name}>{doc.name}</div>
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 -mt-1 -mr-1 shrink-0" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4 text-muted-foreground"/></Button>
                                                         </AlertDialogTrigger>
                                                         <AlertDialogContent>
-                                                            <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
-                                                            <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                                          <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                                          <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                  </Table>
-                               </div>
-                           ))}
-                        </CardContent>
-                    </Card>
+                                                </div>
+                                                <CardDescription>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</CardDescription>
+                                            </CardHeader>
+                                            <CardFooter className="p-4 flex justify-between items-center">
+                                                {getStatusBadge(doc.status)}
+                                                <Button size="sm" variant="outline" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4 mr-2"/>Voir</Button>
+                                            </CardFooter>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )
             ))
         ) : (
@@ -508,3 +539,6 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+
+    
