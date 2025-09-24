@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
-import { ArrowRight, Bot, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, Bot, ShieldCheck, Users, UploadCloud, ScanSearch, CheckSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 
@@ -28,6 +28,27 @@ export default function LandingPage() {
       title: "Sécurité et Conformité",
       description: "Vos données sont stockées de manière sécurisée et nous garantissons la conformité avec les normes comptables en vigueur.",
     },
+  ];
+
+  const howItWorks = [
+    {
+        icon: <UploadCloud className="h-10 w-10 text-primary" />,
+        step: 1,
+        title: "Téléversement Facile",
+        description: "Le client téléverse ses factures, reçus et autres pièces comptables en quelques clics ou par un simple scan depuis son mobile."
+    },
+    {
+        icon: <ScanSearch className="h-10 w-10 text-primary" />,
+        step: 2,
+        title: "Analyse par l'IA",
+        description: "Notre intelligence artificielle analyse chaque document, extrait les informations essentielles (fournisseur, dates, montants, TVA) et les structure automatiquement."
+    },
+    {
+        icon: <CheckSquare className="h-10 w-10 text-primary" />,
+        step: 3,
+        title: "Validation en un clic",
+        description: "Le comptable reçoit les données pré-traitées, les vérifie en un coup d'œil grâce à notre interface intuitive et les valide pour l'intégration comptable."
+    }
   ];
 
   const testimonials = [
@@ -133,7 +154,45 @@ export default function LandingPage() {
           </div>
         </section>
         
-         <section id="testimonials" className="py-20 md:py-32">
+        <section id="how-it-works" className="py-20 md:py-32">
+            <div className="container mx-auto max-w-6xl px-4">
+                <div className="text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
+                        Un processus simple en 3 étapes
+                    </h2>
+                    <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+                        Gagnez du temps à chaque étape, de la collecte à la validation.
+                    </p>
+                </div>
+                <div className="mt-16 grid grid-cols-1 gap-y-12 md:grid-cols-3 md:gap-x-8">
+                     {howItWorks.map((step, i) => (
+                        <motion.div 
+                            key={i} 
+                            className="relative flex flex-col items-center text-center"
+                            initial={{ opacity: 0, y: 20 }} 
+                            whileInView={{ opacity: 1, y: 0 }} 
+                            transition={{ delay: i * 0.1, duration: 0.5 }} 
+                            viewport={{ once: true }}
+                        >
+                            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10 mb-6">
+                                {step.icon}
+                            </div>
+                            <h3 className="text-xl font-bold mb-2">{step.title}</h3>
+                            <p className="text-muted-foreground">{step.description}</p>
+                            {i < howItWorks.length - 1 && (
+                                <div className="hidden md:block absolute top-10 left-1/2 w-full translate-x-1/2">
+                                    <svg className="w-full h-auto text-gray-200 dark:text-gray-700" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M5 10 C 25 1, 75 19, 95 10" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
+                                    </svg>
+                                </div>
+                            )}
+                        </motion.div>
+                     ))}
+                </div>
+            </div>
+        </section>
+
+         <section id="testimonials" className="py-20 md:py-32 bg-muted/30">
             <div className="container mx-auto max-w-6xl px-4">
                  <div className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
@@ -149,7 +208,7 @@ export default function LandingPage() {
                            <CardContent className="p-8">
                                 <p className="text-lg font-medium leading-relaxed text-foreground">"{testimonial.text}"</p>
                             </CardContent>
-                             <CardHeader className="flex flex-row items-center gap-4 bg-muted/50 p-6">
+                             <CardHeader className="flex flex-row items-center gap-4 bg-background p-6">
                                 <Avatar className="h-14 w-14 border-2 border-primary/50">
                                     <AvatarImage src={testimonial.avatar} alt={testimonial.name} />
                                     <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
@@ -190,5 +249,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-    
