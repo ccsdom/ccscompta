@@ -35,19 +35,19 @@ export default function LandingPage() {
         icon: <UploadCloud className="h-10 w-10 text-primary" />,
         step: 1,
         title: "Téléversement Facile",
-        description: "Le client téléverse ses factures, reçus et autres pièces comptables en quelques clics ou par un simple scan depuis son mobile."
+        description: "Le client envoie ses documents de n'importe où, en quelques clics ou par un simple scan depuis son mobile."
     },
     {
         icon: <ScanSearch className="h-10 w-10 text-primary" />,
         step: 2,
         title: "Analyse par l'IA",
-        description: "Notre intelligence artificielle analyse chaque document, extrait les informations essentielles (fournisseur, dates, montants, TVA) et les structure automatiquement."
+        description: "L'intelligence artificielle extrait et structure les données essentielles (fournisseur, dates, montants, TVA)."
     },
     {
         icon: <CheckSquare className="h-10 w-10 text-primary" />,
         step: 3,
-        title: "Validation en un clic",
-        description: "Le comptable reçoit les données pré-traitées, les vérifie en un coup d'œil grâce à notre interface intuitive et les valide pour l'intégration comptable."
+        title: "Validation en un Clic",
+        description: "Le comptable vérifie et valide les informations, qui sont alors prêtes pour être intégrées en production."
     }
   ];
 
