@@ -15,15 +15,13 @@ import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document, Client } from '@/lib/types';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { BilanHistory } from '@/components/bilan-history';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -34,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -692,8 +691,8 @@ export default function DocumentsPage() {
     );
   }
 
-  const DocumentPreview = () => {
-    if (!selectedClientId) return null; // Don't show preview if no client is selected
+  const DocumentPreviewAndForm = () => {
+    if (!selectedClientId) return null;
 
     if (!activeDocument) {
         return (
@@ -701,61 +700,62 @@ export default function DocumentsPage() {
                 <div className="text-center">
                     <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold">Sélectionnez un document</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Cliquez sur un document dans la liste pour le visualiser.</p>
+                    <p className="text-sm text-muted-foreground mt-1">Cliquez sur un document dans la liste pour le visualiser et le traiter.</p>
                 </div>
             </div>
         )
     }
-    
+
     return (
-         <div className="relative bg-muted/30 h-full overflow-hidden rounded-lg border">
-            <PreviewControls />
-            <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
-                {activeDocument.dataUrl ? (
-                    <iframe 
-                        src={activeDocument.dataUrl} 
-                        className="w-full h-full border-0 transition-transform duration-300"
-                        style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
-                        title="Aperçu du document" 
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-                        <Loader2 className="h-8 w-8 animate-spin mb-4"/>
-                        <p>Chargement de l'aperçu...</p>
-                    </div>
-                )}
+        <Tabs defaultValue="preview" className="w-full h-full flex flex-col">
+            <div className="px-4 pt-4">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="preview">Aperçu</TabsTrigger>
+                    <TabsTrigger value="validation">Validation & Données</TabsTrigger>
+                </TabsList>
             </div>
-        </div>
-    )
-  }
-
-  const ValidationPanel = () => {
-     if (!selectedClientId || !activeDocument) return null;
-
-     return (
-        <DataValidationForm
-            key={activeDocument.id}
-            document={activeDocument}
-            onUpdate={handleUpdateDocumentData}
-            isLoading={isProcessing}
-            onAddComment={handleAddComment}
-            onUpdateDocumentInList={updateLocalDocument}
-        />
-     )
+            <TabsContent value="preview" className="flex-1 mt-0 relative">
+                 <div className="relative bg-muted/30 h-full overflow-hidden rounded-b-lg border m-4 mt-0">
+                    <PreviewControls />
+                    <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
+                        {activeDocument.dataUrl ? (
+                            <iframe 
+                                src={activeDocument.dataUrl} 
+                                className="w-full h-full border-0 transition-transform duration-300"
+                                style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
+                                title="Aperçu du document" 
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                                <Loader2 className="h-8 w-8 animate-spin mb-4"/>
+                                <p>Chargement de l'aperçu...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </TabsContent>
+            <TabsContent value="validation" className="flex-1 mt-0 overflow-y-auto">
+                 <DataValidationForm
+                    key={activeDocument.id}
+                    document={activeDocument}
+                    onUpdate={handleUpdateDocumentData}
+                    isLoading={isProcessing}
+                    onAddComment={handleAddComment}
+                    onUpdateDocumentInList={updateLocalDocument}
+                />
+            </TabsContent>
+        </Tabs>
+    );
   }
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-5rem)] w-full rounded-lg border">
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+        <ResizablePanel defaultSize={30} minSize={25} maxSize={40}>
             <DocumentList />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={45}>
-            <DocumentPreview />
-        </ResizablePanel>
-         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={30} minSize={25} maxSize={40}>
-            <ValidationPanel />
+        <ResizablePanel defaultSize={70} minSize={60}>
+            <DocumentPreviewAndForm />
         </ResizablePanel>
     </ResizablePanelGroup>
   );

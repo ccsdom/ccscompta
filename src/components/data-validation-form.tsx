@@ -1,15 +1,14 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark, Link2 } from 'lucide-react';
+import { Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark, Link2 } from 'lucide-react';
 import { type Document, type AuditEvent, type Comment } from "@/lib/types";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
@@ -321,13 +320,12 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     if(document) onUpdate(document.id, formData);
   }
 
-  const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
-  const isBankStatement = document?.type === 'bank statement';
-
   if (!document) {
     return null;
   }
   
+  const isReadOnly = document?.status === 'approved' || isLoading || document?.status === 'processing';
+  const isBankStatement = document?.type === 'bank statement';
   const hasAnomalies = formData.anomalies && formData.anomalies.length > 0;
   const hasExtractedData = (document.extractedData && !isLoading) && ((formData.amounts && formData.amounts.length > 0) || (formData.transactions && formData.transactions.length > 0));
 
@@ -375,7 +373,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
   return (
     <div className="h-full flex flex-col">
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
-            <div className="flex-1 p-0 flex flex-col gap-4 overflow-hidden">
+            <div className="flex-1 p-0 flex flex-col gap-4 overflow-hidden relative">
                 {isLoading && (
                     <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -383,32 +381,30 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                     </div>
                 )}
 
-                <div className="flex-1 flex flex-col overflow-y-auto">
-                    <Tabs defaultValue="data" className="flex-1 flex flex-col h-full">
-                        <TabsList className="grid w-full grid-cols-3 mx-6 mt-6">
-                            <TabsTrigger value="data" className="gap-1">
-                                {isBankStatement ? <Landmark className="h-4 w-4"/> : <FileJson2 className="h-4 w-4" />}
-                                {isBankStatement ? 'Transactions' : 'Données'}
-                            </TabsTrigger>
-                            <TabsTrigger value="comments" className="gap-1">
-                                <MessageSquare className="h-4 w-4" />
-                                Commentaires {(document.comments || []).length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{(document.comments || []).length}</span>}
-                            </TabsTrigger>
-                            <TabsTrigger value="history" className="gap-1"><ListOrdered className="h-4 w-4" />Historique</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="data" className="flex-1 mt-4">
-                            <DataView />
-                        </TabsContent>
-                        <TabsContent value="comments" className="flex-1 mt-0 p-6">
-                             <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
-                        </TabsContent>
-                        <TabsContent value="history" className="flex-1 mt-4 p-6">
-                            <ScrollArea className="h-full pr-4">
-                               <AuditTrail trail={document.auditTrail} />
-                            </ScrollArea>
-                        </TabsContent>
-                    </Tabs>
-                </div>
+                <Tabs defaultValue="data" className="flex-1 flex flex-col h-full p-4 pt-0">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="data" className="gap-1">
+                            {isBankStatement ? <Landmark className="h-4 w-4"/> : <FileJson2 className="h-4 w-4" />}
+                            {isBankStatement ? 'Transactions' : 'Données'}
+                        </TabsTrigger>
+                        <TabsTrigger value="comments" className="gap-1">
+                            <MessageSquare className="h-4 w-4" />
+                            Commentaires {(document.comments || []).length > 0 && <span className="text-xs bg-primary text-primary-foreground h-4 w-4 flex items-center justify-center rounded-full">{(document.comments || []).length}</span>}
+                        </TabsTrigger>
+                        <TabsTrigger value="history" className="gap-1"><ListOrdered className="h-4 w-4" />Historique</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="data" className="flex-1 mt-4 rounded-lg border overflow-hidden">
+                        <DataView />
+                    </TabsContent>
+                    <TabsContent value="comments" className="flex-1 mt-4 p-6 rounded-lg border">
+                         <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
+                    </TabsContent>
+                    <TabsContent value="history" className="flex-1 mt-4 rounded-lg border">
+                        <ScrollArea className="h-full p-6">
+                           <AuditTrail trail={document.auditTrail} />
+                        </ScrollArea>
+                    </TabsContent>
+                </Tabs>
             </div>
             <div className="flex justify-end gap-2 p-4 border-t bg-background">
               {document.status === 'reviewing' && (
