@@ -4,16 +4,18 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
 import { ClientSwitcher } from './client-switcher';
 import { Skeleton } from './ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
+import { useTheme } from 'next-themes';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+
 
 type NavItem = {
     href: string;
@@ -44,23 +46,11 @@ const clientNavItems: NavItem[] = [
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
 
-const commonBottomNavItems: NavItem[] = [
-    { href: '/dashboard/support', icon: LifeBuoy, label: 'Aide & Support' },
-]
-
-const accountantBottomNavItems: NavItem[] = [
-    { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
-]
-const clientBottomNavItems: NavItem[] = [
-    { href: '/dashboard/my-settings', icon: Settings, label: 'Paramètres' },
-]
-
-
 const roleConfig = {
-    admin: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Administrateur' },
-    accountant: { items: accountantNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Comptable' },
-    secretary: { items: secretaryNavItems, bottomItems: [...commonBottomNavItems, ...accountantBottomNavItems], label: 'Espace Secrétariat' },
-    client: { items: clientNavItems, bottomItems: [...commonBottomNavItems, ...clientBottomNavItems], label: 'Espace Client' }
+    admin: { items: accountantNavItems, label: 'Espace Administrateur' },
+    accountant: { items: accountantNavItems, label: 'Espace Comptable' },
+    secretary: { items: secretaryNavItems, label: 'Espace Secrétariat' },
+    client: { items: clientNavItems, label: 'Espace Client' }
 }
 
 const isNavItemActive = (pathname: string, itemHref: string, currentRole: string) => {
@@ -94,50 +84,30 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
     );
 }
 
-export function BottomNavItems({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
-    const pathname = usePathname();
-    const { bottomItems } = roleConfig[currentRole] || roleConfig.client;
-     return (
-        <>
-            {bottomItems.map((item) => (
-                 <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
-                    isNavItemActive(pathname, item.href, currentRole) ? 'bg-muted text-primary' : ''
-                    )}>
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                </Link>
-            ))}
-        </>
-    );
-}
-
 export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
     const router = useRouter();
     const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
+    const { setTheme } = useTheme();
 
     const handleLogout = () => {
         localStorage.clear();
         router.push('/login');
     };
+    
+    const settingsPath = (currentRole === 'accountant' || currentRole === 'admin' || currentRole === 'secretary') ? '/dashboard/settings' : '/dashboard/my-settings';
 
     return (
         <div className="flex h-full flex-col">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Menu de navigation</SheetTitle>
-              <SheetDescription>
-                Navigation principale et options du compte pour l'application CCS Compta.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex items-center h-16 border-b px-6">
+            <SheetHeader className="p-4 border-b">
+                <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+                <SheetDescription className="sr-only">
+                    Navigation principale et options du compte pour l'application CCS Compta.
+                </SheetDescription>
                 <Link href="/" className="flex items-center gap-2 font-semibold">
                     <Logo className="h-6 w-6" />
                     <span>CCS Compta</span>
                 </Link>
-            </div>
+            </SheetHeader>
             <div className="p-4 border-b space-y-4">
                 <div className="text-center">
                     <span className={cn("text-sm font-semibold uppercase text-primary")}>
@@ -154,8 +124,22 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                 </nav>
             </ScrollArea>
             <div className="mt-auto p-4 border-t space-y-2">
-                <BottomNavItems currentRole={currentRole} />
-                <Separator className="my-2" />
+                 <Link
+                    href="/dashboard/support"
+                    className='flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted'
+                 >
+                    <LifeBuoy className="h-4 w-4" />
+                    Aide & Support
+                </Link>
+                 <Link
+                    href={settingsPath}
+                    className='flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted'
+                 >
+                    <Settings className="h-4 w-4" />
+                    Paramètres
+                </Link>
+                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('light')}>Clair</Button>
+                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('dark')}>Sombre</Button>
                 <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Déconnexion
@@ -167,9 +151,9 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
 
 
 export function Sidebar() {
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin' | 'secretary'>('client');
+  const { theme, setTheme } = useTheme();
 
    useEffect(() => {
     setMounted(true);
@@ -207,12 +191,10 @@ export function Sidebar() {
     return '/dashboard';
   }
 
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login');
-  };
-
   const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
+
+  const settingsPath = (currentRole === 'accountant' || currentRole === 'admin' || currentRole === 'secretary') ? '/dashboard/settings' : '/dashboard/my-settings';
+
 
   if (!mounted) {
       return (
@@ -260,18 +242,43 @@ export function Sidebar() {
         )}
       </div>
 
-
       <nav className="flex-1 px-4 py-4 space-y-2">
         <NavItems currentRole={currentRole} />
       </nav>
-      <div className="mt-auto p-4 border-t space-y-2">
-        <BottomNavItems currentRole={currentRole} />
-        <Separator className="my-2"/>
-        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Déconnexion
-        </Button>
+      
+      <div className="mt-auto p-2 border-t">
+        <TooltipProvider>
+            <div className="flex items-center justify-center gap-2">
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Link href={settingsPath}>
+                            <Button variant="ghost" size="icon">
+                                <Settings className="h-5 w-5" />
+                                <span className="sr-only">Paramètres</span>
+                            </Button>
+                        </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                        <p>Paramètres</p>
+                    </TooltipContent>
+                </Tooltip>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                            <span className="sr-only">Changer de thème</span>
+                        </Button>
+                    </TooltipTrigger>
+                     <TooltipContent side="right">
+                        <p>Changer de thème</p>
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+        </TooltipProvider>
       </div>
     </aside>
   );
 }
+
+    

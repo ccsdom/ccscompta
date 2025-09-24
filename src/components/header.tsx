@@ -18,6 +18,7 @@ import {
   LogOut as LogOutIcon,
   AlertTriangle,
   Menu, // Import Menu icon
+  LifeBuoy,
 } from "lucide-react"
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -43,7 +44,7 @@ import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { BottomNavItems, MobileNav } from './sidebar'; 
+import { MobileNav } from './sidebar'; 
 
 export function Header() {
   const [mounted, setMounted] = useState(false);
@@ -217,7 +218,6 @@ export function Header() {
                 <div className="flex items-center space-x-1 md:space-x-2">
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <Skeleton className="h-10 w-10 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
                 </div>
             </div>
         </header>
@@ -306,8 +306,6 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <ThemeToggle />
-
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                      <Button variant="ghost" size="icon" className="relative rounded-full">
@@ -342,6 +340,11 @@ export function Header() {
                             <Settings className="mr-2 h-4 w-4" /> Paramètres
                         </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/dashboard/support">
+                            <LifeBuoy className="mr-2 h-4 w-4" /> Aide & Support
+                        </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                          <LogOut className="mr-2 h-4 w-4" /> Déconnexion
@@ -353,3 +356,5 @@ export function Header() {
     </header>
   );
 }
+
+    
