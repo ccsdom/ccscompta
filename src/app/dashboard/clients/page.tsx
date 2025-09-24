@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, LogIn, FileUp } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, LogIn, FileUp, CalendarClock, FileClock } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -42,7 +42,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AiClientDialog } from '@/components/ai-client-dialog';
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>([]);
@@ -61,7 +61,7 @@ export default function ClientsPage() {
                 getClients(),
                 getAccountants()
             ]);
-            setClients(clientsData);
+            setClients(clientsData.sort((a, b) => a.name.localeCompare(b.name)));
             setAccountants(accountantsData);
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -227,6 +227,35 @@ export default function ClientsPage() {
         const accountant = accountants.find(a => a.id === accountantId);
         return accountant ? accountant.name.split(' ').map(n => n[0]).join('') : '';
     }
+    
+    // Renders Skeleton loaders for both mobile and desktop
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-4 w-64 mt-2" />
+                    </div>
+                    <div className="hidden md:flex items-center gap-2">
+                        <Skeleton className="h-10 w-24" />
+                        <Skeleton className="h-10 w-32" />
+                        <Skeleton className="h-10 w-32" />
+                    </div>
+                </div>
+                {/* Desktop skeleton */}
+                <div className="hidden md:block">
+                     <Skeleton className="h-12 w-full mb-4" />
+                     <Skeleton className="h-96 w-full" />
+                </div>
+                {/* Mobile skeleton */}
+                <div className="space-y-4 md:hidden">
+                    <Skeleton className="h-12 w-full" />
+                    {Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+                </div>
+            </div>
+        )
+    }
 
     const BulkActionsToolbar = () => (
         <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4">
@@ -257,13 +286,13 @@ export default function ClientsPage() {
     )
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-20 md:pb-0">
              <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Gestion des clients</h1>
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
-                 <div className="flex items-center gap-2">
+                 <div className="hidden md:flex items-center gap-2">
                     <ClientImportDialog onClientsImported={() => { fetchClientsAndAccountants() }} />
                     <AiClientDialog />
                      <DropdownMenu>
@@ -294,10 +323,24 @@ export default function ClientsPage() {
                     </Button>
                 </div>
             </div>
+
+            {/* Mobile search */}
+             <div className="md:hidden">
+                 <div className="relative">
+                    <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Rechercher par nom..."
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
             
             {selectedClientIds.length > 0 && <BulkActionsToolbar />}
 
-            <Card>
+            {/* Desktop view */}
+            <Card className="hidden md:block">
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
@@ -340,19 +383,7 @@ export default function ClientsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {loading ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-5 w-5" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-48" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                    <TableCell className="hidden md:table-cell"><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-8" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-8 w-24" /></TableCell>
-                                </TableRow>
-                                ))
-                            ) : filteredClients.length > 0 ? filteredClients.map(client => (
+                            {filteredClients.length > 0 ? filteredClients.map(client => (
                                 <TableRow key={client.id} data-state={selectedClientIds.includes(client.id) ? "selected" : ""}>
                                     <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
                                         <Checkbox
@@ -439,12 +470,86 @@ export default function ClientsPage() {
                 </CardContent>
             </Card>
 
+            {/* Mobile view */}
+            <div className="space-y-4 md:hidden">
+                {filteredClients.length > 0 ? filteredClients.map(client => (
+                    <Card key={client.id} className="relative" onClick={() => handleSelectClient(client.id)}>
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted shrink-0">
+                                <Building className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <p className="font-semibold truncate">{client.name}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                    {getStatusBadge(client.status)}
+                                    <span className="mx-1">·</span>
+                                    <div className="flex items-center gap-1.5" title="Documents en attente">
+                                        <FileClock className="h-3 w-3" />
+                                        <span>{client.newDocuments}</span>
+                                    </div>
+                                    <span className="mx-1">·</span>
+                                     <div className="flex items-center gap-1.5" title="Dernière activité">
+                                        <CalendarClock className="h-3 w-3" />
+                                        <span>{new Date(client.lastActivity).toLocaleDateString('fr-FR')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <MoreHorizontal className="h-5 w-5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleSelectClient(client.id)}>Ouvrir</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleImpersonate(client)}>Prendre la main</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>Modifier</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive" onClick={() => setClientToDelete(client)}>Supprimer</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )) : (
+                    <Card>
+                        <CardContent className="h-48 flex flex-col items-center justify-center text-center">
+                            <Search className="h-10 w-10 text-muted-foreground mb-3" />
+                            <h3 className="font-semibold">Aucun client trouvé</h3>
+                            <p className="text-sm text-muted-foreground mt-1">Essayez d'affiner votre recherche.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+
+            {/* Mobile FAB */}
+            <div className="md:hidden fixed bottom-20 right-4 z-50">
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button className="rounded-full w-14 h-14 shadow-lg" size="icon">
+                            <PlusCircle className="h-6 w-6"/>
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2 mb-2" align="end">
+                        <div className="flex flex-col gap-1">
+                            <Button variant="ghost" className="justify-start" onClick={() => router.push('/dashboard/clients/new')}>
+                                <PlusCircle className="mr-2 h-4 w-4"/> Nouveau Client
+                            </Button>
+                            <AiClientDialog />
+                            <ClientImportDialog onClientsImported={() => fetchClientsAndAccountants()} />
+                        </div>
+                    </PopoverContent>
+                </Popover>
+            </div>
+
+
             <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                     <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Le dossier du client "{clientToDelete?.name}" sera définitivement supprimé, y compris tous ses documents.
+                        Le dossier du client "{clientToDelete?.name}" sera définitivefent supprimé, y compris tous ses documents.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -456,3 +561,4 @@ export default function ClientsPage() {
         </div>
     )
 }
+
