@@ -90,11 +90,11 @@ export default function LandingPage() {
               <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
                 Arrêtez de courir après les documents. CCS Compta automatise la collecte et la saisie pour que vous puissiez vous concentrer sur ce qui compte vraiment : conseiller vos clients.
               </p>
-              <div className="mt-10 flex justify-center gap-4">
-                <Button size="lg" asChild>
+              <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                <Button size="lg" asChild className="w-full sm:w-auto">
                   <Link href="/login">Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
+                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                    <Link href="/login">Demander une démo</Link>
                 </Button>
               </div>
