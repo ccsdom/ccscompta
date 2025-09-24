@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -635,11 +636,11 @@ export default function DocumentsPage() {
                       <AccordionContent className="pb-0">
                         <div className="space-y-2">
                           {docsInGroup.map(doc => (
-                            <button
+                            <div
                               key={doc.id}
                               onClick={() => handleSetActiveDocument(doc)}
                               className={cn(
-                                'w-full text-left p-2 rounded-lg border flex items-start gap-3 transition-colors',
+                                'w-full text-left p-2 rounded-lg border flex items-start gap-3 transition-colors cursor-pointer',
                                 activeDocument?.id === doc.id ? 'bg-muted border-primary' : 'hover:bg-muted/50'
                               )}
                             >
@@ -676,7 +677,7 @@ export default function DocumentsPage() {
                                     <Eye className="h-4 w-4 text-muted-foreground" />
                                   )}
                               </div>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </AccordionContent>
