@@ -198,10 +198,10 @@ export default function BillingPage() {
                             <CardTitle>Suivi des factures</CardTitle>
                             <CardDescription>Filtrez et gérez les factures de vos clients.</CardDescription>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                         <div className="grid grid-cols-2 md:flex md:items-center gap-2">
                              <Select value={clientFilter} onValueChange={setClientFilter}>
-                                <SelectTrigger className="w-full md:w-[180px]">
-                                    <SelectValue placeholder="Filtrer par client" />
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Tous les clients</SelectItem>
@@ -209,8 +209,8 @@ export default function BillingPage() {
                                 </SelectContent>
                             </Select>
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-full md:w-[160px]">
-                                    <SelectValue placeholder="Filtrer par statut" />
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Statut" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Tous les statuts</SelectItem>
@@ -219,13 +219,10 @@ export default function BillingPage() {
                                     <SelectItem value="overdue">En retard</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <div className="flex items-center gap-2">
-                                <Input type="date" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} className="w-full md:w-auto"/>
-                                <span className="text-muted-foreground">-</span>
-                                <Input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} className="w-full md:w-auto"/>
-                            </div>
+                            <Input type="date" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} className="w-full"/>
+                            <Input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} className="w-full"/>
                              {hasActiveFilters && (
-                                <Button variant="ghost" onClick={handleResetFilters}>
+                                <Button variant="ghost" onClick={handleResetFilters} className="col-span-2">
                                     <FilterX className="mr-2 h-4 w-4"/>
                                     Réinitialiser
                                 </Button>
@@ -239,7 +236,7 @@ export default function BillingPage() {
                              <span className="text-sm font-medium pl-2">{selectedInvoiceIds.length} facture(s) sélectionnée(s)</span>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">Actions en masse <MoreHorizontal className="ml-2 h-4 w-4"/></Button>
+                                    <Button variant="outline">Actions <MoreHorizontal className="ml-2 h-4 w-4"/></Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={handleBulkMarkAsPaid}>
@@ -256,55 +253,99 @@ export default function BillingPage() {
                             </DropdownMenu>
                         </div>
                     )}
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                 <TableHead className="w-[40px]">
-                                    <Checkbox
-                                        checked={filteredInvoices.length > 0 && selectedInvoiceIds.length === filteredInvoices.length}
-                                        onCheckedChange={handleSelectAll}
-                                        aria-label="Tout sélectionner"
-                                    />
-                                </TableHead>
-                                <TableHead>Client</TableHead>
-                                <TableHead>Numéro</TableHead>
-                                <TableHead>Échéance</TableHead>
-                                <TableHead>Montant</TableHead>
-                                <TableHead>Statut</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
-                                <TableRow key={invoice.id} data-state={selectedInvoiceIds.includes(invoice.id) && 'selected'}>
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={selectedInvoiceIds.includes(invoice.id)}
-                                            onCheckedChange={(checked) => handleSelectRow(invoice.id, !!checked)}
-                                            aria-label={`Sélectionner la facture ${invoice.number}`}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="font-medium">{invoice.clientName}</TableCell>
-                                    <TableCell>{invoice.number}</TableCell>
-                                    <TableCell>{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</TableCell>
-                                    <TableCell>{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon">
-                                            <Download className="h-4 w-4" />
-                                            <span className="sr-only">Télécharger</span>
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            )) : (
+                    {/* Desktop Table */}
+                    <div className="hidden md:block">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">
-                                        Aucune facture ne correspond à vos filtres.
-                                    </TableCell>
+                                    <TableHead className="w-[40px]">
+                                        <Checkbox
+                                            checked={filteredInvoices.length > 0 && selectedInvoiceIds.length === filteredInvoices.length}
+                                            onCheckedChange={handleSelectAll}
+                                            aria-label="Tout sélectionner"
+                                        />
+                                    </TableHead>
+                                    <TableHead>Client</TableHead>
+                                    <TableHead>Numéro</TableHead>
+                                    <TableHead>Échéance</TableHead>
+                                    <TableHead>Montant</TableHead>
+                                    <TableHead>Statut</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
+                                    <TableRow key={invoice.id} data-state={selectedInvoiceIds.includes(invoice.id) && 'selected'}>
+                                        <TableCell>
+                                            <Checkbox
+                                                checked={selectedInvoiceIds.includes(invoice.id)}
+                                                onCheckedChange={(checked) => handleSelectRow(invoice.id, !!checked)}
+                                                aria-label={`Sélectionner la facture ${invoice.number}`}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="font-medium">{invoice.clientName}</TableCell>
+                                        <TableCell>{invoice.number}</TableCell>
+                                        <TableCell>{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</TableCell>
+                                        <TableCell>{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                        <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon">
+                                                <Download className="h-4 w-4" />
+                                                <span className="sr-only">Télécharger</span>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="h-24 text-center">
+                                            Aucune facture ne correspond à vos filtres.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden space-y-4">
+                       {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
+                           <Card key={invoice.id}>
+                               <CardContent className="p-4 flex flex-col gap-3">
+                                   <div className="flex justify-between items-start">
+                                       <div>
+                                           <p className="font-semibold">{invoice.clientName}</p>
+                                           <p className="text-sm text-muted-foreground">{invoice.number}</p>
+                                       </div>
+                                       {getStatusBadge(invoice.status)}
+                                   </div>
+                                    <div className="flex justify-between items-end text-sm">
+                                        <div className="text-muted-foreground">
+                                            <p>Échéance: {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
+                                            <p className="text-lg font-bold text-foreground">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                                        </div>
+                                       <DropdownMenu>
+                                           <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Actions</span>
+                                                </Button>
+                                           </DropdownMenuTrigger>
+                                           <DropdownMenuContent align="end">
+                                               <DropdownMenuItem>
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Télécharger
+                                               </DropdownMenuItem>
+                                           </DropdownMenuContent>
+                                       </DropdownMenu>
+                                   </div>
+                               </CardContent>
+                           </Card>
+                       )) : (
+                            <div className="h-24 text-center flex items-center justify-center text-muted-foreground">
+                                Aucune facture ne correspond à vos filtres.
+                            </div>
+                       )}
+                    </div>
                 </CardContent>
                  <CardFooter className="text-xs text-muted-foreground p-6">
                     <p>Pour toute question concernant une facture, veuillez contacter directement votre gestionnaire de dossier.</p>
@@ -315,3 +356,5 @@ export default function BillingPage() {
 
     
 }
+
+    
