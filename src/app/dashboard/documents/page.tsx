@@ -599,15 +599,17 @@ export default function DocumentsPage() {
     
     return (
       <div className="flex flex-col h-full">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b shrink-0">
             <h2 className="text-lg font-semibold tracking-tight">Documents pour {clientName}</h2>
             <p className="text-sm text-muted-foreground">{documents.length} document(s) au total.</p>
         </div>
 
-        <FilterDisplay />
-        {selectedDocumentIds.length > 0 && <div className="mt-4"><BulkActionsToolbar /></div>}
+        <div className="shrink-0">
+          <FilterDisplay />
+          {selectedDocumentIds.length > 0 && <div className="mt-4"><BulkActionsToolbar /></div>}
+        </div>
         
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-4">
             {isLoading ? (
                 <div className="space-y-2">
