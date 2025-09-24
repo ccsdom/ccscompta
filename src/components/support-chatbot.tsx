@@ -106,7 +106,7 @@ export function SupportChatbot() {
                         className="fixed bottom-0 right-0 z-[51] h-full w-full md:h-auto md:w-auto md:max-h-[calc(100vh-4rem)] md:max-w-sm md:bottom-20 md:right-4"
                     >
                         <Card className="h-full w-full flex flex-col shadow-2xl rounded-none md:rounded-lg overflow-hidden">
-                             <motion.div onPointerDown={(e) => dragControls.start(e, { snapToCursor: false })} className="cursor-grab active:cursor-grabbing">
+                             <motion.div onPointerDown={(e) => dragControls.start(e)} className="cursor-grab active:cursor-grabbing">
                                 <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
                                     <div className="flex items-center gap-3">
                                         <div className="relative">
