@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Sidebar, MobileNav } from "@/components/sidebar";
