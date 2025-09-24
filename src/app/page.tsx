@@ -40,6 +40,7 @@ export default function LandingPage() {
     {
       name: "Sophie L.",
       role: "Gérante, PME 'Innov-Solutions'",
+      avatar: "https://randomuser.me/api/portraits/women/68.jpg",
       text: "En tant que dirigeante, je n'ai plus à me soucier de la paperasse. Je prends une photo, je l'envoie, et c'est tout. Simple et efficace !",
     },
   ];
@@ -142,19 +143,19 @@ export default function LandingPage() {
                         Découvrez comment CCS Compta transforme le quotidien des cabinets et de leurs clients.
                     </p>
                 </div>
-                 <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-2">
+                 <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
                     {testimonials.map((testimonial) => (
-                        <Card key={testimonial.name}>
-                            <CardContent className="pt-6">
-                                <blockquote className="text-muted-foreground">"{testimonial.text}"</blockquote>
+                        <Card key={testimonial.name} className="overflow-hidden">
+                           <CardContent className="p-8">
+                                <p className="text-lg font-medium leading-relaxed text-foreground">"{testimonial.text}"</p>
                             </CardContent>
-                             <CardHeader className="flex flex-row items-center gap-4">
-                                <Avatar>
+                             <CardHeader className="flex flex-row items-center gap-4 bg-muted/50 p-6">
+                                <Avatar className="h-14 w-14 border-2 border-primary/50">
                                     <AvatarImage src={testimonial.avatar} alt={testimonial.name} />
                                     <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="font-semibold">{testimonial.name}</p>
+                                    <p className="font-semibold text-lg">{testimonial.name}</p>
                                     <p className="text-sm text-muted-foreground">{testimonial.role}</p>
                                 </div>
                             </CardHeader>
@@ -189,3 +190,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
