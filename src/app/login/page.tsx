@@ -181,7 +181,7 @@ export default function LoginPage() {
          <div className="relative h-full flex flex-col justify-between p-12 text-white">
             <Link href="/" className="flex items-center gap-2 font-semibold text-white z-10">
                 <Logo className="h-8 w-8" />
-                <span className="text-xl">PaperTrail</span>
+                <span className="text-xl">CCS Compta</span>
             </Link>
             <div className="text-left z-10">
                 <h1 className="text-5xl font-bold leading-tight tracking-tight">La comptabilité, réinventée.</h1>
@@ -189,7 +189,7 @@ export default function LoginPage() {
                     Votre plateforme tout-en-un pour une collaboration comptable fluide et efficace.
                 </p>
             </div>
-             <p className="text-xs text-white/60 z-10">&copy; {new Date().getFullYear()} PaperTrail. Tous droits réservés.</p>
+             <p className="text-xs text-white/60 z-10">&copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.</p>
          </div>
       </div>
       <div className="flex items-center justify-center py-12 px-4">
@@ -198,7 +198,7 @@ export default function LoginPage() {
              <div className="flex justify-center mb-4 lg:hidden">
                 <Link href="/" className="flex items-center gap-2 font-semibold">
                     <Logo className="h-8 w-8 text-primary" />
-                    <span className="text-xl">PaperTrail</span>
+                    <span className="text-xl">CCS Compta</span>
                 </Link>
             </div>
             <h1 className="text-3xl font-bold">Bienvenue</h1>
