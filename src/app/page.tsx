@@ -53,11 +53,11 @@ export default function LandingPage() {
             <span className="font-bold text-lg">CCS Compta</span>
           </Link>
           <nav className="flex items-center gap-4">
-             <Link href="/dashboard" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
+             <Link href="#features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
               Fonctionnalités
             </Link>
-             <Link href="/dashboard" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
-              Tarifs
+             <Link href="#testimonials" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
+              Témoignages
             </Link>
             <Button asChild>
               <Link href="/login">Se connecter</Link>
