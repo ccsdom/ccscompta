@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -12,6 +13,7 @@ import { ClientSwitcher } from './client-switcher';
 import { Skeleton } from './ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from './ui/scroll-area';
+import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 
 type NavItem = {
     href: string;
@@ -124,6 +126,12 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
 
     return (
         <div className="flex h-full flex-col">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu de navigation</SheetTitle>
+              <SheetDescription>
+                Navigation principale et options du compte pour l'application CCS Compta.
+              </SheetDescription>
+            </SheetHeader>
             <div className="flex items-center h-16 border-b px-6">
                 <Link href="/" className="flex items-center gap-2 font-semibold">
                     <Logo className="h-6 w-6" />
