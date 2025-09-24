@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
-import { ArrowRight, Bot, ShieldCheck, Users, UploadCloud, ScanSearch, CheckSquare } from 'lucide-react';
+import { ArrowRight, Bot, ShieldCheck, Users, UploadCloud, ScanSearch, CheckSquare, Building } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function LandingPage() {
   const features = [
@@ -192,7 +193,54 @@ export default function LandingPage() {
             </div>
         </section>
 
-         <section id="testimonials" className="py-20 md:py-32 bg-muted/30">
+        <section id="for-who" className="py-20 md:py-32 bg-muted/30">
+          <div className="container mx-auto max-w-6xl px-4">
+            <div className="text-center">
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">Conçu pour vous</h2>
+                <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">Que vous soyez un cabinet en croissance ou une entreprise moderne, nous avons la solution.</p>
+            </div>
+            <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
+                <Card className="flex flex-col">
+                    <CardHeader>
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                                <Users className="h-8 w-8 text-primary" />
+                            </div>
+                            <CardTitle className="text-2xl">Pour les Cabinets Comptables</CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 space-y-4">
+                       <p className="text-muted-foreground">Libérez-vous des tâches répétitives et concentrez-vous sur le conseil à forte valeur ajoutée.</p>
+                        <ul className="space-y-2 list-disc pl-5">
+                            <li><span className="font-semibold">Gain de productivité :</span> Automatisez la saisie et le traitement des pièces comptables.</li>
+                            <li><span className="font-semibold">Réduction des erreurs :</span> L'IA minimise les risques d'erreurs manuelles et détecte les anomalies.</li>
+                            <li><span className="font-semibold">Relation client améliorée :</span> Offrez à vos clients un portail moderne et collaboratif.</li>
+                        </ul>
+                    </CardContent>
+                </Card>
+                 <Card className="flex flex-col">
+                    <CardHeader>
+                         <div className="flex items-center gap-4">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                                <Building className="h-8 w-8 text-primary" />
+                            </div>
+                            <CardTitle className="text-2xl">Pour les Entreprises</CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 space-y-4">
+                        <p className="text-muted-foreground">Ne perdez plus de temps avec la paperasse et gardez une vision claire sur vos finances.</p>
+                        <ul className="space-y-2 list-disc pl-5">
+                            <li><span className="font-semibold">Simplicité maximale :</span> Envoyez vos documents par une simple photo ou un téléversement.</li>
+                            <li><span className="font-semibold">Zéro papier :</span> Centralisez toutes vos factures et reçus en un seul endroit sécurisé.</li>
+                            <li><span className="font-semibold">Visibilité en temps réel :</span> Suivez le statut de vos documents et communiquez facilement avec votre comptable.</li>
+                        </ul>
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
+        </section>
+
+         <section id="testimonials" className="py-20 md:py-32">
             <div className="container mx-auto max-w-6xl px-4">
                  <div className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
@@ -208,7 +256,7 @@ export default function LandingPage() {
                            <CardContent className="p-8">
                                 <p className="text-lg font-medium leading-relaxed text-foreground">"{testimonial.text}"</p>
                             </CardContent>
-                             <CardHeader className="flex flex-row items-center gap-4 bg-background p-6">
+                             <CardHeader className="flex flex-row items-center gap-4 bg-muted/50 p-6">
                                 <Avatar className="h-14 w-14 border-2 border-primary/50">
                                     <AvatarImage src={testimonial.avatar} alt={testimonial.name} />
                                     <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
@@ -221,6 +269,37 @@ export default function LandingPage() {
                         </Card>
                     ))}
                 </div>
+            </div>
+        </section>
+
+        <section id="faq" className="py-20 md:py-32 bg-muted/30">
+            <div className="container mx-auto max-w-4xl px-4">
+                 <div className="text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">Questions Fréquentes</h2>
+                    <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+                        Trouvez ici les réponses aux questions les plus courantes.
+                    </p>
+                </div>
+                <Accordion type="single" collapsible className="w-full mt-12">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger className="text-lg">Mes données sont-elles en sécurité ?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        Absolument. Nous utilisons un cryptage de pointe et nos serveurs sont hébergés dans des centres de données hautement sécurisés. La confidentialité et la sécurité de vos données financières sont notre priorité absolue.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2">
+                        <AccordionTrigger className="text-lg">Quels types de documents sont supportés ?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        Vous pouvez téléverser la plupart des formats d'image (JPG, PNG) et les fichiers PDF. Notre système est optimisé pour reconnaître les factures d'achat, les factures de vente, les reçus et les relevés bancaires.
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-3">
+                        <AccordionTrigger className="text-lg">Est-ce compatible avec mon logiciel de production ?</AccordionTrigger>
+                        <AccordionContent className="text-base text-muted-foreground">
+                        Oui. CCS Compta est conçu pour s'intégrer facilement avec les principaux logiciels de production comptable, notamment Cegid. Les données validées peuvent être exportées dans un format compatible pour une intégration fluide.
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </div>
         </section>
 
