@@ -242,14 +242,14 @@ export function Header() {
             </Sheet>
         </div>
         
-        <div className="w-full flex-1">
+        <div className="flex-1">
            <form onSubmit={handleSearchSubmit}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Rechercher..."
-                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-[200px] lg:w-[336px] focus-visible:ring-0"
+                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-full max-w-sm lg:max-w-md focus-visible:ring-0"
                   value={searchQuery}
                   onChange={handleSearchChange}
                 />
@@ -326,7 +326,7 @@ export function Header() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                         <Link href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/settings" : "/dashboard/my-settings"}>
+                         <Link href={"/dashboard/settings"}>
                             <User className="mr-2 h-4 w-4" /> Profil
                         </Link>
                     </DropdownMenuItem>
@@ -336,7 +336,7 @@ export function Header() {
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <Link href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/settings" : "/dashboard/my-settings"}>
+                        <Link href={"/dashboard/settings"}>
                             <Settings className="mr-2 h-4 w-4" /> Paramètres
                         </Link>
                     </DropdownMenuItem>
@@ -356,3 +356,5 @@ export function Header() {
     </header>
   );
 }
+
+    

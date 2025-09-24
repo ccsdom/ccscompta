@@ -136,7 +136,7 @@ export default function SettingsPage() {
                 <p className="text-muted-foreground mt-1">Gérez les informations de votre compte et vos préférences.</p>
             </div>
              <Tabs defaultValue="profile" className="space-y-4">
-                <TabsList className="h-auto flex-wrap">
+                <TabsList className="h-auto flex-wrap justify-start">
                     <TabsTrigger value="profile">Profil</TabsTrigger>
                     <TabsTrigger value="security">Sécurité</TabsTrigger>
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
