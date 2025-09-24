@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -71,7 +72,7 @@ export default function SupportPage() {
             <span className="font-bold text-lg">CCS Compta</span>
           </Link>
           <nav className="flex items-center gap-4">
-             <Link href="/#features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
+             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
               Fonctionnalités
             </Link>
              <Link href="/support" className="text-sm font-medium text-primary sm:block">

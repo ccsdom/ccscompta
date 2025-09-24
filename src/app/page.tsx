@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -9,7 +10,7 @@ import { Logo } from '@/components/logo';
 import { ArrowRight, Bot, ShieldCheck, Users, UploadCloud, ScanSearch, CheckSquare, Building } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from '@/components/ui/badge';
+import { Badge } from "@/components/ui/badge";
 
 
 export default function LandingPage() {
@@ -76,7 +77,7 @@ export default function LandingPage() {
             <span className="font-bold text-lg">CCS Compta</span>
           </Link>
           <nav className="flex items-center gap-4">
-             <Link href="#features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
+             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
               Fonctionnalités
             </Link>
              <Link href="/support" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
