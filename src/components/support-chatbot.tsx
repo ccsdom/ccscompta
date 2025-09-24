@@ -89,22 +89,26 @@ export function SupportChatbot() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
-                        className="fixed bottom-24 right-4 z-[51] md:bottom-4"
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        className="fixed bottom-0 right-0 z-[51] h-full w-full md:h-auto md:w-auto md:max-h-[calc(100vh-4rem)] md:max-w-sm md:bottom-20 md:right-4"
                     >
-                        <Card className="w-[380px] h-[550px] flex flex-col shadow-2xl">
+                        <Card className="h-full w-full flex flex-col shadow-2xl rounded-none md:rounded-lg">
                              <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
                                 <div className="flex items-center gap-3">
                                     <div className="relative">
-                                        <Bot className="h-8 w-8 p-1.5 rounded-full bg-primary text-primary-foreground" />
-                                        <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full bg-green-500 ring-2 ring-background" />
+                                        <Avatar className="h-10 w-10 border-2 border-primary/50">
+                                            <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
+                                        </Avatar>
+                                        <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
                                     </div>
                                     <div>
                                         <CardTitle className="text-base">ComptaBot</CardTitle>
-                                        <p className="text-xs text-muted-foreground">Assistant Virtuel</p>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500"></span> En ligne</p>
                                     </div>
                                 </div>
                                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                                     <X className="h-4 w-4" />
+                                    <span className="sr-only">Fermer le chat</span>
                                 </Button>
                             </CardHeader>
                             <CardContent className="flex-1 p-0 overflow-hidden">
@@ -158,12 +162,18 @@ export function SupportChatbot() {
             </AnimatePresence>
 
             <motion.div
-                className="fixed bottom-24 right-4 z-[51] md:bottom-4"
+                className="fixed bottom-4 right-4 z-[51]"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
             >
                 <Button size="icon" className="rounded-full w-14 h-14 shadow-lg" onClick={() => setIsOpen(!isOpen)}>
-                    {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
+                    <AnimatePresence>
+                         {isOpen ? (
+                            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}><X className="h-6 w-6" /></motion.div>
+                         ) : (
+                            <motion.div key="open" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}><MessageSquare className="h-6 w-6" /></motion.div>
+                         )}
+                    </AnimatePresence>
                     <span className="sr-only">Ouvrir le chatbot</span>
                 </Button>
             </motion.div>
