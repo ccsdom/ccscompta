@@ -242,14 +242,14 @@ export function Header() {
             </Sheet>
         </div>
         
-        <div className="flex-1 md:flex-initial">
+        <div className="w-full flex-1">
            <form onSubmit={handleSearchSubmit}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Rechercher..."
-                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-full lg:w-[300px] focus-visible:ring-0"
+                  className="w-full appearance-none bg-background pl-8 pr-16 shadow-none md:w-[200px] lg:w-[336px] focus-visible:ring-0"
                   value={searchQuery}
                   onChange={handleSearchChange}
                 />
@@ -356,5 +356,3 @@ export function Header() {
     </header>
   );
 }
-
-    
