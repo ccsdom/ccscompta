@@ -32,6 +32,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -45,6 +46,14 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { MobileNav } from './sidebar'; 
+
+const roleConfig = {
+    admin: { label: 'Espace Administrateur' },
+    accountant: { label: 'Espace Comptable' },
+    secretary: { label: 'Espace Secrétariat' },
+    client: { label: 'Espace Client' }
+};
+
 
 export function Header({children}: {children?: React.ReactNode}) {
   const [mounted, setMounted] = useState(false);
@@ -210,6 +219,8 @@ export function Header({children}: {children?: React.ReactNode}) {
      </div>
   );
 
+  const { label: roleLabel } = roleConfig[userRole as keyof typeof roleConfig] || roleConfig.client;
+
   if (!mounted) {
     return (
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -304,14 +315,17 @@ export function Header({children}: {children?: React.ReactNode}) {
                      </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                        <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">{userName}</p>
-                            <p className="text-xs leading-none text-muted-foreground">
-                            {userEmail}
-                            </p>
-                        </div>
-                    </DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                        <DropdownMenuLabel className="font-normal">
+                             <div className="text-xs text-muted-foreground -mb-1">{roleLabel}</div>
+                             <div className="flex flex-col space-y-1">
+                                <p className="text-sm font-medium leading-none">{userName}</p>
+                                <p className="text-xs leading-none text-muted-foreground">
+                                {userEmail}
+                                </p>
+                            </div>
+                        </DropdownMenuLabel>
+                    </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                          <Link href={"/dashboard/settings"}>

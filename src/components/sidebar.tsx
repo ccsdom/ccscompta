@@ -46,10 +46,10 @@ const clientNavItems: NavItem[] = [
 ];
 
 const roleConfig = {
-    admin: { items: accountantNavItems, label: 'Espace Administrateur' },
-    accountant: { items: accountantNavItems, label: 'Espace Comptable' },
-    secretary: { items: secretaryNavItems, label: 'Espace Secrétariat' },
-    client: { items: clientNavItems, label: 'Espace Client' }
+    admin: { items: accountantNavItems },
+    accountant: { items: accountantNavItems },
+    secretary: { items: secretaryNavItems },
+    client: { items: clientNavItems }
 }
 
 const isNavItemActive = (pathname: string, itemHref: string, currentRole: string) => {
@@ -85,7 +85,6 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
 
 export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
     const router = useRouter();
-    const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
     const { theme, setTheme } = useTheme();
 
     const handleLogout = () => {
@@ -106,9 +105,6 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                 </Link>
             </SheetHeader>
             <div className="p-4 border-b space-y-2">
-                <div className="text-xs font-semibold uppercase text-muted-foreground px-1">
-                    {roleLabel}
-                </div>
                 {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
                     <ClientSwitcher />
                 )}
@@ -170,8 +166,6 @@ export function Sidebar() {
     return '/dashboard';
   }
 
-  const { label: roleLabel } = roleConfig[currentRole] || roleConfig.client;
-
   if (!mounted) {
       return (
         <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
@@ -181,8 +175,7 @@ export function Sidebar() {
                     <span className="font-bold text-lg">CCS Compta</span>
                 </Link>
             </div>
-            <div className="p-4 border-b h-[92px]">
-                <Skeleton className="h-4 w-3/4 mb-2"/>
+            <div className="p-4 border-b h-[68px]">
                 <Skeleton className="h-10 w-full" />
             </div>
             <nav className="flex-1 px-4 py-4 space-y-2">
@@ -206,19 +199,18 @@ export function Sidebar() {
             <span className="font-bold text-lg">CCS Compta</span>
         </Link>
       </div>
-
-      <div className="p-4 border-b space-y-2">
-        <div className="text-xs font-semibold uppercase text-muted-foreground px-1">
-            {roleLabel}
-        </div>
-        {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
+      
+      {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
+        <div className="p-4 border-b">
             <ClientSwitcher />
-        )}
-      </div>
-
-      <nav className="flex-1 px-4 py-4 space-y-2">
-        <NavItems currentRole={currentRole} />
-      </nav>
+        </div>
+      )}
+      
+      <ScrollArea className="flex-1">
+        <nav className="px-4 py-4 space-y-2">
+            <NavItems currentRole={currentRole} />
+        </nav>
+      </ScrollArea>
       
       <div className="mt-auto p-2 border-t">
         <TooltipProvider>
