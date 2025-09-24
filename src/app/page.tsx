@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -9,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
 import { ArrowRight, Bot, ShieldCheck, Users, UploadCloud, ScanSearch, CheckSquare, Building } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from '@/components/ui/badge';
+
 
 export default function LandingPage() {
   const features = [
@@ -79,8 +79,8 @@ export default function LandingPage() {
              <Link href="#features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
               Fonctionnalités
             </Link>
-             <Link href="#testimonials" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
-              Témoignages
+             <Link href="/support" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
+              Support
             </Link>
             <Button asChild>
               <Link href="/login">Se connecter</Link>
@@ -102,7 +102,7 @@ export default function LandingPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <Badge
                     variant="outline"
-                    className="mb-6 rounded-full px-4 py-1 font-medium"
+                    className="mb-6 rounded-full px-4 py-1 font-medium border-primary/30"
                 >
                     La comptabilité du futur est arrivée
                 </Badge>
@@ -118,7 +118,7 @@ export default function LandingPage() {
                   <Link href="/login">Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                   <Link href="/login">Demander une démo</Link>
+                   <Link href="/support">Demander une démo</Link>
                 </Button>
               </div>
             </motion.div>
@@ -302,7 +302,6 @@ export default function LandingPage() {
                 </Accordion>
             </div>
         </section>
-
       </main>
 
       <footer className="border-t">
@@ -311,17 +310,6 @@ export default function LandingPage() {
                 <p className="text-sm text-muted-foreground">
                     &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
                 </p>
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon">
-                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.88-.53 1.56-1.37 1.88-2.38-.83.49-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.27 0 .34.04.67.11.98-3.56-.18-6.72-1.88-8.84-4.48-.37.63-.58 1.37-.58 2.15 0 1.48.75 2.79 1.9 3.55-.7-.02-1.37-.22-1.95-.54v.05c0 2.07 1.47 3.8 3.42 4.19-.36.1-.74.15-1.14.15-.27 0-.54-.03-.8-.08.54 1.7 2.11 2.93 3.97 2.96-1.46 1.14-3.3 1.82-5.3 1.82-.34 0-.68-.02-1.02-.06 1.89 1.21 4.14 1.92 6.56 1.92 7.88 0 12.2-6.54 12.2-12.2 0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"></path></svg>
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                         <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"></path></svg>
-                    </Button>
-                     <Button variant="ghost" size="icon">
-                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"></path></svg>
-                    </Button>
-                </div>
             </div>
         </div>
       </footer>
