@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -30,7 +29,6 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -604,13 +602,13 @@ export default function DocumentsPage() {
             <p className="text-sm text-muted-foreground">{documents.length} document(s) au total.</p>
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 pt-4">
           <FilterDisplay />
           {selectedDocumentIds.length > 0 && <div className="mt-4"><BulkActionsToolbar /></div>}
         </div>
         
         <ScrollArea className="flex-1 min-h-0">
-          <div className="p-4">
+          <div className="p-4 space-y-4">
             {isLoading ? (
                 <div className="space-y-2">
                     <Skeleton className="h-16 w-full" />
@@ -618,26 +616,22 @@ export default function DocumentsPage() {
                     <Skeleton className="h-16 w-full" />
                 </div>
             ) : (
-              <Accordion type="multiple" defaultValue={['reviewing', 'pending']} className="w-full">
-                {documentGroups.map(group => {
+                documentGroups.map(group => {
                   const docsInGroup = groupedDocuments[group.status];
                   if (docsInGroup.length === 0) return null;
                   
                   const { icon: Icon, color } = getStatusInfo(group.status);
 
                   return (
-                    <AccordionItem value={group.status} key={group.status}>
-                      <AccordionTrigger>
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                           <Icon className={cn("h-4 w-4", color)} />
-                          {group.label}
-                          <Badge variant="secondary">{docsInGroup.length}</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-0">
-                        <div className="space-y-2">
+                    <div key={group.status}>
+                      <h3 className="text-sm font-semibold flex items-center gap-2 mb-2 px-1 text-muted-foreground">
+                        <Icon className={cn("h-4 w-4", color)} />
+                        {group.label}
+                        <span className="text-xs">({docsInGroup.length})</span>
+                      </h3>
+                      <div className="space-y-2">
                           {docsInGroup.map(doc => (
-                            <div
+                             <div
                               key={doc.id}
                               onClick={() => handleSetActiveDocument(doc)}
                               className={cn(
@@ -681,11 +675,18 @@ export default function DocumentsPage() {
                             </div>
                           ))}
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
+                    </div>
                   )
-                })}
-              </Accordion>
+                })
+            )}
+            {filteredDocuments.length === 0 && !isLoading && (
+              <div className="text-center py-20">
+                <FileClock className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Aucun document trouvé</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Aucun document ne correspond à vos critères de recherche actuels.
+                </p>
+              </div>
             )}
           </div>
         </ScrollArea>
