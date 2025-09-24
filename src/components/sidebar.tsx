@@ -105,11 +105,9 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                     <span>CCS Compta</span>
                 </Link>
             </SheetHeader>
-            <div className="p-4 border-b space-y-4">
-                <div className="text-center">
-                    <span className={cn("text-sm font-semibold uppercase text-primary")}>
-                        {roleLabel}
-                    </span>
+            <div className="p-4 border-b space-y-2">
+                <div className="text-xs font-semibold uppercase text-muted-foreground px-1">
+                    {roleLabel}
                 </div>
                 {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
                     <ClientSwitcher />
@@ -183,8 +181,8 @@ export function Sidebar() {
                     <span className="font-bold text-lg">CCS Compta</span>
                 </Link>
             </div>
-            <div className="p-4 border-b h-[116px]">
-                <Skeleton className="h-6 w-3/4 mx-auto mb-4"/>
+            <div className="p-4 border-b h-[92px]">
+                <Skeleton className="h-4 w-3/4 mb-2"/>
                 <Skeleton className="h-10 w-full" />
             </div>
             <nav className="flex-1 px-4 py-4 space-y-2">
@@ -209,11 +207,9 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="p-4 border-b space-y-4">
-        <div className="text-center">
-            <span className={cn("text-sm font-semibold uppercase", "text-primary")}>
-                {roleLabel}
-            </span>
+      <div className="p-4 border-b space-y-2">
+        <div className="text-xs font-semibold uppercase text-muted-foreground px-1">
+            {roleLabel}
         </div>
         {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
             <ClientSwitcher />

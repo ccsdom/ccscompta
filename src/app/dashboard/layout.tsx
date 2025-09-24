@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Sidebar } from "@/components/sidebar";
+import { Sidebar, MobileNav } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { Breadcrumb } from "./breadcrumb";
 import { usePathname } from 'next/navigation';
@@ -9,7 +9,9 @@ import { SupportChatbot } from "@/components/support-chatbot";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Home } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Home, Menu } from 'lucide-react';
+import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
 const clientBottomNav = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Documents' },
@@ -93,14 +95,43 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin' | 'secretary'>('client');
   // Hide breadcrumbs on root dashboard pages
   const showBreadcrumb = !['/dashboard/my-documents', '/dashboard/accountant', '/dashboard/admin', '/dashboard/secretary'].includes(pathname);
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole') as any;
+    if (role) setCurrentRole(role);
+
+    const handleStorageChange = () => {
+        const newRole = localStorage.getItem('userRole') as any;
+        if(newRole) setCurrentRole(newRole);
+    }
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
 
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <Header />
+        <Header>
+            <div className="md:hidden">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Menu className="h-5 w-5" />
+                            <span className="sr-only">Ouvrir le menu</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="p-0">
+                        <MobileNav currentRole={currentRole} />
+                    </SheetContent>
+                </Sheet>
+            </div>
+        </Header>
         <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6 pb-24 md:pb-6">
           {showBreadcrumb && <Breadcrumb />}
           {children}
