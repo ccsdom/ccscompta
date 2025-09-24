@@ -619,12 +619,14 @@ export default function DocumentsPage() {
                 {documentGroups.map(group => {
                   const docsInGroup = groupedDocuments[group.status];
                   if (docsInGroup.length === 0) return null;
+                  
+                  const { icon: Icon, color } = getStatusInfo(group.status);
 
                   return (
                     <AccordionItem value={group.status} key={group.status}>
                       <AccordionTrigger>
                         <div className="flex items-center gap-2 text-sm font-medium">
-                          {getStatusInfo(group.status).icon({ className: getStatusInfo(group.status).color + " h-4 w-4"})}
+                          <Icon className={cn("h-4 w-4", color)} />
                           {group.label}
                           <Badge variant="secondary">{docsInGroup.length}</Badge>
                         </div>
