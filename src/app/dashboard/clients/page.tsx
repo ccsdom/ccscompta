@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, LogIn, FileUp, CalendarClock, FileClock } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, LogIn, FileUp, CalendarClock, FileClock, Wand2 } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -287,44 +287,57 @@ export default function ClientsPage() {
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Gestion des clients</h1>
                     <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
                 </div>
                  <div className="flex items-center gap-2">
-                    <div className="md:hidden flex-grow" />
-                    <ClientImportDialog onClientsImported={() => { fetchClientsAndAccountants() }} />
-                    <AiClientDialog />
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="hidden md:inline-flex">
-                                <Download className="mr-2 h-4 w-4" />
-                                Exporter
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuItem onClick={handleExportXLSX}>
-                                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                Exporter en Excel (.xlsx)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportPDF}>
-                                <FileType className="mr-2 h-4 w-4" />
-                                Exporter en PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportCSV}>
-                                <File className="mr-2 h-4 w-4" />
-                                Exporter en CSV
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button onClick={() => router.push('/dashboard/clients/new')} className="hidden md:inline-flex">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Nouveau Client
-                    </Button>
-                    <Button onClick={() => router.push('/dashboard/clients/new')} size="icon" className="md:hidden">
-                        <PlusCircle className="h-4 w-4" />
-                    </Button>
+                    {/* Desktop Buttons */}
+                    <div className="hidden md:flex items-center gap-2">
+                        <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
+                        <AiClientDialog />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline"><Download className="mr-2 h-4 w-4" />Exporter</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onClick={handleExportXLSX}><FileSpreadsheet className="mr-2 h-4 w-4" />Exporter en Excel (.xlsx)</DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportPDF}><FileType className="mr-2 h-4 w-4" />Exporter en PDF</DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportCSV}><File className="mr-2 h-4 w-4" />Exporter en CSV</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</Button>
+                    </div>
+                    {/* Mobile Actions Dropdown */}
+                    <div className="md:hidden">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button>Actions</Button>
+                            </DropdownMenuTrigger>
+                             <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem>
+                                    <ClientImportDialog onClientsImported={fetchClientsAndAccountants} isMenuItem />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <AiClientDialog isMenuItem />
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger><Download className="mr-2 h-4 w-4" />Exporter</DropdownMenuSubTrigger>
+                                    <DropdownMenuPortal>
+                                        <DropdownMenuSubContent>
+                                            <DropdownMenuItem onClick={handleExportXLSX}><FileSpreadsheet className="mr-2 h-4 w-4" />Excel (.xlsx)</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={handleExportPDF}><FileType className="mr-2 h-4 w-4" />PDF</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={handleExportCSV}><File className="mr-2 h-4 w-4" />CSV</DropdownMenuItem>
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                </DropdownMenuSub>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
             </div>
 
@@ -544,3 +557,5 @@ export default function ClientsPage() {
         </div>
     )
 }
+
+    

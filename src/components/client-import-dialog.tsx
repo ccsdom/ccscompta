@@ -15,11 +15,12 @@ import Link from 'next/link';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
+    isMenuItem?: boolean;
 }
 
 type ParsedClient = Omit<Client, 'id' | 'newDocuments' | 'lastActivity' | 'status'>;
 
-export function ClientImportDialog({ onClientsImported }: ClientImportDialogProps) {
+export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImportDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [parsedData, setParsedData] = useState<ParsedClient[]>([]);
@@ -145,16 +146,22 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         setErrors([]);
     }
 
+    const TriggerComponent = isMenuItem ? 'div' : Button;
+    const triggerProps = isMenuItem ? {
+        className: "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        children: <><FileUp className="mr-2 h-4 w-4" />Importer des clients</>
+    } : {
+        variant: "outline",
+        children: <><FileUp className="mr-2 h-4 w-4" />Importer</>
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => {
             setIsOpen(open);
             if (!open) resetState();
         }}>
             <DialogTrigger asChild>
-                <Button variant="outline">
-                    <FileUp className="mr-2 h-4 w-4" />
-                    Importer
-                </Button>
+                <TriggerComponent {...triggerProps} />
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
@@ -259,3 +266,5 @@ export function ClientImportDialog({ onClientsImported }: ClientImportDialogProp
         </Dialog>
     );
 }
+
+    

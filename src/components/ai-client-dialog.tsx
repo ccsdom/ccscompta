@@ -11,7 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 import { extractClientData } from '@/ai/flows/extract-client-data-flow';
 import { Label } from './ui/label';
 
-export function AiClientDialog() {
+interface AiClientDialogProps {
+    isMenuItem?: boolean;
+}
+
+export function AiClientDialog({ isMenuItem }: AiClientDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -73,13 +77,19 @@ export function AiClientDialog() {
         }
     }
 
+    const TriggerComponent = isMenuItem ? 'div' : Button;
+    const triggerProps = isMenuItem ? {
+        className: "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        children: <><Wand2 className="mr-2 h-4 w-4" />Ajout Rapide par IA</>
+    } : {
+        variant: "outline",
+        children: <><Wand2 className="mr-2 h-4 w-4" />Ajout Rapide par IA</>
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                 <Button variant="outline">
-                    <Wand2 className="mr-2 h-4 w-4" />
-                    Ajout Rapide par IA
-                </Button>
+                 <TriggerComponent {...triggerProps} />
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
@@ -118,3 +128,5 @@ export function AiClientDialog() {
         </Dialog>
     )
 }
+
+    
