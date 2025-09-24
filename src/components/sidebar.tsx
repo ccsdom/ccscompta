@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -121,9 +120,15 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                     <NavItems currentRole={currentRole} />
                 </nav>
             </ScrollArea>
-             <div className="mt-auto p-4 border-t space-y-2">
-                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('light')}>Clair</Button>
-                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('dark')}>Sombre</Button>
+             <div className="mt-auto p-4 border-t">
+                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('light')}>
+                    <Sun className="mr-2 h-4 w-4" />
+                    Clair
+                </Button>
+                 <Button variant="ghost" className="w-full justify-start" onClick={() => setTheme('dark')}>
+                    <Moon className="mr-2 h-4 w-4" />
+                    Sombre
+                </Button>
             </div>
         </div>
     );
