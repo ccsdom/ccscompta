@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Sidebar, MobileNav } from "@/components/sidebar";
@@ -9,7 +8,7 @@ import { SupportChatbot } from "@/components/support-chatbot";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Home, Menu, UserCheck, UserCog, UserSquare } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Home, Menu, UserCheck, UserCog, UserSquare, User } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
