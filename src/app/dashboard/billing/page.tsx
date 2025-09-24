@@ -11,7 +11,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -307,7 +306,7 @@ export default function BillingPage() {
                     </div>
 
                     {/* Mobile Card List */}
-                     <div className="md:hidden space-y-4">
+                    <div className="md:hidden space-y-4">
                        {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
                            <Card key={invoice.id}>
                                <CardHeader className="flex flex-row justify-between items-start pb-2">
@@ -317,22 +316,24 @@ export default function BillingPage() {
                                    </div>
                                    {getStatusBadge(invoice.status)}
                                </CardHeader>
-                               <CardContent className="flex flex-col items-center justify-center p-4">
-                                   <p className="text-3xl font-bold text-foreground mb-1">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-                                   <p className="text-sm text-muted-foreground">Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
+                               <CardContent className="p-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-2xl font-bold">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                                        <p className="text-xs text-muted-foreground">Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="ghost" size="icon">
+                                            <Download className="h-4 w-4" />
+                                            <span className="sr-only">Télécharger</span>
+                                        </Button>
+                                        {invoice.status !== 'paid' && (
+                                            <Button variant="outline" size="icon">
+                                                <CreditCard className="h-4 w-4" />
+                                                <span className="sr-only">Payer</span>
+                                            </Button>
+                                        )}
+                                    </div>
                                </CardContent>
-                               <CardFooter className="flex justify-end gap-2 p-4 pt-0">
-                                   <Button variant="ghost" size="icon">
-                                       <Download className="h-4 w-4" />
-                                       <span className="sr-only">Télécharger</span>
-                                   </Button>
-                                   {invoice.status !== 'paid' && (
-                                       <Button>
-                                           <CreditCard className="mr-2 h-4 w-4" />
-                                           Payer
-                                       </Button>
-                                   )}
-                               </CardFooter>
                            </Card>
                        )) : (
                             <div className="h-48 text-center flex flex-col items-center justify-center text-muted-foreground">
@@ -351,4 +352,3 @@ export default function BillingPage() {
     )
 
     
-}
