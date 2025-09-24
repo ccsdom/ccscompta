@@ -12,6 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Select,
@@ -30,7 +31,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu';
+import { Label } from '@/components/ui/label';
 
 export default function BillingPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -89,6 +90,23 @@ export default function BillingPage() {
             checked ? [...prev, invoiceId] : prev.filter(id => id !== invoiceId)
         );
     };
+
+    const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newStartDate = e.target.value;
+        setStartDateFilter(newStartDate);
+        if (endDateFilter && newStartDate > endDateFilter) {
+            setEndDateFilter(newStartDate);
+        }
+    };
+
+    const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newEndDate = e.target.value;
+        setEndDateFilter(newEndDate);
+        if (startDateFilter && newEndDate < startDateFilter) {
+            setStartDateFilter(newEndDate);
+        }
+    };
+
 
     const handleResetFilters = () => {
         setClientFilter('all');
@@ -198,9 +216,9 @@ export default function BillingPage() {
                             <CardTitle>Suivi des factures</CardTitle>
                             <CardDescription>Filtrez et gérez les factures de vos clients.</CardDescription>
                         </div>
-                         <div className="flex flex-wrap items-center gap-2">
+                         <div className="flex flex-wrap items-center gap-4">
                              <Select value={clientFilter} onValueChange={setClientFilter}>
-                                <SelectTrigger className="min-w-[160px] flex-1">
+                                <SelectTrigger className="min-w-[160px] flex-1 sm:flex-none">
                                     <SelectValue placeholder="Client" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -209,7 +227,7 @@ export default function BillingPage() {
                                 </SelectContent>
                             </Select>
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="min-w-[140px] flex-1">
+                                <SelectTrigger className="min-w-[140px] flex-1 sm:flex-none">
                                     <SelectValue placeholder="Statut" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -219,8 +237,12 @@ export default function BillingPage() {
                                     <SelectItem value="overdue">En retard</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Input type="date" value={startDateFilter} onChange={e => setStartDateFilter(e.target.value)} className="min-w-[140px] flex-1"/>
-                            <Input type="date" value={endDateFilter} onChange={e => setEndDateFilter(e.target.value)} className="min-w-[140px] flex-1"/>
+                             <div className="flex items-center gap-2 flex-wrap">
+                                 <Label className="hidden sm:block text-sm font-medium">Période:</Label>
+                                 <Input type="date" value={startDateFilter} onChange={handleStartDateChange} className="min-w-[140px] flex-1"/>
+                                 <span className="text-muted-foreground">-</span>
+                                 <Input type="date" value={endDateFilter} onChange={handleEndDateChange} className="min-w-[140px] flex-1"/>
+                             </div>
                              {hasActiveFilters && (
                                 <Button variant="ghost" onClick={handleResetFilters}>
                                     <FilterX className="mr-2 h-4 w-4"/>
@@ -261,7 +283,7 @@ export default function BillingPage() {
                                     <TableHead className="w-[40px]">
                                         <Checkbox
                                             checked={filteredInvoices.length > 0 && selectedInvoiceIds.length === filteredInvoices.length}
-                                            onCheckedChange={handleSelectAll}
+                                            onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                                             aria-label="Tout sélectionner"
                                         />
                                     </TableHead>
@@ -327,7 +349,7 @@ export default function BillingPage() {
                                             <Download className="h-4 w-4" />
                                             <span className="sr-only">Télécharger</span>
                                         </Button>
-                                        {invoice.status !== 'paid' && (
+                                        {(invoice.status === 'pending' || invoice.status === 'overdue') && (
                                             <Button variant="outline" size="icon">
                                                 <CreditCard className="h-4 w-4" />
                                                 <span className="sr-only">Payer</span>
