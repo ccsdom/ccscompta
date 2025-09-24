@@ -1,6 +1,5 @@
 
-import type { Document, Bilan } from '@/lib/types';
-import type { Client } from '@/lib/client-data';
+import type { Document, Bilan, Client } from '@/lib/types';
 
 export const MOCK_CLIENTS: Client[] = [
     {
