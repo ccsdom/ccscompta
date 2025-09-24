@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Calendar } from "@/components/ui/calendar";
 import { getAgendaEvents } from '@/ai/flows/agenda-actions';
 import type { AgendaEvent } from '@/lib/types';
-import { format, getMonth, getYear } from 'date-fns';
+import { format, getMonth, getYear, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Building, Percent, BookCheck, Briefcase } from 'lucide-react';
@@ -14,8 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-const eventTypeConfig = {
+const eventTypeConfig: Record<string, { label: string; icon: React.ElementType; color: string; }> = {
     tva: { label: "Déclaration TVA", icon: Percent, color: 'bg-blue-500' },
     bilan: { label: "Bilan Annuel", icon: BookCheck, color: 'bg-green-500' },
     task: { label: "Tâche", icon: Briefcase, color: 'bg-orange-500' }
@@ -66,30 +66,15 @@ export default function AgendaPage() {
         const dateKey = format(selectedDate, 'yyyy-MM-dd');
         return eventsByDate[dateKey] || [];
     }, [selectedDate, eventsByDate]);
-    
-    const DayWithDot = ({ date }: { date: Date }) => {
-        const dateKey = format(date, 'yyyy-MM-dd');
-        const dayEvents = eventsByDate[dateKey];
-        if (!dayEvents || dayEvents.length === 0) return null;
-        
-        const uniqueEventTypes = [...new Set(dayEvents.map(e => e.type))];
 
-        return (
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex space-x-1">
-                {uniqueEventTypes.slice(0, 3).map(eventType => {
-                    const config = eventTypeConfig[eventType];
-                    return <div key={eventType} className={`h-1.5 w-1.5 rounded-full ${config.color}`} />;
-                })}
-            </div>
-        );
-    };
-    
-    if (!selectedDate) {
+    if (isLoading && events.length === 0) {
         return (
              <div className="space-y-6">
                 <div>
-                    <Skeleton className="h-9 w-1/3" />
-                    <Skeleton className="h-5 w-2/3 mt-2" />
+                    <h1 className="text-3xl font-bold tracking-tight">Agenda</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Visualisez les échéances fiscales et les événements importants de vos clients.
+                    </p>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
                     <Skeleton className="lg:col-span-2 h-full" />
@@ -107,45 +92,69 @@ export default function AgendaPage() {
                     Visualisez les échéances fiscales et les événements importants de vos clients.
                 </p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full lg:h-[calc(100vh-12rem)]">
                 <Card className="lg:col-span-2">
-                    <CardContent className="p-2 h-full">
-                         {isLoading && !events.length ? (
-                            <div className="flex items-center justify-center h-full">
-                                <Skeleton className="w-full h-full" />
-                            </div>
-                         ): (
-                            <Calendar
-                                mode="single"
-                                selected={selectedDate}
-                                onSelect={(day) => day && setSelectedDate(day)}
-                                onMonthChange={setCurrentMonth}
-                                month={currentMonth}
-                                locale={fr}
-                                className="w-full h-full"
-                                classNames={{
-                                    months: "flex flex-col sm:flex-row space-y-4 sm:space-y-0 h-full",
-                                    month: "space-y-4 w-full flex flex-col",
-                                    table: "w-full border-collapse flex-1 flex flex-col",
-                                    head_row: "flex border-b",
-                                    head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.9rem] border-x p-2",
-                                    row: "flex w-full mt-0 border-b flex-1",
-                                    cell: "w-full text-center text-base p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md border-x first:border-l-0 last:border-r-0 flex flex-col justify-start items-center",
-                                    day: "w-full h-auto p-2 font-semibold aria-selected:opacity-100 aspect-square flex items-center justify-center",
-                                    day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
-                                    day_today: "bg-accent text-accent-foreground rounded-full",
-                                    day_outside: "text-muted-foreground opacity-50",
-                                }}
-                                components={{
-                                    DayContent: DayWithDot
-                                }}
-                            />
-                         )}
+                    <CardContent className="p-2 md:p-6 h-full">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(day) => day && setSelectedDate(day)}
+                            onMonthChange={setCurrentMonth}
+                            month={currentMonth}
+                            locale={fr}
+                            className="w-full"
+                            modifiers={{ 
+                                hasEvent: Object.keys(eventsByDate).map(dateStr => new Date(dateStr))
+                            }}
+                             classNames={{
+                                months: "flex flex-col sm:flex-row space-y-4 sm:space-y-0",
+                                month: "space-y-4 w-full flex flex-col",
+                                caption: "flex justify-center pt-1 relative items-center text-lg font-semibold",
+                                table: "w-full border-collapse flex-1 flex flex-col",
+                                head_row: "flex border-b",
+                                head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.9rem] p-2",
+                                row: "flex w-full mt-0 border-b flex-1",
+                                cell: "w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                                day: cn(
+                                    "h-full w-full p-2 font-normal rounded-md aspect-square flex items-center justify-center transition-colors",
+                                    "hover:bg-accent focus:bg-accent focus:outline-none"
+                                ),
+                                day_today: "bg-accent text-accent-foreground",
+                                day_selected: "bg-primary text-primary-foreground hover:bg-primary focus:bg-primary",
+                                day_outside: "text-muted-foreground opacity-50",
+                                day_disabled: "text-muted-foreground opacity-50",
+                            }}
+                             components={{
+                                DayContent: ({ date }) => {
+                                    const dateKey = format(date, 'yyyy-MM-dd');
+                                    const dayEvents = eventsByDate[dateKey];
+                                    const isSelected = selectedDate && isSameDay(date, selectedDate);
+                                    return (
+                                        <div className="relative h-full w-full">
+                                            <span className={cn("absolute top-1.5 left-1/2 -translate-x-1/2", isSelected && "text-primary-foreground")}>{format(date, 'd')}</span>
+                                             {dayEvents && (
+                                                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center justify-center space-x-1">
+                                                    {Object.entries(dayEvents.reduce((acc, e) => ({ ...acc, [e.type]: (acc[e.type] || 0) + 1 }), {} as Record<string, number>)).slice(0, 3).map(([type, count]) => {
+                                                        const eventConfig = eventTypeConfig[type as keyof typeof eventTypeConfig];
+                                                        if (!eventConfig) return null;
+                                                        return (
+                                                            <Badge key={type} className={cn(eventConfig.color, "h-4 min-w-4 p-0 text-xs text-white flex items-center justify-center rounded-full")}>
+                                                                {count > 1 ? count : <eventConfig.icon className="h-2 w-2" />}
+                                                            </Badge>
+                                                        )
+                                                     })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                }
+                            }}
+                        />
                     </CardContent>
                 </Card>
                 <Card className="flex flex-col">
                     <CardHeader>
-                        <CardTitle>{format(selectedDate, "eeee dd LLLL yyyy", { locale: fr })}</CardTitle>
+                        <CardTitle>{selectedDate ? format(selectedDate, "eeee dd LLLL yyyy", { locale: fr }) : "Sélectionner une date"}</CardTitle>
                         <CardDescription>Événements pour la journée sélectionnée.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden">
@@ -160,6 +169,7 @@ export default function AgendaPage() {
                                 <ul className="space-y-3">
                                     {selectedDayEvents.map(event => {
                                         const config = eventTypeConfig[event.type];
+                                        if (!config) return null;
                                         return (
                                             <li key={event.id} className="p-3 rounded-lg border flex items-start gap-3 bg-background hover:bg-muted/50 transition-colors">
                                                  <div className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full ${config.color} text-white shrink-0`}>
@@ -196,4 +206,3 @@ export default function AgendaPage() {
         </div>
     );
 }
-
