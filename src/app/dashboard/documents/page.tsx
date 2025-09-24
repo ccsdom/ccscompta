@@ -3,7 +3,6 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { DataValidationForm } from '@/components/data-validation-form';
-import { DocumentHistory } from '@/components/document-history';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { validateExtraction } from '@/ai/flows/validate-extraction';
@@ -12,51 +11,41 @@ import { fileToDataUri } from '@/lib/utils';
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
 import { getClients, updateClient } from '@/ai/flows/client-actions';
 import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, BookCopy, ArrowDownToLine, ArrowUpFromLine, Receipt, Landmark, Folder, FileSignature } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document, Client } from '@/lib/types';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BilanHistory } from '@/components/bilan-history';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { storage } from '@/lib/firebase-client';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { increment } from 'firebase/firestore';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
 
-const TABS_CONFIG = [
-    { value: 'achats', label: "Factures d'achat", icon: ArrowDownToLine, types: ['purchase invoice']},
-    { value: 'ventes', label: "Factures de vente", icon: ArrowUpFromLine, types: ['sales invoice']},
-    { value: 'recus', label: "Reçus", icon: Receipt, types: ['receipt']},
-    { value: 'releves', label: "Relevés bancaires", icon: Landmark, types: ['bank statement']},
-    { value: 'autres', label: "Autres", icon: Folder, types: ['other', undefined, '']}
-]
+const getStatusInfo = (status: Document['status']): { icon: React.ElementType, label: string, color: string } => {
+  switch (status) {
+    case 'pending': return { icon: FileClock, label: "En attente", color: "text-gray-500" };
+    case 'processing': return { icon: Loader2, label: "En traitement...", color: "text-blue-500 animate-spin" };
+    case 'reviewing': return { icon: FileWarning, label: "Prêt pour examen", color: "text-yellow-500" };
+    case 'approved': return { icon: CheckCircle, label: "Approuvé", color: "text-green-500" };
+    case 'error': return { icon: FileWarning, label: "Erreur", color: "text-red-500" };
+    default: return { icon: FileClock, label: "Inconnu", color: "text-gray-500" };
+  }
+};
 
 
 export default function DocumentsPage() {
@@ -176,8 +165,6 @@ export default function DocumentsPage() {
       const storageRef = ref(storage, docToProcess.storagePath);
       const downloadUrl = await getDownloadURL(storageRef);
       
-      // Use fetch in a try-catch to get the blob for AI processing
-      // This can fail due to CORS if not configured, but the app should still work
       let tempFile;
       let dataUrl: string | undefined;
       try {
@@ -311,6 +298,7 @@ export default function DocumentsPage() {
   
   const handleSetActiveDocument = async (doc: Document | null) => {
     if (doc) {
+        if (activeDocument?.id === doc.id) return;
         setZoom(1);
         setRotation(0);
         
@@ -496,6 +484,22 @@ export default function DocumentsPage() {
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
   }, [documents, searchQuery, searchCriteria, dashboardFilter]);
 
+  const groupedDocuments = useMemo(() => {
+    const groups: { [key: string]: Document[] } = {
+      'reviewing': [],
+      'pending': [],
+      'approved': [],
+      'error': [],
+      'processing': [],
+    };
+    filteredDocuments.forEach(doc => {
+      if (groups[doc.status]) {
+        groups[doc.status].push(doc);
+      }
+    });
+    return groups;
+  }, [filteredDocuments]);
+
   const clearFilters = () => {
     // Clear dashboard filter
     if (dashboardFilter) {
@@ -528,7 +532,7 @@ export default function DocumentsPage() {
     }
 
     return (
-        <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4 text-sm">
+        <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border text-sm mx-4">
             <span className="font-medium text-muted-foreground pl-2">{filterText}</span>
             <div className="flex-grow" />
              <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -540,7 +544,7 @@ export default function DocumentsPage() {
  };
 
   const BulkActionsToolbar = () => (
-    <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mb-4">
+    <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mx-4">
         <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
         <div className="flex-grow" />
         <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
@@ -569,120 +573,186 @@ export default function DocumentsPage() {
     </div>
   );
 
-  const MainContent = () => {
+  const DocumentList = () => {
     const clientName = clients.find(c => c.id === selectedClientId)?.name;
+
+    const documentGroups: { status: Document['status']; label: string }[] = [
+      { status: 'reviewing', label: 'Prêt pour examen' },
+      { status: 'pending', label: 'En attente de traitement' },
+      { status: 'approved', label: 'Approuvé' },
+      { status: 'error', label: 'Erreur' },
+      { status: 'processing', label: 'En cours de traitement' }
+    ];
 
     if (!selectedClientId) {
       return (
-        <Card className="h-full flex items-center justify-center">
-            <CardContent className="text-center p-6">
-                <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
-                <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client dans la barre latérale pour voir ses documents.</p>
-            </CardContent>
-        </Card>
-      )
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center">
+            <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
+            <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client pour voir ses documents.</p>
+          </div>
+        </div>
+      );
     }
-
+    
     return (
-        <Card className="flex flex-col h-full">
-            <CardHeader>
-                <CardTitle>Documents pour {clientName}</CardTitle>
-                <CardDescription>Traitez, validez et gérez les pièces comptables du client.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-0">
-                {selectedDocumentIds.length > 0 && <div className="px-6 pt-6"><BulkActionsToolbar /></div>}
-                <div className="px-6"><FilterDisplay /></div>
-                <Tabs defaultValue="documents" className="w-full flex-1 flex flex-col px-6">
-                    <TabsList className="grid grid-cols-2 w-full max-w-sm">
-                        <TabsTrigger value="documents">Pièces Comptables</TabsTrigger>
-                        <TabsTrigger value="bilans">Bilans</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="documents" className="flex-1 mt-4 overflow-hidden">
-                        <Tabs defaultValue="achats" className="w-full h-full flex flex-col">
-                            <TabsList className="grid w-full grid-cols-5">
-                                {TABS_CONFIG.map(tab => (
-                                    <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
-                                ))}
-                            </TabsList>
-                            {TABS_CONFIG.map(tab => {
-                                const docsForTab = filteredDocuments.filter(doc => tab.types.includes(doc.type) || (tab.value === 'autres' && !TABS_CONFIG.flatMap(t=>t.types).filter(Boolean).includes(doc.type)));
-                                return (
-                                    <TabsContent key={tab.value} value={tab.value} className="mt-4 flex-1 overflow-auto">
-                                        <DocumentHistory
-                                            documents={docsForTab}
-                                            onProcess={handleProcessDocument}
-                                            onDelete={handleDeleteSingle}
-                                            activeDocumentId={activeDocument?.id}
-                                            setActiveDocument={handleSetActiveDocument}
-                                            selectedDocumentIds={selectedDocumentIds}
-                                            setSelectedDocumentIds={setSelectedDocumentIds}
-                                            isLoading={isLoading}
-                                        />
-                                    </TabsContent>
-                                )
-                            })}
-                        </Tabs>
-                    </TabsContent>
-                    <TabsContent value="bilans" className="flex-1 mt-4">
-                        <BilanHistory clientId={selectedClientId} />
-                    </TabsContent>
-                </Tabs>
-            </CardContent>
-        </Card>
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b">
+            <h2 className="text-lg font-semibold tracking-tight">Documents pour {clientName}</h2>
+            <p className="text-sm text-muted-foreground">{documents.length} document(s) au total.</p>
+        </div>
+
+        <FilterDisplay />
+        {selectedDocumentIds.length > 0 && <div className="mt-4"><BulkActionsToolbar /></div>}
+        
+        <ScrollArea className="flex-1">
+          <div className="p-4">
+            {isLoading ? (
+                <div className="space-y-2">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                </div>
+            ) : (
+              <Accordion type="multiple" defaultValue={['reviewing', 'pending']} className="w-full">
+                {documentGroups.map(group => {
+                  const docsInGroup = groupedDocuments[group.status];
+                  if (docsInGroup.length === 0) return null;
+
+                  return (
+                    <AccordionItem value={group.status} key={group.status}>
+                      <AccordionTrigger>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {getStatusInfo(group.status).icon({ className: getStatusInfo(group.status).color + " h-4 w-4"})}
+                          {group.label}
+                          <Badge variant="secondary">{docsInGroup.length}</Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-0">
+                        <div className="space-y-2">
+                          {docsInGroup.map(doc => (
+                            <button
+                              key={doc.id}
+                              onClick={() => handleSetActiveDocument(doc)}
+                              className={cn(
+                                'w-full text-left p-2 rounded-lg border flex items-start gap-3 transition-colors',
+                                activeDocument?.id === doc.id ? 'bg-muted border-primary' : 'hover:bg-muted/50'
+                              )}
+                            >
+                               <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                                 <Checkbox
+                                      onCheckedChange={(checked) => {
+                                        setSelectedDocumentIds(prev => 
+                                          checked ? [...prev, doc.id] : prev.filter(id => id !== doc.id)
+                                        );
+                                      }}
+                                      checked={selectedDocumentIds.includes(doc.id)}
+                                      aria-label={`Sélectionner ${doc.name}`}
+                                  />
+                               </div>
+
+                              <div className="flex-1 overflow-hidden">
+                                <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
+                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(doc.uploadDate), { addSuffix: true, locale: fr })}</p>
+                              </div>
+
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                {doc.status === 'pending' || doc.status === 'error' ? (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(doc.id)}>
+                                            <Play className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Lancer le traitement</p></TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )
+                })}
+              </Accordion>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
     );
   }
 
-  const DetailViewDialog = () => {
-    if (!activeDocument) return null;
+  const DocumentPreview = () => {
+    if (!selectedClientId) return null; // Don't show preview if no client is selected
 
-    return (
-        <Dialog open={!!activeDocument} onOpenChange={(open) => { if (!open) setActiveDocument(null)}}>
-            <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="p-4 border-b">
-                    <DialogTitle>{activeDocument.name}</DialogTitle>
-                    <DialogDescription>Validez les données extraites par l'IA ou laissez des commentaires.</DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 lg:grid-cols-2 flex-1 overflow-hidden">
-                    <div className="relative bg-muted h-full overflow-hidden">
-                       <PreviewControls />
-                       <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
-                            {activeDocument.dataUrl ? (
-                                <iframe 
-                                    src={activeDocument.dataUrl} 
-                                    className="w-full h-full border-0 transition-transform duration-300"
-                                    style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
-                                    title="Aperçu du document" 
-                                />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-                                    <Loader2 className="h-8 w-8 animate-spin mb-4"/>
-                                    <p>Chargement de l'aperçu...</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="h-full overflow-y-auto">
-                        <DataValidationForm
-                            key={activeDocument.id}
-                            document={activeDocument}
-                            onUpdate={handleUpdateDocumentData}
-                            isLoading={isProcessing}
-                            onAddComment={handleAddComment}
-                            onUpdateDocumentInList={updateLocalDocument}
-                         />
-                    </div>
+    if (!activeDocument) {
+        return (
+            <div className="h-full flex items-center justify-center bg-muted/50 rounded-lg">
+                <div className="text-center">
+                    <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold">Sélectionnez un document</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Cliquez sur un document dans la liste pour le visualiser.</p>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        )
+    }
+    
+    return (
+         <div className="relative bg-muted/30 h-full overflow-hidden rounded-lg border">
+            <PreviewControls />
+            <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
+                {activeDocument.dataUrl ? (
+                    <iframe 
+                        src={activeDocument.dataUrl} 
+                        className="w-full h-full border-0 transition-transform duration-300"
+                        style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
+                        title="Aperçu du document" 
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin mb-4"/>
+                        <p>Chargement de l'aperçu...</p>
+                    </div>
+                )}
+            </div>
+        </div>
     )
   }
 
+  const ValidationPanel = () => {
+     if (!selectedClientId || !activeDocument) return null;
+
+     return (
+        <DataValidationForm
+            key={activeDocument.id}
+            document={activeDocument}
+            onUpdate={handleUpdateDocumentData}
+            isLoading={isProcessing}
+            onAddComment={handleAddComment}
+            onUpdateDocumentInList={updateLocalDocument}
+        />
+     )
+  }
 
   return (
-    <div className="h-[calc(100vh-10rem)]">
-        <MainContent />
-        <DetailViewDialog />
-    </div>
+    <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-5rem)] w-full rounded-lg border">
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+            <DocumentList />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={45}>
+            <DocumentPreview />
+        </ResizablePanel>
+         <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={30} minSize={25} maxSize={40}>
+            <ValidationPanel />
+        </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
