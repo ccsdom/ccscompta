@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { MessageSquare, Bot, Send, X, Loader2, GripVertical } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
@@ -22,6 +23,7 @@ export function SupportChatbot() {
     const [documentation, setDocumentation] = useState<string | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const [isMounted, setIsMounted] = useState(false);
+    const dragControls = useDragControls();
 
     useEffect(() => {
         setIsMounted(true);
@@ -94,8 +96,9 @@ export function SupportChatbot() {
                 {isOpen && (
                     <motion.div
                         drag
+                        dragListener={false}
                         dragMomentum={false}
-                        dragControls={{}}
+                        dragControls={dragControls}
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -103,7 +106,7 @@ export function SupportChatbot() {
                         className="fixed bottom-0 right-0 z-[51] h-full w-full md:h-auto md:w-auto md:max-h-[calc(100vh-4rem)] md:max-w-sm md:bottom-20 md:right-4"
                     >
                         <Card className="h-full w-full flex flex-col shadow-2xl rounded-none md:rounded-lg overflow-hidden">
-                             <motion.div drag="x" dragMomentum={false} className="cursor-move">
+                             <motion.div onPointerDown={(e) => dragControls.start(e, { snapToCursor: false })} className="cursor-grab active:cursor-grabbing">
                                 <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
                                     <div className="flex items-center gap-3">
                                         <div className="relative">
@@ -118,7 +121,7 @@ export function SupportChatbot() {
                                         </div>
                                     </div>
                                     <div className="flex items-center">
-                                      <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                                      <GripVertical className="h-5 w-5 text-muted-foreground" />
                                       <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                                           <X className="h-4 w-4" />
                                           <span className="sr-only">Fermer le chat</span>
@@ -177,13 +180,11 @@ export function SupportChatbot() {
             </AnimatePresence>
 
             <motion.div
-                drag
-                dragMomentum={false}
                 className="fixed bottom-24 right-4 z-[51] md:bottom-4"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
             >
-                <Button size="icon" className="rounded-full w-14 h-14 shadow-lg cursor-grab" onClick={() => setIsOpen(!isOpen)}>
+                <Button size="icon" className="rounded-full w-14 h-14 shadow-lg" onClick={() => setIsOpen(!isOpen)}>
                     <AnimatePresence>
                          {isOpen ? (
                             <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}><X className="h-6 w-6" /></motion.div>
