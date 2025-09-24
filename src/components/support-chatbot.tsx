@@ -89,7 +89,7 @@ export function SupportChatbot() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
-                        className="fixed bottom-24 right-4 z-50"
+                        className="fixed bottom-24 right-4 z-[51] md:bottom-4"
                     >
                         <Card className="w-[380px] h-[550px] flex flex-col shadow-2xl">
                              <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
@@ -158,7 +158,7 @@ export function SupportChatbot() {
             </AnimatePresence>
 
             <motion.div
-                className="fixed bottom-4 right-4 z-50"
+                className="fixed bottom-24 right-4 z-[51] md:bottom-4"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
             >
