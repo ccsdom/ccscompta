@@ -307,42 +307,38 @@ export default function BillingPage() {
                     </div>
 
                     {/* Mobile Card List */}
-                    <div className="md:hidden space-y-4">
+                     <div className="md:hidden space-y-4">
                        {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
                            <Card key={invoice.id}>
-                               <CardContent className="p-4 flex flex-col gap-3">
-                                   <div className="flex justify-between items-start">
-                                       <div>
-                                           <p className="font-semibold">{invoice.clientName}</p>
-                                           <p className="text-sm text-muted-foreground">{invoice.number}</p>
-                                       </div>
-                                       {getStatusBadge(invoice.status)}
+                               <CardHeader className="flex flex-row justify-between items-start pb-2">
+                                   <div>
+                                       <CardTitle className="text-base">{invoice.clientName}</CardTitle>
+                                       <CardDescription>{invoice.number}</CardDescription>
                                    </div>
-                                    <div className="flex justify-between items-end text-sm">
-                                        <div className="text-muted-foreground">
-                                            <p>Échéance: {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
-                                            <p className="text-lg font-bold text-foreground">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-                                        </div>
-                                       <DropdownMenu>
-                                           <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                    <span className="sr-only">Actions</span>
-                                                </Button>
-                                           </DropdownMenuTrigger>
-                                           <DropdownMenuContent align="end">
-                                               <DropdownMenuItem>
-                                                    <Download className="mr-2 h-4 w-4" />
-                                                    Télécharger
-                                               </DropdownMenuItem>
-                                           </DropdownMenuContent>
-                                       </DropdownMenu>
-                                   </div>
+                                   {getStatusBadge(invoice.status)}
+                               </CardHeader>
+                               <CardContent className="flex flex-col items-center justify-center p-4">
+                                   <p className="text-3xl font-bold text-foreground mb-1">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
+                                   <p className="text-sm text-muted-foreground">Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
                                </CardContent>
+                               <CardFooter className="flex justify-end gap-2 p-4 pt-0">
+                                   <Button variant="ghost" size="icon">
+                                       <Download className="h-4 w-4" />
+                                       <span className="sr-only">Télécharger</span>
+                                   </Button>
+                                   {invoice.status !== 'paid' && (
+                                       <Button>
+                                           <CreditCard className="mr-2 h-4 w-4" />
+                                           Payer
+                                       </Button>
+                                   )}
+                               </CardFooter>
                            </Card>
                        )) : (
-                            <div className="h-24 text-center flex items-center justify-center text-muted-foreground">
-                                Aucune facture ne correspond à vos filtres.
+                            <div className="h-48 text-center flex flex-col items-center justify-center text-muted-foreground">
+                                <FilterX className="h-10 w-10 mb-2"/>
+                                <p className="font-semibold">Aucune facture trouvée</p>
+                                <p className="text-sm">Essayez de modifier vos filtres.</p>
                             </div>
                        )}
                     </div>
@@ -356,5 +352,3 @@ export default function BillingPage() {
 
     
 }
-
-    
