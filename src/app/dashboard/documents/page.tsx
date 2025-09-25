@@ -301,7 +301,11 @@ export default function DocumentsPage() {
   
   const handleSetActiveDocument = async (doc: Document | null) => {
     if (doc) {
-        if (activeDocument?.id === doc.id) return;
+        if (activeDocument?.id === doc.id) {
+           // If the same doc is clicked and it's on mobile, open the sheet
+           if(window.innerWidth < 768 && !isSheetOpen) setIsSheetOpen(true);
+           return;
+        }
         setZoom(1);
         setRotation(0);
         
@@ -605,10 +609,6 @@ export default function DocumentsPage() {
     
     return (
       <div className="flex flex-col h-full">
-        <div className="p-4 border-b shrink-0 md:hidden">
-            <p className="text-sm text-muted-foreground">{documents.length} document(s) au total.</p>
-        </div>
-
         <div className="shrink-0 pt-4">
           <FilterDisplay />
           {selectedDocumentIds.length > 0 && <div className="mt-4"><BulkActionsToolbar /></div>}
@@ -654,7 +654,6 @@ export default function DocumentsPage() {
                                         );
                                       }}
                                       checked={selectedDocumentIds.includes(doc.id)}
-                                      indeterminate={selectedDocumentIds.includes(doc.id) ? false : undefined}
                                       aria-label={`Sélectionner ${doc.name}`}
                                   />
                                </div>
@@ -764,10 +763,15 @@ export default function DocumentsPage() {
   }
 
   const MobileView = () => (
-    <div className="md:hidden">
-        <DocumentList />
+    <div className="md:hidden h-full flex flex-col">
+        <div className="p-4 border-b">
+             <ClientSwitcher />
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <DocumentList />
+        </div>
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetContent className="w-full h-full p-0 flex flex-col" side="bottom">
+            <SheetContent className="w-full h-[90%] p-0 flex flex-col" side="bottom">
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle className="truncate">{activeDocument?.name}</SheetTitle>
                     <SheetDescription>Validez les informations du document</SheetDescription>
@@ -782,11 +786,18 @@ export default function DocumentsPage() {
 
   const DesktopView = () => (
      <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-lg border">
-        <ResizablePanel defaultSize={50} minSize={30}>
-            <DocumentList />
+        <ResizablePanel defaultSize={35} minSize={25}>
+          <div className="flex flex-col h-full">
+            <div className="p-4 border-b">
+              <ClientSwitcher />
+            </div>
+            <div className="flex-1 min-h-0">
+               <DocumentList />
+            </div>
+          </div>
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={30}>
+        <ResizablePanel defaultSize={65} minSize={40}>
             <DocumentPreviewAndForm />
         </ResizablePanel>
     </ResizablePanelGroup>
@@ -794,13 +805,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col">
-        <div className="px-4 pt-4">
-            <h1 className="text-2xl font-bold tracking-tight">Gestion des documents</h1>
-            <div className="mt-2 w-full max-w-sm">
-                <ClientSwitcher />
-            </div>
-        </div>
-        <div className="flex-1 mt-4">
+        <div className="flex-1 min-h-0">
             <MobileView />
             <DesktopView />
         </div>
