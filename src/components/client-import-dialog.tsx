@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download } from "lucide-react";
+import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download, UserPlus } from "lucide-react";
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/lib/types';
@@ -12,6 +12,7 @@ import { addClient } from '@/ai/flows/client-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
@@ -97,7 +98,6 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         let errorCount = 0;
         
         for (const clientData of parsedData) {
-            // Note: This flow now requires manual user creation in Firebase Auth
             const result = await addClient({
                 ...clientData,
                 status: 'onboarding',
@@ -113,11 +113,17 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         if (importedCount > 0) {
             toast({
                 duration: 20000,
-                title: 'Importation terminée',
+                title: 'Importation terminée, action requise !',
                 description: (
                     <div className="space-y-2">
-                        <p>{importedCount} clients ont été ajoutés avec succès.</p>
-                        <p className="font-bold">Action requise : Vous devez maintenant créer manuellement un utilisateur dans Firebase Authentication pour chaque client importé afin qu'il puisse se connecter.</p>
+                        <p>{importedCount} profils clients ont été ajoutés avec succès.</p>
+                        <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
+                             <UserPlus className="h-4 w-4" />
+                             <AlertTitle>Créez les comptes utilisateurs</AlertTitle>
+                             <AlertDescription>
+                                Vous devez maintenant créer manuellement un compte pour chaque client dans la console Firebase Authentication pour qu'ils puissent se connecter.
+                             </AlertDescription>
+                         </Alert>
                     </div>
                 )
             });
