@@ -135,13 +135,13 @@ export default function FeaturesPage() {
         </section>
       </main>
 
-       <footer className="border-t">
+      <footer className="border-t">
         <div className="container mx-auto max-w-7xl px-4 py-8">
-            <div className="flex flex-col-reverse items-center justify-between gap-4 md:flex-row">
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col items-center justify-center gap-4 md:flex-row md:justify-between">
+                <p className="text-sm text-muted-foreground text-center md:text-left">
                     &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
                 </p>
-                 <nav className="flex items-center gap-4">
+                <nav className="flex items-center gap-4">
                     <Link href="/features" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
                         Fonctionnalités
                     </Link>
