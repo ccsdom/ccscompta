@@ -583,8 +583,6 @@ export default function DocumentsPage() {
   );
 
   const DocumentList = () => {
-    const clientName = clients.find(c => c.id === selectedClientId)?.name;
-
     const documentGroups: { status: Document['status']; label: string }[] = [
       { status: 'reviewing', label: 'Prêt pour examen' },
       { status: 'pending', label: 'En attente de traitement' },
@@ -607,8 +605,7 @@ export default function DocumentsPage() {
     
     return (
       <div className="flex flex-col h-full">
-        <div className="p-4 border-b shrink-0">
-            <h2 className="text-lg font-semibold tracking-tight">Documents pour {clientName}</h2>
+        <div className="p-4 border-b shrink-0 md:hidden">
             <p className="text-sm text-muted-foreground">{documents.length} document(s) au total.</p>
         </div>
 
