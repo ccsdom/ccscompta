@@ -781,7 +781,7 @@ export default function DocumentsPage() {
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle className="truncate">{activeDocument?.name}</SheetTitle>
                     <SheetDescription className="flex items-center gap-x-3">
-                      <span>{getSheetStatusInfo()}</span>
+                      {getSheetStatusInfo()}
                       {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(new Date(activeDocument.uploadDate), { addSuffix: true, locale: fr })}</span>}
                     </SheetDescription>
                 </SheetHeader>
@@ -822,4 +822,3 @@ export default function DocumentsPage() {
   );
 }
 
-    
