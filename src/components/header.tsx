@@ -207,7 +207,7 @@ export function Header({children}: {children?: React.ReactNode}) {
   }
 
   const ImpersonationBanner = () => (
-     <div className="absolute top-0 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg">
+     <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg">
         <AlertTriangle className="h-4 w-4 mr-2"/>
         Vous naviguez en tant que <span className="font-bold mx-1">{impersonatedClientName}</span>.
         <Button variant="link" size="sm" className="text-yellow-900 hover:text-black font-bold h-auto p-0 ml-2" onClick={handleStopImpersonating}>
@@ -233,7 +233,8 @@ export function Header({children}: {children?: React.ReactNode}) {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
+      {isImpersonating && <ImpersonationBanner />}
+      <div className={cn("container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4", isImpersonating && "pt-10")}>
         {children}
         
         <div className="flex-1">
@@ -263,15 +264,6 @@ export function Header({children}: {children?: React.ReactNode}) {
         </div>
         
         <div className="flex items-center space-x-1 md:space-x-2">
-            {isImpersonating && (
-              <Badge variant="destructive" className="hidden sm:flex items-center gap-2 h-9">
-                <LogIn className="h-4 w-4"/>
-                <div className="flex flex-col items-start">
-                  <span className="text-xs -mb-1">Vue Client</span>
-                  <span className="font-bold">{impersonatedClientName}</span>
-                </div>
-              </Badge>
-            )}
             {userRole === 'client' && <QuickUpload />}
 
              <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
@@ -358,7 +350,7 @@ export function Header({children}: {children?: React.ReactNode}) {
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/support">
+                        <Link href="/support">
                             <LifeBuoy className="mr-2 h-4 w-4" /> Aide & Support
                         </Link>
                     </DropdownMenuItem>

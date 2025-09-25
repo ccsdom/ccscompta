@@ -368,12 +368,9 @@ export default function BillingPage() {
                     </div>
                 </CardContent>
                  <CardFooter className="text-xs text-muted-foreground p-6">
-                    <p>Pour toute question concernant une facture, veuillez contacter directement votre gestionnaire de dossier.</p>
+                    <p>Pour toute question concernant une facture, veuillez contacter votre gestionnaire de dossier.</p>
                 </CardFooter>
             </Card>
         </div>
     )
-
-    
-
 }
