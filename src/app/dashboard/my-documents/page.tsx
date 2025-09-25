@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import { updateClient } from '@/ai/flows/client-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine, ShieldWarning } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine, ShieldAlert } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -364,7 +364,7 @@ export default function MyDocumentsPage() {
     <div className="space-y-6">
        {showPasswordAlert && (
         <Alert variant="destructive" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300">
-          <ShieldWarning className="h-4 w-4 !text-yellow-600 dark:!text-yellow-400" />
+          <ShieldAlert className="h-4 w-4 !text-yellow-600 dark:!text-yellow-400" />
           <AlertTitle className="font-bold text-yellow-900 dark:text-yellow-200">Action requise : Sécurisez votre compte !</AlertTitle>
           <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-2">
             <div>
