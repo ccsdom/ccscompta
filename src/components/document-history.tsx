@@ -1,9 +1,10 @@
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Play, Eye, Trash2, FileClock, Loader2 } from "lucide-react";
+import { Play, Eye, Trash2, FileClock, Loader2, FileText } from "lucide-react";
 import type { Document } from "@/lib/types";
 import React from 'react';
 import {
@@ -67,49 +68,6 @@ const groupDocumentsByMonth = (documents: Document[]) => {
 
 export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds, isLoading }: DocumentHistoryProps) {
 
-    const handleSelectRow = (id: string, checked: boolean) => {
-        if (checked) {
-            setSelectedDocumentIds(prev => [...prev, id]);
-        } else {
-            setSelectedDocumentIds(prev => prev.filter(docId => docId !== id));
-        }
-    }
-  
-    if (isLoading) {
-         return (
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[40px] px-4"><Checkbox disabled /></TableHead>
-                        <TableHead>Document</TableHead>
-                        <TableHead className="hidden lg:table-cell">Fournisseur</TableHead>
-                        <TableHead className="hidden md:table-cell text-right">Montant</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead className="text-right w-[140px]">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                 <TableBody>
-                    {Array.from({length: 5}).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell className="px-4"><Checkbox disabled /></TableCell>
-                            <TableCell className="space-y-1">
-                                <div className="h-4 bg-muted rounded w-3/4 animate-pulse"></div>
-                                <div className="h-3 bg-muted rounded w-1/2 animate-pulse"></div>
-                            </TableCell>
-                            <TableCell className="hidden lg:table-cell"><div className="h-4 bg-muted rounded w-20 animate-pulse"></div></TableCell>
-                            <TableCell className="hidden md:table-cell"><div className="h-4 bg-muted rounded w-16 ml-auto animate-pulse"></div></TableCell>
-                            <TableCell><div className="h-6 bg-muted rounded-full w-24 animate-pulse"></div></TableCell>
-                            <TableCell className="text-right space-x-1">
-                                <div className="h-8 w-8 bg-muted rounded-md inline-block animate-pulse"></div>
-                                <div className="h-8 w-8 bg-muted rounded-md inline-block animate-pulse"></div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                 </TableBody>
-            </Table>
-        )
-    }
-
     const monthlyGroups = groupDocumentsByMonth(documents);
     const sortedMonths = Object.keys(monthlyGroups).sort((a,b) => new Date(monthlyGroups[b][0].uploadDate).getTime() - new Date(monthlyGroups[a][0].uploadDate).getTime());
 
@@ -125,120 +83,88 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
 
     return (
         <div className="space-y-6">
-            {sortedMonths.map(month => (
-                 <div key={month}>
-                    <h4 className="text-sm font-semibold p-3 capitalize">{month}</h4>
-                     <Card>
-                        <CardContent className="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[40px] px-4">
-                                                <Checkbox
-                                                onCheckedChange={(checked) => {
-                                                    const docIds = monthlyGroups[month].map(d => d.id);
-                                                    if (checked) {
-                                                        setSelectedDocumentIds(prev => [...new Set([...prev, ...docIds])]);
-                                                    } else {
-                                                        setSelectedDocumentIds(prev => prev.filter(id => !docIds.includes(id)));
-                                                    }
-                                                }}
-                                                checked={monthlyGroups[month].length > 0 && monthlyGroups[month].every(d => selectedDocumentIds.includes(d.id))}
-                                                indeterminate={monthlyGroups[month].some(d => selectedDocumentIds.includes(d.id)) && !monthlyGroups[month].every(d => selectedDocumentIds.includes(d.id))}
-                                                aria-label={`Sélectionner tous les documents pour ${month}`}
-                                            />
-                                        </TableHead>
-                                        <TableHead>Document</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Fournisseur</TableHead>
-                                        <TableHead className="hidden md:table-cell text-right">Montant</TableHead>
-                                        <TableHead>Statut</TableHead>
-                                        <TableHead className="text-right w-[140px]">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {monthlyGroups[month].map((doc) => (
-                                    <TableRow 
-                                        key={doc.id} 
-                                        data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
-                                        className={`cursor-pointer`}
-                                        onClick={() => setActiveDocument(doc)}
-                                    >
-                                        <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
-                                            <Checkbox
-                                                onCheckedChange={(checked) => handleSelectRow(doc.id, !!checked)}
-                                                checked={selectedDocumentIds.includes(doc.id)}
-                                                aria-label={`Sélectionner ${doc.name}`}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="font-medium max-w-[150px] md:max-w-xs truncate" title={doc.name}>{doc.name}</div>
-                                            <div className="text-xs text-muted-foreground">{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</div>
-                                        </TableCell>
-                                        <TableCell className="hidden lg:table-cell text-muted-foreground">{doc.extractedData?.vendorNames?.[0] || 'N/A'}</TableCell>
-                                        <TableCell className="hidden md:table-cell text-right font-mono text-sm">
-                                            {doc.extractedData?.amounts?.[0]?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) || '-'}
-                                        </TableCell>
-                                        <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                        <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                                        <TooltipProvider>
-                                            {(doc.status === 'pending' || doc.status === 'error') && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" onClick={() => onProcess(doc.id)}>
-                                                            <Play className="h-4 w-4" />
-                                                            <span className="sr-only">Traiter</span>
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>Traiter le document</p></TooltipContent>
-                                                </Tooltip>
-                                            )}
-                                            {(doc.status === 'reviewing' || doc.status === 'approved' || doc.status === 'processing') && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" onClick={() => setActiveDocument(doc)}>
-                                                            <Eye className="h-4 w-4" />
-                                                            <span className="sr-only">Afficher</span>
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>Afficher les détails</p></TooltipContent>
-                                                </Tooltip>
-                                            )}
-
-                                            <AlertDialog>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                                                <Trash2 className="h-4 w-4" />
-                                                                <span className="sr-only">Supprimer</span>
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="border-destructive text-destructive"><p>Supprimer le document</p></TooltipContent>
-                                                </Tooltip>
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Document</TableHead>
+                            <TableHead>Date de téléversement</TableHead>
+                            <TableHead>Statut</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {documents.map((doc) => (
+                        <TableRow 
+                            key={doc.id} 
+                            data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
+                            className="cursor-pointer"
+                            onClick={() => setActiveDocument(doc)}
+                        >
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-muted p-2 rounded-md">
+                                        <FileText className="h-5 w-5 text-muted-foreground"/>
+                                    </div>
+                                    <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                            <TableCell className="text-right space-x-2">
+                                <Button variant="outline" size="icon" onClick={() => setActiveDocument(doc)}><Eye className="h-4 w-4"/></Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                        <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+            
+            {/* Mobile Card List View */}
+            <div className="space-y-6 md:hidden">
+                {sortedMonths.map(month => (
+                    <div key={month}>
+                        <h4 className="text-sm font-semibold p-1 capitalize mb-2">{month}</h4>
+                        <div className="space-y-4">
+                            {monthlyGroups[month].map(doc => (
+                                <Card key={doc.id} onClick={() => setActiveDocument(doc)} className="cursor-pointer active:border-primary">
+                                    <CardHeader className="p-4">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="font-medium truncate" title={doc.name}>{doc.name}</div>
+                                             <AlertDialog>
+                                                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 -mt-1 -mr-1 shrink-0" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4 text-muted-foreground"/></Button>
+                                                </AlertDialogTrigger>
                                                 <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                    <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Cette action est irréversible. Le document "{doc.name}" sera définitivement supprimé.
-                                                    </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
-                                                    </AlertDialogFooter>
+                                                  <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
+                                                  <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
-                                            </TooltipProvider>
-                                        </TableCell>
-                                    </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                     </Card>
-                 </div>
-            ))}
+                                        </div>
+                                        <CardDescription>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</CardDescription>
+                                    </CardHeader>
+                                    <CardFooter className="p-4 flex justify-between items-center">
+                                        {getStatusBadge(doc.status)}
+                                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setActiveDocument(doc); }}><Eye className="h-4 w-4 mr-2"/>Voir</Button>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
+
+    

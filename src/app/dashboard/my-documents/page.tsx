@@ -4,16 +4,14 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
-import { fileToDataUri } from '@/lib/utils';
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import { updateClient } from '@/ai/flows/client-actions';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
@@ -24,6 +22,8 @@ import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow
 import { storage } from '@/lib/firebase-client';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { increment } from 'firebase/firestore';
+import { DocumentHistory } from '@/components/document-history';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -49,23 +49,6 @@ const getStatusBadge = (status: Document['status']) => {
   }
 };
 
-const typeToGroupMap: Record<string, string> = {
-    'purchase invoice': "Factures d'achat",
-    'sales invoice': "Factures de vente",
-    'receipt': "Reçus",
-    'bank statement': "Relevés bancaires",
-};
-
-const getGroupIcon = (groupName: string) => {
-    switch (groupName) {
-        case "Factures d'achat": return ArrowDownToLine;
-        case "Factures de vente": return ArrowUpFromLine;
-        case "Reçus": return Receipt;
-        case "Relevés bancaires": return Landmark;
-        default: return Folder;
-    }
-}
-
 
 export default function MyDocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -82,7 +65,7 @@ export default function MyDocumentsPage() {
     setIsLoading(true);
     try {
         const docs = await getDocuments(id);
-        setDocuments(docs);
+        setDocuments(docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
     } catch (error) {
         console.error("Error fetching documents", error);
         toast({title: "Erreur", description: "Impossible de charger les documents.", variant: "destructive"});
@@ -115,20 +98,6 @@ export default function MyDocumentsPage() {
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
   }, [clientId, fetchDocuments])
-
-  const createNotification = (doc: Document, message: string) => {
-    const newNotification: Notification = {
-      id: crypto.randomUUID(),
-      documentId: doc.id,
-      documentName: doc.name,
-      message,
-      date: new Date().toISOString(),
-      isRead: false
-    };
-    const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
-    localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-    window.dispatchEvent(new Event('storage'));
-  };
 
   const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
     const event: AuditEvent = {
@@ -250,39 +219,39 @@ export default function MyDocumentsPage() {
     setIsSheetOpen(true);
   }
   
-  const groupedDocuments = useMemo(() => {
-        let filteredDocs = [...documents];
+  const filteredDocuments = useMemo(() => {
+        let docs = [...documents];
         if (searchCriteria) { 
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
             if (documentTypes && documentTypes.length > 0) {
-                filteredDocs = filteredDocs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
+                docs = docs.filter(d => d.type && documentTypes.some(type => d.type!.toLowerCase().includes(type.toLowerCase())));
             }
             if (minAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
             }
             if (maxAmount) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
+                docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
             if (endDate) {
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
-                filteredDocs = filteredDocs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
+                docs = docs.filter(d => d.extractedData?.vendorNames?.some(v => v != null && v.toLowerCase().includes(lowerVendor)));
             }
             if (keywords && keywords.length > 0) {
-                filteredDocs = filteredDocs.filter(d => {
+                docs = docs.filter(d => {
                     const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
-             if (!filteredDocs.length && originalQuery) {
+             if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 filteredDocs = [...documents].filter(doc => 
+                 docs = [...documents].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowercasedQuery)))
                 );
@@ -290,46 +259,13 @@ export default function MyDocumentsPage() {
         }
         else if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
-            filteredDocs = filteredDocs.filter(doc => 
+            docs = docs.filter(doc => 
                 doc.name.toLowerCase().includes(lowercasedQuery) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
         
-        const sortedDocs = filteredDocs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
-
-        const typeGroups: { [key: string]: Document[] } = {};
-        sortedDocs.forEach(doc => {
-            const groupName = typeToGroupMap[doc.type || ''] || 'Autres documents';
-            if (!typeGroups[groupName]) {
-                typeGroups[groupName] = [];
-            }
-            typeGroups[groupName].push(doc);
-        });
-
-        const groupOrder = ["Factures de vente", "Factures d'achat", "Reçus", "Relevés bancaires", "Autres documents"];
-
-        return groupOrder
-            .map(title => {
-                const docsInGroup = typeGroups[title] || [];
-                if (docsInGroup.length === 0) return null;
-
-                const monthGroups: { [key: string]: Document[] } = {};
-                docsInGroup.forEach(doc => {
-                    const monthKey = format(new Date(doc.uploadDate), 'LLLL yyyy', { locale: fr });
-                    if(!monthGroups[monthKey]) {
-                        monthGroups[monthKey] = [];
-                    }
-                    monthGroups[monthKey].push(doc);
-                });
-
-                return {
-                    title,
-                    icon: getGroupIcon(title),
-                    monthlyGroups: Object.entries(monthGroups).map(([month, documents]) => ({ month, documents })).sort((a, b) => new Date(b.documents[0].uploadDate).getTime() - new Date(a.documents[0].uploadDate).getTime()),
-                };
-            })
-            .filter(Boolean);
+        return docs;
 
   }, [documents, searchQuery, searchCriteria]);
 
@@ -413,7 +349,7 @@ export default function MyDocumentsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Mes Documents</h1>
-        <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables classées par catégorie.</p>
+        <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables.</p>
       </div>
 
       <Card>
@@ -426,116 +362,38 @@ export default function MyDocumentsPage() {
         </CardContent>
       </Card>
       
-        {isLoading ? (
-            <div className="space-y-4">
-                <div className="h-10 w-1/3 bg-muted rounded-md animate-pulse"></div>
-                <div className="border rounded-lg">
-                    <div className="h-14 bg-muted/50 rounded-t-lg"></div>
-                    <div className="p-4 space-y-2">
-                        <div className="h-12 bg-muted rounded-md animate-pulse"></div>
-                        <div className="h-12 bg-muted rounded-md animate-pulse"></div>
-                    </div>
-                </div>
-            </div>
-        ) : groupedDocuments.length > 0 ? (
-             (groupedDocuments as { title: string; icon: React.ElementType; monthlyGroups: { month: string; documents: Document[] } }[]).map((group) => (
-                group && (
-                    <div key={group.title}>
-                        <h3 className="text-xl font-semibold tracking-tight flex items-center gap-3 my-6">
-                           <group.icon className="h-6 w-6" /> {group.title}
-                        </h3>
-                        {group.monthlyGroups.map(monthGroup => (
-                            <div key={monthGroup.month} className="mb-6">
-                                <h4 className="text-sm font-semibold p-3 capitalize">{monthGroup.month}</h4>
-                                
-                                {/* Desktop Table */}
-                                <div className="hidden md:block">
-                                  <Card>
-                                    <CardContent className="p-0">
-                                      <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Document</TableHead>
-                                                <TableHead>Date de téléversement</TableHead>
-                                                <TableHead>Statut</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                        {monthGroup.documents.map(doc => (
-                                                <TableRow key={doc.id}>
-                                                    <TableCell className="font-medium">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="bg-muted p-2 rounded-md">
-                                                                <FileText className="h-5 w-5 text-muted-foreground"/>
-                                                            </div>
-                                                            <span className="truncate max-w-xs" title={doc.name}>{doc.name}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
-                                                    <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                                    <TableCell className="text-right space-x-2">
-                                                        <Button variant="outline" size="icon" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4"/></Button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="outline" size="icon" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
-                                                                <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                      </Table>
-                                    </CardContent>
-                                  </Card>
-                                </div>
-
-                                {/* Mobile Card List */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
-                                    {monthGroup.documents.map(doc => (
-                                        <Card key={doc.id}>
-                                            <CardHeader className="p-4">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="font-medium truncate" title={doc.name}>{doc.name}</div>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 -mt-1 -mr-1 shrink-0" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4 text-muted-foreground"/></Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                          <AlertDialogHeader><AlertDialogTitle>Êtes-vous certain ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé.</AlertDialogDescription></AlertDialogHeader>
-                                                          <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                                <CardDescription>{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</CardDescription>
-                                            </CardHeader>
-                                            <CardFooter className="p-4 flex justify-between items-center">
-                                                {getStatusBadge(doc.status)}
-                                                <Button size="sm" variant="outline" onClick={() => handleSetActive(doc)}><Eye className="h-4 w-4 mr-2"/>Voir</Button>
-                                            </CardFooter>
-                                        </Card>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )
-            ))
-        ) : (
-             <Card>
-                <CardContent className="h-48 flex flex-col items-center justify-center text-center">
-                    <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
-                </CardContent>
-            </Card>
-        )}
+      <div>
+          <h2 className="text-2xl font-semibold tracking-tight mb-4">Historique des documents</h2>
+           {isLoading ? (
+               <div className="space-y-4">
+                  <Skeleton className="h-40 w-full" />
+                  <Skeleton className="h-40 w-full" />
+               </div>
+           ) : filteredDocuments.length > 0 ? (
+                <DocumentHistory 
+                    documents={filteredDocuments}
+                    onProcess={() => {}}
+                    onDelete={handleDelete}
+                    activeDocumentId={activeDocument?.id}
+                    setActiveDocument={handleSetActive}
+                    selectedDocumentIds={[]}
+                    setSelectedDocumentIds={() => {}}
+                    isLoading={false}
+                />
+            ) : (
+                <Card>
+                  <CardContent className="h-48 flex flex-col items-center justify-center text-center">
+                      <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
+                      <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
+                  </CardContent>
+              </Card>
+            )}
+      </div>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}><DocumentPreviewSheet /></Sheet>
     </div>
   );
 }
+
+    
