@@ -88,12 +88,9 @@ export async function getClients(): Promise<Client[]> {
         const snapshot = await getDocs(collection(db, 'clients'));
         if (snapshot.empty && MOCK_CLIENTS.length > 0) {
             console.log("No clients found in Firestore, seeding with mock data...");
-            const seedingPromises = MOCK_CLIENTS.map(client => {
-                const { id, ...clientDataToSeed } = client; 
-                return addClient(clientDataToSeed);
-            });
-            await Promise.all(seedingPromises);
-            
+            for (const client of MOCK_CLIENTS) {
+                 await addClient(client);
+            }
             console.log("Seeding complete. Refetching clients...");
             const seededSnapshot = await getDocs(collection(db, 'clients'));
              return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
@@ -189,3 +186,5 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
+
+    

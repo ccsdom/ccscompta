@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { getClientById } from '@/ai/flows/client-actions';
+import { getClientById, getClients } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -101,7 +101,18 @@ export default function LoginPage() {
             userName = demoUser.name;
         } else {
             // User is not staff, check if they are a client by looking up their UID in Firestore
-            const clientDoc = await getClientById(firebaseUser.uid);
+            let clientDoc = await getClientById(firebaseUser.uid);
+            
+            // Fallback: If no client is found by UID, try to find by email
+            // This handles cases where clients were created before the UID logic was enforced.
+            if (!clientDoc) {
+                const allClients = await getClients();
+                const clientByEmail = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
+                if (clientByEmail) {
+                    clientDoc = clientByEmail;
+                }
+            }
+
             if (clientDoc) {
                 userRole = "client";
                 userName = clientDoc.legalRepresentative;
@@ -284,3 +295,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
