@@ -266,5 +266,3 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         </Dialog>
     );
 }
-
-    
