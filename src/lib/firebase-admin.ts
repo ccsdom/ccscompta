@@ -1,34 +1,28 @@
-
-import { initializeApp, getApp, getApps, cert, ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApp, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// This is a placeholder for the service account key.
-// In a real production environment, this should be loaded securely,
-// for example, from Google Cloud Secret Manager.
-const serviceAccount: ServiceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  // Replace escaped newlines in the private key from environment variables
-  privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+let app: App;
+
+try {
+  // Try to get the existing app, otherwise initialize a new one.
+  // The SDK is smart enough to pick up the configuration from environment variables
+  // when available, which is a more robust method than manually building the service account object.
+  app = getApps().length ? getApp('admin') : initializeApp({} , 'admin');
+} catch (error) {
+  console.error("Firebase Admin SDK initialization failed:", error);
+  // If initialization fails, we create a dummy app object to avoid crashing the server on import,
+  // though subsequent Firebase calls will fail. This helps in environments where credentials
+  // might not be set, allowing the rest of the app to potentially run.
+  app = {
+    name: 'admin',
+    options: {},
+    auth: () => { throw new Error("Firebase Admin not initialized") },
+    firestore: () => { throw new Error("Firebase Admin not initialized") },
+    // Add other methods that might be called if necessary
+  } as unknown as App;
 }
 
-// Ensure the service account has the necessary values
-if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error("Firebase Admin SDK service account is not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY environment variables.");
-    // In production, you might want to throw an error to prevent the app from starting without proper config.
-    // For now, we will log the error and allow the app to continue, but auth-related server actions will fail.
-  } else {
-     console.warn("Firebase Admin SDK not configured. Server-side auth actions will fail. This is expected in a local development environment without the service account key.");
-  }
-}
-
-const app = getApps().length
-  ? getApp('admin')
-  : initializeApp({
-      credential: cert(serviceAccount)
-    }, 'admin');
 
 const db = getFirestore(app);
 const auth = getAuth(app);
