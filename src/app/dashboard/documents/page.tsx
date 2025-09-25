@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -780,9 +781,11 @@ export default function DocumentsPage() {
             <SheetContent className="w-full h-[90%] p-0 flex flex-col" side="bottom">
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle className="truncate">{activeDocument?.name}</SheetTitle>
-                    <SheetDescription className="flex items-center gap-x-3">
-                      {getSheetStatusInfo()}
-                      {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(new Date(activeDocument.uploadDate), { addSuffix: true, locale: fr })}</span>}
+                    <SheetDescription asChild>
+                        <div className="text-sm text-muted-foreground flex items-center gap-x-3">
+                          {getSheetStatusInfo()}
+                          {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(new Date(activeDocument.uploadDate), { addSuffix: true, locale: fr })}</span>}
+                        </div>
                     </SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto">
