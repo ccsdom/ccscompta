@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -106,6 +105,7 @@ export default function DocumentsPage() {
                 setClients([]);
                 setSelectedClientId(null);
                 setActiveDocument(null);
+                setIsLoading(false);
              }
 
              const filter = searchParams.get('filter');
@@ -302,26 +302,22 @@ export default function DocumentsPage() {
   const handleSetActiveDocument = async (doc: Document | null) => {
     if (doc) {
         if (activeDocument?.id === doc.id) {
-           // If the same doc is clicked and it's on mobile, open the sheet
            if(window.innerWidth < 768 && !isSheetOpen) setIsSheetOpen(true);
            return;
         }
         setZoom(1);
         setRotation(0);
         
-        setActiveDocument({ ...doc, dataUrl: undefined }); // Set active doc but clear previous dataUrl
+        setActiveDocument({ ...doc, dataUrl: undefined });
 
-        // For mobile, open the sheet
         if(window.innerWidth < 768) {
             setIsSheetOpen(true);
         }
 
         try {
-            // Fetch the download URL from Firebase Storage
             const storageRef = ref(storage, doc.storagePath);
             const downloadUrl = await getDownloadURL(storageRef);
 
-            // Directly set the URL for the iframe to use, bypassing client-side fetch.
             setActiveDocument({ ...doc, dataUrl: downloadUrl });
 
         } catch (error) {
@@ -514,12 +510,10 @@ export default function DocumentsPage() {
   }, [filteredDocuments]);
 
   const clearFilters = () => {
-    // Clear dashboard filter
     if (dashboardFilter) {
         router.replace('/dashboard/documents');
         setDashboardFilter(null);
     }
-    // Clear intelligent search filter
     if (searchCriteria) {
         setSearchCriteria(null);
         setSearchQuery('');
@@ -590,9 +584,9 @@ export default function DocumentsPage() {
     const documentGroups: { status: Document['status']; label: string }[] = [
       { status: 'reviewing', label: 'Prêt pour examen' },
       { status: 'pending', label: 'En attente de traitement' },
+      { status: 'processing', label: 'En cours de traitement' },
       { status: 'approved', label: 'Approuvé' },
       { status: 'error', label: 'Erreur' },
-      { status: 'processing', label: 'En cours de traitement' }
     ];
 
     if (!selectedClientId) {
@@ -761,6 +755,18 @@ export default function DocumentsPage() {
         </Wrapper>
     );
   }
+  
+  const getSheetStatusInfo = () => {
+    if (!activeDocument) return null;
+    const { icon: Icon, label, color } = getStatusInfo(activeDocument.status);
+    return (
+        <div className={cn("flex items-center gap-1.5 text-xs", color)}>
+            <Icon className="h-3 w-3" />
+            <span>{label}</span>
+        </div>
+    );
+  };
+
 
   const MobileView = () => (
     <div className="md:hidden h-full flex flex-col">
@@ -774,7 +780,10 @@ export default function DocumentsPage() {
             <SheetContent className="w-full h-[90%] p-0 flex flex-col" side="bottom">
                 <SheetHeader className="p-4 border-b">
                     <SheetTitle className="truncate">{activeDocument?.name}</SheetTitle>
-                    <SheetDescription>Validez les informations du document</SheetDescription>
+                    <SheetDescription className="flex items-center gap-x-3">
+                      <span>{getSheetStatusInfo()}</span>
+                      {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(new Date(activeDocument.uploadDate), { addSuffix: true, locale: fr })}</span>}
+                    </SheetDescription>
                 </SheetHeader>
                 <div className="flex-1 overflow-y-auto">
                     {activeDocument && <DocumentPreviewAndForm inSheet={true} />}
@@ -785,7 +794,7 @@ export default function DocumentsPage() {
   );
 
   const DesktopView = () => (
-     <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-lg border">
+     <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-lg">
         <ResizablePanel defaultSize={35} minSize={25}>
           <div className="flex flex-col h-full">
             <div className="p-4 border-b">
@@ -812,3 +821,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
