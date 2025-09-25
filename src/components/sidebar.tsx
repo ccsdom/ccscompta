@@ -104,11 +104,7 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                     <span>CCS Compta</span>
                 </Link>
             </SheetHeader>
-            <div className="p-4 border-b space-y-2">
-                {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
-                    <ClientSwitcher />
-                )}
-            </div>
+            
             <ScrollArea className="flex-1">
                 <nav className="grid items-start px-4 py-4 text-sm font-medium space-y-2">
                     <NavItems currentRole={currentRole} />
@@ -199,12 +195,6 @@ export function Sidebar() {
             <span className="font-bold text-lg">CCS Compta</span>
         </Link>
       </div>
-      
-      {(currentRole === 'accountant' || currentRole === 'secretary' || currentRole === 'admin') && (
-        <div className="p-4 border-b">
-            <ClientSwitcher />
-        </div>
-      )}
       
       <ScrollArea className="flex-1">
         <nav className="px-4 py-4 space-y-2">

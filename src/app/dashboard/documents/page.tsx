@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ClientSwitcher } from '@/components/client-switcher';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -753,14 +754,22 @@ export default function DocumentsPage() {
   }
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-[calc(100vh-5rem)] w-full rounded-lg border">
-        <ResizablePanel defaultSize={50} minSize={30}>
-            <DocumentList />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={30}>
-            <DocumentPreviewAndForm />
-        </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="space-y-4 h-[calc(100vh-5rem)] flex flex-col">
+        <div className="px-4 pt-4">
+            <h1 className="text-2xl font-bold tracking-tight">Gestion des documents</h1>
+            <div className="mt-2 w-full max-w-sm">
+                <ClientSwitcher />
+            </div>
+        </div>
+        <ResizablePanelGroup direction="horizontal" className="flex-1 w-full rounded-lg border">
+            <ResizablePanel defaultSize={50} minSize={30}>
+                <DocumentList />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={30}>
+                <DocumentPreviewAndForm />
+            </ResizablePanel>
+        </ResizablePanelGroup>
+    </div>
   );
 }

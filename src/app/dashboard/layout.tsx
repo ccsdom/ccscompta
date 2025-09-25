@@ -105,7 +105,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin' | 'secretary'>('client');
   // Hide breadcrumbs on root dashboard pages
-  const showBreadcrumb = !['/dashboard/my-documents', '/dashboard/accountant', '/dashboard/admin', '/dashboard/secretary'].includes(pathname);
+  const showBreadcrumb = !['/dashboard/my-documents', '/dashboard/accountant', '/dashboard/admin', '/dashboard/secretary', '/dashboard/documents'].includes(pathname);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole') as any;
@@ -122,7 +122,7 @@ export default function DashboardLayout({
   
   const RoleDisplay = () => {
       const { label, icon: Icon } = roleConfig[currentRole] || roleConfig.client;
-      const hideOnPaths = ['/dashboard/settings', '/dashboard/support'];
+      const hideOnPaths = ['/dashboard/settings', '/dashboard/support', '/dashboard/documents'];
       if(hideOnPaths.includes(pathname)) return null;
 
       return (
