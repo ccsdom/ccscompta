@@ -273,7 +273,7 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs">
-                <p>Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Pour les clients, utilisez un compte que vous avez créé manuellement dans la console Firebase.</p>
+                <p>Utilisez `comptable@ccs.com` ou `admin@ccs.com` (mdp: `password`). Pour les clients, créez un profil dans l'app et connectez-vous avec le SIRET comme mot de passe.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
