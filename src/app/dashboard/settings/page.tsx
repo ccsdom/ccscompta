@@ -142,7 +142,6 @@ export default function SettingsPage() {
                     <TabsTrigger value="security">Sécurité</TabsTrigger>
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
                     {isAccountantOrAdmin && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="storage-security">Stockage</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="firestore-security">Firestore</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="email-upload">Email</TabsTrigger>}
@@ -300,39 +299,6 @@ export default function SettingsPage() {
                             </Card>
                         </TabsContent>
                         
-                        <TabsContent value="storage-security">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5"/> Sécurité du Stockage (Fichiers)</CardTitle>
-                                    <CardDescription>
-                                        Configurez les règles de sécurité pour l'accès aux fichiers dans Firebase Storage. Un client ne peut écrire que dans son propre dossier.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {storageRules ? (
-                                        <div className="space-y-4">
-                                            <Alert>
-                                                <AlertCircle className="h-4 w-4" />
-                                                <AlertTitle>Action Manuelle Requise</AlertTitle>
-                                                <AlertDescription>
-                                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Storage</strong> de votre console Firebase.
-                                                </AlertDescription>
-                                            </Alert>
-                                             <Textarea readOnly value={storageRules} className="h-72 font-mono text-xs bg-muted" />
-                                            <Button onClick={() => copyToClipboard(storageRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
-                                        </div>
-                                    ) : (
-                                         <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour autoriser le téléversement de fichiers.</p>
-                                             <Button onClick={handleFetchStorageRules} disabled={isLoadingStorageRules}>
-                                                {isLoadingStorageRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles de Stockage"}
-                                            </Button>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
                         <TabsContent value="firestore-security">
                             <Card>
                                 <CardHeader>
