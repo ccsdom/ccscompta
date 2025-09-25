@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase-client'; // CHANGED: Use client SDK
-import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
+import { collection, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
 import { auth as adminAuth } from '@/lib/firebase-admin';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
@@ -26,6 +26,7 @@ const AddClientInputSchema = z.object({
 
 export async function createFirebaseUser(email: string, password?: string): Promise<string> {
     try {
+        // Attempt to create the user directly. This is the most common case.
         console.log(`[Admin SDK] Creating Firebase user for ${email}`);
         const userRecord = await adminAuth.createUser({
             email,
@@ -35,11 +36,28 @@ export async function createFirebaseUser(email: string, password?: string): Prom
         console.log(`[Admin SDK] User created with UID: ${userRecord.uid}`);
         return userRecord.uid;
     } catch (error: any) {
-         if (error.code === 'auth/email-already-exists') {
-            console.log(`[Admin SDK] User ${email} already exists. Fetching UID.`);
-            const userRecord = await adminAuth.getUserByEmail(email);
-            return userRecord.uid;
+        if (error.code === 'auth/email-already-exists') {
+            try {
+                // If the user already exists, delete them and recreate them.
+                // This handles cases where an old account (e.g., a former staff member) is being repurposed for a client.
+                // This ensures the password is set correctly to the SIRET.
+                console.log(`[Admin SDK] User ${email} already exists. Deleting and recreating...`);
+                const existingUser = await adminAuth.getUserByEmail(email);
+                await adminAuth.deleteUser(existingUser.uid);
+                
+                const newUserRecord = await adminAuth.createUser({
+                    email,
+                    emailVerified: true,
+                    password: password,
+                });
+                console.log(`[Admin SDK] User recreated with new UID: ${newUserRecord.uid}`);
+                return newUserRecord.uid;
+            } catch (recreationError: any) {
+                 console.error('[Admin SDK] Error recreating Firebase user:', recreationError);
+                 throw new Error(`Firebase Auth user re-creation failed: ${recreationError.message}`);
+            }
         }
+        // For other errors, just re-throw
         console.error('[Admin SDK] Error creating Firebase user:', error);
         throw new Error(`Firebase Auth user creation failed: ${error.message}`);
     }
@@ -60,10 +78,10 @@ export async function addClient(
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
-    // 2. Create Firebase Auth user
+    // 2. Create Firebase Auth user, using SIRET as the initial password
     const uid = await createFirebaseUser(validatedData.email, validatedData.siret);
 
-    // 3. Add client profile to Firestore using the UID from Auth
+    // 3. Add client profile to Firestore using the UID from Auth as the document ID
     const clientDocRef = doc(db, 'clients', uid);
     const newClient: Omit<Client, 'id'> = {
       ...validatedData,
@@ -97,13 +115,15 @@ export async function getClients(): Promise<Client[]> {
     console.log("[Firestore] Fetching all clients.");
     try {
         const snapshot = await getDocs(collection(db, 'clients'));
-        if (snapshot.empty) {
+        if (snapshot.empty && MOCK_CLIENTS.length > 0) {
             console.log("No clients found in Firestore, seeding with mock data...");
-            for (const client of MOCK_CLIENTS) {
-                // We don't seed with a hardcoded ID or password.
+            const seedingPromises = MOCK_CLIENTS.map(client => {
+                 // We don't seed with a hardcoded ID. The ID will be the Firebase Auth UID.
                 const { id, ...clientDataToSeed } = client; 
-                await addClient(clientDataToSeed);
-            }
+                return addClient(clientDataToSeed);
+            });
+            await Promise.all(seedingPromises);
+            
             console.log("Seeding complete. Refetching clients...");
             const seededSnapshot = await getDocs(collection(db, 'clients'));
              return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
@@ -196,3 +216,4 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
+
