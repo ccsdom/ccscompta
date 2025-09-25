@@ -7,11 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
 import { updateClient } from '@/ai/flows/client-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine, ShieldWarning } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
@@ -24,6 +25,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { increment } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -59,6 +61,7 @@ export default function MyDocumentsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
+  const [showPasswordAlert, setShowPasswordAlert] = useState(false);
   const { toast } = useToast();
   
   const fetchDocuments = useCallback(async (id: string) => {
@@ -90,6 +93,11 @@ export default function MyDocumentsPage() {
             if (storedQuery) setSearchQuery(storedQuery);
             const storedCriteria = localStorage.getItem('searchCriteria');
             if (storedCriteria) setSearchCriteria(JSON.parse(storedCriteria));
+            
+            // Check if the password alert has been dismissed
+            const dismissed = localStorage.getItem(`password_alert_dismissed_${storedClientId}`);
+            setShowPasswordAlert(!dismissed);
+
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
         }
@@ -98,6 +106,13 @@ export default function MyDocumentsPage() {
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
   }, [clientId, fetchDocuments])
+
+  const handleDismissPasswordAlert = () => {
+      if (clientId) {
+          localStorage.setItem(`password_alert_dismissed_${clientId}`, 'true');
+      }
+      setShowPasswordAlert(false);
+  }
 
   const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
     const event: AuditEvent = {
@@ -347,6 +362,24 @@ export default function MyDocumentsPage() {
 
   return (
     <div className="space-y-6">
+       {showPasswordAlert && (
+        <Alert variant="destructive" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300">
+          <ShieldWarning className="h-4 w-4 !text-yellow-600 dark:!text-yellow-400" />
+          <AlertTitle className="font-bold text-yellow-900 dark:text-yellow-200">Action requise : Sécurisez votre compte !</AlertTitle>
+          <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-2">
+            <div>
+              Votre compte utilise un mot de passe temporaire. Pour protéger vos données, veuillez le modifier dès que possible.
+            </div>
+            <div className="flex gap-2 mt-2 md:mt-0">
+                <Button variant="outline" size="sm" onClick={handleDismissPasswordAlert} className="bg-transparent border-current text-current hover:bg-yellow-100 dark:hover:bg-yellow-900/50">Plus tard</Button>
+                <Button asChild size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">
+                    <Link href="/dashboard/settings">Changer le mot de passe</Link>
+                </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Mes Documents</h1>
         <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables.</p>
@@ -395,5 +428,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    
