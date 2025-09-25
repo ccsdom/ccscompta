@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClientSwitcher } from '@/components/client-switcher';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -63,6 +64,7 @@ export default function DocumentsPage() {
   const [rotation, setRotation] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
+  const [isSheetOpen, setIsSheetOpen] = useState(false); // For mobile view
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -305,6 +307,11 @@ export default function DocumentsPage() {
         
         setActiveDocument({ ...doc, dataUrl: undefined }); // Set active doc but clear previous dataUrl
 
+        // For mobile, open the sheet
+        if(window.innerWidth < 768) {
+            setIsSheetOpen(true);
+        }
+
         try {
             // Fetch the download URL from Firebase Storage
             const storageRef = ref(storage, doc.storagePath);
@@ -320,6 +327,7 @@ export default function DocumentsPage() {
         }
     } else {
         setActiveDocument(null);
+        setIsSheetOpen(false);
     }
   }
 
@@ -649,6 +657,7 @@ export default function DocumentsPage() {
                                         );
                                       }}
                                       checked={selectedDocumentIds.includes(doc.id)}
+                                      indeterminate={selectedDocumentIds.includes(doc.id) ? false : undefined}
                                       aria-label={`Sélectionner ${doc.name}`}
                                   />
                                </div>
@@ -696,7 +705,11 @@ export default function DocumentsPage() {
     );
   }
 
-  const DocumentPreviewAndForm = () => {
+  const DocumentPreviewAndForm = ({ inSheet = false }: { inSheet?: boolean }) => {
+    const Wrapper = inSheet ? 'div' : Tabs;
+    const wrapperProps = inSheet ? {} : { defaultValue: "preview", className: "w-full h-full flex flex-col" };
+    const ContentWrapper = inSheet ? 'div' : TabsContent;
+
     if (!selectedClientId) return null;
 
     if (!activeDocument) {
@@ -712,14 +725,14 @@ export default function DocumentsPage() {
     }
 
     return (
-        <Tabs defaultValue="preview" className="w-full h-full flex flex-col">
-            <div className="px-4 pt-4">
+        <Wrapper {...wrapperProps}>
+            <div className={cn("px-4 pt-4", inSheet && "px-0 pt-0")}>
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="preview">Aperçu</TabsTrigger>
                     <TabsTrigger value="validation">Validation & Données</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="preview" className="flex-1 mt-0 relative">
+            <ContentWrapper value="preview" className="flex-1 mt-0 relative">
                  <div className="relative bg-muted/30 h-full overflow-hidden rounded-b-lg border m-4 mt-0">
                     <PreviewControls />
                     <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
@@ -738,8 +751,8 @@ export default function DocumentsPage() {
                         )}
                     </div>
                 </div>
-            </TabsContent>
-            <TabsContent value="validation" className="flex-1 mt-0 overflow-y-auto">
+            </ContentWrapper>
+            <ContentWrapper value="validation" className="flex-1 mt-0 overflow-y-auto">
                  <DataValidationForm
                     key={activeDocument.id}
                     document={activeDocument}
@@ -748,28 +761,52 @@ export default function DocumentsPage() {
                     onAddComment={handleAddComment}
                     onUpdateDocumentInList={updateLocalDocument}
                 />
-            </TabsContent>
-        </Tabs>
+            </ContentWrapper>
+        </Wrapper>
     );
   }
 
+  const MobileView = () => (
+    <div className="md:hidden">
+        <DocumentList />
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetContent className="w-full h-full p-0 flex flex-col" side="bottom">
+                <SheetHeader className="p-4 border-b">
+                    <SheetTitle className="truncate">{activeDocument?.name}</SheetTitle>
+                    <SheetDescription>Validez les informations du document</SheetDescription>
+                </SheetHeader>
+                <div className="flex-1 overflow-y-auto">
+                    {activeDocument && <DocumentPreviewAndForm inSheet={true} />}
+                </div>
+            </SheetContent>
+        </Sheet>
+    </div>
+  );
+
+  const DesktopView = () => (
+     <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-lg border">
+        <ResizablePanel defaultSize={50} minSize={30}>
+            <DocumentList />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={50} minSize={30}>
+            <DocumentPreviewAndForm />
+        </ResizablePanel>
+    </ResizablePanelGroup>
+  );
+
   return (
-    <div className="space-y-4 h-[calc(100vh-5rem)] flex flex-col">
+    <div className="h-[calc(100vh-5rem)] flex flex-col">
         <div className="px-4 pt-4">
             <h1 className="text-2xl font-bold tracking-tight">Gestion des documents</h1>
             <div className="mt-2 w-full max-w-sm">
                 <ClientSwitcher />
             </div>
         </div>
-        <ResizablePanelGroup direction="horizontal" className="flex-1 w-full rounded-lg border">
-            <ResizablePanel defaultSize={50} minSize={30}>
-                <DocumentList />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={50} minSize={30}>
-                <DocumentPreviewAndForm />
-            </ResizablePanel>
-        </ResizablePanelGroup>
+        <div className="flex-1 mt-4">
+            <MobileView />
+            <DesktopView />
+        </div>
     </div>
   );
 }
