@@ -277,7 +277,7 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs">
-                <p>Utilisez `comptable@ccs.com` ou `admin@ccs.com` pour accéder aux espaces correspondants. Le mot de passe doit être défini dans la console Firebase.</p>
+                <p>Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Le mot de passe est celui défini dans la console Firebase.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">

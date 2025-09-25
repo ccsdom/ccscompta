@@ -4,7 +4,6 @@
 import { z } from 'zod';
 import { db } from '@/lib/firebase-client';
 import { collection, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import { auth as adminAuth } from '@/lib/firebase-admin';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 
@@ -39,16 +38,15 @@ export async function addClient(
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
-    // 2. Check for existing email in Firestore (since we won't create auth user here)
+    // 2. Check for existing email in Firestore
     const emailQuery = query(collection(db, 'clients'), where('email', '==', validatedData.email), limit(1));
     const emailSnapshot = await getDocs(emailQuery);
     if (!emailSnapshot.empty) {
         return { success: false, error: 'Un client avec cet email existe déjà.' };
     }
 
-    // 3. Add client profile to Firestore. We'll use a generated ID.
-    // The link to the auth user will have to be done manually or via another process
-    // For now, we generate a random ID for the document.
+    // 3. Add client profile to Firestore. We will use a generated ID.
+    // The link to the auth user will be done via another process (manual creation in console).
     const clientDocRef = doc(collection(db, 'clients'));
     const newClient: Omit<Client, 'id'> = {
       ...validatedData,
@@ -57,7 +55,7 @@ export async function addClient(
     };
 
     await setDoc(clientDocRef, newClient);
-    console.log("[Firestore] Client added with ID:", clientDocRef.id);
+    console.log("[Firestore] Client profile added with ID:", clientDocRef.id);
     
     return { 
         success: true, 
@@ -84,7 +82,6 @@ export async function getClients(): Promise<Client[]> {
         if (snapshot.empty && MOCK_CLIENTS.length > 0) {
             console.log("No clients found in Firestore, seeding with mock data...");
             const seedingPromises = MOCK_CLIENTS.map(client => {
-                 // We don't seed with a hardcoded ID. The ID will be the Firebase Auth UID.
                 const { id, ...clientDataToSeed } = client; 
                 return addClient(clientDataToSeed);
             });
@@ -131,9 +128,6 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
         const docRef = doc(db, 'clients', id);
         await updateDoc(docRef, updates);
 
-        // We can't update auth email here anymore as we don't have a guaranteed link by ID.
-        // This would require a more complex lookup.
-
         const updatedDoc = await getClientById(id);
         if (!updatedDoc) throw new Error("Failed to fetch updated document.");
 
@@ -160,19 +154,9 @@ export async function deleteClient(id: string): Promise<{success: boolean}> {
         await deleteDoc(doc(db, 'clients', id));
         console.log(`[Firestore] Client profile ${id} deleted.`);
         
-        try {
-            console.log(`[Admin SDK] Attempting to find and delete auth user for email ${client.email}`);
-            const userRecord = await adminAuth.getUserByEmail(client.email);
-            await adminAuth.deleteUser(userRecord.uid);
-            console.log(`[Admin SDK] Auth user ${userRecord.uid} for email ${client.email} deleted.`);
-        } catch (error: any) {
-            if (error.code === 'auth/user-not-found') {
-                console.log(`[Admin SDK] No auth user found for email ${client.email}, skipping deletion.`);
-            } else {
-                 console.error(`[Admin SDK] Error deleting auth user for ${client.email}:`, error);
-                 // We don't block the profile deletion if auth deletion fails
-            }
-        }
+        // We no longer manage auth users from here.
+        // Deletion must be done manually in the Firebase Console.
+        console.log(`[Action Required] Please manually delete the auth user for ${client.email} in the Firebase Console.`);
 
         return { success: true };
     } catch (error) {
@@ -196,7 +180,3 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
-
-
-
-    
