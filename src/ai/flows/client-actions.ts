@@ -2,8 +2,8 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase-client'; // CHANGED: Use client SDK
-import { collection, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
+import { db } from '@/lib/firebase-client';
+import { collection, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { auth as adminAuth } from '@/lib/firebase-admin';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
@@ -24,42 +24,30 @@ const AddClientInputSchema = z.object({
   assignedAccountantId: z.string().optional(),
 });
 
+/**
+ * Creates a new user in Firebase Authentication.
+ * This function should only be called from a secure server-side environment.
+ * @param email The user's email.
+ * @param password The user's initial password.
+ * @returns The new user's UID.
+ */
 export async function createFirebaseUser(email: string, password?: string): Promise<string> {
+    console.log(`[Admin SDK] Attempting to create Firebase user for ${email}`);
     try {
-        // Attempt to create the user directly. This is the most common case.
-        console.log(`[Admin SDK] Creating Firebase user for ${email}`);
         const userRecord = await adminAuth.createUser({
             email,
             emailVerified: true,
             password: password,
         });
-        console.log(`[Admin SDK] User created with UID: ${userRecord.uid}`);
+        console.log(`[Admin SDK] User created successfully with UID: ${userRecord.uid}`);
         return userRecord.uid;
     } catch (error: any) {
-        if (error.code === 'auth/email-already-exists') {
-            try {
-                // If the user already exists, delete them and recreate them.
-                // This handles cases where an old account (e.g., a former staff member) is being repurposed for a client.
-                // This ensures the password is set correctly to the SIRET.
-                console.log(`[Admin SDK] User ${email} already exists. Deleting and recreating...`);
-                const existingUser = await adminAuth.getUserByEmail(email);
-                await adminAuth.deleteUser(existingUser.uid);
-                
-                const newUserRecord = await adminAuth.createUser({
-                    email,
-                    emailVerified: true,
-                    password: password,
-                });
-                console.log(`[Admin SDK] User recreated with new UID: ${newUserRecord.uid}`);
-                return newUserRecord.uid;
-            } catch (recreationError: any) {
-                 console.error('[Admin SDK] Error recreating Firebase user:', recreationError);
-                 throw new Error(`Firebase Auth user re-creation failed: ${recreationError.message}`);
-            }
-        }
-        // For other errors, just re-throw
+        // Log the full error for debugging but re-throw a more specific error for the caller to handle.
         console.error('[Admin SDK] Error creating Firebase user:', error);
-        throw new Error(`Firebase Auth user creation failed: ${error.message}`);
+        if (error.code === 'auth/email-already-exists') {
+            throw new Error('Un compte utilisateur avec cet email existe déjà dans Firebase Authentication.');
+        }
+        throw new Error(`La création de l'utilisateur Firebase Auth a échoué: ${error.message}`);
     }
 }
 
@@ -217,3 +205,6 @@ export async function getAccountants(): Promise<Accountant[]> {
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
 
+
+
+    
