@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -388,7 +387,7 @@ export default function ClientsPage() {
                                      <Checkbox
                                         onCheckedChange={handleSelectAll}
                                         checked={filteredClients.length > 0 && selectedClientIds.length === filteredClients.length}
-                                        indeterminate={selectedClientIds.length > 0 && selectedClientIds.length < filteredClients.length ? true : undefined}
+                                        indeterminate={selectedClientIds.length > 0 && selectedClientIds.length < filteredClients.length}
                                         aria-label="Tout sélectionner"
                                     />
                                 </TableHead>
@@ -558,3 +557,5 @@ export default function ClientsPage() {
         </div>
     )
 }
+
+    
