@@ -100,21 +100,17 @@ export default function LoginPage() {
             userRole = demoUser.role;
             userName = demoUser.name;
         } else {
-            // User is not staff, check if they are a client by querying Firestore
-            const allClients = await getClients();
-            const clientUser = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
-            
-            if (clientUser) {
+            // User is not staff, check if they are a client by looking up their UID in Firestore
+            const clientDoc = await getClientById(firebaseUser.uid);
+            if (clientDoc) {
                 userRole = "client";
-                userName = clientUser.legalRepresentative;
-                userClientId = clientUser.id;
+                userName = clientDoc.legalRepresentative;
+                userClientId = clientDoc.id;
             }
         }
         
         // 3. If no role found after checking everything, throw an error
         if (!userRole || !userName) {
-            // This error means the user exists in Firebase Auth, but not in our app's logic (either demo users or clients DB)
-            // This is expected if a user is created in Firebase Console but not added as a client in the app.
             throw new Error("Profil utilisateur introuvable dans l'application.");
         }
         
@@ -277,7 +273,8 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs">
-                <p>Utilisez `comptable@ccs.com`, `admin@ccs.com` ou un email client. Les mots de passe sont ceux définis dans la console Firebase.</p>
+                <p>Utilisez `comptable@ccs.com`, `admin@ccs.com`, ou un email client créé. Les mots de passe sont ceux définis dans la console Firebase.</p>
+                 <p className="mt-1">Pour un nouveau client, le mot de passe initial est son SIRET.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">

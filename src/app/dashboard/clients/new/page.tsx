@@ -39,15 +39,15 @@ export default function NewClientPage() {
         if (result.success) {
              toast({
                 duration: 20000,
-                title: "Profil client créé avec succès !",
+                title: "Client et accès créés avec succès !",
                 description: (
                     <div className="space-y-4">
-                        <p>Le profil pour <strong>{result.data.name}</strong> a été créé.</p>
+                        <p>Le profil et le compte de connexion pour <strong>{result.data.name}</strong> ont été créés.</p>
                          <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
-                            <UserPlus className="h-4 w-4" />
-                            <AlertTitle>Action requise : Créer le compte utilisateur</AlertTitle>
+                            <KeyRound className="h-4 w-4" />
+                            <AlertTitle>Informations de connexion</AlertTitle>
                             <AlertDescription>
-                              <p>Pour que ce client puisse se connecter, vous devez maintenant créer un compte pour lui dans la <strong>console Firebase Authentication</strong> avec l'email : <strong>{result.data.email}</strong>.</p>
+                              <p>Le mot de passe initial du client est son numéro de SIRET : <strong>{result.data.password}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
                             </AlertDescription>
                         </Alert>
                     </div>

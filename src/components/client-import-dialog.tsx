@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download, UserPlus } from "lucide-react";
+import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download, UserPlus, KeyRound } from "lucide-react";
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/lib/types';
@@ -96,6 +96,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         setIsLoading(true);
         let importedCount = 0;
         let errorCount = 0;
+        let errorMessages: string[] = [];
         
         for (const clientData of parsedData) {
             const result = await addClient({
@@ -106,6 +107,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 importedCount++;
             } else {
                 errorCount++;
+                errorMessages.push(`Erreur pour ${clientData.name}: ${result.error}`);
                 console.error(`Failed to import client ${clientData.name}: ${result.error}`);
             }
         }
@@ -116,12 +118,12 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 title: 'Importation terminée, action requise !',
                 description: (
                     <div className="space-y-2">
-                        <p>{importedCount} profils clients ont été ajoutés avec succès.</p>
+                        <p>{importedCount} profils clients et comptes d'accès ont été créés.</p>
                         <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
-                             <UserPlus className="h-4 w-4" />
-                             <AlertTitle>Créez les comptes utilisateurs</AlertTitle>
+                             <KeyRound className="h-4 w-4" />
+                             <AlertTitle>Mots de passe initiaux</AlertTitle>
                              <AlertDescription>
-                                Vous devez maintenant créer manuellement un compte pour chaque client dans la console Firebase Authentication pour qu'ils puissent se connecter.
+                                Le mot de passe initial pour chaque client est son numéro de SIRET.
                              </AlertDescription>
                          </Alert>
                     </div>
@@ -133,8 +135,8 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         if (errorCount > 0) {
              toast({
                 variant: 'destructive',
-                title: `Erreurs lors de l'importation`,
-                description: `${errorCount} clients n'ont pas pu être importés (ex: SIRET ou email déjà existant). Consultez la console pour plus de détails.`
+                title: `${errorCount} erreur(s) lors de l'importation`,
+                description: "Certains clients n'ont pas pu être importés. Vérifiez les doublons d'email ou de SIRET."
             });
         }
 
