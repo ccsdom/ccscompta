@@ -2,11 +2,17 @@
 'use server';
 
 import { z } from 'zod';
-import { db, auth as clientAuth } from '@/lib/firebase-client';
+import { db, auth as clientAuth, getFirebaseApp, firebaseConfig } from '@/lib/firebase-client';
 import { collection, getDocs, query, where, limit, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
+
+// Initialize a separate app instance for server-side actions
+// to avoid sharing state with the client.
+const serverApp = getFirebaseApp(firebaseConfig);
+const serverAuth = getAuth(serverApp);
+
 
 type ServerActionResponse<T> =
   | { success: true; data: T }
@@ -42,7 +48,7 @@ export async function addClient(
     // 2. Create user in Firebase Auth using the Client SDK
     let userCredential;
     try {
-      userCredential = await createUserWithEmailAndPassword(clientAuth, validatedData.email, validatedData.siret);
+      userCredential = await createUserWithEmailAndPassword(serverAuth, validatedData.email, validatedData.siret);
     } catch(authError: any) {
       if (authError.code === 'auth/email-already-in-use') {
         return { success: false, error: 'Un compte utilisateur avec cet email existe déjà.' };

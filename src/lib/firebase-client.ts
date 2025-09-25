@@ -1,7 +1,7 @@
 
 // firebaseClient.ts
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getFirestore } from "firebase/firestore";
 
@@ -14,10 +14,11 @@ export const firebaseConfig = {
   appId: "1:641289397299:web:160436367ad4dff3e6ef46"
 };
 
+function getFirebaseApp(config = firebaseConfig): FirebaseApp {
+    return getApps().length ? getApp() : initializeApp(config);
+}
 
-// Singleton pattern to ensure Firebase is initialized only once
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
+const app = getFirebaseApp();
 const auth = getAuth(app);
 const storage = getStorage(app);
 const db = getFirestore(app);
@@ -31,4 +32,4 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-export { app, auth, storage, db };
+export { app, auth, storage, db, getFirebaseApp };
