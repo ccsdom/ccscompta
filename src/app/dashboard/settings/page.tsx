@@ -304,7 +304,9 @@ export default function SettingsPage() {
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5"/> Sécurité du Stockage (Fichiers)</CardTitle>
-                                    <CardDescription>Configurez les règles de sécurité pour l'accès aux fichiers dans Firebase Storage.</CardDescription>
+                                    <CardDescription>
+                                        Configurez les règles de sécurité pour l'accès aux fichiers dans Firebase Storage. Un client ne peut écrire que dans son propre dossier.
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {storageRules ? (
@@ -323,7 +325,7 @@ export default function SettingsPage() {
                                          <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
                                             <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour autoriser le téléversement de fichiers.</p>
                                              <Button onClick={handleFetchStorageRules} disabled={isLoadingStorageRules}>
-                                                {isLoadingStorageRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles"}
+                                                {isLoadingStorageRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles de Stockage"}
                                             </Button>
                                         </div>
                                     )}
@@ -354,7 +356,7 @@ export default function SettingsPage() {
                                          <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
                                             <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour autoriser l'accès aux données.</p>
                                              <Button onClick={handleFetchFirestoreRules} disabled={isLoadingFirestoreRules}>
-                                                {isLoadingFirestoreRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles"}
+                                                {isLoadingFirestoreRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles Firestore"}
                                             </Button>
                                         </div>
                                     )}

@@ -18,21 +18,24 @@ export async function configureStorageSecurityRules(): Promise<{success: boolean
   const rules = `
 rules_version = '2';
 
-// Ces règles s'appliquent au service Firebase Storage
 service firebase.storage {
-  // Elles concernent le "bucket" (l'espace de stockage) de votre projet
   match /b/{bucket}/o {
     
-    // Cette règle s'applique à tous les fichiers dans votre bucket.
-    // {allPaths=**} est un joker qui correspond à n'importe quel fichier à n'importe quel emplacement.
-    match /{allPaths=**} {
+    // Les fichiers sont stockés par client, dans un dossier qui porte leur ID utilisateur (uid).
+    // ex: /client-id-123/facture.pdf
+    match /{clientId}/{allPaths=**} {
     
-      // Permet les opérations de lecture (get, list) et d'écriture (create, update, delete)
-      // uniquement si l'utilisateur est authentifié (connecté).
-      // request.auth n'est pas nul si l'utilisateur est bien connecté à votre application via Firebase Authentication.
-      // Peu importe le fournisseur de connexion (email/mot de passe, Google, etc.),
-      // tant que l'utilisateur est connecté, request.auth existera et la condition sera vraie.
-      allow read, write: if request.auth != null;
+      // LECTURE (get, list):
+      // N'importe quel utilisateur authentifié (comptable, admin, client) peut lire les fichiers.
+      // C'est nécessaire pour que le comptable puisse accéder aux documents de ses clients.
+      allow read: if request.auth != null;
+
+      // ÉCRITURE (create, update, delete):
+      // Un utilisateur ne peut écrire, modifier ou supprimer des fichiers
+      // que dans son propre dossier.
+      // On vérifie que l'UID de l'utilisateur connecté (request.auth.uid)
+      // correspond à l'ID du dossier (clientId).
+      allow write: if request.auth != null && request.auth.uid == clientId;
     }
   }
 }
