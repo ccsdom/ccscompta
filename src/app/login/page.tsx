@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { getClients } from "@/ai/flows/client-actions";
+import { getClientById } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -273,8 +273,7 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs">
-                <p>Utilisez `comptable@ccs.com`, `admin@ccs.com`, ou un email client créé. Les mots de passe sont ceux définis dans la console Firebase.</p>
-                 <p className="mt-1">Pour un nouveau client, le mot de passe initial est son SIRET.</p>
+                <p>Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Pour les clients, utilisez un compte que vous avez créé manuellement dans la console Firebase.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
