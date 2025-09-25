@@ -275,9 +275,10 @@ export default function LoginPage() {
             </Button>
           </form>
            <Alert className="mt-4">
-              <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
+              <AlertTitle className="font-semibold">Comptes de démo et mots de passe</AlertTitle>
               <AlertDescription className="text-xs">
-                Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Créez-les d'abord dans Firebase Auth avec le mot de passe de votre choix.
+                <p><strong>Comptable/Admin:</strong> Utilisez `comptable@ccs.com` ou `admin@ccs.com`. Vous devez les créer au préalable dans Firebase Auth avec le mot de passe de votre choix.</p>
+                <p className="mt-2"><strong>Clients:</strong> Le mot de passe initial d'un client est son numéro de SIRET.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
