@@ -11,6 +11,7 @@ import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { KeyRound } from "lucide-react";
 
 
 export default function NewClientPage() {
@@ -38,14 +39,16 @@ export default function NewClientPage() {
         if (result.success) {
              toast({
                 duration: 20000,
-                title: "Client ajouté avec succès !",
+                title: "Client et compte créés avec succès !",
                 description: (
                     <div className="space-y-4">
                         <p>Le profil pour <strong>{result.data.name}</strong> a été créé.</p>
-                         <Alert variant="destructive">
-                            <AlertTitle>Action Manuelle Requise</AlertTitle>
+                         <Alert variant="default" className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800">
+                            <KeyRound className="h-4 w-4" />
+                            <AlertTitle>Informations de connexion</AlertTitle>
                             <AlertDescription>
-                              Vous devez maintenant créer manuellement un utilisateur dans <strong>Firebase Authentication</strong> avec l'email <strong>{result.data.email}</strong> pour que ce client puisse se connecter.
+                              <p>Un compte a été créé avec l'email : <strong>{result.data.email}</strong></p>
+                              <p>Le mot de passe initial est le SIRET : <strong>{result.data.password}</strong></p>
                             </AlertDescription>
                         </Alert>
                     </div>

@@ -43,6 +43,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AiClientDialog } from '@/components/ai-client-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { auth as adminAuth } from '@/lib/firebase-admin';
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>([]);
@@ -545,7 +546,7 @@ export default function ClientsPage() {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Le dossier du client "{clientToDelete?.name}" sera définitivefent supprimé, y compris tous ses documents.
+                        Le dossier du client "{clientToDelete?.name}" et son compte utilisateur seront définitivement supprimés, y compris tous ses documents.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -557,5 +558,3 @@ export default function ClientsPage() {
         </div>
     )
 }
-
-    

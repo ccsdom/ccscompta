@@ -3,7 +3,8 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase-client'; // CHANGED: Use client SDK
-import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
+import { collection, addDoc, getDocs, query, where, limit, updateDoc, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
+import { auth as adminAuth } from '@/lib/firebase-admin';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 
@@ -23,10 +24,31 @@ const AddClientInputSchema = z.object({
   assignedAccountantId: z.string().optional(),
 });
 
+export async function createFirebaseUser(email: string, password?: string): Promise<string> {
+    try {
+        console.log(`[Admin SDK] Creating Firebase user for ${email}`);
+        const userRecord = await adminAuth.createUser({
+            email,
+            emailVerified: true,
+            password: password,
+        });
+        console.log(`[Admin SDK] User created with UID: ${userRecord.uid}`);
+        return userRecord.uid;
+    } catch (error: any) {
+         if (error.code === 'auth/email-already-exists') {
+            console.log(`[Admin SDK] User ${email} already exists. Fetching UID.`);
+            const userRecord = await adminAuth.getUserByEmail(email);
+            return userRecord.uid;
+        }
+        console.error('[Admin SDK] Error creating Firebase user:', error);
+        throw new Error(`Firebase Auth user creation failed: ${error.message}`);
+    }
+}
+
 
 export async function addClient(
   newClientData: z.infer<typeof AddClientInputSchema>
-): Promise<ServerActionResponse<Omit<Client, 'id'>>> {
+): Promise<ServerActionResponse<Client>> {
   console.log("[Firestore] Adding client:", newClientData.name);
   try {
     const validatedData = AddClientInputSchema.parse(newClientData);
@@ -38,24 +60,26 @@ export async function addClient(
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
-    // NOTE: Firebase Auth user creation is now handled manually in the Firebase Console
-    // until server-side initialization issues are resolved.
+    // 2. Create Firebase Auth user
+    const uid = await createFirebaseUser(validatedData.email, validatedData.siret);
 
-    // 2. Add client profile to Firestore
-    const newClient: Omit<Client, 'id' | 'password'> = {
+    // 3. Add client profile to Firestore using the UID from Auth
+    const clientDocRef = doc(db, 'clients', uid);
+    const newClient: Omit<Client, 'id'> = {
       ...validatedData,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };
 
-    const docRef = await addDoc(collection(db, 'clients'), newClient);
-    console.log("[Firestore] Client added with ID:", docRef.id);
+    await setDoc(clientDocRef, newClient);
+    console.log("[Firestore] Client added with ID:", uid);
     
     return { 
         success: true, 
         data: { 
             ...newClient, 
-            id: docRef.id,
+            id: uid,
+            password: validatedData.siret // Pass back the initial password for info
         } 
     };
 
@@ -77,8 +101,8 @@ export async function getClients(): Promise<Client[]> {
             console.log("No clients found in Firestore, seeding with mock data...");
             for (const client of MOCK_CLIENTS) {
                 // We don't seed with a hardcoded ID or password.
-                const { id, password, ...clientData } = client; 
-                await addDoc(collection(db, 'clients'), clientData);
+                const { id, ...clientDataToSeed } = client; 
+                await addClient(clientDataToSeed);
             }
             console.log("Seeding complete. Refetching clients...");
             const seededSnapshot = await getDocs(collection(db, 'clients'));
@@ -120,6 +144,12 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
         
         const docRef = doc(db, 'clients', id);
         await updateDoc(docRef, updates);
+
+        if (updates.email) {
+            console.log(`[Admin SDK] Updating auth email for user ${id}`);
+            await adminAuth.updateUser(id, { email: updates.email });
+        }
+
         const updatedDoc = await getClientById(id);
         if (!updatedDoc) throw new Error("Failed to fetch updated document.");
 
@@ -137,9 +167,13 @@ export async function deleteClient(id: string): Promise<{success: boolean}> {
     console.log(`[Firestore] Deleting client ID: ${id}`);
     try {
         // In a real app, you would also delete subcollections (documents, etc.)
-        // And the corresponding Firebase Auth user
         await deleteDoc(doc(db, 'clients', id));
         console.log(`[Firestore] Client ${id} deleted.`);
+        
+        console.log(`[Admin SDK] Deleting auth user ${id}`);
+        await adminAuth.deleteUser(id);
+        console.log(`[Admin SDK] Auth user ${id} deleted.`);
+
         return { success: true };
     } catch (error) {
         console.error(`Error deleting client ${id}:`, error);

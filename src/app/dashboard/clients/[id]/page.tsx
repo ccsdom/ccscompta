@@ -10,6 +10,7 @@ import type * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { auth as adminAuth } from '@/lib/firebase-admin';
 
 
 export default function EditClientPage() {
