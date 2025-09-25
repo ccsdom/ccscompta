@@ -45,8 +45,14 @@ const clientNavItems: NavItem[] = [
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
 
+const adminNavItems: NavItem[] = [
+  { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Tableau de bord Admin' },
+  ...accountantNavItems.filter(item => item.href !== '/dashboard/accountant'), // Avoid duplicate dashboards
+];
+
+
 const roleConfig = {
-    admin: { items: accountantNavItems },
+    admin: { items: adminNavItems },
     accountant: { items: accountantNavItems },
     secretary: { items: secretaryNavItems },
     client: { items: clientNavItems }
@@ -54,7 +60,6 @@ const roleConfig = {
 
 const isNavItemActive = (pathname: string, itemHref: string, currentRole: string) => {
     if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary'].includes(itemHref)) {
-        if ((currentRole === 'admin' || currentRole === 'accountant') && (itemHref === '/dashboard/accountant' || itemHref === '/dashboard/admin') && (pathname.startsWith('/dashboard/accountant') || pathname === '/dashboard/admin')) return true;
         return pathname === itemHref;
     }
     return pathname.startsWith(itemHref);
@@ -158,7 +163,7 @@ export function Sidebar() {
     if (currentRole === 'client') return '/dashboard/my-documents';
     if (currentRole === 'accountant') return '/dashboard/accountant';
     if (currentRole === 'secretary') return '/dashboard/secretary';
-    if (currentRole === 'admin') return '/dashboard/accountant'; // Admin redirects to accountant view
+    if (currentRole === 'admin') return '/dashboard/admin';
     return '/dashboard';
   }
 
