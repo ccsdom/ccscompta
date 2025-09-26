@@ -62,34 +62,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Règle générale : Seuls les utilisateurs authentifiés peuvent accéder à la base.
-    // Des règles plus spécifiques par collection sont définies ci-dessous.
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Collection 'clients'
-    // Un client ne peut lire et modifier que son propre profil.
-    // Les comptables/admins (non-clients) peuvent lire tous les profils.
+    // Règle pour la collection 'clients'
     match /clients/{clientId} {
-      allow read, update: if request.auth.uid == clientId || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
-      // La création/suppression est gérée par des fonctions côté serveur (admin)
-      allow create, delete: if !exists(/databases/$(database)/documents/clients/$(request.auth.uid)); 
+      // Les comptables/admins (ceux qui n'existent PAS dans la collection 'clients') peuvent lire TOUS les profils.
+      // Un client ne peut lire que SON PROPRE profil.
+      allow read: if request.auth != null && (!exists(/databases/$(database)/documents/clients/$(request.auth.uid)) || request.auth.uid == clientId);
+      
+      // Un client peut mettre à jour son propre profil.
+      // Les comptables/admins peuvent mettre à jour tous les profils.
+      allow update: if request.auth != null && (!exists(/databases/$(database)/documents/clients/$(request.auth.uid)) || request.auth.uid == clientId);
+      
+      // La création/suppression est réservée aux comptables/admins.
+      allow create, delete: if request.auth != null && !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
     }
     
-    // Collections de données liées à un client (documents, factures, bilans)
-    // Un client ne peut accéder qu'aux documents qui lui appartiennent (via le champ 'clientId').
-    // Les comptables/admins peuvent tout lire.
+    // Règle pour les collections liées à un client (documents, factures, bilans)
+    function isOwner(clientId) {
+      return request.auth.uid == clientId;
+    }
+
+    function isAccountant() {
+      return request.auth != null && !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+    }
+
     match /documents/{docId} {
-      allow read, write: if request.resource.data.clientId == request.auth.uid || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+      // Le propriétaire du document (vérifié via le champ 'clientId' du document) OU un comptable/admin peut lire/écrire.
+      allow read, write: if isAccountant() || (resource.data.clientId != null && isOwner(resource.data.clientId));
     }
 
     match /invoices/{invoiceId} {
-       allow read, write: if request.resource.data.clientId == request.auth.uid || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+       // Le propriétaire de la facture OU un comptable/admin peut lire/écrire.
+       allow read, write: if isAccountant() || (resource.data.clientId != null && isOwner(resource.data.clientId));
     }
     
     match /bilans/{bilanId} {
-       allow read, write: if request.resource.data.clientId == request.auth.uid || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+       // Le propriétaire du bilan OU un comptable/admin peut lire/écrire.
+       allow read, write: if isAccountant() || (resource.data.clientId != null && isOwner(resource.data.clientId));
     }
   }
 }
@@ -100,4 +108,7 @@ service cloud.firestore {
     rules: rules,
   };
 }
+    
+
+
     
