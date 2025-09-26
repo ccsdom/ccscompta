@@ -62,9 +62,9 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
-        const dataToSave = {
-            ...values,
-            assignedAccountantId: values.assignedAccountantId === "unassigned" ? undefined : values.assignedAccountantId,
+        const dataToSave = { ...values };
+        if (dataToSave.assignedAccountantId === "unassigned") {
+            delete (dataToSave as Partial<typeof dataToSave>).assignedAccountantId;
         }
         onSave(dataToSave);
     }
@@ -145,7 +145,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                                 <Input placeholder="14 chiffres" {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                Utilisé comme mot de passe initial pour le client.
+                                                Ce champ est obligatoire pour les clients.
                                             </FormDescription>
                                             <FormMessage />
                                             </FormItem>

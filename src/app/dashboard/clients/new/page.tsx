@@ -42,7 +42,7 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password = 'password'; // Default for staff
+        let password = 'password';
         if (data.role === 'client') {
             if (data.siret && data.siret.length === 14) {
                 password = data.siret;
@@ -59,22 +59,23 @@ export default function NewClientPage() {
             const user = userCredential.user;
 
             // Step 2: Create user profile in Firestore (Client-side)
-            const { id, ...profileData } = {
+            const profileData: Omit<Client, 'id' | 'password'> = {
                 ...data,
                 newDocuments: 0,
                 lastActivity: new Date().toISOString(),
-                status: 'onboarding' as const
+                status: 'onboarding' as const,
             };
+            
+            // Explicitly remove the field if it's undefined or not to be sent
+            if (!profileData.assignedAccountantId) {
+                delete (profileData as Partial<typeof profileData>).assignedAccountantId;
+            }
+            
             await setDoc(doc(db, 'clients', user.uid), profileData);
 
-            // Step 3 (Optional but recommended): Call a server action/Cloud Function to set custom claims
-            // For now, the user will get their role on next login when the token is refreshed after claims are set.
-            // A Cloud Function triggered on user creation would be the best approach.
-            // We will rely on a placeholder server action that uses the Admin SDK for now.
+            // Step 3 (Server Action for Custom Claims): This sets the role in Auth token
             const claimResult = await addClient(data);
             if (!claimResult.success) {
-                // Log the error but don't block the user creation flow.
-                // The role will be missing until set manually or by another process.
                  console.warn(`Failed to set custom claim for ${data.email}: ${claimResult.error}`);
                  toast({
                     variant: 'destructive',
