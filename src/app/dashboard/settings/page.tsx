@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, UploadCloud, UserCog, User } from "lucide-react";
+import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
@@ -18,6 +18,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
+import { setAdminClaim } from "@/ai/flows/admin-actions";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -27,6 +28,7 @@ export default function SettingsPage() {
     const [userName, setUserName] = useState("Utilisateur");
     const [userEmail, setUserEmail] = useState("");
     const [userUid, setUserUid] = useState<string | null>(null);
+    const [isAdminSetup, setIsAdminSetup] = useState(false);
 
     const [automationSettings, setAutomationSettings] = useState({
         isEnabled: false,
@@ -35,6 +37,7 @@ export default function SettingsPage() {
     });
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
+    const [isSettingAdmin, setIsSettingAdmin] = useState(false);
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
@@ -49,6 +52,11 @@ export default function SettingsPage() {
         const unsubscribe = clientAuth.onAuthStateChanged(user => {
             if (user) {
                 setUserUid(user.uid);
+                 user.getIdTokenResult().then(idTokenResult => {
+                    if (idTokenResult.claims.role === 'admin') {
+                        setIsAdminSetup(true);
+                    }
+                });
             } else {
                 setUserUid(null);
             }
@@ -103,6 +111,29 @@ export default function SettingsPage() {
         }
         setIsLoadingFirestoreRules(false);
     }
+
+    const handleSetAdminRole = async () => {
+        if (!userUid) {
+            toast({ variant: 'destructive', title: "Erreur", description: "Utilisateur non authentifié." });
+            return;
+        }
+        setIsSettingAdmin(true);
+        const result = await setAdminClaim(userUid);
+        if (result.success) {
+            toast({
+                title: "Rôle Administrateur défini !",
+                description: "Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
+            });
+            setIsAdminSetup(true);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: "Échec de l'attribution du rôle",
+                description: result.error || "Une erreur inconnue est survenue."
+            });
+        }
+        setIsSettingAdmin(false);
+    }
     
     const copyToClipboard = (text: string | null) => {
         if (!text) return;
@@ -110,16 +141,6 @@ export default function SettingsPage() {
         toast({
             title: "Copié !",
             description: "Les règles ont été copiées dans le presse-papiers.",
-        });
-    }
-    
-    const uploadEmail = `uploads-{ID_CLIENT}@ccs-compta-in.com`;
-
-    const copyUploadEmailToClipboard = () => {
-        navigator.clipboard.writeText(uploadEmail);
-        toast({
-            title: "Copié !",
-            description: "L'adresse email a été copiée dans le presse-papiers.",
         });
     }
     
@@ -138,8 +159,8 @@ export default function SettingsPage() {
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
                     {isAccountantOrAdmin && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
+                    {isAccountantOrAdmin && <TabsTrigger value="admin">Administration</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="email-upload">Email</TabsTrigger>}
                 </TabsList>
                 
                 <TabsContent value="profile">
@@ -324,6 +345,32 @@ export default function SettingsPage() {
                                 </CardContent>
                             </Card>
                         </TabsContent>
+                        
+                         <TabsContent value="admin">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Zone à haut risque</CardTitle>
+                                    <CardDescription>Actions sensibles réservées à l'administrateur principal.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Alert variant={isAdminSetup ? "default" : "destructive"} className={isAdminSetup ? "bg-green-50 border-green-200 text-green-800" : ""}>
+                                        <Shield className="h-4 w-4" />
+                                        <AlertTitle>{isAdminSetup ? "Rôle administrateur actif" : "Action requise : Définir un administrateur"}</AlertTitle>
+                                        <AlertDescription>
+                                            {isAdminSetup 
+                                                ? "Le rôle d'administrateur est correctement configuré pour votre compte."
+                                                : "Votre compte n'a pas les privilèges d'administrateur. Ceci est nécessaire pour gérer les utilisateurs et sécuriser l'application. Cette action est irréversible."
+                                            }
+                                        </AlertDescription>
+                                    </Alert>
+                                </CardContent>
+                                 <CardFooter className="border-t pt-6">
+                                     <Button onClick={handleSetAdminRole} disabled={isSettingAdmin || isAdminSetup}>
+                                         {isSettingAdmin ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Définition...</> : "Me donner le rôle Admin"}
+                                     </Button>
+                                </CardFooter>
+                            </Card>
+                        </TabsContent>
 
                         <TabsContent value="integrations">
                             <Card>
@@ -350,25 +397,6 @@ export default function SettingsPage() {
                                 <CardFooter className="border-t px-6 py-4 justify-end">
                                     <Button>Enregistrer</Button>
                                 </CardFooter>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="email-upload">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Téléversement par Email</CardTitle>
-                                    <CardDescription>Communiquez à vos clients leur adresse email dédiée pour envoyer leurs documents.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="upload-email">Modèle d'adresse de téléversement</Label>
-                                        <div className="flex items-center gap-2">
-                                            <Input id="upload-email" value={uploadEmail} readOnly />
-                                            <Button variant="outline" size="icon" type="button" onClick={copyUploadEmailToClipboard}><Copy className="h-4 w-4" /><span className="sr-only">Copier</span></Button>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground pt-1">Note: Chaque client possède sa propre adresse unique, trouvable dans son dossier.</p>
-                                    </div>
-                                </CardContent>
                             </Card>
                         </TabsContent>
                     </>

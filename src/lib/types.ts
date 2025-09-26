@@ -1,4 +1,5 @@
 
+
 export interface AuditEvent {
     action: string;
     date: string;
@@ -43,15 +44,16 @@ export interface AgendaEvent {
 export interface Client {
     id: string;
     name: string;
-    siret: string;
-    address: string;
-    legalRepresentative: string;
-    fiscalYearEndDate: string;
+    email: string;
+    role: 'admin' | 'accountant' | 'secretary' | 'client';
+    siret?: string;
+    address?: string;
+    legalRepresentative?: string;
+    fiscalYearEndDate?: string;
     status: 'active' | 'inactive' | 'onboarding';
     newDocuments: number;
     lastActivity: string;
-    email: string;
-    phone: string;
+    phone?: string;
     assignedAccountantId?: string;
     password?: string; // Optional: only used to pass temp password from server to client on creation
 }

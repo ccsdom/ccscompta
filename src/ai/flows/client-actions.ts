@@ -3,10 +3,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase-client';
-import { collection, getDocs, query, where, limit, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import { getAuth as getClientAuth } from "firebase/auth";
-import { getFirebaseApp } from "@/lib/firebase-client";
-import { getAuth as getAdminAuth, createUser, deleteUser } from 'firebase-admin/auth';
+import { collection, getDocs, query, where, limit, doc, getDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
 import { auth as adminAuth } from '@/lib/firebase-admin';
@@ -24,17 +21,21 @@ const AddClientInputSchema = z.object({
   legalRepresentative: z.string(),
   address: z.string(),
   fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, "Format JJ/MM invalide."),
-  status: z.enum(['active', 'inactive', 'onboarding']),
+  role: z.enum(['client', 'admin', 'accountant', 'secretary']),
   assignedAccountantId: z.string().optional(),
 });
 
 
 export async function addClient(
-  newClientData: z.infer<typeof AddClientInputSchema>
+  newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'role'> & { role?: z.infer<typeof AddClientInputSchema>['role'] }
 ): Promise<ServerActionResponse<Client>> {
   console.log("[Client Action] Adding client:", newClientData.name);
+  
+  // Determine role. Default to 'client' if not provided.
+  const role = newClientData.role || 'client';
+  
   try {
-    const validatedData = AddClientInputSchema.parse(newClientData);
+    const validatedData = AddClientInputSchema.omit({ role: true }).parse(newClientData);
     
     // 1. Check for existing SIRET in Firestore
     const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
@@ -46,16 +47,15 @@ export async function addClient(
     // 2. Create user in Firebase Auth using the ADMIN SDK
     let userRecord;
     try {
-        const isAdminEmail = ['admin@ccs.com', 'comptable@ccs.com'].includes(validatedData.email.toLowerCase());
-        const role = isAdminEmail ? 'admin' : 'client';
-        
         userRecord = await adminAuth.createUser({
             email: validatedData.email,
             password: validatedData.siret, // Using SIRET as initial password
             emailVerified: true,
-            disabled: false
+            disabled: false,
+            displayName: validatedData.name,
         });
 
+        // Set the role as a custom claim
         await adminAuth.setCustomUserClaims(userRecord.uid, { role });
 
     } catch(authError: any) {
@@ -69,21 +69,24 @@ export async function addClient(
     const uid = userRecord.uid;
 
     // 3. Add client profile to Firestore using the created UID
+    // This collection now stores ALL users, not just clients.
     const clientDocRef = doc(db, 'clients', uid);
-    const newClient: Omit<Client, 'id'> = {
+    const newUser: Omit<Client, 'id' | 'status'> = {
       ...validatedData,
+      role: role,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };
 
-    await setDoc(clientDocRef, newClient);
-    console.log("[Client Action] Client profile added with ID:", uid);
+    await setDoc(clientDocRef, newUser);
+    console.log("[Client Action] User profile added with ID:", uid);
     
     return { 
         success: true, 
         data: { 
-            ...newClient, 
+            ...newUser, 
             id: uid,
+            status: 'onboarding', // default status
             password: validatedData.siret, // Pass back the initial password for display
         } 
     };
@@ -99,27 +102,63 @@ export async function addClient(
 }
 
 export async function getClients(): Promise<Client[]> {
-    console.log("[Firestore] Fetching all clients.");
+    console.log("[Firestore] Fetching all user profiles (clients and staff).");
     try {
         const snapshot = await getDocs(collection(db, 'clients'));
+        
+        // Seed only if the entire collection is empty
         if (snapshot.empty && MOCK_CLIENTS.length > 0) {
-            console.log("No clients found in Firestore, seeding with mock data...");
+            console.log("No users found in Firestore, seeding with mock data...");
+            const batch = writeBatch(db);
+
             for (const client of MOCK_CLIENTS) {
-                 await addClient(client);
+                try {
+                    // 1. Create Auth user with custom claim
+                    const userRecord = await adminAuth.createUser({
+                        email: client.email,
+                        password: client.siret,
+                        emailVerified: true,
+                        disabled: false,
+                        displayName: client.name,
+                    });
+                    await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
+
+                    // 2. Create Firestore document
+                    const docRef = doc(db, 'clients', userRecord.uid);
+                    const { id, ...clientData } = client; // eslint-disable-line @typescript-eslint/no-unused-vars
+                    batch.set(docRef, clientData);
+
+                } catch (error: any) {
+                     if (error.code !== 'auth/email-already-exists') {
+                        console.error(`Error seeding user ${client.email}:`, error);
+                     } else {
+                        console.warn(`Mock user ${client.email} already exists in Auth. Skipping auth creation.`);
+                        // If auth user exists, try to find it to get UID
+                         try {
+                            const userRecord = await adminAuth.getUserByEmail(client.email);
+                            const docRef = doc(db, 'clients', userRecord.uid);
+                            const { id, ...clientData } = client;
+                            batch.set(docRef, clientData);
+                         } catch (e) {
+                             console.error(`Could not get existing mock user ${client.email}`, e);
+                         }
+                     }
+                }
             }
-            console.log("Seeding complete. Refetching clients...");
+            await batch.commit();
+            console.log("Seeding complete. Refetching users...");
             const seededSnapshot = await getDocs(collection(db, 'clients'));
              return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
     } catch (error) {
-        console.error("Error fetching clients:", error);
+        console.error("Error fetching users:", error);
         return [];
     }
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
-    console.log(`[Firestore] Fetching client by ID: ${id}`);
+    console.log(`[Firestore] Fetching user profile by ID: ${id}`);
     try {
         const docRef = doc(db, 'clients', id);
         const docSnap = await getDoc(docRef);
@@ -128,35 +167,39 @@ export async function getClientById(id: string): Promise<Client | null> {
         }
         return { id: docSnap.id, ...docSnap.data() } as Client;
     } catch(error) {
-        console.error(`Error fetching client ${id}:`, error);
+        console.error(`Error fetching user ${id}:`, error);
         return null;
     }
 }
 
 export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id' | 'email'>>}): Promise<ServerActionResponse<Client>> {
-    console.log(`[Firestore] Updating client ID: ${id}`);
+    console.log(`[Firestore] Updating user profile ID: ${id}`);
     try {
          if (updates.siret) {
             const siretQuery = query(collection(db, 'clients'), where('siret', '==', updates.siret));
             const siretSnapshot = await getDocs(siretQuery);
             const conflictingDoc = siretSnapshot.docs.find(docData => docData.id !== id);
              if (conflictingDoc) {
-                return { success: false, error: 'Un autre client utilise déjà ce SIRET.'};
+                return { success: false, error: 'Un autre utilisateur utilise déjà ce SIRET.'};
             }
         }
         
+        // If role is being updated, update custom claims as well
+        if (updates.role) {
+             const currentClaims = (await adminAuth.getUser(id)).customClaims;
+             await adminAuth.setCustomUserClaims(id, { ...currentClaims, role: updates.role });
+        }
+
         const docRef = doc(db, 'clients', id);
-        // Note: We are not updating the email here as it's linked to the auth user.
-        // Changing email would require a more complex auth flow.
         await setDoc(docRef, updates, { merge: true });
 
         const updatedDoc = await getClientById(id);
         if (!updatedDoc) throw new Error("Failed to fetch updated document.");
 
-        console.log(`[Firestore] Client ${id} updated.`);
+        console.log(`[Firestore] User profile ${id} updated.`);
         return { success: true, data: updatedDoc };
     } catch(error) {
-        console.error(`Error updating client ${id}:`, error);
+        console.error(`Error updating user ${id}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue.';
         return { success: false, error: errorMessage};
     }
@@ -164,11 +207,11 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
 
 
 export async function deleteClient(id: string): Promise<{success: boolean}> {
-    console.log(`[Firestore] Deleting client ID: ${id}`);
+    console.log(`[Firestore] Deleting user profile ID: ${id}`);
     try {
         const client = await getClientById(id);
         if (!client) {
-            console.warn(`Client ${id} not found for deletion.`);
+            console.warn(`User ${id} not found for deletion.`);
             return { success: false };
         }
         
@@ -178,11 +221,11 @@ export async function deleteClient(id: string): Promise<{success: boolean}> {
         
         // Delete Firestore document
         await deleteDoc(doc(db, 'clients', id));
-        console.log(`[Firestore] Client profile ${id} deleted.`);
+        console.log(`[Firestore] User profile ${id} deleted.`);
         
         return { success: true };
     } catch (error) {
-        console.error(`Error deleting client ${id}:`, error);
+        console.error(`Error deleting user ${id}:`, error);
         return { success: false };
     }
 }

@@ -23,13 +23,6 @@ import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-
-const STAFF_EMAILS = [
-    'admin@ccs.com',
-    'comptable@ccs.com',
-    'secretary@ccs.com'
-];
-
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -51,43 +44,40 @@ export default function LoginPage() {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
-        const userEmail = firebaseUser.email!;
-
-        let userName: string;
-        let targetPath: string;
-        let userRole: 'client' | 'accountant' | 'admin' | 'secretary';
         
-        const isStaff = STAFF_EMAILS.includes(userEmail.toLowerCase());
+        // Force refresh of the token to get custom claims
+        const idTokenResult = await firebaseUser.getIdTokenResult(true);
+        const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
+        
+        let userName: string | undefined;
+        let targetPath: string;
 
-        if (isStaff) {
-            if (userEmail.toLowerCase() === 'admin@ccs.com') {
-                userRole = 'admin';
-                targetPath = '/dashboard/admin';
-            } else if (userEmail.toLowerCase() === 'secretary@ccs.com') {
-                userRole = 'secretary';
-                targetPath = '/dashboard/secretary';
-            } else {
-                userRole = 'accountant';
-                targetPath = '/dashboard/accountant';
-            }
-            userName = firebaseUser.displayName || userEmail.split('@')[0];
-            localStorage.removeItem('selectedClientId');
-        } else { // It's a client
-            userRole = 'client';
-            targetPath = '/dashboard/my-documents';
-            const userProfile = await getClientById(firebaseUser.uid);
-            if (!userProfile) {
+        // Everyone needs a profile in Firestore now.
+        const userProfile = await getClientById(firebaseUser.uid);
+
+        if (userRole === 'client') {
+             if (!userProfile) {
                 // This is a critical error for a client user. Their data is tied to their profile.
                 throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
             }
             userName = userProfile.legalRepresentative || userProfile.name;
             localStorage.setItem('selectedClientId', userProfile.id);
+            targetPath = '/dashboard/my-documents';
+        } else { // admin, accountant, secretary
+            userName = userProfile?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0];
+            localStorage.removeItem('selectedClientId');
+            if (userRole === 'admin') targetPath = '/dashboard/admin';
+            else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
+            else if (userRole === 'secretary') targetPath = '/dashboard/secretary';
+            else { // Fallback, should not happen
+                targetPath = '/dashboard';
+            }
         }
-
+        
         // Set common localStorage items
         localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', userName);
-        localStorage.setItem('userEmail', userEmail);
+        localStorage.setItem('userName', userName || 'Utilisateur');
+        localStorage.setItem('userEmail', firebaseUser.email!);
         
         window.dispatchEvent(new Event('storage'));
         router.push(targetPath);
@@ -237,8 +227,8 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs space-y-1">
-                <p><strong>Comptable:</strong> `comptable@ccs.com` (mdp: `password`)</p>
                 <p><strong>Admin:</strong> `admin@ccs.com` (mdp: `password`)</p>
+                <p><strong>Comptable:</strong> `comptable@ccs.com` (mdp: `password`)</p>
                 <p><strong>Client:</strong> `aventure.action@example.com` (mdp: `84042838300010`)</p>
               </AlertDescription>
             </Alert>
