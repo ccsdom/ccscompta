@@ -40,8 +40,12 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
-        const isStaff = ['admin', 'accountant', 'secretary'].includes(data.role);
-        const password = isStaff ? 'password' : (data.siret || 'password123'); // Default password for clients if no siret
+        let password;
+        if (data.role === 'client') {
+            password = data.siret || 'password123';
+        } else {
+            password = 'password';
+        }
 
         try {
             // 1. Create user in Firebase Auth (client-side)
