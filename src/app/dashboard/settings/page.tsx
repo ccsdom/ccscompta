@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap } from "lucide-react";
+import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, User, Briefcase, UserCog } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
@@ -20,9 +20,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { updateClient } from "@/ai/flows/client-actions";
 import type { IdTokenResult } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 
 export default function SettingsPage() {
     const { toast } = useToast();
+    const router = useRouter();
     const { theme, setTheme } = useTheme();
 
     const [userRole, setUserRole] = useState<string | null>(null);
@@ -118,7 +121,16 @@ export default function SettingsPage() {
         });
     }
     
-    const isAccountantOrAdmin = userRole === 'accountant' || userRole === 'admin' || userRole === 'secretary';
+    const handleSetAdminRole = () => {
+        // This is now a placeholder for the Cloud Function call
+        toast({
+            title: 'Action requise sur votre projet Firebase',
+            description: "Cette action nécessite une Cloud Function pour assigner les rôles de manière sécurisée. Veuillez déployer la fonction 'setAdminRole' sur votre projet.",
+            duration: 10000,
+        });
+    }
+
+    const isStaff = userRole === 'accountant' || userRole === 'admin' || userRole === 'secretary';
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
@@ -131,9 +143,10 @@ export default function SettingsPage() {
                     <TabsTrigger value="profile">Profil</TabsTrigger>
                     <TabsTrigger value="security">Sécurité</TabsTrigger>
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
-                    {isAccountantOrAdmin && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
+                    {isStaff && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
+                    {isStaff && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
+                    {isStaff && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
+                    {isStaff && <TabsTrigger value="admin">Administration</TabsTrigger>}
                 </TabsList>
                 
                 <TabsContent value="profile">
@@ -220,7 +233,7 @@ export default function SettingsPage() {
                                 <div>
                                     <Label htmlFor="notifications-email">Notifications par email</Label>
                                     <p className="text-sm text-muted-foreground">
-                                        {isAccountantOrAdmin 
+                                        {isStaff 
                                             ? "Recevez des emails quand un client téléverse un document."
                                             : "Recevez des emails quand votre comptable valide un document."
                                         }
@@ -232,7 +245,7 @@ export default function SettingsPage() {
                     </Card>
                 </TabsContent>
 
-                {isAccountantOrAdmin && (
+                {isStaff && (
                     <>
                         <TabsContent value="automation">
                              <Card>
@@ -315,6 +328,27 @@ export default function SettingsPage() {
                                             </Button>
                                         </div>
                                     )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        
+                        <TabsContent value="admin">
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><UserCog className="h-5 w-5"/> Administration</CardTitle>
+                                    <CardDescription>Actions réservées aux administrateurs de la plateforme.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Alert>
+                                        <Briefcase className="h-4 w-4" />
+                                        <AlertTitle>Devenir Administrateur</AlertTitle>
+                                        <AlertDescription>
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte.</p>
+                                                <Button onClick={handleSetAdminRole}>Me donner le rôle Admin</Button>
+                                            </div>
+                                        </AlertDescription>
+                                    </Alert>
                                 </CardContent>
                             </Card>
                         </TabsContent>

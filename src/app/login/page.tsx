@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
+    // Start with a clean slate on login page load
     const clearState = async () => {
         try {
             await signOut(auth);
@@ -48,15 +49,13 @@ export default function LoginPage() {
   }, []);
 
   const performLogin = async (uid: string) => {
-      let userProfile = await getClientById(uid);
+      const userProfile = await getClientById(uid);
 
       if (!userProfile) {
-          // This can happen if auth exists but firestore doc doesn't.
-          // This is a failsafe, but creation should be handled by the /new page.
           toast({
               variant: 'destructive',
               title: 'Profil non trouvé',
-              description: `Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`,
+              description: `Votre compte de connexion est valide, mais aucun profil n'a pu être trouvé en base de données. Veuillez contacter le support ou recréer un compte.`,
               duration: 10000,
           });
           setIsLoading(false);
@@ -103,6 +102,8 @@ export default function LoginPage() {
         let description = "Email ou mot de passe incorrect.";
         if (error.code === 'auth/too-many-requests') {
             description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
+        } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+             description = "L'adresse email ou le mot de passe que vous avez entré est incorrect.";
         }
         toast({ variant: "destructive", title: "Erreur de connexion", description });
         setIsLoading(false);
@@ -159,6 +160,14 @@ export default function LoginPage() {
             </p>
           </div>
           
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Configuration Initiale Requise</AlertTitle>
+            <AlertDescription>
+                Pour votre première utilisation, vous devez d'abord <Link href="/support/setup" className="font-bold underline">appliquer les règles de sécurité</Link> puis <Link href="/dashboard/clients/new" className="font-bold underline">créer votre compte administrateur</Link>.
+            </AlertDescription>
+           </Alert>
+
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
