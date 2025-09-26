@@ -33,7 +33,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    // Ensure user is fully logged out and local state is cleared on page load.
     const clearState = async () => {
         try {
             await signOut(auth);
@@ -59,36 +58,27 @@ export default function LoginPage() {
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
         
-        let userProfile = await getClientById(firebaseUser.uid);
-
-        // If a staff member logs in for the first time, they might not have a profile.
-        // We create a minimal one for them.
-        if (!userProfile && (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary')) {
-             userProfile = {
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || email.split('@')[0],
-                email: firebaseUser.email!,
-                role: userRole,
-                status: 'active',
-                newDocuments: 0,
-                lastActivity: new Date().toISOString(),
-             }
-        } else if (!userProfile && userRole === 'client') {
-            // This is a critical error for a client, as their data is tied to their profile.
-            throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
-        }
+        const userProfile = await getClientById(firebaseUser.uid);
 
         if (!userProfile) {
-             throw new Error(`Impossible de trouver ou de créer un profil pour votre compte.`);
+            if (userRole === 'client') {
+                 throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
+            } else {
+                // For staff, if profile doesn't exist, it means seeding failed or they are a new staff member.
+                // We'll proceed without a full profile for now.
+                console.warn(`No profile found for staff user ${firebaseUser.uid}. This might be expected for new staff.`);
+            }
         }
+        
+        const displayName = userProfile?.name || firebaseUser.displayName || email.split('@')[0];
 
         // --- Store user info in localStorage ---
-        localStorage.setItem('userRole', userProfile.role);
-        localStorage.setItem('userName', userProfile.name);
-        localStorage.setItem('userEmail', userProfile.email);
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', displayName);
+        localStorage.setItem('userEmail', email);
         
         // If the user is a client, their client ID is their own UID.
-        if (userProfile.role === 'client') {
+        if (userRole === 'client' && userProfile) {
             localStorage.setItem('selectedClientId', userProfile.id);
         } else {
             // For staff, clear any previously selected client. They will choose from a switcher.

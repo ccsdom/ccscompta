@@ -108,44 +108,42 @@ export async function getClients(): Promise<Client[]> {
     try {
         const snapshot = await getDocs(collection(db, 'clients'));
         
-        // Seed only if the entire collection is empty
         if (snapshot.empty && MOCK_CLIENTS.length > 0) {
             console.log("No users found in Firestore, seeding with mock data...");
             const batch = writeBatch(db);
 
             for (const client of MOCK_CLIENTS) {
                 try {
-                    // 1. Create Auth user with custom claim
-                    const userRecord = await adminAuth.createUser({
-                        email: client.email,
-                        password: client.password, // Use explicit password from mock
-                        emailVerified: true,
-                        disabled: false,
-                        displayName: client.name,
-                    });
+                    // Try to get user first, create if not exists
+                    let userRecord;
+                    try {
+                        userRecord = await adminAuth.getUserByEmail(client.email);
+                        console.warn(`Mock user ${client.email} already exists in Auth. Will update claims and Firestore doc.`);
+                    } catch (error: any) {
+                         if (error.code === 'auth/user-not-found') {
+                            console.log(`Creating mock user ${client.email} in Auth.`);
+                            userRecord = await adminAuth.createUser({
+                                email: client.email,
+                                password: client.password,
+                                emailVerified: true,
+                                disabled: false,
+                                displayName: client.name,
+                            });
+                         } else {
+                            throw error; // Rethrow other auth errors
+                         }
+                    }
+                    
+                    // 1. Set Custom Claim
                     await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
 
-                    // 2. Create Firestore document
+                    // 2. Prepare Firestore document
                     const docRef = doc(db, 'clients', userRecord.uid);
                     const { id, password, ...clientData } = client; // eslint-disable-line @typescript-eslint/no-unused-vars
                     batch.set(docRef, clientData);
 
                 } catch (error: any) {
-                     if (error.code !== 'auth/email-already-exists') {
-                        console.error(`Error seeding user ${client.email}:`, error);
-                     } else {
-                        console.warn(`Mock user ${client.email} already exists in Auth. Skipping auth creation, will attempt to set Firestore doc.`);
-                         try {
-                            const userRecord = await adminAuth.getUserByEmail(client.email);
-                            const docRef = doc(db, 'clients', userRecord.uid);
-                             // Ensure role claim is set even if user exists
-                            await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
-                            const { id, password, ...clientData } = client;
-                            batch.set(docRef, clientData);
-                         } catch (e) {
-                             console.error(`Could not get existing mock user ${client.email}`, e);
-                         }
-                     }
+                     console.error(`Error seeding user ${client.email}:`, error);
                 }
             }
             await batch.commit();
