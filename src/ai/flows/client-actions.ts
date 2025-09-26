@@ -2,11 +2,15 @@
 'use server';
 
 import { z } from 'zod';
-import { db, auth } from '@/lib/firebase-client';
+import { db } from '@/lib/firebase-client';
 import { collection, getDocs, query, where, limit, doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth as getClientAuth } from "firebase/auth";
+import { getFirebaseApp } from "@/lib/firebase-client";
+import { getAuth as getAdminAuth, createUser, deleteUser } from 'firebase-admin/auth';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
+import { auth as adminAuth } from '@/lib/firebase-admin';
+
 
 type ServerActionResponse<T> =
   | { success: true; data: T }
@@ -39,18 +43,30 @@ export async function addClient(
         return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
     }
 
-    // 2. Create user in Firebase Auth using the Client SDK
-    let userCredential;
+    // 2. Create user in Firebase Auth using the ADMIN SDK
+    let userRecord;
     try {
-      userCredential = await createUserWithEmailAndPassword(auth, validatedData.email, validatedData.siret);
+        const isAdminEmail = ['admin@ccs.com', 'comptable@ccs.com'].includes(validatedData.email.toLowerCase());
+        const role = isAdminEmail ? 'admin' : 'client';
+        
+        userRecord = await adminAuth.createUser({
+            email: validatedData.email,
+            password: validatedData.siret, // Using SIRET as initial password
+            emailVerified: true,
+            disabled: false
+        });
+
+        await adminAuth.setCustomUserClaims(userRecord.uid, { role });
+
     } catch(authError: any) {
-      if (authError.code === 'auth/email-already-in-use') {
+      if (authError.code === 'auth/email-already-exists') {
         return { success: false, error: 'Un compte utilisateur avec cet email existe déjà.' };
       }
-      throw authError; // Rethrow other auth errors
+      console.error("[Admin SDK Auth Error]", authError);
+      throw authError;
     }
     
-    const uid = userCredential.user.uid;
+    const uid = userRecord.uid;
 
     // 3. Add client profile to Firestore using the created UID
     const clientDocRef = doc(db, 'clients', uid);
@@ -156,14 +172,14 @@ export async function deleteClient(id: string): Promise<{success: boolean}> {
             return { success: false };
         }
         
-        // This is a complex operation: deleting a user requires admin privileges.
-        // For this app, we will only delete the Firestore document.
-        // The auth user will need to be deleted manually from the Firebase Console.
+        // Use Admin SDK to delete the user from Auth
+        await adminAuth.deleteUser(id);
+        console.log(`[Admin SDK] Auth user ${id} deleted.`);
+        
+        // Delete Firestore document
         await deleteDoc(doc(db, 'clients', id));
         console.log(`[Firestore] Client profile ${id} deleted.`);
         
-        console.warn(`[Action Required] The Firestore data for ${client.email} was deleted, but the auth user still exists. Please delete it manually in the Firebase Console to prevent issues.`);
-
         return { success: true };
     } catch (error) {
         console.error(`Error deleting client ${id}:`, error);
@@ -186,5 +202,3 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
-
-    
