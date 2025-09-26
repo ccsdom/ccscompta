@@ -52,22 +52,25 @@ export default function LoginPage() {
         let userEmail = firebaseUser.email!;
         let targetPath: string;
 
-        // Admin, Accountant, Secretary Roles
         if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
-            userName = firebaseUser.displayName || userEmail.split('@')[0];
+            // For admin/staff, the profile might not be in the 'clients' collection.
+            // We use their email display name as a fallback.
+            const userProfile = await getClientById(firebaseUser.uid);
+            userName = userProfile?.name || firebaseUser.displayName || userEmail.split('@')[0];
+            
             localStorage.setItem('userRole', userRole);
             localStorage.setItem('userName', userName);
             localStorage.setItem('userEmail', userEmail);
-            localStorage.removeItem('selectedClientId');
+            localStorage.removeItem('selectedClientId'); // Ensure no client is selected
 
             if (userRole === 'admin') targetPath = '/dashboard/admin';
             else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
             else targetPath = '/dashboard/secretary';
 
-        // Client Role
-        } else {
+        } else { // 'client' role
             const userProfile = await getClientById(firebaseUser.uid);
             if (!userProfile) {
+                // This is a critical error for a client user. Their data is tied to their profile.
                 throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
             }
             userName = userProfile.legalRepresentative || userProfile.name;
@@ -98,7 +101,7 @@ export default function LoginPage() {
                     description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
                     break;
              }
-        } else { // Custom errors
+        } else { // Custom errors from our logic
             description = error.message;
         }
 
@@ -227,8 +230,8 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs space-y-1">
-                <p><strong>Comptable :</strong> `comptable@ccs.com` (avec votre mot de passe)</p>
-                <p><strong>Client :</strong> `aventure.action@example.com` | mdp: `84042838300010`</p>
+                <p><strong>Comptable:</strong> `comptable@ccs.com` (mdp: `password`)</p>
+                <p><strong>Client:</strong> `aventure.action@example.com` | mdp: `84042838300010`</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
