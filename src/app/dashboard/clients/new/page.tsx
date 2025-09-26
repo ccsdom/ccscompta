@@ -5,7 +5,7 @@ import { ClientForm, formSchema as baseFormSchema } from "../client-form";
 import { addClient } from '@/ai/flows/client-actions';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import type * as z from "zod";
+import * as z from "zod";
 import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
