@@ -14,11 +14,13 @@ import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
+import { setAdminClaim } from "@/ai/flows/admin-actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { updateClient, getClientById } from "@/ai/flows/client-actions";
+import type { IdTokenResult } from "firebase/auth";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -28,7 +30,7 @@ export default function SettingsPage() {
     const [userName, setUserName] = useState("Utilisateur");
     const [userEmail, setUserEmail] = useState("");
     const [userUid, setUserUid] = useState<string | null>(null);
-    const [isAdminSetup, setIsAdminSetup] = useState(false);
+    const [isAdminByClaims, setIsAdminByClaims] = useState(false);
 
     const [automationSettings, setAutomationSettings] = useState({
         isEnabled: false,
@@ -49,17 +51,19 @@ export default function SettingsPage() {
         const email = localStorage.getItem('userEmail');
         if (email) setUserEmail(email);
         
-        const unsubscribe = clientAuth.onAuthStateChanged(user => {
+        const unsubscribe = clientAuth.onAuthStateChanged(async (user) => {
             if (user) {
                 setUserUid(user.uid);
-                // Check role from Firestore now
-                const checkRole = async () => {
-                    const profile = await getClientById(user.uid);
-                    if (profile?.role === 'admin') {
-                        setIsAdminSetup(true);
+                // Check role from token claims
+                const tokenResult: IdTokenResult = await user.getIdTokenResult(true); // Force refresh
+                const claims = tokenResult.claims;
+                if (claims.role === 'admin') {
+                    setIsAdminByClaims(true);
+                     if (localStorage.getItem('userRole') !== 'admin') {
+                        localStorage.setItem('userRole', 'admin');
+                        window.dispatchEvent(new Event('storage'));
                     }
                 }
-                checkRole();
             } else {
                 setUserUid(null);
             }
@@ -124,20 +128,22 @@ export default function SettingsPage() {
             return;
         }
         setIsSettingAdmin(true);
-        const result = await updateClient({ id: userUid, updates: { role: 'admin' } });
+        const result = await setAdminClaim(userUid);
+
         if (result.success) {
             toast({
                 title: "Rôle Administrateur défini !",
                 description: "Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
             });
-            setIsAdminSetup(true);
-            localStorage.setItem('userRole', 'admin'); // Optimistic update
+            // Optimistically update UI
+            setIsAdminByClaims(true);
+            localStorage.setItem('userRole', 'admin');
             window.dispatchEvent(new Event('storage'));
         } else {
             toast({
                 variant: 'destructive',
                 title: "Échec de l'attribution du rôle",
-                description: result.error || "Une erreur inconnue est survenue."
+                description: result.error || "Une erreur inconnue est survenue. Le SDK Admin n'est peut-être pas configuré sur le serveur."
             });
         }
         setIsSettingAdmin(false);
@@ -361,19 +367,19 @@ export default function SettingsPage() {
                                     <CardDescription>Actions sensibles réservées à l'administrateur principal.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <Alert variant={isAdminSetup ? "default" : "destructive"} className={isAdminSetup ? "bg-green-50 border-green-200 text-green-800" : ""}>
+                                    <Alert variant={isAdminByClaims ? "default" : "destructive"} className={isAdminByClaims ? "bg-green-50 border-green-200 text-green-800" : ""}>
                                         <Shield className="h-4 w-4" />
-                                        <AlertTitle>{isAdminSetup ? "Rôle administrateur actif" : "Action requise : Définir un administrateur"}</AlertTitle>
+                                        <AlertTitle>{isAdminByClaims ? "Rôle administrateur actif" : "Action requise : Définir un administrateur"}</AlertTitle>
                                         <AlertDescription>
-                                            {isAdminSetup 
-                                                ? "Le rôle d'administrateur est correctement configuré pour votre compte."
+                                            {isAdminByClaims 
+                                                ? "Le rôle d'administrateur est correctement configuré pour votre compte via les Custom Claims."
                                                 : "Votre compte n'a pas les privilèges d'administrateur. Ceci est nécessaire pour gérer les utilisateurs et sécuriser l'application. Cette action est irréversible."
                                             }
                                         </AlertDescription>
                                     </Alert>
                                 </CardContent>
                                  <CardFooter className="border-t pt-6">
-                                     <Button onClick={handleSetAdminRole} disabled={isSettingAdmin || isAdminSetup}>
+                                     <Button onClick={handleSetAdminRole} disabled={isSettingAdmin || isAdminByClaims}>
                                          {isSettingAdmin ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Définition...</> : "Me donner le rôle Admin"}
                                      </Button>
                                 </CardFooter>
