@@ -25,7 +25,6 @@ export default function NewClientPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
-    const [tempPassword, setTempPassword] = useState<string | null>(null);
 
     useEffect(() => {
         const data: Partial<z.infer<typeof formSchema>> = {
@@ -42,9 +41,7 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         const isStaff = ['admin', 'accountant', 'secretary'].includes(data.role);
-        // Correctly define the password. For staff, it's always 'password'. For clients, it's their SIRET if provided.
-        const password = isStaff ? 'password' : (data.siret || 'password');
-        setTempPassword(password);
+        const password = isStaff ? 'password' : (data.siret || 'password123'); // Default password for clients if no siret
 
         try {
             // 1. Create user in Firebase Auth (client-side)
@@ -56,16 +53,16 @@ export default function NewClientPage() {
 
             if (result.success) {
                 toast({
-                    duration: 20000,
+                    duration: 10000,
                     title: "Utilisateur créé avec succès !",
                     description: (
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             <p>Le profil et le compte de connexion pour <strong>{result.data.name}</strong> ont été créés.</p>
-                            <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
+                            <Alert variant="default">
                                 <KeyRound className="h-4 w-4" />
-                                <AlertTitle>Informations de connexion</AlertTitle>
+                                <AlertTitle>Mot de passe initial</AlertTitle>
                                 <AlertDescription>
-                                <p>Le mot de passe initial de l'utilisateur est : <strong>{tempPassword}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
+                                    Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>.
                                 </AlertDescription>
                             </Alert>
                         </div>
@@ -77,15 +74,15 @@ export default function NewClientPage() {
             }
         } catch (error: any) {
             console.error("Failed to add user:", error);
-            let errorMessage = error.message;
+            let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
             if (error.code === 'auth/email-already-in-use') {
-                errorMessage = "Un compte utilisateur avec cet email existe déjà.";
-            } else if (error.code) {
-                 errorMessage = `Erreur: ${error.code}. ${error.message}`;
+                errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez utiliser un autre email.";
+            } else if (error.message) {
+                 errorMessage = error.message;
             }
             toast({
                 variant: 'destructive',
-                title: "Erreur lors de l'ajout de l'utilisateur",
+                title: "Erreur lors de l'ajout",
                 description: errorMessage
             });
         } finally {
@@ -124,5 +121,3 @@ export default function NewClientPage() {
         </div>
     )
 }
-
-    

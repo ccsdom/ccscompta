@@ -51,27 +51,23 @@ export default function LoginPage() {
       let userProfile = await getClientById(uid);
 
       if (!userProfile) {
-          if (password === 'password') {
-              console.log(`User profile not found for ${emailToLogin}. Creating a new admin profile.`);
-              const newAdminProfile: Omit<Client, 'id' | 'status'> = {
-                  name: emailToLogin.split('@')[0],
-                  email: emailToLogin,
-                  role: 'admin',
-                  newDocuments: 0,
-                  lastActivity: new Date().toISOString(),
-              };
-              const profileResult = await addClient({ uid, ...newAdminProfile });
-
-              if (!profileResult.success) {
-                  throw new Error(`Votre compte est valide, mais la création de votre profil admin a échoué: ${profileResult.error}`);
-              }
+          // This case can happen if the user was created in Auth but the Firestore profile creation failed.
+          // The user should complete their profile via the new user flow if needed.
+          // For now, we allow login but the app might be in a weird state.
+          console.warn(`User ${uid} is authenticated but has no Firestore profile.`);
+          // Let's create a minimal profile to avoid a crash
+          const tempProfile: Omit<Client, 'id' | 'status'> = {
+              name: emailToLogin.split('@')[0],
+              email: emailToLogin,
+              role: 'client', // Safest default
+              newDocuments: 0,
+              lastActivity: new Date().toISOString(),
+          };
+          const profileResult = await addClient({ uid, ...tempProfile });
+          if(profileResult.success){
               userProfile = profileResult.data;
-              toast({
-                  title: "Profil Administrateur créé !",
-                  description: "Votre profil administrateur a été initialisé.",
-              });
           } else {
-              throw new Error(`Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`);
+             throw new Error(`Votre compte est valide mais votre profil est manquant. La tentative de réparation a échoué. Erreur: ${profileResult.error}`);
           }
       }
       
@@ -110,25 +106,27 @@ export default function LoginPage() {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         await performLogin(email, userCredential.user.uid);
     } catch (error: any) {
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-            // If login fails and password is the master password, try to create an admin account.
-            if (password === 'password') {
-                console.log(`Login failed for ${email}, attempting to create an admin account.`);
-                try {
-                    const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    await performLogin(email, newUserCredential.user.uid);
-                } catch (creationError: any) {
-                    console.error("Admin Creation Error:", creationError);
-                    toast({ variant: "destructive", title: "Erreur de création de compte", description: "Ce compte ne peut être créé. L'email est peut-être déjà utilisé avec un autre fournisseur." });
-                }
-            } else {
-                 toast({ variant: "destructive", title: "Erreur de connexion", description: "Email ou mot de passe incorrect. Veuillez réessayer." });
+        if (error.code === 'auth/user-not-found') {
+            console.log(`User ${email} not found. Attempting to create a new account.`);
+            try {
+                const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                toast({
+                    title: "Compte créé !",
+                    description: "Votre compte a été créé. Vous allez être connecté.",
+                });
+                await performLogin(email, newUserCredential.user.uid);
+            } catch (creationError: any) {
+                console.error("Account Creation Error:", creationError);
+                toast({ variant: "destructive", title: "Erreur de création de compte", description: "Cet email est peut-être déjà utilisé ou le mot de passe est trop faible." });
             }
-        } else {
+        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+             toast({ variant: "destructive", title: "Erreur de connexion", description: "Email ou mot de passe incorrect." });
+        }
+        else {
             console.error("Login Error:", error);
             let description = "Une erreur inconnue est survenue.";
             if (error.code === 'auth/too-many-requests') {
-                description = "Compte temporairement bloqué. Réessayez plus tard.";
+                description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
             }
             toast({ variant: "destructive", title: "Erreur de connexion", description });
         }
