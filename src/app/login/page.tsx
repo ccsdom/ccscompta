@@ -18,9 +18,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
-import { getClientById, addClient } from '@/ai/flows/client-actions';
+import { getClientById } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, type User } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -46,68 +46,6 @@ export default function LoginPage() {
     clearState();
   }, []);
 
-  const performLogin = async (firebaseUser: User) => {
-      let userProfile = await getClientById(firebaseUser.uid);
-      
-      if (!userProfile) {
-          console.log(`User ${firebaseUser.uid} authenticated but has no profile. Attempting to create one.`);
-          
-          const role = password === 'password' ? 'admin' : 'client';
-          
-          const profileResult = await addClient({
-            uid: firebaseUser.uid,
-            email: email,
-            name: email.split('@')[0],
-            role: role,
-          });
-
-          if (!profileResult.success) {
-            console.error(`Profile creation failed, but continuing login: ${profileResult.error}`);
-            // We still log the user in, they might need to create their profile manually.
-            userProfile = {
-                id: firebaseUser.uid,
-                email: email,
-                name: email.split('@')[0],
-                role: role,
-                status: 'onboarding',
-                newDocuments: 0,
-                lastActivity: new Date().toISOString(),
-            }
-          } else {
-            userProfile = profileResult.data;
-          }
-
-          toast({
-            title: "Profil créé",
-            description: "Votre profil a été initialisé. Connexion en cours...",
-          });
-      }
-      
-      const userRole = userProfile.role;
-      const displayName = userProfile.name || firebaseUser.displayName || email.split('@')[0];
-
-      localStorage.setItem('userRole', userRole);
-      localStorage.setItem('userName', displayName);
-      localStorage.setItem('userEmail', email);
-      
-      if (userRole === 'client' && userProfile) {
-          localStorage.setItem('selectedClientId', userProfile.id);
-      } else {
-          localStorage.removeItem('selectedClientId');
-      }
-      
-      let targetPath: string;
-      switch (userRole) {
-          case 'admin': targetPath = '/dashboard/admin'; break;
-          case 'accountant': targetPath = '/dashboard/accountant'; break;
-          case 'secretary': targetPath = '/dashboard/secretary'; break;
-          case 'client': targetPath = '/dashboard/my-documents'; break;
-          default: targetPath = '/dashboard';
-      }
-      
-      window.dispatchEvent(new Event('storage'));
-      router.push(targetPath);
-  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,32 +53,46 @@ export default function LoginPage() {
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await performLogin(userCredential.user);
-    } catch (error: any) {
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-            console.log("User not found, attempting to create account...");
-            try {
-                // This will create the user in Firebase Auth
-                const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-                console.log('Account created for:', newUserCredential.user.email);
-                
-                // Now that the user is created and logged in, create the profile in Firestore.
-                await performLogin(newUserCredential.user);
-
-            } catch (creationError: any) {
-                 console.error("Account Creation Error:", creationError);
-                 toast({ variant: "destructive", title: "Erreur de création de compte", description: creationError.message });
-            }
-        } else {
-            console.error("Login Error:", error);
-            let description = "Une erreur inconnue est survenue.";
-            if (error.code === 'auth/too-many-requests') {
-                description = "Compte temporairement bloqué. Réessayez plus tard.";
-            } else if (error.message) {
-                description = error.message;
-            }
-            toast({ variant: "destructive", title: "Erreur de connexion", description });
+        const firebaseUser = userCredential.user;
+        
+        const userProfile = await getClientById(firebaseUser.uid);
+        
+        if (!userProfile) {
+            throw new Error(`Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`);
         }
+        
+        const userRole = userProfile.role;
+        const displayName = userProfile.name || firebaseUser.displayName || email.split('@')[0];
+
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', displayName);
+        localStorage.setItem('userEmail', email);
+        
+        if (userRole === 'client' && userProfile) {
+            localStorage.setItem('selectedClientId', userProfile.id);
+        } else {
+            localStorage.removeItem('selectedClientId');
+        }
+        
+        let targetPath: string;
+        switch (userRole) {
+            case 'admin': targetPath = '/dashboard/admin'; break;
+            case 'accountant': targetPath = '/dashboard/accountant'; break;
+            case 'secretary': targetPath = '/dashboard/secretary'; break;
+            case 'client': targetPath = '/dashboard/my-documents'; break;
+            default: targetPath = '/dashboard';
+        }
+        
+        window.dispatchEvent(new Event('storage'));
+        router.push(targetPath);
+
+    } catch (error: any) {
+        console.error("Login Error:", error);
+        let description = "Email ou mot de passe incorrect. Veuillez réessayer.";
+        if (error.code === 'auth/too-many-requests') {
+            description = "Compte temporairement bloqué. Réessayez plus tard.";
+        }
+        toast({ variant: "destructive", title: "Erreur de connexion", description });
     } finally {
         setIsLoading(false);
     }
@@ -195,20 +147,6 @@ export default function LoginPage() {
               Connectez-vous à votre espace pour commencer.
             </p>
           </div>
-
-           <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle className="font-semibold">Action requise pour la première connexion</AlertTitle>
-                <AlertDescription className="text-xs space-y-2">
-                    <p>Pour pouvoir créer le premier compte administrateur, vous devez d'abord mettre à jour vos règles de sécurité Firestore.</p>
-                    <ol className="list-decimal list-inside pl-2">
-                        <li><Link href="/support/setup" target="_blank" className="font-semibold underline">Cliquez ici pour obtenir les règles</Link>.</li>
-                        <li>Copiez les règles de sécurité.</li>
-                        <li>Collez-les dans votre **Console Firebase &gt; Firestore &gt; Règles** et publiez.</li>
-                    </ol>
-                    <p>Ensuite, connectez-vous avec l'email de votre choix et le mot de passe **`password`** pour créer votre compte admin.</p>
-                </AlertDescription>
-            </Alert>
           
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
@@ -277,6 +215,12 @@ export default function LoginPage() {
               Google
             </Button>
           </form>
+             <div className="mt-4 text-center text-sm">
+              Vous n'avez pas de compte ?{" "}
+              <Link href="/dashboard/clients/new" className="underline text-primary">
+                Créer un compte
+              </Link>
+            </div>
             <p className="mt-8 text-center text-xs text-muted-foreground">
                 &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
             </p>

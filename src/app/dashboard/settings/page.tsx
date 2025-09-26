@@ -14,12 +14,11 @@ import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
-import { setAdminClaim } from "@/ai/flows/admin-actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
-import { updateClient, getClientById } from "@/ai/flows/client-actions";
+import { updateClient } from "@/ai/flows/client-actions";
 import type { IdTokenResult } from "firebase/auth";
 
 export default function SettingsPage() {
@@ -30,7 +29,6 @@ export default function SettingsPage() {
     const [userName, setUserName] = useState("Utilisateur");
     const [userEmail, setUserEmail] = useState("");
     const [userUid, setUserUid] = useState<string | null>(null);
-    const [isAdminByClaims, setIsAdminByClaims] = useState(false);
 
     const [automationSettings, setAutomationSettings] = useState({
         isEnabled: false,
@@ -39,7 +37,6 @@ export default function SettingsPage() {
     });
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
-    const [isSettingAdmin, setIsSettingAdmin] = useState(false);
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
@@ -54,16 +51,6 @@ export default function SettingsPage() {
         const unsubscribe = clientAuth.onAuthStateChanged(async (user) => {
             if (user) {
                 setUserUid(user.uid);
-                // Check role from token claims
-                const tokenResult: IdTokenResult = await user.getIdTokenResult(true); // Force refresh
-                const claims = tokenResult.claims;
-                if (claims.role === 'admin') {
-                    setIsAdminByClaims(true);
-                     if (localStorage.getItem('userRole') !== 'admin') {
-                        localStorage.setItem('userRole', 'admin');
-                        window.dispatchEvent(new Event('storage'));
-                    }
-                }
             } else {
                 setUserUid(null);
             }
@@ -121,33 +108,6 @@ export default function SettingsPage() {
         }
         setIsLoadingFirestoreRules(false);
     }
-
-    const handleSetAdminRole = async () => {
-        if (!userUid) {
-            toast({ variant: 'destructive', title: "Erreur", description: "Utilisateur non authentifié." });
-            return;
-        }
-        setIsSettingAdmin(true);
-        const result = await setAdminClaim(userUid);
-
-        if (result.success) {
-            toast({
-                title: "Rôle Administrateur défini !",
-                description: "Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
-            });
-            // Optimistically update UI
-            setIsAdminByClaims(true);
-            localStorage.setItem('userRole', 'admin');
-            window.dispatchEvent(new Event('storage'));
-        } else {
-            toast({
-                variant: 'destructive',
-                title: "Échec de l'attribution du rôle",
-                description: result.error || "Une erreur inconnue est survenue. Le SDK Admin n'est peut-être pas configuré sur le serveur."
-            });
-        }
-        setIsSettingAdmin(false);
-    }
     
     const copyToClipboard = (text: string | null) => {
         if (!text) return;
@@ -173,7 +133,6 @@ export default function SettingsPage() {
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
                     {isAccountantOrAdmin && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="admin">Administration</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
                 </TabsList>
                 
@@ -357,32 +316,6 @@ export default function SettingsPage() {
                                         </div>
                                     )}
                                 </CardContent>
-                            </Card>
-                        </TabsContent>
-                        
-                         <TabsContent value="admin">
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Zone à haut risque</CardTitle>
-                                    <CardDescription>Actions sensibles réservées à l'administrateur principal.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Alert variant={isAdminByClaims ? "default" : "destructive"} className={isAdminByClaims ? "bg-green-50 border-green-200 text-green-800" : ""}>
-                                        <Shield className="h-4 w-4" />
-                                        <AlertTitle>{isAdminByClaims ? "Rôle administrateur actif" : "Action requise : Définir un administrateur"}</AlertTitle>
-                                        <AlertDescription>
-                                            {isAdminByClaims 
-                                                ? "Le rôle d'administrateur est correctement configuré pour votre compte via les Custom Claims."
-                                                : "Votre compte n'a pas les privilèges d'administrateur. Ceci est nécessaire pour gérer les utilisateurs et sécuriser l'application. Cette action est irréversible."
-                                            }
-                                        </AlertDescription>
-                                    </Alert>
-                                </CardContent>
-                                 <CardFooter className="border-t pt-6">
-                                     <Button onClick={handleSetAdminRole} disabled={isSettingAdmin || isAdminByClaims}>
-                                         {isSettingAdmin ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Définition...</> : "Me donner le rôle Admin"}
-                                     </Button>
-                                </CardFooter>
                             </Card>
                         </TabsContent>
 
