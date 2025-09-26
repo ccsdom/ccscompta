@@ -49,19 +49,14 @@ export default function LoginPage() {
         const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
 
         let userName: string;
-        let userEmail = firebaseUser.email!;
+        const userEmail = firebaseUser.email!;
         let targetPath: string;
 
         if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
             // For admin/staff, we DO NOT require a client profile.
             // Their identity is managed by Firebase Auth and their role claim.
             userName = firebaseUser.displayName || userEmail.split('@')[0];
-            
-            localStorage.setItem('userRole', userRole);
-            localStorage.setItem('userName', userName);
-            localStorage.setItem('userEmail', userEmail);
             localStorage.removeItem('selectedClientId'); // Ensure no client is selected for staff
-
             if (userRole === 'admin') targetPath = '/dashboard/admin';
             else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
             else targetPath = '/dashboard/secretary';
@@ -74,13 +69,14 @@ export default function LoginPage() {
                 throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
             }
             userName = userProfile.legalRepresentative || userProfile.name;
-            
-            localStorage.setItem('userRole', 'client');
-            localStorage.setItem('userName', userName);
-            localStorage.setItem('userEmail', userEmail);
             localStorage.setItem('selectedClientId', userProfile.id);
             targetPath = '/dashboard/my-documents';
         }
+
+        // Set common localStorage items
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', userName);
+        localStorage.setItem('userEmail', userEmail);
         
         window.dispatchEvent(new Event('storage'));
         router.push(targetPath);
@@ -243,3 +239,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
