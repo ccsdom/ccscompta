@@ -54,7 +54,7 @@ export async function addClient(
     
     const docSnap = await getDoc(clientDocRef);
     if (docSnap.exists()) {
-       return { success: false, error: 'Un profil pour cet utilisateur existe déjà.' };
+       console.log(`[Client Action] Profile for user ${email} already exists. It will be overwritten.`);
     }
     
     const newUser: Omit<Client, 'id' | 'password'> = {
@@ -65,16 +65,13 @@ export async function addClient(
     };
     
     // Explicitly remove undefined fields to prevent Firestore errors
-    if (!newUser.siret) delete newUser.siret;
-    if (!newUser.phone) delete newUser.phone;
-    if (!newUser.legalRepresentative) delete newUser.legalRepresentative;
-    if (!newUser.address) delete newUser.address;
-    if (!newUser.fiscalYearEndDate) delete newUser.fiscalYearEndDate;
-    if (!newUser.assignedAccountantId) delete newUser.assignedAccountantId;
+    const cleanUser = Object.fromEntries(
+        Object.entries(newUser).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+    );
     
-    await setDoc(clientDocRef, newUser);
+    await setDoc(clientDocRef, cleanUser);
     
-    console.log("[Client Action] User profile created with ID:", userRecord.uid);
+    console.log("[Client Action] User profile created/updated with ID:", userRecord.uid);
     
     const finalDoc = await getDoc(clientDocRef);
 

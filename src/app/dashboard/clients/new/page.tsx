@@ -1,4 +1,3 @@
-
 'use client'
 
 import { ClientForm, formSchema as baseFormSchema } from "../client-form";
@@ -42,23 +41,20 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password = 'password';
-        if (data.role === 'client') {
-            if (data.siret && data.siret.length === 14) {
-                password = data.siret;
-            } else {
-                toast({ variant: 'destructive', title: 'SIRET Requis', description: "Le SIRET de 14 chiffres est obligatoire et sert de mot de passe initial pour les clients." });
-                setIsSubmitting(false);
-                return;
-            }
-        }
+        const password = 'password';
         
         try {
             // Step 1: Create user in Firebase Auth (Client-side)
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Create user profile in Firestore (Client-side)
+            // Step 2: Set custom claim for role (via a server action that MUST have admin rights)
+            // This is the ideal way but requires a deployed Cloud Function or secure backend.
+            // For this setup, we rely on Firestore rules and a direct write.
+            await updateClient({ id: user.uid, updates: { role: data.role } });
+
+            // Step 3: Create user profile in Firestore (Client-side)
+            // This succeeds because the security rules allow a user to create their own document.
             const userProfileData: any = {
                 ...data,
                 newDocuments: 0,
@@ -67,18 +63,14 @@ export default function NewClientPage() {
             };
 
             // Remove undefined fields and the password before saving to Firestore
+            Object.keys(userProfileData).forEach(key => {
+                if (userProfileData[key] === undefined || userProfileData[key] === null || userProfileData[key] === '') {
+                    delete userProfileData[key];
+                }
+            });
             delete userProfileData.password;
-            if (!userProfileData.siret) delete userProfileData.siret;
-            if (!userProfileData.phone) delete userProfileData.phone;
-            if (!userProfileData.legalRepresentative) delete userProfileData.legalRepresentative;
-            if (!userProfileData.address) delete userProfileData.address;
-            if (!userProfileData.fiscalYearEndDate) delete userProfileData.fiscalYearEndDate;
-            if (!userProfileData.assignedAccountantId) delete userProfileData.assignedAccountantId;
-
+            
             await setDoc(doc(db, "clients", user.uid), userProfileData);
-
-            // This part is crucial for role-based access to work after creation
-            await updateClient({ id: user.uid, updates: { role: data.role } });
 
             toast({
                 duration: 10000,
@@ -97,6 +89,7 @@ export default function NewClientPage() {
                 ),
             });
             router.push('/dashboard/clients');
+            router.refresh();
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
