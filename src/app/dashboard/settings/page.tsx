@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { updateClient } from "@/ai/flows/client-actions";
-import type { IdTokenResult } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 
 
@@ -122,22 +122,42 @@ export default function SettingsPage() {
         });
     }
     
-    const handleSetAdminRole = async () => {
-        if (!userUid) {
-             toast({ variant: 'destructive', title: "Utilisateur non connecté" });
-             return;
-        }
+     const handleSetAdminRole = async () => {
         setIsAdminRoleLoading(true);
-        
-        // This button now only serves as a placeholder to explain the next manual step
-        toast({
-            title: 'Action Manuelle Requise',
-            description: "Pour assigner un rôle, vous devez déployer une Cloud Function qui utilise le SDK Admin.",
-            duration: 10000,
-        });
+        try {
+            const functions = getFunctions(clientAuth.app);
+            const setAdminRole = httpsCallable(functions, 'setAdminRole');
+            const result = await setAdminRole();
+            
+            toast({
+                title: 'Rôle mis à jour !',
+                description: "Vous avez maintenant le rôle d'administrateur. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
+            });
+            
+            // Log out the user so they have to log back in to get the new custom claim
+            await clientAuth.signOut();
+            router.push('/login');
 
-        setIsAdminRoleLoading(false);
+        } catch (error: any) {
+            console.error(error);
+            let errorMessage = "Une erreur inconnue est survenue.";
+            if (error.code === 'functions/unauthenticated') {
+                errorMessage = "Vous devez être connecté pour effectuer cette action.";
+            } else if (error.code === 'functions/permission-denied') {
+                errorMessage = "Vous n'avez pas les permissions nécessaires.";
+            } else if (error.message.includes('functions/not-found')) {
+                errorMessage = "La Cloud Function 'setAdminRole' ne semble pas être déployée. Veuillez suivre les instructions de déploiement.";
+            }
+            toast({
+                variant: 'destructive',
+                title: 'Erreur',
+                description: errorMessage,
+            });
+        } finally {
+            setIsAdminRoleLoading(false);
+        }
     }
+
 
     const isStaff = userRole === 'accountant' || userRole === 'admin' || userRole === 'secretary';
 
@@ -383,9 +403,9 @@ export default function SettingsPage() {
                                 <AlertTitle>Devenir Administrateur</AlertTitle>
                                 <AlertDescription>
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action nécessite qu'une Cloud Function soit déployée sur votre projet Firebase pour fonctionner.</p>
-                                        <Button onClick={handleSetAdminRole} disabled={isAdminRoleLoading}>
-                                            {isAdminRoleLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</> : "Me donner le rôle Admin"}
+                                        <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action nécessite que la Cloud Function "setAdminRole" soit déployée sur votre projet Firebase.</p>
+                                        <Button onClick={handleSetAdminRole} disabled={isAdminRoleLoading || userRole === 'admin'}>
+                                            {isAdminRoleLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</> : (userRole === 'admin' ? "Déjà Admin" : "Me donner le rôle Admin")}
                                         </Button>
                                     </div>
                                 </AlertDescription>
