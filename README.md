@@ -1,3 +1,4 @@
+
 # Firebase Studio
 
 This is a NextJS starter in Firebase Studio.
@@ -6,9 +7,18 @@ To get started, take a look at src/app/page.tsx.
 
 ## Configuration Post-Création
 
-### Activer l'accès à Firebase Storage (CORS)
+### Étape 1 : Activer Firebase Storage (Action Requise)
 
-Si vous rencontrez des erreurs `Failed to fetch`, `storage/retry-limit-exceeded` ou des problèmes de CORS en essayant de téléverser ou d'afficher des documents, vous devez autoriser votre application à accéder aux fichiers stockés.
+Si vous n'avez jamais utilisé Firebase Storage sur ce projet, vous devez l'activer. C'est une étape indispensable qui crée votre "bucket" de stockage.
+
+1.  **Accédez à la console Firebase** de votre projet : [https://console.firebase.google.com/project/ccs-compta/storage](https://console.firebase.google.com/project/ccs-compta/storage)
+2.  Si le service n'est pas activé, vous verrez un écran d'accueil pour Storage. Cliquez sur le bouton **"Commencer"** (ou "Get Started").
+3.  Suivez les instructions à l'écran. Vous pouvez généralement conserver les options par défaut (mode production, emplacement du bucket).
+4.  Une fois l'opération terminée, votre bucket de stockage est prêt. Son nom sera `ccs-compta.appspot.com`.
+
+### Étape 2 : Activer l'accès aux fichiers (CORS)
+
+Après avoir activé Storage, vous devez autoriser votre application à y accéder en configurant les règles CORS.
 
 #### Instructions (Méthode recommandée via Google Cloud Shell)
 

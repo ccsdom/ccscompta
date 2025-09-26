@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Script pour guider l'application des règles CORS à votre bucket Firebase Storage.
@@ -5,6 +6,12 @@
 # Veuillez suivre les instructions dans le fichier README.md pour la configuration manuelle via Google Cloud Shell.
 
 echo "=========================================================================="
+echo "ATTENTION : Avant d'exécuter ce script, assurez-vous d'avoir activé"
+echo "Firebase Storage dans votre console Firebase."
+echo "Allez sur : https://console.firebase.google.com/project/ccs-compta/storage"
+echo "et cliquez sur 'Commencer' si ce n'est pas déjà fait."
+echo "=========================================================================="
+echo ""
 echo "Ce script est déprécié. Veuillez suivre les instructions dans README.md"
 echo "pour appliquer manuellement la configuration CORS via Google Cloud Shell."
 echo "=========================================================================="
