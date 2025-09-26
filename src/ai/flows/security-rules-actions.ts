@@ -18,54 +18,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to get the user's role from their profile in the 'clients' collection
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/clients/$(userId)).data.role;
+    // --- FONCTIONS D'AIDE BASÉES SUR LE JETON D'AUTH (CUSTOM CLAIMS) ---
+    function getCallerRole() {
+      // Lit le rôle directement à partir du jeton d'authentification (rapide et gratuit)
+      return request.auth.token.role; 
     }
     
     function isStaff() {
-      return request.auth != null && getUserRole(request.auth.uid) in ['admin', 'accountant', 'secretary'];
+      return request.auth != null && getCallerRole() in ['admin', 'accountant', 'secretary'];
     }
     
     function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
     
     function isAdmin() {
-        return request.auth != null && getUserRole(request.auth.uid) == 'admin';
+      return request.auth != null && getCallerRole() == 'admin';
     }
 
-    // "clients" collection now contains all users
-    // Staff can read all profiles.
-    // A user can only read/update their own profile.
-    // Only admins can create/delete users or change their roles.
+    // --- COLLECTION D'UTILISATEURS ('clients') ---
     match /clients/{userId} {
       allow read, list: if isStaff() || isOwner(userId);
-      // Anyone can create their own user profile document (e.g., after sign-up)
+      // Règle cruciale : Autorise un nouvel utilisateur à créer son propre profil.
       allow create: if request.auth.uid == userId;
-      // Admins can delete anyone
+      // Seul un admin peut supprimer un utilisateur.
       allow delete: if isAdmin();
-      
-      // A user can update their own profile, but cannot change their own role.
-      // An admin can update any field on any profile.
+      // Un utilisateur ne peut pas changer son propre rôle, sauf s'il est admin.
       allow update: if (isOwner(userId) && !("role" in request.resource.data)) || isAdmin();
     }
 
-    // DOCUMENTS collection
-    // Staff can read all documents.
-    // A client can only read their own documents.
-    // A client can only create a document for themselves.
-    // Staff can update any document. A client can only update their own.
+    // --- AUTRES COLLECTIONS ---
+
     match /documents/{docId} {
       allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
-      
       allow create: if request.auth.uid == request.resource.data.clientId;
       allow update: if isStaff() || (request.auth.uid == resource.data.clientId);
       allow delete: if isStaff() || (request.auth.uid == resource.data.clientId);
     }
-    
-    // INVOICES, BILANS, and other collections should follow a similar pattern.
-    // Staff have full access. Clients have access only to their own documents.
     
     match /invoices/{invoiceId} {
         allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
@@ -85,6 +74,3 @@ service cloud.firestore {
     rules: rules,
   };
 }
-
-
-    

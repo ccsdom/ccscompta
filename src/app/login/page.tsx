@@ -18,10 +18,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
-import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import type { Client } from "@/lib/types";
+import type { IdTokenResult } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -48,30 +47,18 @@ export default function LoginPage() {
     clearState();
   }, []);
 
-  const performLogin = async (uid: string) => {
-      const userProfile = await getClientById(uid);
-
-      if (!userProfile) {
-          toast({
-              variant: 'destructive',
-              title: 'Profil non trouvé',
-              description: `Votre compte de connexion est valide, mais aucun profil n'a pu être trouvé en base de données. Veuillez contacter le support ou recréer un compte.`,
-              duration: 10000,
-          });
-          setIsLoading(false);
-          await signOut(auth);
-          return;
-      }
-      
-      const userRole = userProfile.role;
-      const displayName = userProfile.name || userProfile.email.split('@')[0];
+  const performLogin = async (user: any) => {
+      // Force refresh to get custom claims
+      const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
+      const userRole = idTokenResult.claims.role || 'client';
+      const displayName = user.displayName || user.email.split('@')[0];
 
       localStorage.setItem('userRole', userRole);
       localStorage.setItem('userName', displayName);
-      localStorage.setItem('userEmail', userProfile.email);
+      localStorage.setItem('userEmail', user.email);
       
       if (userRole === 'client') {
-          localStorage.setItem('selectedClientId', userProfile.id);
+          localStorage.setItem('selectedClientId', user.uid);
       } else {
           localStorage.removeItem('selectedClientId');
       }
@@ -96,7 +83,7 @@ export default function LoginPage() {
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await performLogin(userCredential.user.uid);
+        await performLogin(userCredential.user);
     } catch (error: any) {
         console.error("Login Error:", error);
         let description = "Email ou mot de passe incorrect.";

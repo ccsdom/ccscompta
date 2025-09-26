@@ -18,7 +18,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
-import { updateClient } from "@/ai/flows/client-actions";
+import { updateClient, setAdminRole } from "@/ai/flows/client-actions";
 import type { IdTokenResult } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -40,6 +40,7 @@ export default function SettingsPage() {
     });
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
+    const [isAdminRoleLoading, setIsAdminRoleLoading] = useState(false);
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
@@ -121,13 +122,30 @@ export default function SettingsPage() {
         });
     }
     
-    const handleSetAdminRole = () => {
-        // This is now a placeholder for the Cloud Function call
-        toast({
-            title: 'Action requise sur votre projet Firebase',
-            description: "Cette action nécessite une Cloud Function pour assigner les rôles de manière sécurisée. Veuillez déployer la fonction 'setAdminRole' sur votre projet.",
-            duration: 10000,
-        });
+    const handleSetAdminRole = async () => {
+        if (!userUid) {
+             toast({ variant: 'destructive', title: "Utilisateur non connecté" });
+             return;
+        }
+        setIsAdminRoleLoading(true);
+        
+        // This now calls the server action that uses the Admin SDK
+        const result = await setAdminRole(userUid);
+
+        if (result.success) {
+            toast({
+                title: 'Rôle Administrateur accordé !',
+                description: "Veuillez vous déconnecter et vous reconnecter pour appliquer les changements.",
+            });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Échec de l\'attribution du rôle',
+                description: result.error || "Une erreur inconnue est survenue. Le SDK Admin n'est peut-être pas configuré sur le serveur.",
+                duration: 10000,
+            });
+        }
+        setIsAdminRoleLoading(false);
     }
 
     const isStaff = userRole === 'accountant' || userRole === 'admin' || userRole === 'secretary';
@@ -344,8 +362,10 @@ export default function SettingsPage() {
                                         <AlertTitle>Devenir Administrateur</AlertTitle>
                                         <AlertDescription>
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte.</p>
-                                                <Button onClick={handleSetAdminRole}>Me donner le rôle Admin</Button>
+                                                <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action utilise une Server Action qui nécessite que les credentials du SDK Admin soient correctement configurés sur votre serveur.</p>
+                                                <Button onClick={handleSetAdminRole} disabled={isAdminRoleLoading}>
+                                                    {isAdminRoleLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</> : "Me donner le rôle Admin"}
+                                                </Button>
                                             </div>
                                         </AlertDescription>
                                     </Alert>

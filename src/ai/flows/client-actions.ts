@@ -36,54 +36,49 @@ export async function addClient(
 
     const { email, role, siret, ...profileData } = validatedData;
     
-    let password = 'password'; // Default for staff
-    if (role === 'client') {
-        if (siret && siret.length === 14) {
-            password = siret;
-        } else {
-             return { success: false, error: "Le SIRET est requis et doit comporter 14 chiffres pour créer un compte client." };
-        }
-    }
+    // NOTE: This server action cannot create the Auth user itself without credentials.
+    // The client-side code (new/page.tsx) must create the auth user first.
+    // This action's primary role is now to create the Firestore profile and set custom claims.
 
-    // 1. Create user in Firebase Auth using Admin SDK
+    // Find the user by email to get their UID.
     let userRecord;
     try {
-         userRecord = await adminAuth.createUser({
-            email: email,
-            password: password,
-            emailVerified: true,
-            disabled: false,
-            displayName: profileData.name,
-        });
-    } catch(authError: any) {
-        if (authError.code === 'auth/email-already-exists') {
-            return { success: false, error: 'Un compte utilisateur avec cet email existe déjà.' };
-        }
-        throw authError; // Rethrow other auth errors
+        userRecord = await adminAuth.getUserByEmail(email);
+    } catch (error) {
+        return { success: false, error: 'L\'utilisateur d\'authentification correspondant à cet email n\'a pas été trouvé. Assurez-vous que le compte a été créé avant d\'appeler cette fonction.' };
     }
 
-    // 2. Set custom claim for role
+    // 1. Set custom claim for role
     await adminAuth.setCustomUserClaims(userRecord.uid, { role: role });
 
-    // 3. Create profile in Firestore
+    // 2. Create profile in Firestore
     const clientDocRef = doc(db, 'clients', userRecord.uid);
-    const newUser: Omit<Client, 'id' | 'status'> = {
-      ...validatedData,
-      newDocuments: 0,
-      lastActivity: new Date().toISOString(),
-    };
-
-    await setDoc(clientDocRef, newUser);
-    console.log("[Client Action] User profile added with ID:", userRecord.uid);
     
+    // Check if a document already exists to avoid overwriting
+    const docSnap = await getDoc(clientDocRef);
+    if (docSnap.exists()) {
+        console.log(`[Client Action] Profile for ${email} already exists. Updating role.`);
+        await setDoc(clientDocRef, { role: role }, { merge: true });
+    } else {
+        const newUser: Omit<Client, 'id' | 'status'> = {
+          ...validatedData,
+          newDocuments: 0,
+          lastActivity: new Date().toISOString(),
+        };
+        await setDoc(clientDocRef, newUser);
+    }
+    
+    console.log("[Client Action] User profile created/updated with ID:", userRecord.uid);
+    
+    const finalDoc = await getDoc(clientDocRef);
+
     return { 
         success: true, 
         data: { 
-            ...newUser, 
+            ...(finalDoc.data() as Client),
             id: userRecord.uid,
-            status: 'onboarding', // default status
-        },
-        password: password 
+            status: finalDoc.data()?.status || 'onboarding',
+        }
     };
 
   } catch (error) {
@@ -178,6 +173,11 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
             }
         }
         
+        // If the role is being updated, also update the custom claim
+        if (updates.role) {
+            await adminAuth.setCustomUserClaims(id, { role: updates.role });
+        }
+
         const docRef = doc(db, 'clients', id);
         await setDoc(docRef, updates, { merge: true });
 
@@ -226,4 +226,26 @@ const MOCK_ACCOUNTANTS: Accountant[] = [
 export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
+}
+
+// This is a placeholder for the Cloud Function.
+// The client will call this, and in a real deployed scenario, it would trigger the function.
+// For now, it updates the Firestore doc and sets the claim directly via server action.
+export async function setAdminRole(userId: string): Promise<{success: boolean, error?: string}> {
+    try {
+        console.log(`[Admin Action] Setting 'admin' role for user ${userId}`);
+        
+        // 1. Set Custom Claim
+        await adminAuth.setCustomUserClaims(userId, { role: 'admin' });
+        
+        // 2. Update Firestore Document
+        const userRef = doc(db, 'clients', userId);
+        await updateDoc(userRef, { role: 'admin' });
+
+        console.log(`[Admin Action] Successfully set 'admin' role for ${userId}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error(`[Admin Action] Failed to set admin role:`, error);
+        return { success: false, error: error.message };
+    }
 }
