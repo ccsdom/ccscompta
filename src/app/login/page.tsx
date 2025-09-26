@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
 import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import type { Client } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -47,36 +47,29 @@ export default function LoginPage() {
     clearState();
   }, []);
 
-  const performLogin = async (emailToLogin: string, uid: string) => {
+  const performLogin = async (uid: string) => {
       let userProfile = await getClientById(uid);
 
       if (!userProfile) {
-          // This case can happen if the user was created in Auth but the Firestore profile creation failed.
-          // The user should complete their profile via the new user flow if needed.
-          // For now, we allow login but the app might be in a weird state.
-          console.warn(`User ${uid} is authenticated but has no Firestore profile.`);
-          // Let's create a minimal profile to avoid a crash
-          const tempProfile: Omit<Client, 'id' | 'status'> = {
-              name: emailToLogin.split('@')[0],
-              email: emailToLogin,
-              role: 'client', // Safest default
-              newDocuments: 0,
-              lastActivity: new Date().toISOString(),
-          };
-          const profileResult = await addClient({ uid, ...tempProfile });
-          if(profileResult.success){
-              userProfile = profileResult.data;
-          } else {
-             throw new Error(`Votre compte est valide mais votre profil est manquant. La tentative de réparation a échoué. Erreur: ${profileResult.error}`);
-          }
+          // This can happen if auth exists but firestore doc doesn't.
+          // This is a failsafe, but creation should be handled by the /new page.
+          toast({
+              variant: 'destructive',
+              title: 'Profil non trouvé',
+              description: `Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`,
+              duration: 10000,
+          });
+          setIsLoading(false);
+          await signOut(auth);
+          return;
       }
       
       const userRole = userProfile.role;
-      const displayName = userProfile.name || emailToLogin.split('@')[0];
+      const displayName = userProfile.name || userProfile.email.split('@')[0];
 
       localStorage.setItem('userRole', userRole);
       localStorage.setItem('userName', displayName);
-      localStorage.setItem('userEmail', emailToLogin);
+      localStorage.setItem('userEmail', userProfile.email);
       
       if (userRole === 'client') {
           localStorage.setItem('selectedClientId', userProfile.id);
@@ -104,33 +97,14 @@ export default function LoginPage() {
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await performLogin(email, userCredential.user.uid);
+        await performLogin(userCredential.user.uid);
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-            console.log(`User ${email} not found. Attempting to create a new account.`);
-            try {
-                const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
-                toast({
-                    title: "Compte créé !",
-                    description: "Votre compte a été créé. Vous allez être connecté.",
-                });
-                await performLogin(email, newUserCredential.user.uid);
-            } catch (creationError: any) {
-                console.error("Account Creation Error:", creationError);
-                toast({ variant: "destructive", title: "Erreur de création de compte", description: "Cet email est peut-être déjà utilisé ou le mot de passe est trop faible." });
-            }
-        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-             toast({ variant: "destructive", title: "Erreur de connexion", description: "Email ou mot de passe incorrect." });
+        console.error("Login Error:", error);
+        let description = "Email ou mot de passe incorrect.";
+        if (error.code === 'auth/too-many-requests') {
+            description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
         }
-        else {
-            console.error("Login Error:", error);
-            let description = "Une erreur inconnue est survenue.";
-            if (error.code === 'auth/too-many-requests') {
-                description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
-            }
-            toast({ variant: "destructive", title: "Erreur de connexion", description });
-        }
-    } finally {
+        toast({ variant: "destructive", title: "Erreur de connexion", description });
         setIsLoading(false);
     }
   };
