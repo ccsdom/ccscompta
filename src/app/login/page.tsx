@@ -47,8 +47,6 @@ export default function LoginPage() {
         const firebaseUser = userCredential.user;
         const idTokenResult = await firebaseUser.getIdTokenResult();
         
-        // This is the key change: Default to 'client' and let the profile check handle it.
-        // The admin role MUST be set via custom claims for the logic to work.
         const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
 
         let userName: string;
