@@ -53,21 +53,21 @@ export default function LoginPage() {
         let targetPath: string;
 
         if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
-            // For admin/staff, the profile might not be in the 'clients' collection.
-            // We use their email display name as a fallback.
-            const userProfile = await getClientById(firebaseUser.uid);
-            userName = userProfile?.name || firebaseUser.displayName || userEmail.split('@')[0];
+            // For admin/staff, we DO NOT require a client profile.
+            // Their identity is managed by Firebase Auth and their role claim.
+            userName = firebaseUser.displayName || userEmail.split('@')[0];
             
             localStorage.setItem('userRole', userRole);
             localStorage.setItem('userName', userName);
             localStorage.setItem('userEmail', userEmail);
-            localStorage.removeItem('selectedClientId'); // Ensure no client is selected
+            localStorage.removeItem('selectedClientId'); // Ensure no client is selected for staff
 
             if (userRole === 'admin') targetPath = '/dashboard/admin';
             else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
             else targetPath = '/dashboard/secretary';
 
         } else { // 'client' role
+            // For a client, we MUST find a corresponding profile in the database.
             const userProfile = await getClientById(firebaseUser.uid);
             if (!userProfile) {
                 // This is a critical error for a client user. Their data is tied to their profile.
@@ -101,7 +101,7 @@ export default function LoginPage() {
                     description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
                     break;
              }
-        } else { // Custom errors from our logic
+        } else { // Custom errors from our logic (like profile not found)
             description = error.message;
         }
 
@@ -231,7 +231,8 @@ export default function LoginPage() {
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs space-y-1">
                 <p><strong>Comptable:</strong> `comptable@ccs.com` (mdp: `password`)</p>
-                <p><strong>Client:</strong> `aventure.action@example.com` | mdp: `84042838300010`</p>
+                <p><strong>Admin:</strong> `admin@ccs.com` (mdp: `password`)</p>
+                <p><strong>Client:</strong> `aventure.action@example.com` (mdp: `84042838300010`)</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
