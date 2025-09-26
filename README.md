@@ -76,6 +76,6 @@ Pour que les nouvelles règles de sécurité vous reconnaissent comme administra
     # Assurez-vous d'utiliser votre VRAI UID et des apostrophes autour du JSON.
     firebase auth:set-custom-claims "VOTRE_UID_ICI" '{"role": "admin"}'
     ```
-    *Si une erreur indique `firebase: command not found`, exécutez d'abord `npm install -g firebase-tools`.*
+    *Si une erreur indique `firebase: command not found` ou `auth:set-custom-claims is not a Firebase command`, exécutez d'abord `npm install -g firebase-tools` puis réessayez la commande ci-dessus.*
 
 4.  C'est terminé ! Vous avez maintenant les pleins pouvoirs. Déconnectez-vous et reconnectez-vous à l'application pour que le changement soit pris en compte. Les autres utilisateurs n'auront que les permissions de leur rôle respectif.
