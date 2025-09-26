@@ -12,8 +12,10 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase-client';
 
-// The form schema is now fully defined in client-form.tsx
+
 const formSchema = baseFormSchema;
 
 export default function NewClientPage() {
@@ -23,6 +25,7 @@ export default function NewClientPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
+    const [tempPassword, setTempPassword] = useState<string | null>(null);
 
     useEffect(() => {
         const data: Partial<z.infer<typeof formSchema>> = {
@@ -38,35 +41,55 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
-        const result = await addClient(data);
+        const isStaff = ['admin', 'accountant', 'secretary'].includes(data.role);
+        const password = data.siret || (isStaff ? 'password' : 'password');
+        setTempPassword(password);
 
-        if (result.success) {
-             toast({
-                duration: 20000,
-                title: "Utilisateur créé avec succès !",
-                description: (
-                    <div className="space-y-4">
-                        <p>Le profil et le compte de connexion pour <strong>{result.data.name}</strong> ont été créés.</p>
-                         <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
-                            <KeyRound className="h-4 w-4" />
-                            <AlertTitle>Informations de connexion</AlertTitle>
-                            <AlertDescription>
-                              <p>Le mot de passe initial de l'utilisateur est : <strong>{result.data.password}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
-                            </AlertDescription>
-                        </Alert>
-                    </div>
-                ),
-            });
-            router.push('/dashboard/clients');
-        } else {
-            console.error("Failed to add user:", result.error);
+        try {
+            // 1. Create user in Firebase Auth (client-side)
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
+            const uid = userCredential.user.uid;
+
+            // 2. Add profile to Firestore via server action
+            const result = await addClient({ ...data, uid });
+
+            if (result.success) {
+                toast({
+                    duration: 20000,
+                    title: "Utilisateur créé avec succès !",
+                    description: (
+                        <div className="space-y-4">
+                            <p>Le profil et le compte de connexion pour <strong>{result.data.name}</strong> ont été créés.</p>
+                            <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
+                                <KeyRound className="h-4 w-4" />
+                                <AlertTitle>Informations de connexion</AlertTitle>
+                                <AlertDescription>
+                                <p>Le mot de passe initial de l'utilisateur est : <strong>{tempPassword || '******'}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
+                                </AlertDescription>
+                            </Alert>
+                        </div>
+                    ),
+                });
+                router.push('/dashboard/clients');
+            } else {
+                // If profile creation fails, we should ideally delete the auth user
+                // For now, just show the error.
+                throw new Error(result.error);
+            }
+        } catch (error: any) {
+            console.error("Failed to add user:", error);
+            let errorMessage = error.message;
+            if (error.code === 'auth/email-already-exists') {
+                errorMessage = "Un compte utilisateur avec cet email existe déjà.";
+            }
             toast({
                 variant: 'destructive',
                 title: "Erreur lors de l'ajout de l'utilisateur",
-                description: result.error
+                description: errorMessage
             });
+        } finally {
+            setIsSubmitting(false);
         }
-        setIsSubmitting(false);
     }
     
     const handleCompanySelect = (company: ExtractClientDataOutput | null) => {
@@ -100,3 +123,5 @@ export default function NewClientPage() {
         </div>
     )
 }
+
+    

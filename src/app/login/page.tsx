@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -46,23 +46,45 @@ export default function LoginPage() {
     clearState();
   }, []);
 
+  const createAccount = async (role: 'admin' | 'client') => {
+      console.log(`Attempting to create ${role} user for: ${email}`);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      const result = await addClient({
+          uid: userCredential.user.uid,
+          email: email,
+          name: email.split('@')[0],
+          role: role,
+      });
+
+      if (!result.success) {
+          throw new Error(result.error);
+      }
+      toast({
+          title: "Compte créé",
+          description: "Votre compte a été créé. Connexion en cours...",
+      });
+  }
+
+
   const performLogin = async () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
-      // Force refresh the token to get the latest custom claims.
       const idTokenResult = await firebaseUser.getIdTokenResult(true);
       const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
       
       const userProfile = await getClientById(firebaseUser.uid);
 
-      if (!userProfile) {
-          throw new Error(`Votre compte est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
+      if (!userProfile && (userRole === 'admin' || userRole === 'accountant')) {
+           // Admin/Accountant doesn't have a firestore profile yet, create one
+           await addClient({uid: firebaseUser.uid, email, name: email.split('@')[0], role: userRole});
+      } else if (!userProfile && userRole === 'client') {
+          throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
       }
       
       const displayName = userProfile?.name || firebaseUser.displayName || email.split('@')[0];
 
-      // --- Store user info in localStorage ---
       localStorage.setItem('userRole', userRole);
       localStorage.setItem('userName', displayName);
       localStorage.setItem('userEmail', email);
@@ -73,7 +95,6 @@ export default function LoginPage() {
           localStorage.removeItem('selectedClientId');
       }
       
-      // --- Redirect based on role ---
       let targetPath: string;
       switch (userRole) {
           case 'admin': targetPath = '/dashboard/admin'; break;
@@ -94,36 +115,28 @@ export default function LoginPage() {
     try {
         await performLogin();
     } catch (error: any) {
-        // If login fails because user not found AND password is 'password', try creating an admin account
-        if (error.code === 'auth/invalid-credential' && password === 'password') {
+        if (error.code === 'auth/invalid-credential') {
             try {
-                console.log(`Attempting to create admin user for: ${email}`);
-                const result = await addClient({
-                    email: email,
-                    name: email.split('@')[0],
-                    role: 'admin',
-                });
-
-                if (result.success) {
-                    toast({
-                        title: "Compte Administrateur créé",
-                        description: "Votre compte a été créé. Tentative de connexion automatique...",
-                    });
-                    // Now try to log in again with the newly created account
-                    await performLogin();
+                // If login fails, try to create an account. For this demo,
+                // any new account with password 'password' is an admin.
+                if (password === 'password') {
+                    await createAccount('admin');
                 } else {
-                    throw new Error(result.error); // Throw the error from addClient
+                    await createAccount('client');
                 }
-
+                // If creation is successful, try to log in again.
+                await performLogin();
             } catch (creationError: any) {
-                console.error("Admin Creation Error:", creationError);
+                console.error("Account Creation Error:", creationError);
                 toast({ variant: "destructive", title: "Erreur de création de compte", description: creationError.message });
             }
         } else {
             console.error("Login Error:", error);
-            let description = "L'adresse email ou le mot de passe est incorrect.";
+            let description = "Une erreur inconnue est survenue.";
             if (error.code === 'auth/too-many-requests') {
                 description = "Compte temporairement bloqué. Réessayez plus tard.";
+            } else if (error.message) {
+                description = error.message;
             }
             toast({ variant: "destructive", title: "Erreur de connexion", description });
         }
@@ -252,10 +265,8 @@ export default function LoginPage() {
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs space-y-1">
-                <p><strong>Admin:</strong> `admin@ccs.com` (mdp: `password`)</p>
-                <p><strong>Comptable:</strong> `comptable@ccs.com` (mdp: `password`)</p>
-                 <p><strong>Secrétaire:</strong> `secretary@ccs.com` (mdp: `password`)</p>
-                <p><strong>Client:</strong> `aventure.action@example.com` (mdp: `84042838300010`)</p>
+                <p>Pour créer un compte admin, utilisez n'importe quel email et le mot de passe: <strong>`password`</strong></p>
+                <p>Pour créer un compte client, utilisez n'importe quel email et un autre mot de passe.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
@@ -266,3 +277,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    

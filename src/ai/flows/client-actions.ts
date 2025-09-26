@@ -14,6 +14,7 @@ type ServerActionResponse<T> =
   | { success: false; error: string };
 
 const AddClientInputSchema = z.object({
+  uid: z.string(),
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
   siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional(),
   email: z.string().email("Email invalide."),
@@ -27,53 +28,27 @@ const AddClientInputSchema = z.object({
 
 
 export async function addClient(
-  newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'role'> & { role?: z.infer<typeof AddClientInputSchema>['role'] }
+  newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'role'> & { role?: z.infer<typeof AddClientInputSchema>['role'], uid: string }
 ): Promise<ServerActionResponse<Client>> {
-  console.log("[Client Action] Adding user:", newClientData.name);
+  console.log("[Client Action] Adding user profile:", newClientData.name);
   
-  // Determine role. Default to 'client' if not provided.
   const role = newClientData.role || 'client';
+  const uid = newClientData.uid;
   
   try {
-    const validatedData = AddClientInputSchema.omit({ role: true }).parse(newClientData);
+    const validatedData = AddClientInputSchema.omit({ role: true, uid: true }).parse(newClientData);
     
-    // 1. Check for existing SIRET in Firestore if provided
-    if (validatedData.siret) {
-        const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
-        const siretSnapshot = await getDocs(siretQuery);
-        if (!siretSnapshot.empty) {
-            return { success: false, error: 'Un utilisateur avec ce SIRET existe déjà.' };
-        }
-    }
-
-    // 2. Create user in Firebase Auth using the ADMIN SDK
-    let userRecord;
+    // Set custom claim using Admin SDK. This is a critical step.
     try {
-        const isStaff = ['admin', 'accountant', 'secretary'].includes(role);
-        const initialPassword = validatedData.siret || (isStaff ? 'password' : 'password');
-        
-        userRecord = await adminAuth.createUser({
-            email: validatedData.email,
-            password: initialPassword,
-            emailVerified: true,
-            disabled: false,
-            displayName: validatedData.name,
-        });
-
-        // Set the role as a custom claim
-        await adminAuth.setCustomUserClaims(userRecord.uid, { role });
-
-    } catch(authError: any) {
-      if (authError.code === 'auth/email-already-exists') {
-        return { success: false, error: 'Un compte utilisateur avec cet email existe déjà.' };
-      }
-      console.error("[Admin SDK Auth Error]", authError);
-      throw authError;
+      await adminAuth.setCustomUserClaims(uid, { role });
+    } catch (claimError: any) {
+        console.error("FATAL: Could not set custom claims.", claimError);
+        // This is a severe failure, as the user will exist in Auth but without a role.
+        // In a production app, you might want to delete the user or queue for retry.
+        return { success: false, error: `Impossible de définir le rôle de l'utilisateur. L'authentification du serveur a peut-être échoué. ${claimError.message}` };
     }
     
-    const uid = userRecord.uid;
-
-    // 3. Add user profile to Firestore using the created UID
+    // Add user profile to Firestore using the provided UID
     const clientDocRef = doc(db, 'clients', uid);
     const newUser: Omit<Client, 'id' | 'status'> = {
       ...validatedData,
@@ -85,23 +60,21 @@ export async function addClient(
     await setDoc(clientDocRef, newUser);
     console.log("[Client Action] User profile added with ID:", uid);
     
-    const isStaff = ['admin', 'accountant', 'secretary'].includes(role);
     return { 
         success: true, 
         data: { 
             ...newUser, 
             id: uid,
             status: 'onboarding', // default status
-            password: validatedData.siret || (isStaff ? 'password' : 'password'),
         } 
     };
 
   } catch (error) {
-    console.error('[Client Action] Error adding user:', error);
+    console.error('[Client Action] Error adding user profile:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du profil utilisateur.';
     return { success: false, error: errorMessage };
   }
 }
@@ -247,3 +220,6 @@ export async function getAccountants(): Promise<Accountant[]> {
 }
 
 
+
+
+    
