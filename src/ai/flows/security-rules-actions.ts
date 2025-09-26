@@ -90,8 +90,7 @@ service cloud.firestore {
     // Anyone authenticated can create a document (client upload), but only for themselves.
     // Accountants can update documents (e.g., status). A client can update their own (e.g., add comment).
     match /documents/{docId} {
-      allow list, read: if isAccountant();
-      allow list, read: if request.auth.uid == resource.data.clientId;
+      allow list, read: if isAccountant() || request.auth.uid == resource.data.clientId;
       
       allow create: if request.auth.uid == request.resource.data.clientId;
       allow update: if isAccountant() || request.auth.uid == resource.data.clientId;
@@ -123,6 +122,7 @@ service cloud.firestore {
 
 
     
+
 
 
 

@@ -85,36 +85,30 @@ export default function LoginPage() {
         // 1. Authenticate with Firebase using the CLIENT SDK
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
+        const idTokenResult = await firebaseUser.getIdTokenResult();
         const userEmail = firebaseUser.email!;
 
-        // 2. Determine user role and name
-        const demoUserEmailKey = userEmail.toLowerCase() as keyof typeof DEMO_USERS;
-        const demoUser = DEMO_USERS[demoUserEmailKey];
-
-        let userRole: string | null = null;
+        // 2. Determine user role from custom claims first
+        let userRole = idTokenResult.claims.role as string | undefined;
         let userName: string | null = null;
         let userClientId: string | null = null;
 
-        if (demoUser) {
-            // User is a predefined staff member (admin, accountant, secretary)
-            userRole = demoUser.role;
-            userName = demoUser.name;
-        } else {
-            // User is not staff, check if they are a client by looking up their UID in Firestore
+        if (userRole) { // Role is defined in custom claims (admin, accountant, etc.)
+            const demoUserEmailKey = userEmail.toLowerCase() as keyof typeof DEMO_USERS;
+            userName = DEMO_USERS[demoUserEmailKey]?.name || "Utilisateur";
+
+        } else { // No custom claim, assume it's a client
+            userRole = "client";
             let clientDoc = await getClientById(firebaseUser.uid);
             
-            // Fallback: If no client is found by UID, try to find by email
-            // This handles cases where clients were created before the UID logic was enforced.
+            // Fallback for older clients that might not have matching UID
             if (!clientDoc) {
                 const allClients = await getClients();
                 const clientByEmail = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
-                if (clientByEmail) {
-                    clientDoc = clientByEmail;
-                }
+                if (clientByEmail) clientDoc = clientByEmail;
             }
 
             if (clientDoc) {
-                userRole = "client";
                 userName = clientDoc.legalRepresentative;
                 userClientId = clientDoc.id;
             }
@@ -295,5 +289,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    

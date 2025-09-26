@@ -23,4 +23,3 @@ export async function setAdminClaim(uid: string): Promise<{success: boolean, mes
     return { success: false, message: `Échec de l'attribution du rôle d'administrateur : ${errorMessage}` };
   }
 }
-
