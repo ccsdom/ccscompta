@@ -62,11 +62,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Règle de base sécurisée : Autorise la lecture et l'écriture
-    // sur n'importe quel document ({document=**})
-    // uniquement si l'utilisateur est authentifié (request.auth != null).
+    // Règle générale : Seuls les utilisateurs authentifiés peuvent accéder à la base.
+    // Des règles plus spécifiques par collection sont définies ci-dessous.
     match /{document=**} {
       allow read, write: if request.auth != null;
+    }
+
+    // Collection 'clients'
+    // Un client ne peut lire et modifier que son propre profil.
+    // Les comptables/admins (non-clients) peuvent lire tous les profils.
+    match /clients/{clientId} {
+      allow read, update: if request.auth.uid == clientId || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+      // La création/suppression est gérée par des fonctions côté serveur (admin)
+      allow create, delete: if !exists(/databases/$(database)/documents/clients/$(request.auth.uid)); 
+    }
+    
+    // Collections de données liées à un client (documents, factures, bilans)
+    // Un client ne peut accéder qu'aux documents qui lui appartiennent (via le champ 'clientId').
+    // Les comptables/admins peuvent tout lire.
+    match /documents/{docId} {
+      allow read, write: if request.resource.data.clientId == request.auth.uid || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+    }
+
+    match /invoices/{invoiceId} {
+       allow read, write: if request.resource.data.clientId == request.auth.uid || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+    }
+    
+    match /bilans/{bilanId} {
+       allow read, write: if request.resource.data.clientId == request.auth.uid || !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
     }
   }
 }

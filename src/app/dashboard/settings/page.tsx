@@ -31,9 +31,7 @@ export default function SettingsPage() {
         confidenceThreshold: 0.95,
         autoSend: false,
     });
-    const [storageRules, setStorageRules] = useState<string | null>(null);
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
-    const [isLoadingStorageRules, setIsLoadingStorageRules] = useState(false);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
 
     useEffect(() => {
@@ -77,21 +75,6 @@ export default function SettingsPage() {
             description: "Les nouvelles règles d'automatisation ont été appliquées.",
         });
         window.dispatchEvent(new Event('storage'));
-    }
-    
-    const handleFetchStorageRules = async () => {
-        setIsLoadingStorageRules(true);
-        const result = await configureStorageSecurityRules();
-        if (result.success) {
-            setStorageRules(result.rules);
-        } else {
-             toast({
-                variant: 'destructive',
-                title: "Erreur",
-                description: "Impossible de récupérer les règles de sécurité du stockage.",
-            });
-        }
-        setIsLoadingStorageRules(false);
     }
     
     const handleFetchFirestoreRules = async () => {
@@ -303,7 +286,7 @@ export default function SettingsPage() {
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-5 w-5"/> Sécurité Firestore (Données)</CardTitle>
-                                    <CardDescription>Configurez les règles de sécurité pour l'accès à la base de données Firestore.</CardDescription>
+                                    <CardDescription>Configurez les règles de sécurité pour isoler les données des clients dans Firestore.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {firestoreRules ? (
@@ -315,7 +298,7 @@ export default function SettingsPage() {
                                                     Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase.
                                                 </AlertDescription>
                                             </Alert>
-                                             <Textarea readOnly value={firestoreRules} className="h-60 font-mono text-xs bg-muted" />
+                                             <Textarea readOnly value={firestoreRules} className="h-72 font-mono text-xs bg-muted" />
                                             <Button onClick={() => copyToClipboard(firestoreRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
                                         </div>
                                     ) : (
