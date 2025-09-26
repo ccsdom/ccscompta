@@ -13,10 +13,8 @@ import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
 
-// Add role to the form schema
-const formSchema = baseFormSchema.extend({
-    role: z.enum(['client', 'admin', 'accountant', 'secretary'])
-});
+// The form schema is now fully defined in client-form.tsx
+const formSchema = baseFormSchema;
 
 export default function NewClientPage() {
     const router = useRouter();
@@ -53,7 +51,7 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Informations de connexion</AlertTitle>
                             <AlertDescription>
-                              <p>Le mot de passe initial de l'utilisateur est son numéro de SIRET : <strong>{result.data.password}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
+                              <p>Le mot de passe initial de l'utilisateur est : <strong>{result.data.password}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
                             </AlertDescription>
                         </Alert>
                     </div>

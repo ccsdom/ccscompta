@@ -33,9 +33,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   useEffect(() => {
-    localStorage.clear();
-    signOut(auth).catch(() => {});
-    window.dispatchEvent(new Event('storage'));
+    // Ensure user is fully logged out and local state is cleared on page load.
+    const clearState = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            // Ignore errors if user was already signed out
+        } finally {
+            localStorage.clear();
+            window.dispatchEvent(new Event('storage'));
+        }
+    };
+    clearState();
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,36 +55,54 @@ export default function LoginPage() {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         
+        // Force refresh the token to get the latest custom claims.
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
         
-        const userProfile = await getClientById(firebaseUser.uid);
+        let userProfile = await getClientById(firebaseUser.uid);
+
+        // If a staff member logs in for the first time, they might not have a profile.
+        // We create a minimal one for them.
+        if (!userProfile && (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary')) {
+             userProfile = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || email.split('@')[0],
+                email: firebaseUser.email!,
+                role: userRole,
+                status: 'active',
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+             }
+        } else if (!userProfile && userRole === 'client') {
+            // This is a critical error for a client, as their data is tied to their profile.
+            throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
+        }
 
         if (!userProfile) {
-            // This case should ideally not happen if seeding works, but it's a good safeguard.
-             throw new Error(`Votre compte est valide mais aucun profil n'est associé. Veuillez contacter le support.`);
+             throw new Error(`Impossible de trouver ou de créer un profil pour votre compte.`);
         }
 
-        let targetPath: string;
-        if (userRole === 'client') {
-            targetPath = '/dashboard/my-documents';
-        } else if (userRole === 'admin') {
-            targetPath = '/dashboard/admin';
-        } else if (userRole === 'accountant') {
-            targetPath = '/dashboard/accountant';
-        } else if (userRole === 'secretary') {
-            targetPath = '/dashboard/secretary';
-        } else {
-            targetPath = '/dashboard';
-        }
-        
+        // --- Store user info in localStorage ---
         localStorage.setItem('userRole', userProfile.role);
         localStorage.setItem('userName', userProfile.name);
         localStorage.setItem('userEmail', userProfile.email);
+        
+        // If the user is a client, their client ID is their own UID.
         if (userProfile.role === 'client') {
             localStorage.setItem('selectedClientId', userProfile.id);
         } else {
+            // For staff, clear any previously selected client. They will choose from a switcher.
             localStorage.removeItem('selectedClientId');
+        }
+        
+        // --- Redirect based on role ---
+        let targetPath: string;
+        switch (userRole) {
+            case 'admin': targetPath = '/dashboard/admin'; break;
+            case 'accountant': targetPath = '/dashboard/accountant'; break;
+            case 'secretary': targetPath = '/dashboard/secretary'; break;
+            case 'client': targetPath = '/dashboard/my-documents'; break;
+            default: targetPath = '/dashboard';
         }
         
         window.dispatchEvent(new Event('storage'));

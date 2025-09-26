@@ -32,8 +32,7 @@ service cloud.firestore {
     // A user can only read/update their own profile.
     // Only admins can create/delete users or change their roles.
     match /clients/{userId} {
-      allow read: if isStaff() || isOwner(userId);
-      allow list: if isStaff();
+      allow read, list: if isStaff() || isOwner(userId);
       allow create, delete: if request.auth.token.role == 'admin';
       
       // Allow user to update their own profile, but not change their role
@@ -48,7 +47,7 @@ service cloud.firestore {
     // A client can only create a document for themselves.
     // Staff can update any document. A client can only update their own.
     match /documents/{docId} {
-      allow get, list: if isStaff() || (request.auth.uid == resource.data.clientId);
+      allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
       
       allow create: if request.auth.uid == request.resource.data.clientId;
       allow update: if isStaff() || (request.auth.uid == resource.data.clientId);

@@ -15,12 +15,12 @@ type ServerActionResponse<T> =
 
 const AddClientInputSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
-  siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres."),
+  siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional(),
   email: z.string().email("Email invalide."),
-  phone: z.string(),
-  legalRepresentative: z.string(),
-  address: z.string(),
-  fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, "Format JJ/MM invalide."),
+  phone: z.string().optional(),
+  legalRepresentative: z.string().optional(),
+  address: z.string().optional(),
+  fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, "Format JJ/MM invalide.").optional(),
   role: z.enum(['client', 'admin', 'accountant', 'secretary']),
   assignedAccountantId: z.string().optional(),
 });
@@ -29,7 +29,7 @@ const AddClientInputSchema = z.object({
 export async function addClient(
   newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'role'> & { role?: z.infer<typeof AddClientInputSchema>['role'] }
 ): Promise<ServerActionResponse<Client>> {
-  console.log("[Client Action] Adding client:", newClientData.name);
+  console.log("[Client Action] Adding user:", newClientData.name);
   
   // Determine role. Default to 'client' if not provided.
   const role = newClientData.role || 'client';
@@ -37,19 +37,22 @@ export async function addClient(
   try {
     const validatedData = AddClientInputSchema.omit({ role: true }).parse(newClientData);
     
-    // 1. Check for existing SIRET in Firestore
-    const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
-    const siretSnapshot = await getDocs(siretQuery);
-    if (!siretSnapshot.empty) {
-        return { success: false, error: 'Un client avec ce SIRET existe déjà.' };
+    // 1. Check for existing SIRET in Firestore if provided
+    if (validatedData.siret) {
+        const siretQuery = query(collection(db, 'clients'), where('siret', '==', validatedData.siret), limit(1));
+        const siretSnapshot = await getDocs(siretQuery);
+        if (!siretSnapshot.empty) {
+            return { success: false, error: 'Un utilisateur avec ce SIRET existe déjà.' };
+        }
     }
 
     // 2. Create user in Firebase Auth using the ADMIN SDK
     let userRecord;
     try {
+        const initialPassword = validatedData.siret || 'password'; // Use SIRET or a default
         userRecord = await adminAuth.createUser({
             email: validatedData.email,
-            password: validatedData.siret, // Using SIRET as initial password
+            password: initialPassword,
             emailVerified: true,
             disabled: false,
             displayName: validatedData.name,
@@ -68,7 +71,7 @@ export async function addClient(
     
     const uid = userRecord.uid;
 
-    // 3. Add client profile to Firestore using the created UID
+    // 3. Add user profile to Firestore using the created UID
     const clientDocRef = doc(db, 'clients', uid);
     const newUser: Omit<Client, 'id' | 'status'> = {
       ...validatedData,
@@ -86,16 +89,16 @@ export async function addClient(
             ...newUser, 
             id: uid,
             status: 'onboarding', // default status
-            password: validatedData.siret, // Pass back the initial password for display
+            password: validatedData.siret || 'password', // Pass back the initial password for display
         } 
     };
 
   } catch (error) {
-    console.error('[Client Action] Error adding client:', error);
+    console.error('[Client Action] Error adding user:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du client.';
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
     return { success: false, error: errorMessage };
   }
 }
@@ -209,12 +212,6 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
 export async function deleteClient(id: string): Promise<{success: boolean}> {
     console.log(`[Firestore] Deleting user profile ID: ${id}`);
     try {
-        const client = await getClientById(id);
-        if (!client) {
-            console.warn(`User ${id} not found for deletion.`);
-            return { success: false };
-        }
-        
         // Use Admin SDK to delete the user from Auth
         await adminAuth.deleteUser(id);
         console.log(`[Admin SDK] Auth user ${id} deleted.`);

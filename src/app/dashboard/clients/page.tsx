@@ -68,7 +68,7 @@ export default function ClientsPage() {
             console.error("Failed to fetch data:", error);
             toast({
                 title: "Erreur de chargement",
-                description: "Impossible de récupérer les données des clients.",
+                description: "Impossible de récupérer les données des utilisateurs.",
                 variant: "destructive",
             });
         } finally {
@@ -102,7 +102,7 @@ export default function ClientsPage() {
         localStorage.setItem('originalUserEmail', localStorage.getItem('userEmail') || '');
 
         localStorage.setItem('userRole', 'client');
-        localStorage.setItem('userName', client.legalRepresentative);
+        localStorage.setItem('userName', client.legalRepresentative || client.name);
         localStorage.setItem('userEmail', client.email);
         localStorage.setItem('selectedClientId', client.id);
 
@@ -119,7 +119,7 @@ export default function ClientsPage() {
         if (!clientToDelete) return;
         
         await deleteClientAction(clientToDelete.id);
-        toast({ title: 'Client supprimé', description: `Le client ${clientToDelete.name} a été supprimé.` });
+        toast({ title: 'Utilisateur supprimé', description: `L'utilisateur ${clientToDelete.name} a été supprimé.` });
         setClientToDelete(null);
         fetchClientsAndAccountants(); // Refetch data
     }
@@ -130,7 +130,7 @@ export default function ClientsPage() {
         
         toast({
             title: "Statuts mis à jour",
-            description: `${selectedClientIds.length} clients ont été mis à jour.`
+            description: `${selectedClientIds.length} utilisateurs ont été mis à jour.`
         });
         setSelectedClientIds([]);
         fetchClientsAndAccountants(); // Refetch data
@@ -139,8 +139,8 @@ export default function ClientsPage() {
     const getClientsToExport = () => {
         if (clients.length === 0) {
             toast({
-                title: "Aucun client à exporter",
-                description: "La liste des clients est vide.",
+                title: "Aucun utilisateur à exporter",
+                description: "La liste des utilisateurs est vide.",
                 variant: "destructive"
             });
             return null;
@@ -154,14 +154,14 @@ export default function ClientsPage() {
 
         const worksheet = XLSX.utils.json_to_sheet(clientsToExport);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Utilisateurs");
         
         const date = new Date().toISOString().slice(0, 10);
-        XLSX.writeFile(workbook, `export-clients-${date}.xlsx`);
+        XLSX.writeFile(workbook, `export-utilisateurs-${date}.xlsx`);
         
         toast({
             title: "Exportation réussie",
-            description: `${clientsToExport.length} clients ont été exportés au format Excel.`,
+            description: `${clientsToExport.length} utilisateurs ont été exportés au format Excel.`,
         });
     }
 
@@ -175,7 +175,7 @@ export default function ClientsPage() {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
         const date = new Date().toISOString().slice(0, 10);
-        link.setAttribute("download", `export-clients-${date}.csv`);
+        link.setAttribute("download", `export-utilisateurs-${date}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -183,7 +183,7 @@ export default function ClientsPage() {
 
         toast({
             title: "Exportation réussie",
-            description: `${clientsToExport.length} clients ont été exportés au format CSV.`,
+            description: `${clientsToExport.length} utilisateurs ont été exportés au format CSV.`,
         });
     }
 
@@ -192,19 +192,19 @@ export default function ClientsPage() {
         if (!clientsToExport) return;
 
         const doc = new jsPDF();
-        doc.text("Liste des Clients", 14, 16);
+        doc.text("Liste des Utilisateurs", 14, 16);
         (doc as any).autoTable({
-            head: [['Nom', 'Email', 'SIRET', 'Statut', 'Dernière Activité']],
-            body: clientsToExport.map(c => [c.name, c.email, c.siret, c.status, new Date(c.lastActivity).toLocaleDateString('fr-FR')]),
+            head: [['Nom', 'Email', 'Rôle', 'Statut', 'Dernière Activité']],
+            body: clientsToExport.map(c => [c.name, c.email, c.role, c.status, new Date(c.lastActivity).toLocaleDateString('fr-FR')]),
             startY: 20,
         });
 
         const date = new Date().toISOString().slice(0, 10);
-        doc.save(`export-clients-${date}.pdf`);
+        doc.save(`export-utilisateurs-${date}.pdf`);
 
          toast({
             title: "Exportation réussie",
-            description: `${clientsToExport.length} clients ont été exportés au format PDF.`,
+            description: `${clientsToExport.length} utilisateurs ont été exportés au format PDF.`,
         });
     }
 
@@ -284,8 +284,8 @@ export default function ClientsPage() {
         <div className="space-y-6">
              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Gestion des clients</h1>
-                    <p className="text-muted-foreground mt-1">Créez et gérez les dossiers et les accès de vos clients.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Gestion des Utilisateurs</h1>
+                    <p className="text-muted-foreground mt-1">Créez et gérez les profils des clients, comptables et secrétaires.</p>
                 </div>
                  <div className="flex items-center gap-2">
                     {/* Desktop Buttons */}
@@ -302,7 +302,7 @@ export default function ClientsPage() {
                                 <DropdownMenuItem onClick={handleExportCSV}><File className="mr-2 h-4 w-4" />Exporter en CSV</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</Button>
+                        <Button onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouvel Utilisateur</Button>
                     </div>
                     {/* Mobile Actions Dropdown */}
                     <div className="md:hidden">
@@ -311,7 +311,7 @@ export default function ClientsPage() {
                                 <Button>Actions</Button>
                             </DropdownMenuTrigger>
                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouvel Utilisateur</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                     <ClientImportDialog onClientsImported={fetchClientsAndAccountants} isMenuItem />
@@ -356,8 +356,8 @@ export default function ClientsPage() {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>Liste des clients</CardTitle>
-                            <CardDescription>Parcourez vos clients ou recherchez un dossier spécifique.</CardDescription>
+                            <CardTitle>Liste des utilisateurs</CardTitle>
+                            <CardDescription>Parcourez et gérez tous les utilisateurs du système.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-full max-w-sm">
@@ -386,10 +386,10 @@ export default function ClientsPage() {
                                         aria-label="Tout sélectionner"
                                     />
                                 </TableHead>
-                                <TableHead>Nom de l'entreprise</TableHead>
+                                <TableHead>Nom</TableHead>
+                                <TableHead>Rôle</TableHead>
                                 <TableHead>Statut</TableHead>
                                 <TableHead className="hidden md:table-cell">Comptable Attribué</TableHead>
-                                <TableHead>Documents en attente</TableHead>
                                 <TableHead>Dernière activité</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -412,6 +412,7 @@ export default function ClientsPage() {
                                             {client.name}
                                         </button>
                                     </TableCell>
+                                    <TableCell className="capitalize">{client.role}</TableCell>
                                     <TableCell>{getStatusBadge(client.status)}</TableCell>
                                     <TableCell className="hidden md:table-cell">
                                         {client.assignedAccountantId ? (
@@ -431,13 +432,6 @@ export default function ClientsPage() {
                                             <Badge variant="outline">Non attribué</Badge>
                                         )}
                                     </TableCell>
-                                    <TableCell>
-                                        {client.newDocuments > 0 ? (
-                                            <Badge variant="destructive">{client.newDocuments}</Badge>
-                                        ) : (
-                                            <span className="text-muted-foreground">0</span>
-                                        )}
-                                    </TableCell>
                                     <TableCell>{new Date(client.lastActivity).toLocaleDateString('fr-FR')}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2">
@@ -452,10 +446,10 @@ export default function ClientsPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                     <DropdownMenuItem onClick={() => handleImpersonate(client)}>
+                                                     {client.role === 'client' && <DropdownMenuItem onClick={() => handleImpersonate(client)}>
                                                         <LogIn className="mr-2 h-4 w-4" />
                                                         Prendre la main
-                                                    </DropdownMenuItem>
+                                                    </DropdownMenuItem>}
                                                     <DropdownMenuItem onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage')); router.push('/dashboard/documents'); }}>
                                                         <File className="mr-2 h-4 w-4" />
                                                         Voir les documents
@@ -473,7 +467,7 @@ export default function ClientsPage() {
                             )) : (
                                 <TableRow>
                                     <TableCell colSpan={7} className="h-24 text-center">
-                                        Aucun client trouvé.
+                                        Aucun utilisateur trouvé.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -495,9 +489,8 @@ export default function ClientsPage() {
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                     {getStatusBadge(client.status)}
                                     <span className="mx-1">·</span>
-                                    <div className="flex items-center gap-1.5" title="Documents en attente">
-                                        <FileClock className="h-3 w-3" />
-                                        <span>{client.newDocuments}</span>
+                                     <div className="flex items-center gap-1.5 capitalize" title="Rôle">
+                                        <span>{client.role}</span>
                                     </div>
                                     <span className="mx-1">·</span>
                                      <div className="flex items-center gap-1.5" title="Dernière activité">
@@ -515,7 +508,7 @@ export default function ClientsPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>Ouvrir</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleImpersonate(client)}>Prendre la main</DropdownMenuItem>
+                                        {client.role === 'client' && <DropdownMenuItem onClick={() => handleImpersonate(client)}>Prendre la main</DropdownMenuItem>}
                                         <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>Modifier</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-destructive" onClick={() => setClientToDelete(client)}>Supprimer</DropdownMenuItem>
@@ -528,7 +521,7 @@ export default function ClientsPage() {
                     <Card>
                         <CardContent className="h-48 flex flex-col items-center justify-center text-center">
                             <Search className="h-10 w-10 text-muted-foreground mb-3" />
-                            <h3 className="font-semibold">Aucun client trouvé</h3>
+                            <h3 className="font-semibold">Aucun utilisateur trouvé</h3>
                             <p className="text-sm text-muted-foreground mt-1">Essayez d'affiner votre recherche.</p>
                         </CardContent>
                     </Card>
@@ -540,7 +533,7 @@ export default function ClientsPage() {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Le dossier du client "{clientToDelete?.name}" sera définitivement supprimé, y compris tous ses documents et son accès utilisateur.
+                        Le profil de "{clientToDelete?.name}" sera définitivement supprimé, y compris son accès utilisateur et tous les documents associés.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
