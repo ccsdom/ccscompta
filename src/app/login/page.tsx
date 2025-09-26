@@ -23,6 +23,13 @@ import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+const DEMO_USERS = {
+    'admin@ccs.com': { password: 'password', role: 'admin', name: 'Super Admin' },
+    'comptable@ccs.com': { password: 'password', role: 'accountant', name: 'Alain Comptable' },
+    'secretary@ccs.com': { password: 'password', role: 'secretary', name: 'Sophie Secrétaire'},
+    'aventure.action@example.com': { password: '84042838300010', role: 'client', name: 'ACTION AVENTURE' }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -45,36 +52,34 @@ export default function LoginPage() {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         
-        // Force refresh of the token to get custom claims
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
         
         let userName: string | undefined;
         let targetPath: string;
 
-        // Everyone needs a profile in Firestore now.
-        const userProfile = await getClientById(firebaseUser.uid);
+        if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
+             // For staff, profile is optional. Use display name or email as fallback.
+            const userProfile = await getClientById(firebaseUser.uid);
+            userName = userProfile?.name || firebaseUser.displayName || firebaseUser.email!.split('@')[0];
+            localStorage.removeItem('selectedClientId');
+            
+            if (userRole === 'admin') targetPath = '/dashboard/admin';
+            else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
+            else if (userRole === 'secretary') targetPath = '/dashboard/secretary';
+            else targetPath = '/dashboard';
 
-        if (userRole === 'client') {
-             if (!userProfile) {
+        } else { // 'client' role
+            const userProfile = await getClientById(firebaseUser.uid);
+            if (!userProfile) {
                 // This is a critical error for a client user. Their data is tied to their profile.
                 throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
             }
             userName = userProfile.legalRepresentative || userProfile.name;
             localStorage.setItem('selectedClientId', userProfile.id);
             targetPath = '/dashboard/my-documents';
-        } else { // admin, accountant, secretary
-            userName = userProfile?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0];
-            localStorage.removeItem('selectedClientId');
-            if (userRole === 'admin') targetPath = '/dashboard/admin';
-            else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
-            else if (userRole === 'secretary') targetPath = '/dashboard/secretary';
-            else { // Fallback, should not happen
-                targetPath = '/dashboard';
-            }
         }
         
-        // Set common localStorage items
         localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', userName || 'Utilisateur');
         localStorage.setItem('userEmail', firebaseUser.email!);
@@ -229,6 +234,7 @@ export default function LoginPage() {
               <AlertDescription className="text-xs space-y-1">
                 <p><strong>Admin:</strong> `admin@ccs.com` (mdp: `password`)</p>
                 <p><strong>Comptable:</strong> `comptable@ccs.com` (mdp: `password`)</p>
+                 <p><strong>Secrétaire:</strong> `secretary@ccs.com` (mdp: `password`)</p>
                 <p><strong>Client:</strong> `aventure.action@example.com` (mdp: `84042838300010`)</p>
               </AlertDescription>
             </Alert>
