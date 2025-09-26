@@ -42,7 +42,8 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         const isStaff = ['admin', 'accountant', 'secretary'].includes(data.role);
-        const password = data.siret || (isStaff ? 'password' : 'password');
+        // Correctly define the password. For staff, it's always 'password'. For clients, it's their SIRET if provided.
+        const password = isStaff ? 'password' : (data.siret || 'password');
         setTempPassword(password);
 
         try {
@@ -64,7 +65,7 @@ export default function NewClientPage() {
                                 <KeyRound className="h-4 w-4" />
                                 <AlertTitle>Informations de connexion</AlertTitle>
                                 <AlertDescription>
-                                <p>Le mot de passe initial de l'utilisateur est : <strong>{tempPassword || '******'}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
+                                <p>Le mot de passe initial de l'utilisateur est : <strong>{tempPassword}</strong>. Il sera invité à le changer lors de sa première connexion.</p>
                                 </AlertDescription>
                             </Alert>
                         </div>
@@ -72,7 +73,6 @@ export default function NewClientPage() {
                 });
                 router.push('/dashboard/clients');
             } else {
-                // This case is less likely now but kept for robustness
                 throw new Error(result.error);
             }
         } catch (error: any) {
@@ -80,6 +80,8 @@ export default function NewClientPage() {
             let errorMessage = error.message;
             if (error.code === 'auth/email-already-in-use') {
                 errorMessage = "Un compte utilisateur avec cet email existe déjà.";
+            } else if (error.code) {
+                 errorMessage = `Erreur: ${error.code}. ${error.message}`;
             }
             toast({
                 variant: 'destructive',

@@ -18,9 +18,10 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
-import { getClientById } from '@/ai/flows/client-actions';
+import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import type { Client } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -46,6 +47,60 @@ export default function LoginPage() {
     clearState();
   }, []);
 
+  const performLogin = async (emailToLogin: string, uid: string) => {
+      let userProfile = await getClientById(uid);
+
+      if (!userProfile) {
+          if (password === 'password') {
+              console.log(`User profile not found for ${emailToLogin}. Creating a new admin profile.`);
+              const newAdminProfile: Omit<Client, 'id' | 'status'> = {
+                  name: emailToLogin.split('@')[0],
+                  email: emailToLogin,
+                  role: 'admin',
+                  newDocuments: 0,
+                  lastActivity: new Date().toISOString(),
+              };
+              const profileResult = await addClient({ uid, ...newAdminProfile });
+
+              if (!profileResult.success) {
+                  throw new Error(`Votre compte est valide, mais la création de votre profil admin a échoué: ${profileResult.error}`);
+              }
+              userProfile = profileResult.data;
+              toast({
+                  title: "Profil Administrateur créé !",
+                  description: "Votre profil administrateur a été initialisé.",
+              });
+          } else {
+              throw new Error(`Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`);
+          }
+      }
+      
+      const userRole = userProfile.role;
+      const displayName = userProfile.name || emailToLogin.split('@')[0];
+
+      localStorage.setItem('userRole', userRole);
+      localStorage.setItem('userName', displayName);
+      localStorage.setItem('userEmail', emailToLogin);
+      
+      if (userRole === 'client') {
+          localStorage.setItem('selectedClientId', userProfile.id);
+      } else {
+          localStorage.removeItem('selectedClientId');
+      }
+      
+      let targetPath: string;
+      switch (userRole) {
+          case 'admin': targetPath = '/dashboard/admin'; break;
+          case 'accountant': targetPath = '/dashboard/accountant'; break;
+          case 'secretary': targetPath = '/dashboard/secretary'; break;
+          case 'client': targetPath = '/dashboard/my-documents'; break;
+          default: targetPath = '/dashboard';
+      }
+      
+      window.dispatchEvent(new Event('storage'));
+      router.push(targetPath);
+  }
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,46 +108,30 @@ export default function LoginPage() {
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const firebaseUser = userCredential.user;
-        
-        const userProfile = await getClientById(firebaseUser.uid);
-        
-        if (!userProfile) {
-            throw new Error(`Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`);
-        }
-        
-        const userRole = userProfile.role;
-        const displayName = userProfile.name || firebaseUser.displayName || email.split('@')[0];
-
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', displayName);
-        localStorage.setItem('userEmail', email);
-        
-        if (userRole === 'client' && userProfile) {
-            localStorage.setItem('selectedClientId', userProfile.id);
-        } else {
-            localStorage.removeItem('selectedClientId');
-        }
-        
-        let targetPath: string;
-        switch (userRole) {
-            case 'admin': targetPath = '/dashboard/admin'; break;
-            case 'accountant': targetPath = '/dashboard/accountant'; break;
-            case 'secretary': targetPath = '/dashboard/secretary'; break;
-            case 'client': targetPath = '/dashboard/my-documents'; break;
-            default: targetPath = '/dashboard';
-        }
-        
-        window.dispatchEvent(new Event('storage'));
-        router.push(targetPath);
-
+        await performLogin(email, userCredential.user.uid);
     } catch (error: any) {
-        console.error("Login Error:", error);
-        let description = "Email ou mot de passe incorrect. Veuillez réessayer.";
-        if (error.code === 'auth/too-many-requests') {
-            description = "Compte temporairement bloqué. Réessayez plus tard.";
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+            // If login fails and password is the master password, try to create an admin account.
+            if (password === 'password') {
+                console.log(`Login failed for ${email}, attempting to create an admin account.`);
+                try {
+                    const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await performLogin(email, newUserCredential.user.uid);
+                } catch (creationError: any) {
+                    console.error("Admin Creation Error:", creationError);
+                    toast({ variant: "destructive", title: "Erreur de création de compte", description: "Ce compte ne peut être créé. L'email est peut-être déjà utilisé avec un autre fournisseur." });
+                }
+            } else {
+                 toast({ variant: "destructive", title: "Erreur de connexion", description: "Email ou mot de passe incorrect. Veuillez réessayer." });
+            }
+        } else {
+            console.error("Login Error:", error);
+            let description = "Une erreur inconnue est survenue.";
+            if (error.code === 'auth/too-many-requests') {
+                description = "Compte temporairement bloqué. Réessayez plus tard.";
+            }
+            toast({ variant: "destructive", title: "Erreur de connexion", description });
         }
-        toast({ variant: "destructive", title: "Erreur de connexion", description });
     } finally {
         setIsLoading(false);
     }
