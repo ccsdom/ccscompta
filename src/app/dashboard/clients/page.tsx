@@ -96,12 +96,6 @@ export default function ClientsPage() {
         setSelectedClientIds(prev => checked ? [...prev, id] : prev.filter(clientId => clientId !== id));
     }
 
-    const handleSelectClient = (clientId: string) => {
-        localStorage.setItem('selectedClientId', clientId);
-        window.dispatchEvent(new Event('storage'));
-        router.push('/dashboard/documents');
-    }
-
     const handleImpersonate = (client: Client) => {
         localStorage.setItem('originalUserRole', localStorage.getItem('userRole') || 'admin');
         localStorage.setItem('originalUserName', localStorage.getItem('userName') || 'Super Admin');
@@ -414,7 +408,7 @@ export default function ClientsPage() {
                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                                             <Building className="h-5 w-5 text-muted-foreground" />
                                         </div>
-                                        <button className="text-left hover:underline" onClick={() => handleSelectClient(client.id)}>
+                                        <button className="text-left hover:underline" onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
                                             {client.name}
                                         </button>
                                     </TableCell>
@@ -447,8 +441,8 @@ export default function ClientsPage() {
                                     <TableCell>{new Date(client.lastActivity).toLocaleDateString('fr-FR')}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => handleSelectClient(client.id)}>
-                                                Ouvrir le dossier
+                                            <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>
+                                                Modifier
                                             </Button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -462,9 +456,9 @@ export default function ClientsPage() {
                                                         <LogIn className="mr-2 h-4 w-4" />
                                                         Prendre la main
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
-                                                        <Edit className="mr-2 h-4 w-4" />
-                                                        Modifier
+                                                    <DropdownMenuItem onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage')); router.push('/dashboard/documents'); }}>
+                                                        <File className="mr-2 h-4 w-4" />
+                                                        Voir les documents
                                                     </DropdownMenuItem>
                                                      <DropdownMenuSeparator />
                                                      <DropdownMenuItem className="text-destructive" onClick={() => setClientToDelete(client)}>
@@ -491,7 +485,7 @@ export default function ClientsPage() {
             {/* Mobile view */}
             <div className="space-y-4 md:hidden">
                 {filteredClients.length > 0 ? filteredClients.map(client => (
-                    <Card key={client.id} className="relative" onClick={() => handleSelectClient(client.id)}>
+                    <Card key={client.id} className="relative" onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
                         <CardContent className="p-4 flex items-center gap-4">
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted shrink-0">
                                 <Building className="h-6 w-6 text-muted-foreground" />
@@ -520,9 +514,9 @@ export default function ClientsPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleSelectClient(client.id)}>Ouvrir</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>Ouvrir</DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleImpersonate(client)}>Prendre la main</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>Modifier</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>Modifier</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-destructive" onClick={() => setClientToDelete(client)}>Supprimer</DropdownMenuItem>
                                     </DropdownMenuContent>
