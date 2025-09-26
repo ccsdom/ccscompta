@@ -88,55 +88,49 @@ export default function LoginPage() {
         const idTokenResult = await firebaseUser.getIdTokenResult();
         const userEmail = firebaseUser.email!;
 
-        // 2. Determine user role from custom claims first
-        let userRole = idTokenResult.claims.role as string | undefined;
-        let userName: string | null = null;
-        let userClientId: string | null = null;
-
-        if (userRole) { // Role is defined in custom claims (admin, accountant, etc.)
-            const demoUserEmailKey = userEmail.toLowerCase() as keyof typeof DEMO_USERS;
-            userName = DEMO_USERS[demoUserEmailKey]?.name || "Utilisateur";
-
-        } else { // No custom claim, assume it's a client
-            userRole = "client";
-            let clientDoc = await getClientById(firebaseUser.uid);
-            
-            // Fallback for older clients that might not have matching UID
-            if (!clientDoc) {
-                const allClients = await getClients();
-                const clientByEmail = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
-                if (clientByEmail) clientDoc = clientByEmail;
-            }
-
-            if (clientDoc) {
-                userName = clientDoc.legalRepresentative;
-                userClientId = clientDoc.id;
-            }
-        }
+        // 2. Determine user role from custom claims, default to 'client'
+        const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
         
-        // 3. If no role found after checking everything, throw an error
-        if (!userRole || !userName) {
-            throw new Error("Profil utilisateur introuvable dans l'application.");
-        }
+        // 3. Fetch user profile from Firestore using UID. This is the single source of truth for user details.
+        let clientDoc = await getClientById(firebaseUser.uid);
         
-        // 4. Set session info in localStorage and redirect
+        // Fallback for older clients that might not have matching UID (e.g. before a migration)
+        if (!clientDoc) {
+            const allClients = await getClients();
+            const clientByEmail = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
+            if (clientByEmail) clientDoc = clientByEmail;
+        }
+
+        // 4. If no profile found in Firestore, throw an error. Every user must have a profile.
+        if (!clientDoc) {
+             throw new Error("Profil utilisateur introuvable dans l'application.");
+        }
+
+        const userName = clientDoc.legalRepresentative;
+        const userClientId = clientDoc.id;
+
+        // 5. Set session info in localStorage and redirect
         localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', userName);
         localStorage.setItem('userEmail', userEmail);
+        localStorage.setItem('selectedClientId', userClientId); // Always set the logged-in user's own client ID
 
         let targetPath: string;
-        if (userRole === 'client') {
-            if (!userClientId) throw new Error("Compte client non associé à un dossier.");
-            localStorage.setItem('selectedClientId', userClientId);
-            targetPath = '/dashboard/my-documents';
-        } else if (userRole === 'accountant') {
-            targetPath = '/dashboard/accountant';
-        } else if (userRole === 'admin') {
-            targetPath = '/dashboard/admin';
-        } else if (userRole === 'secretary') {
-            targetPath = '/dashboard/secretary';
-        } else {
-            throw new Error(`Rôle utilisateur inconnu: ${userRole}`);
+        switch (userRole) {
+            case 'client':
+                targetPath = '/dashboard/my-documents';
+                break;
+            case 'accountant':
+                targetPath = '/dashboard/accountant';
+                break;
+            case 'admin':
+                targetPath = '/dashboard/admin';
+                break;
+            case 'secretary':
+                targetPath = '/dashboard/secretary';
+                break;
+            default:
+                throw new Error(`Rôle utilisateur inconnu: ${userRole}`);
         }
         
         window.dispatchEvent(new Event('storage'));
