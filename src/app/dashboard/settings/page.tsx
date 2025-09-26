@@ -124,6 +124,24 @@ export default function SettingsPage() {
             description: "L'adresse email a été copiée dans le presse-papiers.",
         });
     }
+    
+    const handleSetAdmin = async () => {
+        if (!userUid) {
+            toast({ variant: 'destructive', title: "Erreur", description: "Impossible de récupérer votre identifiant utilisateur. Veuillez vous reconnecter." });
+            return;
+        }
+        setIsSettingAdmin(true);
+        const result = await setAdminClaim(userUid);
+        if (result.success) {
+            toast({
+                title: "Rôle Administrateur attribué !",
+                description: "Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
+            });
+        } else {
+            toast({ variant: 'destructive', title: "Échec de l'attribution", description: result.message });
+        }
+        setIsSettingAdmin(false);
+    };
 
     const isAccountantOrAdmin = userRole === 'accountant' || userRole === 'admin' || userRole === 'secretary';
 
@@ -142,6 +160,7 @@ export default function SettingsPage() {
                     {isAccountantOrAdmin && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="email-upload">Email</TabsTrigger>}
+                    {isAccountantOrAdmin && <TabsTrigger value="admin">Administration</TabsTrigger>}
                 </TabsList>
                 
                 <TabsContent value="profile">
@@ -370,6 +389,30 @@ export default function SettingsPage() {
                                         </div>
                                         <p className="text-xs text-muted-foreground pt-1">Note: Chaque client possède sa propre adresse unique, trouvable dans son dossier.</p>
                                     </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        
+                         <TabsContent value="admin">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Administration</CardTitle>
+                                    <CardDescription>Actions réservées aux administrateurs de la plateforme.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Alert variant="destructive">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Zone à haut risque</AlertTitle>
+                                        <AlertDescription>
+                                            <p className="mb-4">
+                                                L'action ci-dessous est nécessaire pour finaliser la configuration de sécurité. Elle vous donnera le rôle d'administrateur, vous permettant de gérer les clients et les documents. N'effectuez cette action qu'une seule fois pour votre compte.
+                                            </p>
+                                            <Button onClick={handleSetAdmin} disabled={isSettingAdmin}>
+                                                {isSettingAdmin ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCog className="mr-2 h-4 w-4" />}
+                                                Me donner le rôle Admin
+                                            </Button>
+                                        </AlertDescription>
+                                    </Alert>
                                 </CardContent>
                             </Card>
                         </TabsContent>

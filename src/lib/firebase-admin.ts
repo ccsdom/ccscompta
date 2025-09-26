@@ -1,5 +1,5 @@
 
-import { initializeApp, getApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApp, getApps, App, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -7,9 +7,11 @@ let app: App;
 
 try {
   // Try to get the existing app, otherwise initialize a new one.
-  // The SDK is smart enough to pick up the configuration from environment variables
-  // when available, which is a more robust method than manually building the service account object.
-  app = getApps().length ? getApp('admin') : initializeApp({} , 'admin');
+  // Using applicationDefault() allows the SDK to automatically find the credentials
+  // in a standard Google Cloud environment.
+  app = getApps().length ? getApp('admin') : initializeApp({
+    credential: applicationDefault(),
+  } , 'admin');
 } catch (error) {
   console.error("Firebase Admin SDK initialization failed:", error);
   // If initialization fails, we create a dummy app object to avoid crashing the server on import,
