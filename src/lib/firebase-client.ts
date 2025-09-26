@@ -9,7 +9,7 @@ export const firebaseConfig = {
   apiKey: "AIzaSyC1Wu-pJ12Ionb9dsjWmaGusuxGmh5LZB4",
   authDomain: "ccs-compta.firebaseapp.com",
   projectId: "ccs-compta",
-  storageBucket: "ccs-compta.appspot.com",
+  storageBucket: "ccs-compta.firebasestorage.app",
   messagingSenderId: "641289397299",
   appId: "1:641289397299:web:160436367ad4dff3e6ef46"
 };
@@ -33,4 +33,3 @@ onAuthStateChanged(auth, user => {
 });
 
 export { app, auth, storage, db, getFirebaseApp };
-
