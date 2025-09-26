@@ -108,9 +108,14 @@ export default function LoginPage() {
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             console.log("User not found, attempting to create account...");
             try {
+                // This will create the user in Firebase Auth
                 const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
                 console.log('Account created for:', newUserCredential.user.email);
+                
+                // Now that the user is created and logged in, create the profile in Firestore.
+                // The new security rules will allow this.
                 await performLogin(newUserCredential.user);
+
             } catch (creationError: any) {
                  console.error("Account Creation Error:", creationError);
                  toast({ variant: "destructive", title: "Erreur de création de compte", description: creationError.message });
@@ -182,15 +187,15 @@ export default function LoginPage() {
 
            <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle className="font-semibold">Action requise pour le premier administrateur</AlertTitle>
+                <AlertTitle className="font-semibold">Action requise pour la première connexion</AlertTitle>
                 <AlertDescription className="text-xs space-y-2">
-                    <p>Si vous n'arrivez pas à vous connecter, appliquez les règles de sécurité :</p>
+                    <p>Pour pouvoir créer le premier compte administrateur, vous devez d'abord mettre à jour vos règles de sécurité Firestore.</p>
                     <ol className="list-decimal list-inside pl-2">
-                        <li>Allez dans <strong className="font-semibold">Paramètres &gt; Sécurité des Données</strong>.</li>
-                        <li>Générez et copiez les règles Firestore.</li>
-                        <li>Collez-les dans votre <strong className="font-semibold">console Firebase &gt; Firestore &gt; Règles</strong>.</li>
+                        <li><Link href="/support/setup" target="_blank" className="font-semibold underline">Cliquez ici pour obtenir les règles</Link>.</li>
+                        <li>Copiez les règles de sécurité.</li>
+                        <li>Collez-les dans votre **Console Firebase &gt; Firestore &gt; Règles** et publiez.</li>
                     </ol>
-                    <p>Ensuite, connectez-vous avec le mot de passe <strong className="font-semibold">`password`</strong> pour créer votre compte admin.</p>
+                    <p>Ensuite, connectez-vous avec l'email de votre choix et le mot de passe **`password`** pour créer votre compte admin.</p>
                 </AlertDescription>
             </Alert>
           
@@ -269,5 +274,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    
