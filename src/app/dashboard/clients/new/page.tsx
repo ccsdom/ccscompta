@@ -1,3 +1,4 @@
+
 'use client'
 
 import { ClientForm, formSchema as baseFormSchema } from "../client-form";
@@ -11,9 +12,8 @@ import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth as clientAuth, db } from "@/lib/firebase-client";
-import { doc, setDoc } from 'firebase/firestore';
-import { updateClient } from "@/ai/flows/client-actions";
+import { auth as clientAuth } from "@/lib/firebase-client";
+import { addClient } from "@/ai/flows/client-actions";
 
 
 const formSchema = baseFormSchema;
@@ -41,36 +41,26 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        const password = 'password';
+        let password = 'password';
+        if (data.role === 'client' && data.siret) {
+            password = data.siret;
+        } else if (data.role === 'client' && !data.siret) {
+            password = 'password123';
+        }
         
         try {
             // Step 1: Create user in Firebase Auth (Client-side)
+            // This is the simplest way to get a user into the system.
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Set custom claim for role (via a server action that MUST have admin rights)
-            // This is the ideal way but requires a deployed Cloud Function or secure backend.
-            // For this setup, we rely on Firestore rules and a direct write.
-            await updateClient({ id: user.uid, updates: { role: data.role } });
+            // Step 2: Call the server action to create the Firestore profile and set claims.
+            // This happens on the server with admin privileges.
+            const profileResult = await addClient(data);
 
-            // Step 3: Create user profile in Firestore (Client-side)
-            // This succeeds because the security rules allow a user to create their own document.
-            const userProfileData: any = {
-                ...data,
-                newDocuments: 0,
-                lastActivity: new Date().toISOString(),
-                status: 'onboarding',
-            };
-
-            // Remove undefined fields and the password before saving to Firestore
-            Object.keys(userProfileData).forEach(key => {
-                if (userProfileData[key] === undefined || userProfileData[key] === null || userProfileData[key] === '') {
-                    delete userProfileData[key];
-                }
-            });
-            delete userProfileData.password;
-            
-            await setDoc(doc(db, "clients", user.uid), userProfileData);
+            if (!profileResult.success) {
+                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
+            }
 
             toast({
                 duration: 10000,
@@ -98,6 +88,8 @@ export default function NewClientPage() {
                 errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez utiliser un autre email.";
             } else if (error.code === 'auth/weak-password') {
                 errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
+            } else {
+                errorMessage = error.message;
             }
             toast({
                 variant: 'destructive',
