@@ -72,14 +72,13 @@ export default function NewClientPage() {
                 });
                 router.push('/dashboard/clients');
             } else {
-                // If profile creation fails, we should ideally delete the auth user
-                // For now, just show the error.
+                // This case is less likely now but kept for robustness
                 throw new Error(result.error);
             }
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = error.message;
-            if (error.code === 'auth/email-already-exists') {
+            if (error.code === 'auth/email-already-in-use') {
                 errorMessage = "Un compte utilisateur avec cet email existe déjà.";
             }
             toast({

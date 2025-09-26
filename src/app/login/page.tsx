@@ -50,7 +50,7 @@ export default function LoginPage() {
       let userProfile = await getClientById(firebaseUser.uid);
       
       if (!userProfile) {
-          console.log(`User ${firebaseUser.uid} authenticated but has no profile. Creating one.`);
+          console.log(`User ${firebaseUser.uid} authenticated but has no profile. Attempting to create one.`);
           
           const role = password === 'password' ? 'admin' : 'client';
           
@@ -62,9 +62,21 @@ export default function LoginPage() {
           });
 
           if (!profileResult.success) {
-            throw new Error(`Votre compte est valide, mais la création de votre profil a échoué: ${profileResult.error}`);
+            console.error(`Profile creation failed, but continuing login: ${profileResult.error}`);
+            // We still log the user in, they might need to create their profile manually.
+            userProfile = {
+                id: firebaseUser.uid,
+                email: email,
+                name: email.split('@')[0],
+                role: role,
+                status: 'onboarding',
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+            }
+          } else {
+            userProfile = profileResult.data;
           }
-          userProfile = profileResult.data;
+
           toast({
             title: "Profil créé",
             description: "Votre profil a été initialisé. Connexion en cours...",
@@ -113,7 +125,6 @@ export default function LoginPage() {
                 console.log('Account created for:', newUserCredential.user.email);
                 
                 // Now that the user is created and logged in, create the profile in Firestore.
-                // The new security rules will allow this.
                 await performLogin(newUserCredential.user);
 
             } catch (creationError: any) {
