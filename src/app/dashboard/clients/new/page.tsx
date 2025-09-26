@@ -2,7 +2,6 @@
 'use client'
 
 import { ClientForm, formSchema as baseFormSchema } from "../client-form";
-import { addClient } from '@/ai/flows/client-actions';
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import * as z from "zod";
@@ -15,6 +14,7 @@ import { KeyRound } from "lucide-react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth as clientAuth, db } from "@/lib/firebase-client";
 import { doc, setDoc } from 'firebase/firestore';
+import { updateClient } from "@/ai/flows/client-actions";
 
 
 const formSchema = baseFormSchema;
@@ -42,14 +42,14 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password = 'password'; // Default password for staff
+        let password = 'password';
         if (data.role === 'client') {
             if (data.siret && data.siret.length === 14) {
                 password = data.siret;
             } else {
-                 toast({ variant: 'destructive', title: 'Erreur de validation', description: "Le SIRET est requis et doit comporter 14 chiffres pour créer un compte client." });
-                 setIsSubmitting(false);
-                 return;
+                toast({ variant: 'destructive', title: 'SIRET Requis', description: "Le SIRET de 14 chiffres est obligatoire et sert de mot de passe initial pour les clients." });
+                setIsSubmitting(false);
+                return;
             }
         }
         
@@ -58,21 +58,27 @@ export default function NewClientPage() {
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Call the server action to create the Firestore profile and set custom claims
-            const result = await addClient(data);
-            if (!result.success) {
-                 // This is a critical failure, but we proceed with a warning.
-                 // The user might not have access until claims are set manually or the issue is fixed.
-                 console.error("Critical: Failed to create user profile or set claims:", result.error);
-                 toast({
-                    variant: 'destructive',
-                    title: 'Attention : Le profil n\'a pas été créé',
-                    description: `Le compte de connexion a été créé, mais la création du profil en base de données a échoué. Cause: ${result.error}`,
-                    duration: 10000,
-                 });
-                 setIsSubmitting(false);
-                 return;
-            }
+            // Step 2: Create user profile in Firestore (Client-side)
+            const userProfileData: any = {
+                ...data,
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+                status: 'onboarding',
+            };
+
+            // Remove undefined fields and the password before saving to Firestore
+            delete userProfileData.password;
+            if (!userProfileData.siret) delete userProfileData.siret;
+            if (!userProfileData.phone) delete userProfileData.phone;
+            if (!userProfileData.legalRepresentative) delete userProfileData.legalRepresentative;
+            if (!userProfileData.address) delete userProfileData.address;
+            if (!userProfileData.fiscalYearEndDate) delete userProfileData.fiscalYearEndDate;
+            if (!userProfileData.assignedAccountantId) delete userProfileData.assignedAccountantId;
+
+            await setDoc(doc(db, "clients", user.uid), userProfileData);
+
+            // This part is crucial for role-based access to work after creation
+            await updateClient({ id: user.uid, updates: { role: data.role } });
 
             toast({
                 duration: 10000,
@@ -99,8 +105,6 @@ export default function NewClientPage() {
                 errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez utiliser un autre email.";
             } else if (error.code === 'auth/weak-password') {
                 errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
-            } else if (error.message) {
-                 errorMessage = error.message;
             }
             toast({
                 variant: 'destructive',
