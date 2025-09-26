@@ -23,12 +23,6 @@ import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const DEMO_USERS = {
-    'admin@ccs.com': { password: 'password', role: 'admin', name: 'Super Admin' },
-    'comptable@ccs.com': { password: 'password', role: 'accountant', name: 'Alain Comptable' },
-    'secretary@ccs.com': { password: 'password', role: 'secretary', name: 'Sophie Secrétaire'},
-    'aventure.action@example.com': { password: '84042838300010', role: 'client', name: 'ACTION AVENTURE' }
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,34 +49,34 @@ export default function LoginPage() {
         const idTokenResult = await firebaseUser.getIdTokenResult(true);
         const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
         
-        let userName: string | undefined;
+        const userProfile = await getClientById(firebaseUser.uid);
+
+        if (!userProfile) {
+            // This case should ideally not happen if seeding works, but it's a good safeguard.
+             throw new Error(`Votre compte est valide mais aucun profil n'est associé. Veuillez contacter le support.`);
+        }
+
         let targetPath: string;
-
-        if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
-             // For staff, profile is optional. Use display name or email as fallback.
-            const userProfile = await getClientById(firebaseUser.uid);
-            userName = userProfile?.name || firebaseUser.displayName || firebaseUser.email!.split('@')[0];
-            localStorage.removeItem('selectedClientId');
-            
-            if (userRole === 'admin') targetPath = '/dashboard/admin';
-            else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
-            else if (userRole === 'secretary') targetPath = '/dashboard/secretary';
-            else targetPath = '/dashboard';
-
-        } else { // 'client' role
-            const userProfile = await getClientById(firebaseUser.uid);
-            if (!userProfile) {
-                // This is a critical error for a client user. Their data is tied to their profile.
-                throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
-            }
-            userName = userProfile.legalRepresentative || userProfile.name;
-            localStorage.setItem('selectedClientId', userProfile.id);
+        if (userRole === 'client') {
             targetPath = '/dashboard/my-documents';
+        } else if (userRole === 'admin') {
+            targetPath = '/dashboard/admin';
+        } else if (userRole === 'accountant') {
+            targetPath = '/dashboard/accountant';
+        } else if (userRole === 'secretary') {
+            targetPath = '/dashboard/secretary';
+        } else {
+            targetPath = '/dashboard';
         }
         
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', userName || 'Utilisateur');
-        localStorage.setItem('userEmail', firebaseUser.email!);
+        localStorage.setItem('userRole', userProfile.role);
+        localStorage.setItem('userName', userProfile.name);
+        localStorage.setItem('userEmail', userProfile.email);
+        if (userProfile.role === 'client') {
+            localStorage.setItem('selectedClientId', userProfile.id);
+        } else {
+            localStorage.removeItem('selectedClientId');
+        }
         
         window.dispatchEvent(new Event('storage'));
         router.push(targetPath);
@@ -103,7 +97,7 @@ export default function LoginPage() {
                     description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
                     break;
              }
-        } else { // Custom errors from our logic (like profile not found)
+        } else { // Custom errors from our logic
             description = error.message;
         }
 

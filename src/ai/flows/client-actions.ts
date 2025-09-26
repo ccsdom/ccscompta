@@ -69,7 +69,6 @@ export async function addClient(
     const uid = userRecord.uid;
 
     // 3. Add client profile to Firestore using the created UID
-    // This collection now stores ALL users, not just clients.
     const clientDocRef = doc(db, 'clients', uid);
     const newUser: Omit<Client, 'id' | 'status'> = {
       ...validatedData,
@@ -116,7 +115,7 @@ export async function getClients(): Promise<Client[]> {
                     // 1. Create Auth user with custom claim
                     const userRecord = await adminAuth.createUser({
                         email: client.email,
-                        password: client.siret,
+                        password: client.password, // Use explicit password from mock
                         emailVerified: true,
                         disabled: false,
                         displayName: client.name,
@@ -125,19 +124,20 @@ export async function getClients(): Promise<Client[]> {
 
                     // 2. Create Firestore document
                     const docRef = doc(db, 'clients', userRecord.uid);
-                    const { id, ...clientData } = client; // eslint-disable-line @typescript-eslint/no-unused-vars
+                    const { id, password, ...clientData } = client; // eslint-disable-line @typescript-eslint/no-unused-vars
                     batch.set(docRef, clientData);
 
                 } catch (error: any) {
                      if (error.code !== 'auth/email-already-exists') {
                         console.error(`Error seeding user ${client.email}:`, error);
                      } else {
-                        console.warn(`Mock user ${client.email} already exists in Auth. Skipping auth creation.`);
-                        // If auth user exists, try to find it to get UID
+                        console.warn(`Mock user ${client.email} already exists in Auth. Skipping auth creation, will attempt to set Firestore doc.`);
                          try {
                             const userRecord = await adminAuth.getUserByEmail(client.email);
                             const docRef = doc(db, 'clients', userRecord.uid);
-                            const { id, ...clientData } = client;
+                             // Ensure role claim is set even if user exists
+                            await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
+                            const { id, password, ...clientData } = client;
                             batch.set(docRef, clientData);
                          } catch (e) {
                              console.error(`Could not get existing mock user ${client.email}`, e);
