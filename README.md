@@ -14,7 +14,7 @@ Si vous n'avez jamais utilisé Firebase Storage sur ce projet, vous devez l'acti
 1.  **Accédez à la console Firebase** de votre projet : [https://console.firebase.google.com/project/ccs-compta/storage](https://console.firebase.google.com/project/ccs-compta/storage)
 2.  Si le service n'est pas activé, vous verrez un écran d'accueil pour Storage. Cliquez sur le bouton **"Commencer"** (ou "Get Started").
 3.  Suivez les instructions à l'écran. Vous pouvez généralement conserver les options par défaut (mode production, emplacement du bucket).
-4.  Une fois l'opération terminée, votre bucket de stockage est prêt. Son nom sera `ccs-compta.appspot.com`.
+4.  Une fois l'opération terminée, votre bucket de stockage est prêt.
 
 ### Étape 2 : Activer l'accès aux fichiers (CORS)
 
@@ -30,16 +30,22 @@ Cette méthode est la plus fiable et fonctionne sur tous les systèmes d'exploit
 
     ![Activer Cloud Shell](https://raw.githubusercontent.com/firebase/studio-images/main/cors-guide/activate-cloud-shell.png)
 
-3.  Une fois le terminal Cloud Shell prêt, copiez et collez la commande suivante, puis appuyez sur **Entrée**. Cela créera le fichier de configuration `cors.json`.
+3.  Une fois le terminal Cloud Shell prêt, copiez et collez la commande suivante pour vous assurer d'être dans le bon projet, puis appuyez sur **Entrée** :
+    ```bash
+    gcloud config set project ccs-compta
+    ```
+
+4.  Créez le fichier de configuration `cors.json` en copiant-collant la commande suivante, puis appuyez sur **Entrée** :
 
     ```bash
     echo '[{"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600}]' > cors.json
     ```
 
-4.  Maintenant, copiez et collez cette deuxième commande, puis appuyez sur **Entrée**. Elle appliquera la configuration à votre bucket de stockage.
+5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** vous devrez peut-être remplacer `gs://ccs-compta.appspot.com` par l'adresse exacte de votre bucket si elle est différente. Vous pouvez trouver l'adresse exacte dans la console Firebase (Storage -> onglet Fichiers) ou dans la liste des buckets de la console Google Cloud.
 
     ```bash
     gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=cors.json
     ```
 
-5.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell. Rafraîchissez votre application, l'erreur de téléversement devrait être résolue.
+6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell. Rafraîchissez votre application, l'erreur de téléversement devrait être résolue.
+
