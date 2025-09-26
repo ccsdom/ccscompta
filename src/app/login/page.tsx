@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, type User } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -46,14 +46,13 @@ export default function LoginPage() {
     clearState();
   }, []);
 
-  const performLogin = async () => {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
-      
+  const performLogin = async (firebaseUser: User) => {
       let userProfile = await getClientById(firebaseUser.uid);
       
+      // If user exists in Auth but not in Firestore, create the profile.
       if (!userProfile) {
           console.log(`User ${firebaseUser.uid} authenticated but has no profile. Creating one.`);
+          // This logic assumes the first user with 'password' is the admin.
           const role = password === 'password' ? 'admin' : 'client';
           const profileResult = await addClient({
             uid: firebaseUser.uid,
@@ -103,18 +102,18 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-        await performLogin();
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await performLogin(userCredential.user);
     } catch (error: any) {
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+            console.log("User not found, attempting to create account...");
             try {
-                // If login fails, try to create an account.
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                console.log('Account created for:', userCredential.user.email);
-                // If creation is successful, try to log in again.
-                await performLogin();
+                const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+                console.log('Account created for:', newUserCredential.user.email);
+                await performLogin(newUserCredential.user);
             } catch (creationError: any) {
-                console.error("Account Creation Error:", creationError);
-                toast({ variant: "destructive", title: "Erreur de création de compte", description: creationError.message });
+                 console.error("Account Creation Error:", creationError);
+                 toast({ variant: "destructive", title: "Erreur de création de compte", description: creationError.message });
             }
         } else {
             console.error("Login Error:", error);
@@ -264,5 +263,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    
