@@ -164,7 +164,7 @@ export default function SettingsPage() {
                     {isStaff && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
                     {isStaff && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
                     {isStaff && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
-                    {isStaff && <TabsTrigger value="admin">Administration</TabsTrigger>}
+                    <TabsTrigger value="admin">Administration</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="profile">
@@ -349,29 +349,6 @@ export default function SettingsPage() {
                                 </CardContent>
                             </Card>
                         </TabsContent>
-                        
-                        <TabsContent value="admin">
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><UserCog className="h-5 w-5"/> Administration</CardTitle>
-                                    <CardDescription>Actions réservées aux administrateurs de la plateforme.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Alert>
-                                        <Briefcase className="h-4 w-4" />
-                                        <AlertTitle>Devenir Administrateur</AlertTitle>
-                                        <AlertDescription>
-                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action utilise une Server Action qui nécessite que les credentials du SDK Admin soient correctement configurés sur votre serveur.</p>
-                                                <Button onClick={handleSetAdminRole} disabled={isAdminRoleLoading}>
-                                                    {isAdminRoleLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</> : "Me donner le rôle Admin"}
-                                                </Button>
-                                            </div>
-                                        </AlertDescription>
-                                    </Alert>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
 
                         <TabsContent value="integrations">
                             <Card>
@@ -402,6 +379,29 @@ export default function SettingsPage() {
                         </TabsContent>
                     </>
                 )}
+                
+                 <TabsContent value="admin">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><UserCog className="h-5 w-5"/> Administration</CardTitle>
+                            <CardDescription>Actions réservées aux administrateurs de la plateforme.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Alert>
+                                <Briefcase className="h-4 w-4" />
+                                <AlertTitle>Devenir Administrateur</AlertTitle>
+                                <AlertDescription>
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action utilise une Server Action qui nécessite que les credentials du SDK Admin soient correctement configurés sur votre serveur.</p>
+                                        <Button onClick={handleSetAdminRole} disabled={isAdminRoleLoading}>
+                                            {isAdminRoleLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</> : "Me donner le rôle Admin"}
+                                        </Button>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </div>
     );
