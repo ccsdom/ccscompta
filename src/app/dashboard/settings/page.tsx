@@ -19,7 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { setAdminClaim } from "@/ai/flows/admin-actions";
-import { getClientById, addClient } from "@/ai/flows/client-actions";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -107,52 +106,6 @@ export default function SettingsPage() {
         setIsLoadingFirestoreRules(false);
     }
     
-    const handleSetAdmin = async () => {
-        if (!userUid || !userEmail) {
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Informations utilisateur non trouvées. Assurez-vous d\'être connecté.' });
-            return;
-        }
-        setIsSettingAdmin(true);
-
-        try {
-            // Step 1: Ensure a profile exists for the admin user.
-            let userProfile = await getClientById(userUid);
-            if (!userProfile) {
-                const adminProfileData = {
-                    name: userName || "Admin User",
-                    siret: '00000000000000', // Dummy SIRET
-                    email: userEmail,
-                    phone: '0000000000',
-                    legalRepresentative: userName || "Admin User",
-                    address: "Siège social du cabinet",
-                    fiscalYearEndDate: '31/12',
-                    status: 'active' as const,
-                };
-                const addResult = await addClient(adminProfileData);
-                if (!addResult.success) {
-                    throw new Error(`Failed to create admin profile: ${addResult.error}`);
-                }
-            }
-            
-            // Step 2: Set the custom claim.
-            const result = await setAdminClaim(userUid);
-            if (result.success) {
-                toast({
-                    title: 'Opération réussie !',
-                    description: 'Votre profil administrateur a été créé/confirmé. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.',
-                    duration: 10000,
-                });
-            } else {
-                throw new Error(result.message);
-            }
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
-            toast({ variant: 'destructive', title: 'Erreur lors de l\'attribution du rôle Admin', description: errorMessage });
-        } finally {
-            setIsSettingAdmin(false);
-        }
-    };
-
     const copyToClipboard = (text: string | null) => {
         if (!text) return;
         navigator.clipboard.writeText(text);
@@ -189,7 +142,6 @@ export default function SettingsPage() {
                     {isAccountantOrAdmin && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="email-upload">Email</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="administration">Administration</TabsTrigger>}
                 </TabsList>
                 
                 <TabsContent value="profile">
@@ -417,30 +369,6 @@ export default function SettingsPage() {
                                             <Button variant="outline" size="icon" type="button" onClick={copyUploadEmailToClipboard}><Copy className="h-4 w-4" /><span className="sr-only">Copier</span></Button>
                                         </div>
                                         <p className="text-xs text-muted-foreground pt-1">Note: Chaque client possède sa propre adresse unique, trouvable dans son dossier.</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        <TabsContent value="administration">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Administration</CardTitle>
-                                    <CardDescription>Actions réservées aux administrateurs de la plateforme.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Alert variant="destructive">
-                                        <AlertCircle className="h-4 w-4" />
-                                        <AlertTitle>Zone à haut risque</AlertTitle>
-                                        <AlertDescription>
-                                            Les actions dans cette section ont un impact majeur sur la sécurité. N'utilisez qu'en connaissance de cause.
-                                        </AlertDescription>
-                                    </Alert>
-                                    <div className="mt-6 space-y-4">
-                                        <p className="text-sm">Votre UID utilisateur est : <strong className="font-mono">{userUid || 'Chargement...'}</strong></p>
-                                        <Button onClick={handleSetAdmin} disabled={isSettingAdmin}>
-                                            {isSettingAdmin ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Attribution en cours...</> : <><UserCog className="mr-2 h-4 w-4"/>Me donner le rôle Admin</>}
-                                        </Button>
-                                         <p className="text-xs text-muted-foreground">Cette action est nécessaire une seule fois pour le premier administrateur. Elle va créer un profil de base pour votre compte admin et lui attribuer les droits. Après avoir cliqué, vous devrez vous déconnecter et vous reconnecter.</p>
                                     </div>
                                 </CardContent>
                             </Card>

@@ -43,52 +43,40 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-        // 1. Authenticate with Firebase
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         const idTokenResult = await firebaseUser.getIdTokenResult();
-        const userEmail = firebaseUser.email!;
-
-        // 2. Determine user role from custom claims
         const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
-        
-        // 3. EVERY user, regardless of role, must have a profile in the 'clients' collection.
-        const userProfile = await getClientById(firebaseUser.uid);
-        if (!userProfile) {
-             throw new Error("Profil utilisateur introuvable dans la base de données.");
-        }
-        
-        const userName = userProfile.legalRepresentative || userProfile.name;
-        
-        // 4. Set session info in localStorage
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', userName);
-        localStorage.setItem('userEmail', userEmail);
-        
-        if (userRole === 'client') {
-             localStorage.setItem('selectedClientId', userProfile.id);
-        } else {
-            // For staff, no client is selected by default
-            localStorage.removeItem('selectedClientId');
-        }
 
-        // 5. Redirect to the appropriate dashboard
+        let userName: string;
+        let userEmail = firebaseUser.email!;
         let targetPath: string;
-        switch (userRole) {
-            case 'client':
-                targetPath = '/dashboard/my-documents';
-                break;
-            case 'accountant':
-                targetPath = '/dashboard/accountant';
-                break;
-            case 'admin':
-                targetPath = '/dashboard/admin';
-                break;
-            case 'secretary':
-                targetPath = '/dashboard/secretary';
-                break;
-            default:
-                targetPath = '/dashboard/my-documents'; // Fallback
+
+        // Admin, Accountant, Secretary Roles
+        if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
+            userName = firebaseUser.displayName || userEmail.split('@')[0];
+            localStorage.setItem('userRole', userRole);
+            localStorage.setItem('userName', userName);
+            localStorage.setItem('userEmail', userEmail);
+            localStorage.removeItem('selectedClientId');
+
+            if (userRole === 'admin') targetPath = '/dashboard/admin';
+            else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
+            else targetPath = '/dashboard/secretary';
+
+        // Client Role
+        } else {
+            const userProfile = await getClientById(firebaseUser.uid);
+            if (!userProfile) {
+                throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
+            }
+            userName = userProfile.legalRepresentative || userProfile.name;
+            
+            localStorage.setItem('userRole', 'client');
+            localStorage.setItem('userName', userName);
+            localStorage.setItem('userEmail', userEmail);
+            localStorage.setItem('selectedClientId', userProfile.id);
+            targetPath = '/dashboard/my-documents';
         }
         
         window.dispatchEvent(new Event('storage'));
@@ -99,10 +87,19 @@ export default function LoginPage() {
         let title = "Erreur de connexion";
         let description = "Une erreur inattendue est survenue. Veuillez réessayer.";
 
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-             description = "L'adresse email ou le mot de passe est incorrect.";
-        } else if (error.message.includes('Profil utilisateur introuvable')) {
-            description = "Votre compte est valide, mais aucun profil correspondant n'a été trouvé dans l'application. Veuillez contacter votre administrateur.";
+        if (error.code) { // Firebase auth errors
+             switch (error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    description = "L'adresse email ou le mot de passe est incorrect.";
+                    break;
+                case 'auth/too-many-requests':
+                    description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
+                    break;
+             }
+        } else { // Custom errors
+            description = error.message;
         }
 
         toast({ variant: "destructive", title, description });
@@ -229,8 +226,9 @@ export default function LoginPage() {
           </form>
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
-              <AlertDescription className="text-xs">
-                <p>Pour les clients, utilisez les identifiants fournis par votre comptable (ex: `aventure.action@example.com` | mdp: `84042838300010`).</p>
+              <AlertDescription className="text-xs space-y-1">
+                <p><strong>Comptable :</strong> `comptable@ccs.com` (avec votre mot de passe)</p>
+                <p><strong>Client :</strong> `aventure.action@example.com` | mdp: `84042838300010`</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
