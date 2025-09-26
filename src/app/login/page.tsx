@@ -17,7 +17,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
 import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, type User } from 'firebase/auth';
@@ -49,11 +49,11 @@ export default function LoginPage() {
   const performLogin = async (firebaseUser: User) => {
       let userProfile = await getClientById(firebaseUser.uid);
       
-      // If user exists in Auth but not in Firestore, create the profile.
       if (!userProfile) {
           console.log(`User ${firebaseUser.uid} authenticated but has no profile. Creating one.`);
-          // This logic assumes the first user with 'password' is the admin.
+          
           const role = password === 'password' ? 'admin' : 'client';
+          
           const profileResult = await addClient({
             uid: firebaseUser.uid,
             email: email,
@@ -179,6 +179,20 @@ export default function LoginPage() {
               Connectez-vous à votre espace pour commencer.
             </p>
           </div>
+
+           <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle className="font-semibold">Action requise pour le premier administrateur</AlertTitle>
+                <AlertDescription className="text-xs space-y-2">
+                    <p>Si vous n'arrivez pas à vous connecter, appliquez les règles de sécurité :</p>
+                    <ol className="list-decimal list-inside pl-2">
+                        <li>Allez dans <strong className="font-semibold">Paramètres &gt; Sécurité des Données</strong>.</li>
+                        <li>Générez et copiez les règles Firestore.</li>
+                        <li>Collez-les dans votre <strong className="font-semibold">console Firebase &gt; Firestore &gt; Règles</strong>.</li>
+                    </ol>
+                    <p>Ensuite, connectez-vous avec le mot de passe <strong className="font-semibold">`password`</strong> pour créer votre compte admin.</p>
+                </AlertDescription>
+            </Alert>
           
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
@@ -247,14 +261,6 @@ export default function LoginPage() {
               Google
             </Button>
           </form>
-           <Alert className="mt-4">
-              <AlertTitle className="font-semibold">Logique de connexion</AlertTitle>
-              <AlertDescription className="text-xs space-y-1">
-                <p>Si votre compte n'existe pas, il sera créé automatiquement.</p>
-                <p>Pour obtenir un rôle <strong>admin</strong>, utilisez le mot de passe : <strong>`password`</strong></p>
-                <p>Pour créer un compte <strong>client</strong>, utilisez n'importe quel autre mot de passe.</p>
-              </AlertDescription>
-            </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
                 &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
             </p>
@@ -263,3 +269,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
