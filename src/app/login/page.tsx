@@ -18,50 +18,11 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { getClientById, getClients } from '@/ai/flows/client-actions';
+import { getClientById } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const DEMO_USERS = {
-  "secretaire@ccs.com": {
-    role: "secretary",
-    name: "Secrétaire Admin",
-  },
-   "comptable@ccs.com": {
-    role: "accountant",
-    name: "Alain Comptable",
-  },
-  "admin@ccs.com": {
-    role: "admin",
-    name: "Super Admin",
-  },
-};
-
-
-function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" {...props}>
-      <title>Google</title>
-      <path
-        d="M17.64,9.2045a1,1,0,0,0-.0454-.2386,9,9,0,0,0-17.15,0,1,1,0,0,0,.0454.2386,8.7455,8.7455,0,0,0,17.15,0Z"
-        fill="#4285f4"
-      />
-      <path
-        d="M9,18a9,9,0,0,0,8.64-5.7955H.36A9,9,0,0,0,9,18Z"
-        fill="#34a853"
-      />
-      <path
-        d="M.36,9.2045A9,9,0,0,0,0,9a1,1,0,0,0,.0091.1182,8.8712,8.8712,0,0,0,.0545.4909H9V0A9,9,0,0,0,.36,9.2045Z"
-        fill="#fbbc05"
-      />
-      <path
-        d="M17.64,9.2045A9,9,0,0,0,18,9a1,1,0,0,0-.0091-.1182,8.8712,8.8712,0,0,0-.0545-.4909H9V18A9,9,0,0,0,17.64,9.2045Z"
-        fill="#ea4335"
-      />
-    </svg>
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -88,33 +49,26 @@ export default function LoginPage() {
         const idTokenResult = await firebaseUser.getIdTokenResult();
         const userEmail = firebaseUser.email!;
 
-        // 2. Determine user role from custom claims or demo users
-        const userRole = (idTokenResult.claims.role as string | undefined) || DEMO_USERS[userEmail as keyof typeof DEMO_USERS]?.role || 'client';
+        // 2. Determine user role from custom claims
+        const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
         
-        let userName: string;
-        let userClientId: string | null = null;
-        
-        // 3. Handle different user types
-        if (userRole === 'client') {
-            const clientDoc = await getClientById(firebaseUser.uid);
-            if (!clientDoc) {
-                throw new Error("Profil client introuvable.");
-            }
-            userName = clientDoc.legalRepresentative;
-            userClientId = clientDoc.id;
-        } else {
-            // For admin/accountant/secretary, get name from demo users or default to email
-            userName = DEMO_USERS[userEmail as keyof typeof DEMO_USERS]?.name || userEmail;
-            // No specific client ID is selected by default for staff
+        // 3. EVERY user, regardless of role, must have a profile in the 'clients' collection.
+        const userProfile = await getClientById(firebaseUser.uid);
+        if (!userProfile) {
+             throw new Error("Profil utilisateur introuvable dans la base de données.");
         }
-
+        
+        const userName = userProfile.legalRepresentative || userProfile.name;
+        
         // 4. Set session info in localStorage
         localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', userName);
         localStorage.setItem('userEmail', userEmail);
-        if (userClientId) {
-            localStorage.setItem('selectedClientId', userClientId);
+        
+        if (userRole === 'client') {
+             localStorage.setItem('selectedClientId', userProfile.id);
         } else {
+            // For staff, no client is selected by default
             localStorage.removeItem('selectedClientId');
         }
 
@@ -134,7 +88,7 @@ export default function LoginPage() {
                 targetPath = '/dashboard/secretary';
                 break;
             default:
-                throw new Error(`Rôle utilisateur inconnu: ${userRole}`);
+                targetPath = '/dashboard/my-documents'; // Fallback
         }
         
         window.dispatchEvent(new Event('storage'));
@@ -147,8 +101,8 @@ export default function LoginPage() {
 
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
              description = "L'adresse email ou le mot de passe est incorrect.";
-        } else if (error.message.includes('Profil client introuvable')) {
-            description = "Votre compte client existe mais n'a pas de profil correspondant dans notre application. Veuillez contacter le support.";
+        } else if (error.message.includes('Profil utilisateur introuvable')) {
+            description = "Votre compte est valide, mais aucun profil correspondant n'a été trouvé dans l'application. Veuillez contacter votre administrateur.";
         }
 
         toast({ variant: "destructive", title, description });
@@ -269,14 +223,14 @@ export default function LoginPage() {
                 </div>
             </div>
             <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <GoogleIcon className="mr-2 h-4 w-4" />}
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" className="mr-2 h-4 w-4"><title>Google</title><path d="M17.64,9.2045a1,1,0,0,0-.0454-.2386,9,9,0,0,0-17.15,0,1,1,0,0,0,.0454.2386,8.7455,8.7455,0,0,0,17.15,0Z" fill="#4285f4"/><path d="M9,18a9,9,0,0,0,8.64-5.7955H.36A9,9,0,0,0,9,18Z" fill="#34a853"/><path d="M.36,9.2045A9,9,0,0,0,0,9a1,1,0,0,0,.0091.1182,8.8712,8.8712,0,0,0,.0545.4909H9V0A9,9,0,0,0,.36,9.2045Z" fill="#fbbc05"/><path d="M17.64,9.2045A9,9,0,0,0,18,9a1,1,0,0,0-.0091-.1182,8.8712,8.8712,0,0,0-.0545-.4909H9V18A9,9,0,0,0,17.64,9.2045Z" fill="#ea4335"/></svg>}
               Google
             </Button>
           </form>
            <Alert className="mt-4">
               <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
               <AlertDescription className="text-xs">
-                <p>Utilisez `comptable@ccs.com` ou `admin@ccs.com` (mdp: `password`). Pour les clients, créez un profil dans l'app et connectez-vous avec le SIRET comme mot de passe.</p>
+                <p>Pour les clients, utilisez les identifiants fournis par votre comptable (ex: `aventure.action@example.com` | mdp: `84042838300010`).</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
@@ -286,5 +240,4 @@ export default function LoginPage() {
       </div>
     </div>
   )
-
-    
+}

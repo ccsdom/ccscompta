@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { setAdminClaim } from "@/ai/flows/admin-actions";
-
+import { getClientById, addClient } from "@/ai/flows/client-actions";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -108,22 +108,49 @@ export default function SettingsPage() {
     }
     
     const handleSetAdmin = async () => {
-        if (!userUid) {
-            toast({ variant: 'destructive', title: 'Erreur', description: 'UID utilisateur non trouvé. Assurez-vous d\'être connecté.' });
+        if (!userUid || !userEmail) {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Informations utilisateur non trouvées. Assurez-vous d\'être connecté.' });
             return;
         }
         setIsSettingAdmin(true);
-        const result = await setAdminClaim(userUid);
-        if (result.success) {
-            toast({
-                title: 'Opération réussie !',
-                description: 'Vous avez maintenant les droits d\'administrateur. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.',
-                duration: 10000,
-            });
-        } else {
-            toast({ variant: 'destructive', title: 'Erreur', description: result.message });
+
+        try {
+            // Step 1: Ensure a profile exists for the admin user.
+            let userProfile = await getClientById(userUid);
+            if (!userProfile) {
+                const adminProfileData = {
+                    name: userName || "Admin User",
+                    siret: '00000000000000', // Dummy SIRET
+                    email: userEmail,
+                    phone: '0000000000',
+                    legalRepresentative: userName || "Admin User",
+                    address: "Siège social du cabinet",
+                    fiscalYearEndDate: '31/12',
+                    status: 'active' as const,
+                };
+                const addResult = await addClient(adminProfileData);
+                if (!addResult.success) {
+                    throw new Error(`Failed to create admin profile: ${addResult.error}`);
+                }
+            }
+            
+            // Step 2: Set the custom claim.
+            const result = await setAdminClaim(userUid);
+            if (result.success) {
+                toast({
+                    title: 'Opération réussie !',
+                    description: 'Votre profil administrateur a été créé/confirmé. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.',
+                    duration: 10000,
+                });
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue est survenue.";
+            toast({ variant: 'destructive', title: 'Erreur lors de l\'attribution du rôle Admin', description: errorMessage });
+        } finally {
+            setIsSettingAdmin(false);
         }
-        setIsSettingAdmin(false);
     };
 
     const copyToClipboard = (text: string | null) => {
@@ -413,7 +440,7 @@ export default function SettingsPage() {
                                         <Button onClick={handleSetAdmin} disabled={isSettingAdmin}>
                                             {isSettingAdmin ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Attribution en cours...</> : <><UserCog className="mr-2 h-4 w-4"/>Me donner le rôle Admin</>}
                                         </Button>
-                                         <p className="text-xs text-muted-foreground">Cette action est nécessaire une seule fois pour le premier administrateur. Après avoir cliqué, vous devrez vous déconnecter et vous reconnecter.</p>
+                                         <p className="text-xs text-muted-foreground">Cette action est nécessaire une seule fois pour le premier administrateur. Elle va créer un profil de base pour votre compte admin et lui attribuer les droits. Après avoir cliqué, vous devrez vous déconnecter et vous reconnecter.</p>
                                     </div>
                                 </CardContent>
                             </Card>
