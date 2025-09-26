@@ -71,10 +71,26 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
-      const userProfile = await getClientById(firebaseUser.uid);
+      let userProfile = await getClientById(firebaseUser.uid);
       
       if (!userProfile) {
-          throw new Error(`Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`);
+          console.log(`User ${firebaseUser.uid} authenticated but has no profile. Creating one.`);
+          const role = password === 'password' ? 'admin' : 'client';
+          const profileResult = await addClient({
+            uid: firebaseUser.uid,
+            email: email,
+            name: email.split('@')[0],
+            role: role,
+          });
+
+          if (!profileResult.success) {
+            throw new Error(`Votre compte est valide, mais la création de votre profil a échoué: ${profileResult.error}`);
+          }
+          userProfile = profileResult.data;
+          toast({
+            title: "Profil créé",
+            description: "Votre profil a été initialisé. Connexion en cours...",
+          });
       }
       
       const userRole = userProfile.role;
@@ -112,13 +128,10 @@ export default function LoginPage() {
     } catch (error: any) {
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
             try {
-                // If login fails, try to create an account. For this demo,
-                // any new account with password 'password' is an admin.
-                if (password === 'password') {
-                    await createAccount('admin');
-                } else {
-                    await createAccount('client');
-                }
+                // If login fails, try to create an account.
+                const role = password === 'password' ? 'admin' : 'client';
+                console.log(`Attempting to create ${role} user for: ${email}`);
+                await createAccount(role);
                 // If creation is successful, try to log in again.
                 await performLogin();
             } catch (creationError: any) {
