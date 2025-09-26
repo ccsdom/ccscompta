@@ -82,39 +82,43 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-        // 1. Authenticate with Firebase using the CLIENT SDK
+        // 1. Authenticate with Firebase
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         const idTokenResult = await firebaseUser.getIdTokenResult();
         const userEmail = firebaseUser.email!;
 
-        // 2. Determine user role from custom claims, default to 'client'
-        const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
+        // 2. Determine user role from custom claims or demo users
+        const userRole = (idTokenResult.claims.role as string | undefined) || DEMO_USERS[userEmail as keyof typeof DEMO_USERS]?.role || 'client';
         
-        // 3. Fetch user profile from Firestore using UID. This is the single source of truth for user details.
-        let clientDoc = await getClientById(firebaseUser.uid);
+        let userName: string;
+        let userClientId: string | null = null;
         
-        // Fallback for older clients that might not have matching UID (e.g. before a migration)
-        if (!clientDoc) {
-            const allClients = await getClients();
-            const clientByEmail = allClients.find(c => c.email.toLowerCase() === userEmail.toLowerCase());
-            if (clientByEmail) clientDoc = clientByEmail;
+        // 3. Handle different user types
+        if (userRole === 'client') {
+            const clientDoc = await getClientById(firebaseUser.uid);
+            if (!clientDoc) {
+                throw new Error("Profil client introuvable.");
+            }
+            userName = clientDoc.legalRepresentative;
+            userClientId = clientDoc.id;
+        } else {
+            // For admin/accountant/secretary, get name from demo users or default to email
+            userName = DEMO_USERS[userEmail as keyof typeof DEMO_USERS]?.name || userEmail;
+            // No specific client ID is selected by default for staff
         }
 
-        // 4. If no profile found in Firestore, throw an error. Every user must have a profile.
-        if (!clientDoc) {
-             throw new Error("Profil utilisateur introuvable dans l'application.");
-        }
-
-        const userName = clientDoc.legalRepresentative;
-        const userClientId = clientDoc.id;
-
-        // 5. Set session info in localStorage and redirect
+        // 4. Set session info in localStorage
         localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', userName);
         localStorage.setItem('userEmail', userEmail);
-        localStorage.setItem('selectedClientId', userClientId); // Always set the logged-in user's own client ID
+        if (userClientId) {
+            localStorage.setItem('selectedClientId', userClientId);
+        } else {
+            localStorage.removeItem('selectedClientId');
+        }
 
+        // 5. Redirect to the appropriate dashboard
         let targetPath: string;
         switch (userRole) {
             case 'client':
@@ -143,8 +147,8 @@ export default function LoginPage() {
 
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
              description = "L'adresse email ou le mot de passe est incorrect.";
-        } else if (error.message.includes('Profil utilisateur introuvable')) {
-            description = "Votre compte existe mais n'a pas de profil correspondant dans notre application. Veuillez contacter le support.";
+        } else if (error.message.includes('Profil client introuvable')) {
+            description = "Votre compte client existe mais n'a pas de profil correspondant dans notre application. Veuillez contacter le support.";
         }
 
         toast({ variant: "destructive", title, description });
@@ -282,4 +286,5 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
+
+    
