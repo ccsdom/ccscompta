@@ -46,27 +46,6 @@ export default function LoginPage() {
     clearState();
   }, []);
 
-  const createAccount = async (role: 'admin' | 'client') => {
-      console.log(`Attempting to create ${role} user for: ${email}`);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      const result = await addClient({
-          uid: userCredential.user.uid,
-          email: email,
-          name: email.split('@')[0],
-          role: role,
-      });
-
-      if (!result.success) {
-          throw new Error(result.error);
-      }
-      toast({
-          title: "Compte créé",
-          description: "Votre compte a été créé. Connexion en cours...",
-      });
-  }
-
-
   const performLogin = async () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
@@ -129,9 +108,8 @@ export default function LoginPage() {
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
             try {
                 // If login fails, try to create an account.
-                const role = password === 'password' ? 'admin' : 'client';
-                console.log(`Attempting to create ${role} user for: ${email}`);
-                await createAccount(role);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                console.log('Account created for:', userCredential.user.email);
                 // If creation is successful, try to log in again.
                 await performLogin();
             } catch (creationError: any) {
@@ -286,3 +264,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    

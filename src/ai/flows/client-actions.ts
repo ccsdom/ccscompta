@@ -81,7 +81,8 @@ export async function getClients(): Promise<Client[]> {
                     // Try to get user first, create if not exists
                     try {
                         userRecord = await adminAuth.getUserByEmail(client.email);
-                        console.log(`Mock user ${client.email} already exists in Auth. Overwriting Firestore doc.`);
+                        console.log(`Mock user ${client.email} already exists in Auth. Setting role and overwriting Firestore doc.`);
+                         await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
                     } catch (error: any) {
                         if (error.code === 'auth/user-not-found') {
                             console.log(`Creating mock user ${client.email} in Auth.`);
@@ -92,6 +93,7 @@ export async function getClients(): Promise<Client[]> {
                                 disabled: false,
                                 displayName: client.name,
                             });
+                            await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
                         } else {
                             throw error; // Rethrow other auth errors
                         }
@@ -195,3 +197,5 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
+
+    
