@@ -24,6 +24,12 @@ import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
+const STAFF_EMAILS = [
+    'admin@ccs.com',
+    'comptable@ccs.com',
+    'secretary@ccs.com'
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -45,25 +51,30 @@ export default function LoginPage() {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
-        const idTokenResult = await firebaseUser.getIdTokenResult();
-        
-        const userRole = (idTokenResult.claims.role as string | undefined) || 'client';
+        const userEmail = firebaseUser.email!;
 
         let userName: string;
-        const userEmail = firebaseUser.email!;
         let targetPath: string;
+        let userRole: 'client' | 'accountant' | 'admin' | 'secretary';
+        
+        const isStaff = STAFF_EMAILS.includes(userEmail.toLowerCase());
 
-        if (userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary') {
-            // For admin/staff, we DO NOT require a client profile.
-            // Their identity is managed by Firebase Auth and their role claim.
+        if (isStaff) {
+            if (userEmail.toLowerCase() === 'admin@ccs.com') {
+                userRole = 'admin';
+                targetPath = '/dashboard/admin';
+            } else if (userEmail.toLowerCase() === 'secretary@ccs.com') {
+                userRole = 'secretary';
+                targetPath = '/dashboard/secretary';
+            } else {
+                userRole = 'accountant';
+                targetPath = '/dashboard/accountant';
+            }
             userName = firebaseUser.displayName || userEmail.split('@')[0];
-            localStorage.removeItem('selectedClientId'); // Ensure no client is selected for staff
-            if (userRole === 'admin') targetPath = '/dashboard/admin';
-            else if (userRole === 'accountant') targetPath = '/dashboard/accountant';
-            else targetPath = '/dashboard/secretary';
-
-        } else { // 'client' role
-            // For a client, we MUST find a corresponding profile in the database.
+            localStorage.removeItem('selectedClientId');
+        } else { // It's a client
+            userRole = 'client';
+            targetPath = '/dashboard/my-documents';
             const userProfile = await getClientById(firebaseUser.uid);
             if (!userProfile) {
                 // This is a critical error for a client user. Their data is tied to their profile.
@@ -71,7 +82,6 @@ export default function LoginPage() {
             }
             userName = userProfile.legalRepresentative || userProfile.name;
             localStorage.setItem('selectedClientId', userProfile.id);
-            targetPath = '/dashboard/my-documents';
         }
 
         // Set common localStorage items
