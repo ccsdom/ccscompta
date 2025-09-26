@@ -114,32 +114,34 @@ export async function getClients(): Promise<Client[]> {
 
             for (const client of MOCK_CLIENTS) {
                 try {
-                    // Try to get user first, create if not exists
                     let userRecord;
+                    // Try to get user first, create if not exists
                     try {
                         userRecord = await adminAuth.getUserByEmail(client.email);
-                        console.warn(`Mock user ${client.email} already exists in Auth. Will update claims and Firestore doc.`);
+                        console.log(`Mock user ${client.email} already exists in Auth. Overwriting claims and Firestore doc.`);
                     } catch (error: any) {
-                         if (error.code === 'auth/user-not-found') {
+                        if (error.code === 'auth/user-not-found') {
                             console.log(`Creating mock user ${client.email} in Auth.`);
                             userRecord = await adminAuth.createUser({
                                 email: client.email,
-                                password: client.password,
+                                password: client.password, // This is crucial for login
                                 emailVerified: true,
                                 disabled: false,
                                 displayName: client.name,
                             });
-                         } else {
+                        } else {
                             throw error; // Rethrow other auth errors
-                         }
+                        }
                     }
                     
+                    // ALWAYS set claims and Firestore doc to ensure consistency
                     // 1. Set Custom Claim
                     await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
 
                     // 2. Prepare Firestore document
                     const docRef = doc(db, 'clients', userRecord.uid);
-                    const { id, password, ...clientData } = client; // eslint-disable-line @typescript-eslint/no-unused-vars
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { id, password, ...clientData } = client; 
                     batch.set(docRef, clientData);
 
                 } catch (error: any) {
@@ -240,3 +242,4 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
+

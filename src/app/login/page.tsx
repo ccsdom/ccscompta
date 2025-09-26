@@ -61,13 +61,11 @@ export default function LoginPage() {
         const userProfile = await getClientById(firebaseUser.uid);
 
         if (!userProfile) {
+            // For staff roles, profile might not be critical, but for clients it is.
             if (userRole === 'client') {
                  throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
-            } else {
-                // For staff, if profile doesn't exist, it means seeding failed or they are a new staff member.
-                // We'll proceed without a full profile for now.
-                console.warn(`No profile found for staff user ${firebaseUser.uid}. This might be expected for new staff.`);
             }
+             console.warn(`No profile found for staff user ${firebaseUser.uid}. This might be expected for new staff.`);
         }
         
         const displayName = userProfile?.name || firebaseUser.displayName || email.split('@')[0];
