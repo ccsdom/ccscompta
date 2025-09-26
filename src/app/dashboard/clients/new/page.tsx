@@ -12,8 +12,6 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase-client';
 
 
 const formSchema = baseFormSchema;
@@ -40,20 +38,8 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
-        let password;
-        if (data.role === 'client') {
-            password = data.siret || 'password123';
-        } else {
-            password = 'password';
-        }
-
         try {
-            // 1. Create user in Firebase Auth (client-side)
-            const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
-            const uid = userCredential.user.uid;
-
-            // 2. Add profile to Firestore via server action
-            const result = await addClient({ ...data, uid });
+            const result = await addClient(data);
 
             if (result.success) {
                 toast({
@@ -66,7 +52,7 @@ export default function NewClientPage() {
                                 <KeyRound className="h-4 w-4" />
                                 <AlertTitle>Mot de passe initial</AlertTitle>
                                 <AlertDescription>
-                                    Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>.
+                                    Le mot de passe initial de l'utilisateur est : <strong>{result.password}</strong>.
                                 </AlertDescription>
                             </Alert>
                         </div>
@@ -79,7 +65,7 @@ export default function NewClientPage() {
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-            if (error.code === 'auth/email-already-in-use') {
+            if (error.message && (error.message.includes('auth/email-already-in-use') || error.message.includes('auth/email-already-exists'))) {
                 errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez utiliser un autre email.";
             } else if (error.message) {
                  errorMessage = error.message;

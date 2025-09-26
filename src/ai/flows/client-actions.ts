@@ -10,11 +10,10 @@ import { auth as adminAuth } from '@/lib/firebase-admin';
 
 
 type ServerActionResponse<T> =
-  | { success: true; data: T }
+  | { success: true; data: T, password?: string }
   | { success: false; error: string };
 
 const AddClientInputSchema = z.object({
-  uid: z.string(),
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
   siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional(),
   email: z.string().email("Email invalide."),
@@ -28,16 +27,46 @@ const AddClientInputSchema = z.object({
 
 
 export async function addClient(
-  newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'uid'> & { uid: string }
+  clientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  console.log("[Client Action] Adding user profile:", newClientData.name);
-  
-  const { uid, ...dataToValidate } = newClientData;
+  console.log("[Client Action] Adding user profile:", clientData.name);
   
   try {
-    const validatedData = AddClientInputSchema.omit({ uid: true }).parse(dataToValidate);
+    const validatedData = AddClientInputSchema.parse(clientData);
+
+    const { email, role, siret, ...profileData } = validatedData;
     
-    const clientDocRef = doc(db, 'clients', uid);
+    let password = 'password'; // Default for staff
+    if (role === 'client') {
+        if (siret && siret.length === 14) {
+            password = siret;
+        } else {
+             return { success: false, error: "Le SIRET est requis et doit comporter 14 chiffres pour créer un compte client." };
+        }
+    }
+
+    // 1. Create user in Firebase Auth using Admin SDK
+    let userRecord;
+    try {
+         userRecord = await adminAuth.createUser({
+            email: email,
+            password: password,
+            emailVerified: true,
+            disabled: false,
+            displayName: profileData.name,
+        });
+    } catch(authError: any) {
+        if (authError.code === 'auth/email-already-exists') {
+            return { success: false, error: 'Un compte utilisateur avec cet email existe déjà.' };
+        }
+        throw authError; // Rethrow other auth errors
+    }
+
+    // 2. Set custom claim for role
+    await adminAuth.setCustomUserClaims(userRecord.uid, { role: role });
+
+    // 3. Create profile in Firestore
+    const clientDocRef = doc(db, 'clients', userRecord.uid);
     const newUser: Omit<Client, 'id' | 'status'> = {
       ...validatedData,
       newDocuments: 0,
@@ -45,15 +74,16 @@ export async function addClient(
     };
 
     await setDoc(clientDocRef, newUser);
-    console.log("[Client Action] User profile added with ID:", uid);
+    console.log("[Client Action] User profile added with ID:", userRecord.uid);
     
     return { 
         success: true, 
         data: { 
             ...newUser, 
-            id: uid,
+            id: userRecord.uid,
             status: 'onboarding', // default status
-        } 
+        },
+        password: password 
     };
 
   } catch (error) {
@@ -197,5 +227,3 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
-
-    
