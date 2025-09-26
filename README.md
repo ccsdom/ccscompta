@@ -43,7 +43,7 @@ Cette méthode est la plus fiable et fonctionne sur tous les systèmes d'exploit
     
     ```bash
     # Exemple : gcloud storage buckets update gs://mon-projet-a-moi.appspot.com --cors-file=cors.json
-    gcloud storage buckets update gs://VOTRE-BUCKET-ICI.appspot.com --cors-file=cors.json
+    gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=cors.json
     ```
 
 6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell.
@@ -73,8 +73,8 @@ Pour que les nouvelles règles de sécurité vous reconnaissent comme administra
 
 3.  **Exécutez la commande suivante** en remplaçant `"VOTRE_UID_ICI"` par l'UID que vous venez de copier :
     ```bash
-    # Assurez-vous d'utiliser votre VRAI UID
-    firebase auth:set-custom-claims "VOTRE_UID_ICI" --claims=role=admin
+    # Assurez-vous d'utiliser votre VRAI UID et des apostrophes autour du JSON.
+    firebase auth:set-custom-claims "VOTRE_UID_ICI" '{"role": "admin"}'
     ```
     *Si une erreur indique `firebase: command not found`, exécutez d'abord `npm install -g firebase-tools`.*
 
