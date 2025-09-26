@@ -10,13 +10,16 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, UploadCloud, User } from "lucide-react";
+import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, UploadCloud, UserCog, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { configureStorageSecurityRules, configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
+import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { auth as clientAuth } from '@/lib/firebase-client';
+import { setAdminClaim } from "@/ai/flows/admin-actions";
+
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -25,6 +28,8 @@ export default function SettingsPage() {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [userName, setUserName] = useState("Utilisateur");
     const [userEmail, setUserEmail] = useState("");
+    const [userUid, setUserUid] = useState<string | null>(null);
+    const [isSettingAdmin, setIsSettingAdmin] = useState(false);
 
     const [automationSettings, setAutomationSettings] = useState({
         isEnabled: false,
@@ -43,11 +48,21 @@ export default function SettingsPage() {
 
         const email = localStorage.getItem('userEmail');
         if (email) setUserEmail(email);
+        
+        const unsubscribe = clientAuth.onAuthStateChanged(user => {
+            if (user) {
+                setUserUid(user.uid);
+            } else {
+                setUserUid(null);
+            }
+        });
 
         const storedAutomation = localStorage.getItem('automationSettings');
         if (storedAutomation) {
             setAutomationSettings(JSON.parse(storedAutomation));
         }
+
+        return () => unsubscribe();
     }, []);
 
     const handleProfileSave = (e: React.FormEvent) => {
@@ -91,6 +106,25 @@ export default function SettingsPage() {
         }
         setIsLoadingFirestoreRules(false);
     }
+    
+    const handleSetAdmin = async () => {
+        if (!userUid) {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'UID utilisateur non trouvé. Assurez-vous d\'être connecté.' });
+            return;
+        }
+        setIsSettingAdmin(true);
+        const result = await setAdminClaim(userUid);
+        if (result.success) {
+            toast({
+                title: 'Opération réussie !',
+                description: 'Vous avez maintenant les droits d\'administrateur. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.',
+                duration: 10000,
+            });
+        } else {
+            toast({ variant: 'destructive', title: 'Erreur', description: result.message });
+        }
+        setIsSettingAdmin(false);
+    };
 
     const copyToClipboard = (text: string | null) => {
         if (!text) return;
@@ -125,9 +159,10 @@ export default function SettingsPage() {
                     <TabsTrigger value="security">Sécurité</TabsTrigger>
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
                     {isAccountantOrAdmin && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="firestore-security">Sécurité des Données</TabsTrigger>}
+                    {isAccountantOrAdmin && <TabsTrigger value="data-security">Sécurité des Données</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="email-upload">Email</TabsTrigger>}
+                    {isAccountantOrAdmin && <TabsTrigger value="administration">Administration</TabsTrigger>}
                 </TabsList>
                 
                 <TabsContent value="profile">
@@ -282,10 +317,10 @@ export default function SettingsPage() {
                             </Card>
                         </TabsContent>
                         
-                        <TabsContent value="firestore-security">
+                        <TabsContent value="data-security">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-5 w-5"/> Sécurité de la Base de Données</CardTitle>
+                                    <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-5 w-5"/> Sécurité des Données (Firestore)</CardTitle>
                                     <CardDescription>Configurez les règles de sécurité Firestore pour isoler les données des clients et protéger votre application.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -295,7 +330,7 @@ export default function SettingsPage() {
                                                 <AlertCircle className="h-4 w-4" />
                                                 <AlertTitle>Action Manuelle Requise</AlertTitle>
                                                 <AlertDescription>
-                                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase pour activer la sécurité basée sur les rôles.
+                                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase.
                                                 </AlertDescription>
                                             </Alert>
                                              <Textarea readOnly value={firestoreRules} className="h-72 font-mono text-xs bg-muted" />
@@ -355,6 +390,30 @@ export default function SettingsPage() {
                                             <Button variant="outline" size="icon" type="button" onClick={copyUploadEmailToClipboard}><Copy className="h-4 w-4" /><span className="sr-only">Copier</span></Button>
                                         </div>
                                         <p className="text-xs text-muted-foreground pt-1">Note: Chaque client possède sa propre adresse unique, trouvable dans son dossier.</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="administration">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Administration</CardTitle>
+                                    <CardDescription>Actions réservées aux administrateurs de la plateforme.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Alert variant="destructive">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertTitle>Zone à haut risque</AlertTitle>
+                                        <AlertDescription>
+                                            Les actions dans cette section ont un impact majeur sur la sécurité. N'utilisez qu'en connaissance de cause.
+                                        </AlertDescription>
+                                    </Alert>
+                                    <div className="mt-6 space-y-4">
+                                        <p className="text-sm">Votre UID utilisateur est : <strong className="font-mono">{userUid || 'Chargement...'}</strong></p>
+                                        <Button onClick={handleSetAdmin} disabled={isSettingAdmin}>
+                                            {isSettingAdmin ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Attribution en cours...</> : <><UserCog className="mr-2 h-4 w-4"/>Me donner le rôle Admin</>}
+                                        </Button>
+                                         <p className="text-xs text-muted-foreground">Cette action est nécessaire une seule fois pour le premier administrateur. Après avoir cliqué, vous devrez vous déconnecter et vous reconnecter.</p>
                                     </div>
                                 </CardContent>
                             </Card>

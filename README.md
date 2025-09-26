@@ -64,18 +64,13 @@ Après avoir configuré l'application, vous devez sécuriser l'accès aux donné
 
 Pour que les nouvelles règles de sécurité vous reconnaissent comme administrateur, vous devez vous attribuer ce rôle manuellement. **C'est une action unique à faire pour votre propre compte utilisateur.**
 
-1.  **Trouvez votre UID** :
-    *   Allez dans votre **Console Firebase > Authentication > Users**.
-    *   Repérez votre compte (celui que vous utilisez pour vous connecter à l'application, ex: `admin@ccs.com`).
-    *   Copiez la valeur de la colonne `User UID`.
+1. Connectez-vous à l'application avec le compte que vous souhaitez définir comme administrateur (ex: `admin@ccs.com`).
 
-2.  **Ouvrez le Cloud Shell** (comme à l'étape 2) et assurez-vous d'être dans le bon projet (`gcloud config set project ccs-compta`).
+2. Naviguez vers **Paramètres > Administration**.
 
-3.  **Exécutez la commande suivante** en remplaçant `"VOTRE_UID_ICI"` par l'UID que vous venez de copier :
-    ```bash
-    # Assurez-vous d'utiliser votre VRAI UID et des apostrophes autour du JSON.
-    firebase auth:set-custom-claims "VOTRE_UID_ICI" '{"role": "admin"}'
-    ```
-    *Si une erreur indique `firebase: command not found` ou `auth:set-custom-claims is not a Firebase command`, exécutez d'abord `npm install -g firebase-tools` puis réessayez la commande ci-dessus.*
+3. Dans la section "Administration", cliquez sur le bouton **"Me donner le rôle Admin"**.
+    - Un message de succès devrait apparaître, vous invitant à vous déconnecter.
 
-4.  C'est terminé ! Vous avez maintenant les pleins pouvoirs. Déconnectez-vous et reconnectez-vous à l'application pour que le changement soit pris en compte. Les autres utilisateurs n'auront que les permissions de leur rôle respectif.
+4. **Déconnectez-vous** de l'application, puis **reconnectez-vous**.
+
+5. C'est terminé ! Votre compte a maintenant les pleins pouvoirs d'administrateur. Les autres utilisateurs (comptables, secrétaires, clients) n'auront que les permissions de leur rôle respectif.
