@@ -62,48 +62,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function isAccountant() {
-      // Un comptable/admin est un utilisateur authentifié qui N'EXISTE PAS dans la collection 'clients'.
-      return request.auth != null && !exists(/databases/$(database)/documents/clients/$(request.auth.uid));
-    }
-    
-    // Règle pour la collection 'clients'
-    match /clients/{clientId} {
-      // LIST (pour les requêtes de collection, ex: getDocs(collection(...)) )
-      // Seuls les comptables/admins peuvent lister l'ensemble des clients.
-      allow list: if isAccountant();
-
-      // GET (pour les requêtes sur un seul document, ex: getDoc(doc(...)) )
-      // Un client peut lire son propre profil, un comptable peut lire n'importe quel profil.
-      allow get: if isAccountant() || request.auth.uid == clientId;
-
-      // UPDATE
-      // Un client peut mettre à jour son propre profil, un comptable peut tout mettre à jour.
-      allow update: if isAccountant() || request.auth.uid == clientId;
-
-      // CREATE, DELETE
-      // Seuls les comptables/admins peuvent créer ou supprimer des clients.
-      allow create, delete: if isAccountant();
-    }
-    
-    // Règle pour les collections liées à un client (documents, factures, bilans)
-    function isOwner(docData) {
-      return request.auth.uid == docData.clientId;
-    }
-
-    match /documents/{docId} {
-      // Le propriétaire du document (vérifié via le champ 'clientId' du document) OU un comptable/admin peut tout faire.
-      allow read, write: if isAccountant() || isOwner(resource.data);
-    }
-
-    match /invoices/{invoiceId} {
-       // Le propriétaire de la facture OU un comptable/admin peut tout faire.
-       allow read, write: if isAccountant() || isOwner(resource.data);
-    }
-    
-    match /bilans/{bilanId} {
-       // Le propriétaire du bilan OU un comptable/admin peut tout faire.
-       allow read, write: if isAccountant() || isOwner(resource.data);
+    // RÈGLE TEMPORAIRE PERMISSIVE POUR DÉVELOPPEMENT
+    // ATTENTION : Ces règles n'isolent pas les données des clients.
+    // Un utilisateur authentifié peut lire et écrire toutes les données.
+    // À remplacer par des règles granulaires avec des "custom claims" avant la production.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
@@ -118,3 +82,4 @@ service cloud.firestore {
 
 
     
+
