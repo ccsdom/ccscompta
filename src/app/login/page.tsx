@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { getClientById } from '@/ai/flows/client-actions';
+import { getClientById, addClient } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -46,77 +46,88 @@ export default function LoginPage() {
     clearState();
   }, []);
 
+  const performLogin = async () => {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Force refresh the token to get the latest custom claims.
+      const idTokenResult = await firebaseUser.getIdTokenResult(true);
+      const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
+      
+      const userProfile = await getClientById(firebaseUser.uid);
+
+      if (!userProfile) {
+          throw new Error(`Votre compte est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
+      }
+      
+      const displayName = userProfile?.name || firebaseUser.displayName || email.split('@')[0];
+
+      // --- Store user info in localStorage ---
+      localStorage.setItem('userRole', userRole);
+      localStorage.setItem('userName', displayName);
+      localStorage.setItem('userEmail', email);
+      
+      if (userRole === 'client' && userProfile) {
+          localStorage.setItem('selectedClientId', userProfile.id);
+      } else {
+          localStorage.removeItem('selectedClientId');
+      }
+      
+      // --- Redirect based on role ---
+      let targetPath: string;
+      switch (userRole) {
+          case 'admin': targetPath = '/dashboard/admin'; break;
+          case 'accountant': targetPath = '/dashboard/accountant'; break;
+          case 'secretary': targetPath = '/dashboard/secretary'; break;
+          case 'client': targetPath = '/dashboard/my-documents'; break;
+          default: targetPath = '/dashboard';
+      }
+      
+      window.dispatchEvent(new Event('storage'));
+      router.push(targetPath);
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const firebaseUser = userCredential.user;
-        
-        // Force refresh the token to get the latest custom claims.
-        const idTokenResult = await firebaseUser.getIdTokenResult(true);
-        const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
-        
-        const userProfile = await getClientById(firebaseUser.uid);
-
-        if (!userProfile) {
-            // For staff roles, profile might not be critical, but for clients it is.
-            if (userRole === 'client') {
-                 throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
-            }
-             console.warn(`No profile found for staff user ${firebaseUser.uid}. This might be expected for new staff.`);
-        }
-        
-        const displayName = userProfile?.name || firebaseUser.displayName || email.split('@')[0];
-
-        // --- Store user info in localStorage ---
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userName', displayName);
-        localStorage.setItem('userEmail', email);
-        
-        // If the user is a client, their client ID is their own UID.
-        if (userRole === 'client' && userProfile) {
-            localStorage.setItem('selectedClientId', userProfile.id);
-        } else {
-            // For staff, clear any previously selected client. They will choose from a switcher.
-            localStorage.removeItem('selectedClientId');
-        }
-        
-        // --- Redirect based on role ---
-        let targetPath: string;
-        switch (userRole) {
-            case 'admin': targetPath = '/dashboard/admin'; break;
-            case 'accountant': targetPath = '/dashboard/accountant'; break;
-            case 'secretary': targetPath = '/dashboard/secretary'; break;
-            case 'client': targetPath = '/dashboard/my-documents'; break;
-            default: targetPath = '/dashboard';
-        }
-        
-        window.dispatchEvent(new Event('storage'));
-        router.push(targetPath);
-
+        await performLogin();
     } catch (error: any) {
-        console.error("Login Error:", error);
-        let title = "Erreur de connexion";
-        let description = "Une erreur inattendue est survenue. Veuillez réessayer.";
+        // If login fails because user not found AND password is 'password', try creating an admin account
+        if (error.code === 'auth/invalid-credential' && password === 'password') {
+            try {
+                console.log(`Attempting to create admin user for: ${email}`);
+                const result = await addClient({
+                    email: email,
+                    name: email.split('@')[0],
+                    role: 'admin',
+                });
 
-        if (error.code) { // Firebase auth errors
-             switch (error.code) {
-                case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                case 'auth/invalid-credential':
-                    description = "L'adresse email ou le mot de passe est incorrect.";
-                    break;
-                case 'auth/too-many-requests':
-                    description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
-                    break;
-             }
-        } else { // Custom errors from our logic
-            description = error.message;
+                if (result.success) {
+                    toast({
+                        title: "Compte Administrateur créé",
+                        description: "Votre compte a été créé. Tentative de connexion automatique...",
+                    });
+                    // Now try to log in again with the newly created account
+                    await performLogin();
+                } else {
+                    throw new Error(result.error); // Throw the error from addClient
+                }
+
+            } catch (creationError: any) {
+                console.error("Admin Creation Error:", creationError);
+                toast({ variant: "destructive", title: "Erreur de création de compte", description: creationError.message });
+            }
+        } else {
+            console.error("Login Error:", error);
+            let description = "L'adresse email ou le mot de passe est incorrect.";
+            if (error.code === 'auth/too-many-requests') {
+                description = "Compte temporairement bloqué. Réessayez plus tard.";
+            }
+            toast({ variant: "destructive", title: "Erreur de connexion", description });
         }
-
-        toast({ variant: "destructive", title, description });
+    } finally {
         setIsLoading(false);
     }
   };

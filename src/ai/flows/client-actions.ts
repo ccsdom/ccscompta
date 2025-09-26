@@ -49,7 +49,9 @@ export async function addClient(
     // 2. Create user in Firebase Auth using the ADMIN SDK
     let userRecord;
     try {
-        const initialPassword = validatedData.siret || 'password'; // Use SIRET or a default
+        const isStaff = ['admin', 'accountant', 'secretary'].includes(role);
+        const initialPassword = validatedData.siret || (isStaff ? 'password' : 'password');
+        
         userRecord = await adminAuth.createUser({
             email: validatedData.email,
             password: initialPassword,
@@ -83,13 +85,14 @@ export async function addClient(
     await setDoc(clientDocRef, newUser);
     console.log("[Client Action] User profile added with ID:", uid);
     
+    const isStaff = ['admin', 'accountant', 'secretary'].includes(role);
     return { 
         success: true, 
         data: { 
             ...newUser, 
             id: uid,
             status: 'onboarding', // default status
-            password: validatedData.siret || 'password', // Pass back the initial password for display
+            password: validatedData.siret || (isStaff ? 'password' : 'password'),
         } 
     };
 
@@ -242,4 +245,5 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
+
 
