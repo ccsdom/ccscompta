@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 
 export const formSchema = z.object({
   name: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères." }),
-  siret: z.string().length(14, { message: "Le SIRET doit contenir 14 chiffres." }).regex(/^\d+$/, { message: "Le SIRET ne doit contenir que des chiffres."}).optional(),
+  siret: z.string().length(14, { message: "Le SIRET doit contenir 14 chiffres." }).regex(/^\d+$/, { message: "Le SIRET ne doit contenir que des chiffres."}).optional().or(z.literal('')),
   email: z.string().email({ message: "Adresse email invalide." }),
   phone: z.string().optional(),
   legalRepresentative: z.string().optional(),
@@ -64,7 +64,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     const onSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSave = { ...values };
         if (dataToSave.assignedAccountantId === "unassigned") {
-            delete (dataToSave as Partial<typeof dataToSave>).assignedAccountantId;
+           delete (dataToSave as Partial<typeof dataToSave>).assignedAccountantId;
         }
         onSave(dataToSave);
     }
