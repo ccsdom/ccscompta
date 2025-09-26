@@ -42,7 +42,7 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password = 'password';
+        let password = 'password'; // Default password for staff
         if (data.role === 'client') {
             if (data.siret && data.siret.length === 14) {
                 password = data.siret;
@@ -58,31 +58,20 @@ export default function NewClientPage() {
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Create user profile in Firestore (Client-side)
-            const profileData: Omit<Client, 'id' | 'password'> = {
-                ...data,
-                newDocuments: 0,
-                lastActivity: new Date().toISOString(),
-                status: 'onboarding' as const,
-            };
-            
-            // Explicitly remove the field if it's undefined or not to be sent
-            if (!profileData.assignedAccountantId) {
-                delete (profileData as Partial<typeof profileData>).assignedAccountantId;
-            }
-            
-            await setDoc(doc(db, 'clients', user.uid), profileData);
-
-            // Step 3 (Server Action for Custom Claims): This sets the role in Auth token
-            const claimResult = await addClient(data);
-            if (!claimResult.success) {
-                 console.warn(`Failed to set custom claim for ${data.email}: ${claimResult.error}`);
+            // Step 2: Call the server action to create the Firestore profile and set custom claims
+            const result = await addClient(data);
+            if (!result.success) {
+                 // This is a critical failure, but we proceed with a warning.
+                 // The user might not have access until claims are set manually or the issue is fixed.
+                 console.error("Critical: Failed to create user profile or set claims:", result.error);
                  toast({
                     variant: 'destructive',
-                    title: 'Attention : Rôle non assigné',
-                    description: "Le compte a été créé, mais le rôle n'a pas pu être assigné automatiquement. L'accès pourrait être limité jusqu'à une intervention manuelle.",
+                    title: 'Attention : Le profil n\'a pas été créé',
+                    description: `Le compte de connexion a été créé, mais la création du profil en base de données a échoué. Cause: ${result.error}`,
                     duration: 10000,
                  });
+                 setIsSubmitting(false);
+                 return;
             }
 
             toast({

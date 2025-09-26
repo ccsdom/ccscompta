@@ -18,7 +18,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
-import { updateClient, setAdminRole } from "@/ai/flows/client-actions";
+import { updateClient } from "@/ai/flows/client-actions";
 import type { IdTokenResult } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
@@ -129,22 +129,13 @@ export default function SettingsPage() {
         }
         setIsAdminRoleLoading(true);
         
-        // This now calls the server action that uses the Admin SDK
-        const result = await setAdminRole(userUid);
+        // This button now only serves as a placeholder to explain the next manual step
+        toast({
+            title: 'Action Manuelle Requise',
+            description: "Pour assigner un rôle, vous devez déployer une Cloud Function qui utilise le SDK Admin.",
+            duration: 10000,
+        });
 
-        if (result.success) {
-            toast({
-                title: 'Rôle Administrateur accordé !',
-                description: "Veuillez vous déconnecter et vous reconnecter pour appliquer les changements.",
-            });
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Échec de l\'attribution du rôle',
-                description: result.error || "Une erreur inconnue est survenue. Le SDK Admin n'est peut-être pas configuré sur le serveur.",
-                duration: 10000,
-            });
-        }
         setIsAdminRoleLoading(false);
     }
 
@@ -392,7 +383,7 @@ export default function SettingsPage() {
                                 <AlertTitle>Devenir Administrateur</AlertTitle>
                                 <AlertDescription>
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action utilise une Server Action qui nécessite que les credentials du SDK Admin soient correctement configurés sur votre serveur.</p>
+                                        <p className="text-sm">Cliquez sur ce bouton pour assigner le rôle "admin" à votre propre compte. Cette action nécessite qu'une Cloud Function soit déployée sur votre projet Firebase pour fonctionner.</p>
                                         <Button onClick={handleSetAdminRole} disabled={isAdminRoleLoading}>
                                             {isAdminRoleLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mise à jour...</> : "Me donner le rôle Admin"}
                                         </Button>

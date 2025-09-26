@@ -36,11 +36,9 @@ export async function addClient(
 
     const { email, role, siret, ...profileData } = validatedData;
     
-    // NOTE: This server action cannot create the Auth user itself without credentials.
-    // The client-side code (new/page.tsx) must create the auth user first.
+    // NOTE: This server action now REQUIRES the user to be created on the client-side first.
     // This action's primary role is now to create the Firestore profile and set custom claims.
 
-    // Find the user by email to get their UID.
     let userRecord;
     try {
         userRecord = await adminAuth.getUserByEmail(email);
@@ -54,21 +52,29 @@ export async function addClient(
     // 2. Create profile in Firestore
     const clientDocRef = doc(db, 'clients', userRecord.uid);
     
-    // Check if a document already exists to avoid overwriting
     const docSnap = await getDoc(clientDocRef);
     if (docSnap.exists()) {
-        console.log(`[Client Action] Profile for ${email} already exists. Updating role.`);
-        await setDoc(clientDocRef, { role: role }, { merge: true });
-    } else {
-        const newUser: Omit<Client, 'id' | 'status'> = {
-          ...validatedData,
-          newDocuments: 0,
-          lastActivity: new Date().toISOString(),
-        };
-        await setDoc(clientDocRef, newUser);
+       return { success: false, error: 'Un profil pour cet utilisateur existe déjà.' };
     }
     
-    console.log("[Client Action] User profile created/updated with ID:", userRecord.uid);
+    const newUser: Omit<Client, 'id' | 'password'> = {
+      ...validatedData,
+      newDocuments: 0,
+      lastActivity: new Date().toISOString(),
+      status: 'onboarding',
+    };
+    
+    // Explicitly remove undefined fields to prevent Firestore errors
+    if (!newUser.siret) delete newUser.siret;
+    if (!newUser.phone) delete newUser.phone;
+    if (!newUser.legalRepresentative) delete newUser.legalRepresentative;
+    if (!newUser.address) delete newUser.address;
+    if (!newUser.fiscalYearEndDate) delete newUser.fiscalYearEndDate;
+    if (!newUser.assignedAccountantId) delete newUser.assignedAccountantId;
+    
+    await setDoc(clientDocRef, newUser);
+    
+    console.log("[Client Action] User profile created with ID:", userRecord.uid);
     
     const finalDoc = await getDoc(clientDocRef);
 
@@ -76,8 +82,7 @@ export async function addClient(
         success: true, 
         data: { 
             ...(finalDoc.data() as Client),
-            id: userRecord.uid,
-            status: finalDoc.data()?.status || 'onboarding',
+            id: userRecord.uid
         }
     };
 
@@ -226,26 +231,4 @@ const MOCK_ACCOUNTANTS: Accountant[] = [
 export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
-}
-
-// This is a placeholder for the Cloud Function.
-// The client will call this, and in a real deployed scenario, it would trigger the function.
-// For now, it updates the Firestore doc and sets the claim directly via server action.
-export async function setAdminRole(userId: string): Promise<{success: boolean, error?: string}> {
-    try {
-        console.log(`[Admin Action] Setting 'admin' role for user ${userId}`);
-        
-        // 1. Set Custom Claim
-        await adminAuth.setCustomUserClaims(userId, { role: 'admin' });
-        
-        // 2. Update Firestore Document
-        const userRef = doc(db, 'clients', userId);
-        await updateDoc(userRef, { role: 'admin' });
-
-        console.log(`[Admin Action] Successfully set 'admin' role for ${userId}`);
-        return { success: true };
-    } catch (error: any) {
-        console.error(`[Admin Action] Failed to set admin role:`, error);
-        return { success: false, error: error.message };
-    }
 }

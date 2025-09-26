@@ -147,14 +147,6 @@ export default function LoginPage() {
             </p>
           </div>
           
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Configuration Initiale Requise</AlertTitle>
-            <AlertDescription>
-                Pour votre première utilisation, vous devez d'abord <Link href="/support/setup" className="font-bold underline">appliquer les règles de sécurité</Link> puis <Link href="/dashboard/clients/new" className="font-bold underline">créer votre compte administrateur</Link>.
-            </AlertDescription>
-           </Alert>
-
           <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
