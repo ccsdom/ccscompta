@@ -18,7 +18,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
-import { setAdminClaim } from "@/ai/flows/admin-actions";
+import { updateClient, getClientById } from "@/ai/flows/client-actions";
 
 export default function SettingsPage() {
     const { toast } = useToast();
@@ -52,11 +52,14 @@ export default function SettingsPage() {
         const unsubscribe = clientAuth.onAuthStateChanged(user => {
             if (user) {
                 setUserUid(user.uid);
-                 user.getIdTokenResult().then(idTokenResult => {
-                    if (idTokenResult.claims.role === 'admin') {
+                // Check role from Firestore now
+                const checkRole = async () => {
+                    const profile = await getClientById(user.uid);
+                    if (profile?.role === 'admin') {
                         setIsAdminSetup(true);
                     }
-                });
+                }
+                checkRole();
             } else {
                 setUserUid(null);
             }
@@ -73,6 +76,9 @@ export default function SettingsPage() {
     const handleProfileSave = (e: React.FormEvent) => {
         e.preventDefault();
         localStorage.setItem('userName', userName);
+        if (userUid) {
+            updateClient({ id: userUid, updates: { name: userName } });
+        }
         toast({
             title: "Profil enregistré",
             description: "Votre nom a été mis à jour.",
@@ -118,13 +124,15 @@ export default function SettingsPage() {
             return;
         }
         setIsSettingAdmin(true);
-        const result = await setAdminClaim(userUid);
+        const result = await updateClient({ id: userUid, updates: { role: 'admin' } });
         if (result.success) {
             toast({
                 title: "Rôle Administrateur défini !",
                 description: "Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
             });
             setIsAdminSetup(true);
+            localStorage.setItem('userRole', 'admin'); // Optimistic update
+            window.dispatchEvent(new Event('storage'));
         } else {
             toast({
                 variant: 'destructive',

@@ -28,31 +28,18 @@ const AddClientInputSchema = z.object({
 
 
 export async function addClient(
-  newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'role'> & { role?: z.infer<typeof AddClientInputSchema>['role'], uid: string }
+  newClientData: Omit<z.infer<typeof AddClientInputSchema>, 'uid'> & { uid: string }
 ): Promise<ServerActionResponse<Client>> {
   console.log("[Client Action] Adding user profile:", newClientData.name);
   
-  const role = newClientData.role || 'client';
-  const uid = newClientData.uid;
+  const { uid, ...dataToValidate } = newClientData;
   
   try {
-    const validatedData = AddClientInputSchema.omit({ role: true, uid: true }).parse(newClientData);
+    const validatedData = AddClientInputSchema.omit({ uid: true }).parse(dataToValidate);
     
-    // Set custom claim using Admin SDK. This is a critical step.
-    try {
-      await adminAuth.setCustomUserClaims(uid, { role });
-    } catch (claimError: any) {
-        console.error("FATAL: Could not set custom claims.", claimError);
-        // This is a severe failure, as the user will exist in Auth but without a role.
-        // In a production app, you might want to delete the user or queue for retry.
-        return { success: false, error: `Impossible de définir le rôle de l'utilisateur. L'authentification du serveur a peut-être échoué. ${claimError.message}` };
-    }
-    
-    // Add user profile to Firestore using the provided UID
     const clientDocRef = doc(db, 'clients', uid);
     const newUser: Omit<Client, 'id' | 'status'> = {
       ...validatedData,
-      role: role,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
     };
@@ -94,7 +81,7 @@ export async function getClients(): Promise<Client[]> {
                     // Try to get user first, create if not exists
                     try {
                         userRecord = await adminAuth.getUserByEmail(client.email);
-                        console.log(`Mock user ${client.email} already exists in Auth. Overwriting claims and Firestore doc.`);
+                        console.log(`Mock user ${client.email} already exists in Auth. Overwriting Firestore doc.`);
                     } catch (error: any) {
                         if (error.code === 'auth/user-not-found') {
                             console.log(`Creating mock user ${client.email} in Auth.`);
@@ -110,11 +97,7 @@ export async function getClients(): Promise<Client[]> {
                         }
                     }
                     
-                    // ALWAYS set claims and Firestore doc to ensure consistency
-                    // 1. Set Custom Claim
-                    await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
-
-                    // 2. Prepare Firestore document
+                    // ALWAYS set Firestore doc to ensure consistency
                     const docRef = doc(db, 'clients', userRecord.uid);
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { id, password, ...clientData } = client; 
@@ -163,12 +146,6 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
             }
         }
         
-        // If role is being updated, update custom claims as well
-        if (updates.role) {
-             const currentClaims = (await adminAuth.getUser(id)).customClaims;
-             await adminAuth.setCustomUserClaims(id, { ...currentClaims, role: updates.role });
-        }
-
         const docRef = doc(db, 'clients', id);
         await setDoc(docRef, updates, { merge: true });
 
@@ -218,8 +195,3 @@ export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
 }
-
-
-
-
-    

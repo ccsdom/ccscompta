@@ -71,19 +71,14 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
-      const idTokenResult = await firebaseUser.getIdTokenResult(true);
-      const userRole = (idTokenResult.claims.role || 'client') as 'client' | 'accountant' | 'admin' | 'secretary';
-      
       const userProfile = await getClientById(firebaseUser.uid);
-
-      if (!userProfile && (userRole === 'admin' || userRole === 'accountant')) {
-           // Admin/Accountant doesn't have a firestore profile yet, create one
-           await addClient({uid: firebaseUser.uid, email, name: email.split('@')[0], role: userRole});
-      } else if (!userProfile && userRole === 'client') {
-          throw new Error(`Votre compte client est valide mais aucun profil ne lui est associé. Veuillez contacter le cabinet.`);
+      
+      if (!userProfile) {
+          throw new Error(`Votre compte est valide mais aucun profil n'a pu être trouvé. Veuillez contacter le support.`);
       }
       
-      const displayName = userProfile?.name || firebaseUser.displayName || email.split('@')[0];
+      const userRole = userProfile.role;
+      const displayName = userProfile.name || firebaseUser.displayName || email.split('@')[0];
 
       localStorage.setItem('userRole', userRole);
       localStorage.setItem('userName', displayName);
@@ -115,7 +110,7 @@ export default function LoginPage() {
     try {
         await performLogin();
     } catch (error: any) {
-        if (error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
             try {
                 // If login fails, try to create an account. For this demo,
                 // any new account with password 'password' is an admin.
@@ -263,10 +258,11 @@ export default function LoginPage() {
             </Button>
           </form>
            <Alert className="mt-4">
-              <AlertTitle className="font-semibold">Comptes de démo</AlertTitle>
+              <AlertTitle className="font-semibold">Logique de connexion</AlertTitle>
               <AlertDescription className="text-xs space-y-1">
-                <p>Pour créer un compte admin, utilisez n'importe quel email et le mot de passe: <strong>`password`</strong></p>
-                <p>Pour créer un compte client, utilisez n'importe quel email et un autre mot de passe.</p>
+                <p>Si votre compte n'existe pas, il sera créé automatiquement.</p>
+                <p>Pour obtenir un rôle <strong>admin</strong>, utilisez le mot de passe : <strong>`password`</strong></p>
+                <p>Pour créer un compte <strong>client</strong>, utilisez n'importe quel autre mot de passe.</p>
               </AlertDescription>
             </Alert>
             <p className="mt-8 text-center text-xs text-muted-foreground">
@@ -277,5 +273,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    

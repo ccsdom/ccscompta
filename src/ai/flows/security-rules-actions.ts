@@ -7,7 +7,7 @@
 
 /**
  * Provides the recommended Firestore security rules to allow authenticated access.
- * This version uses Custom Claims for role-based access control.
+ * This version uses a role field within each user's document for role-based access control.
  *
  * @returns {Promise<{success: boolean, rules: string}>} An object containing the success status and the recommended Firestore rules.
  */
@@ -18,13 +18,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check for admin/accountant/secretary roles via Custom Claims
+    // Helper function to get the user's role from their profile in the 'clients' collection
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/clients/$(userId)).data.role;
+    }
+    
     function isStaff() {
-      return request.auth.token.role in ['admin', 'accountant', 'secretary'];
+      return request.auth != null && getUserRole(request.auth.uid) in ['admin', 'accountant', 'secretary'];
     }
     
     function isOwner(userId) {
-        return request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+        return request.auth != null && getUserRole(request.auth.uid) == 'admin';
     }
 
     // "clients" collection now contains all users
@@ -33,12 +41,14 @@ service cloud.firestore {
     // Only admins can create/delete users or change their roles.
     match /clients/{userId} {
       allow read, list: if isStaff() || isOwner(userId);
-      allow create, delete: if request.auth.token.role == 'admin';
+      // Anyone can create their own user profile document (e.g., after sign-up)
+      allow create: if request.auth.uid == userId;
+      // Admins can delete anyone
+      allow delete: if isAdmin();
       
-      // Allow user to update their own profile, but not change their role
-      allow update: if isOwner(userId) && !("role" in request.resource.data);
-      // Admin can update anything, including role.
-      allow update: if request.auth.token.role == 'admin';
+      // A user can update their own profile, but cannot change their own role.
+      // An admin can update any field on any profile.
+      allow update: if (isOwner(userId) && !("role" in request.resource.data)) || isAdmin();
     }
 
     // DOCUMENTS collection
