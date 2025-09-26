@@ -3,8 +3,6 @@
 
 This is a NextJS starter in Firebase Studio.
 
-To get started, take a look at src/app/page.tsx.
-
 ## Configuration Post-Création
 
 ### Étape 1 : Activer Firebase Storage (Action Requise)
@@ -41,11 +39,43 @@ Cette méthode est la plus fiable et fonctionne sur tous les systèmes d'exploit
     echo '[{"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600}]' > cors.json
     ```
 
-5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** vous devrez peut-être remplacer `gs://ccs-compta.appspot.com` par l'adresse exacte de votre bucket si elle est différente. Vous pouvez trouver l'adresse exacte dans la console Firebase (Storage -> onglet Fichiers) ou dans la liste des buckets de la console Google Cloud.
-
+5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** trouvez l'adresse exacte de votre bucket dans la console Firebase (Storage -> onglet Fichiers, elle commence par `gs://`) et remplacez `gs://VOTRE-BUCKET-ICI.appspot.com` dans la commande ci-dessous.
+    
     ```bash
-    gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=cors.json
+    # Exemple : gcloud storage buckets update gs://mon-projet-a-moi.appspot.com --cors-file=cors.json
+    gcloud storage buckets update gs://VOTRE-BUCKET-ICI.appspot.com --cors-file=cors.json
     ```
 
-6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell. Rafraîchissez votre application, l'erreur de téléversement devrait être résolue.
+6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell.
 
+### Étape 3 : Sécuriser l'application (Action Requise)
+
+Après avoir configuré l'application, vous devez sécuriser l'accès aux données.
+
+#### 1. Appliquer les règles de sécurité Firestore
+
+1.  Dans l'application, naviguez vers **Paramètres > Sécurité des Données**.
+2.  Cliquez sur le bouton **"Générer les règles Firestore"**.
+3.  Copiez les règles qui s'affichent.
+4.  Allez dans votre **Console Firebase > Firestore Database > Règles**.
+5.  Collez les nouvelles règles et cliquez sur **Publier**.
+
+#### 2. Définir votre compte comme Administrateur (Action Unique)
+
+Pour que les nouvelles règles de sécurité vous reconnaissent comme administrateur, vous devez vous attribuer ce rôle manuellement. **C'est une action unique à faire pour votre propre compte utilisateur.**
+
+1.  **Trouvez votre UID** :
+    *   Allez dans votre **Console Firebase > Authentication > Users**.
+    *   Repérez votre compte (celui que vous utilisez pour vous connecter à l'application, ex: `admin@ccs.com`).
+    *   Copiez la valeur de la colonne `User UID`.
+
+2.  **Ouvrez le Cloud Shell** (comme à l'étape 2) et assurez-vous d'être dans le bon projet (`gcloud config set project ccs-compta`).
+
+3.  **Exécutez la commande suivante** en remplaçant `"VOTRE_UID_ICI"` par l'UID que vous venez de copier :
+    ```bash
+    # Assurez-vous d'utiliser votre VRAI UID
+    firebase auth:set-custom-claims "VOTRE_UID_ICI" --claims=role=admin
+    ```
+    *Si une erreur indique `firebase: command not found`, exécutez d'abord `npm install -g firebase-tools`.*
+
+4.  C'est terminé ! Vous avez maintenant les pleins pouvoirs. Déconnectez-vous et reconnectez-vous à l'application pour que le changement soit pris en compte. Les autres utilisateurs n'auront que les permissions de leur rôle respectif.

@@ -125,7 +125,7 @@ export default function SettingsPage() {
                     <TabsTrigger value="security">Sécurité</TabsTrigger>
                     <TabsTrigger value="preferences">Préférences</TabsTrigger>
                     {isAccountantOrAdmin && <TabsTrigger value="automation">Automatisation</TabsTrigger>}
-                    {isAccountantOrAdmin && <TabsTrigger value="firestore-security">Firestore</TabsTrigger>}
+                    {isAccountantOrAdmin && <TabsTrigger value="firestore-security">Sécurité des Données</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="integrations">Intégrations</TabsTrigger>}
                     {isAccountantOrAdmin && <TabsTrigger value="email-upload">Email</TabsTrigger>}
                 </TabsList>
@@ -285,8 +285,8 @@ export default function SettingsPage() {
                         <TabsContent value="firestore-security">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-5 w-5"/> Sécurité Firestore (Données)</CardTitle>
-                                    <CardDescription>Configurez les règles de sécurité pour isoler les données des clients dans Firestore.</CardDescription>
+                                    <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-5 w-5"/> Sécurité de la Base de Données</CardTitle>
+                                    <CardDescription>Configurez les règles de sécurité Firestore pour isoler les données des clients et protéger votre application.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {firestoreRules ? (
@@ -295,7 +295,7 @@ export default function SettingsPage() {
                                                 <AlertCircle className="h-4 w-4" />
                                                 <AlertTitle>Action Manuelle Requise</AlertTitle>
                                                 <AlertDescription>
-                                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase.
+                                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase pour activer la sécurité basée sur les rôles.
                                                 </AlertDescription>
                                             </Alert>
                                              <Textarea readOnly value={firestoreRules} className="h-72 font-mono text-xs bg-muted" />
@@ -303,7 +303,7 @@ export default function SettingsPage() {
                                         </div>
                                     ) : (
                                          <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour autoriser l'accès aux données.</p>
+                                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité finales pour votre application.</p>
                                              <Button onClick={handleFetchFirestoreRules} disabled={isLoadingFirestoreRules}>
                                                 {isLoadingFirestoreRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles Firestore"}
                                             </Button>
