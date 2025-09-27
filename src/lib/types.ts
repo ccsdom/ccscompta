@@ -56,6 +56,7 @@ export interface Client {
     phone?: string;
     assignedAccountantId?: string;
     password?: string; // Optional: only used to pass temp password from server to client on creation
+    cabinetId?: string;
 }
 
 export interface Invoice {

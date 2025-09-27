@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
+import { getAccountants, getCabinets, type Accountant, type Cabinet } from '@/ai/flows/client-actions';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -25,6 +25,7 @@ export const formSchema = z.object({
   fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, { message: "Format de date invalide. Utilisez JJ/MM." }).optional(),
   role: z.enum(['client', 'admin', 'accountant', 'secretary']),
   assignedAccountantId: z.string().optional(),
+  cabinetId: z.string().optional(),
 });
 
 
@@ -37,13 +38,20 @@ interface ClientFormProps {
 export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProps) {
     const router = useRouter();
     const [accountants, setAccountants] = useState<Accountant[]>([]);
+    const [cabinets, setCabinets] = useState<Cabinet[]>([]);
+    const [userRole, setUserRole] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchAccountants = async () => {
-            const fetchedAccountants = await getAccountants();
+        const fetchData = async () => {
+            const [fetchedAccountants, fetchedCabinets] = await Promise.all([
+                getAccountants(),
+                getCabinets()
+            ]);
             setAccountants(fetchedAccountants);
+            setCabinets(fetchedCabinets);
         };
-        fetchAccountants();
+        fetchData();
+        setUserRole(localStorage.getItem('userRole'));
     }, []);
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -58,6 +66,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
             fiscalYearEndDate: initialData?.fiscalYearEndDate || "31/12",
             role: initialData?.role || 'client',
             assignedAccountantId: initialData?.assignedAccountantId || "unassigned",
+            cabinetId: initialData?.cabinetId || (cabinets.length > 0 ? cabinets[0].id : ""),
         },
     });
 
@@ -241,6 +250,35 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                         </FormItem>
                                     )}
                                 />
+                             {userRole === 'admin' && (
+                                 <FormField
+                                        control={form.control}
+                                        name="cabinetId"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Cabinet</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Sélectionner un cabinet" />
+                                                </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {cabinets.map((cab) => (
+                                                        <SelectItem key={cab.id} value={cab.id}>
+                                                            {cab.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription>
+                                                Assigner cet utilisateur à un cabinet.
+                                            </FormDescription>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                             )}
                         </div>
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">

@@ -16,6 +16,7 @@ export const MOCK_CLIENTS: Client[] = [
         email: 'aventure.action@example.com',
         phone: '0478000001',
         assignedAccountantId: 'acc-01',
+        cabinetId: 'cab-01',
         // Le mot de passe pour les clients est leur SIRET.
         // Ce champ n'est pas stocké, juste utilisé pour la création initiale.
         password: '84042838300010',
@@ -29,6 +30,7 @@ export const MOCK_CLIENTS: Client[] = [
         lastActivity: new Date().toISOString(),
         newDocuments: 0,
         siret: '00000000000001',
+        cabinetId: 'cab-01',
         password: 'password', // Mot de passe explicite pour les comptes de démo staff
     },
     {
@@ -51,6 +53,7 @@ export const MOCK_CLIENTS: Client[] = [
         lastActivity: new Date().toISOString(),
         newDocuments: 0,
         siret: '00000000000003',
+        cabinetId: 'cab-01',
         password: 'password', // Mot de passe explicite pour les comptes de démo staff
     },
 ];

@@ -25,6 +25,7 @@ const AddClientInputSchema = z.object({
   fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, "Format JJ/MM invalide.").optional(),
   role: z.enum(['client', 'admin', 'accountant', 'secretary']),
   assignedAccountantId: z.string().optional(),
+  cabinetId: z.string().optional(),
 });
 
 
@@ -157,7 +158,7 @@ export async function getClientById(id: string): Promise<Client | null> {
     }
 }
 
-export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id'>>}): Promise<ServerActionResponse<Client>> {
+export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id' | 'email'>>}): Promise<ServerActionResponse<Client>> {
     console.log(`[Firestore] Updating user profile ID: ${id}`);
     try {
          if (updates.siret) {
@@ -222,4 +223,19 @@ const MOCK_ACCOUNTANTS: Accountant[] = [
 export async function getAccountants(): Promise<Accountant[]> {
     console.log("[SIMULATION] Fetching mock accountants.");
     return Promise.resolve(MOCK_ACCOUNTANTS);
+}
+
+// Simple mock for cabinets
+export interface Cabinet {
+    id: string;
+    name: string;
+}
+
+const MOCK_CABINETS: Cabinet[] = [
+    { id: 'cab-01', name: 'Cabinet Principal (CCS)' },
+];
+
+export async function getCabinets(): Promise<Cabinet[]> {
+    console.log("[SIMULATION] Fetching mock cabinets.");
+    return Promise.resolve(MOCK_CABINETS);
 }
