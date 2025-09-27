@@ -139,6 +139,7 @@ export default function SettingsPage() {
             toast({
                 title: 'Rôle mis à jour !',
                 description: "Vous avez maintenant le rôle d'administrateur. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
+                duration: 7000
             });
             
             await clientAuth.signOut();

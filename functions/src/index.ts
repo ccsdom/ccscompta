@@ -15,6 +15,7 @@ initializeApp();
 
 /**
  * Function to set current authenticated user as admin.
+ * This is a Callable Function.
  */
 export const setAdminRole = onCall(async (request) => {
   if (!request.auth) {
@@ -43,6 +44,7 @@ export const setAdminRole = onCall(async (request) => {
 
 /**
  * Function to create a new user with a specific role.
+ * This is a Callable Function.
  */
 export const createUserWithRole = onCall(async (request) => {
     // 1. Verify admin
@@ -50,7 +52,7 @@ export const createUserWithRole = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Seul un administrateur peut effectuer cette action.');
     }
 
-    // 2. Get payload
+    // 2. Get payload from request.data
     const { email, password, ...profileData } = request.data;
     if (!email) {
       throw new HttpsError('invalid-argument', 'Email requis pour la création.');

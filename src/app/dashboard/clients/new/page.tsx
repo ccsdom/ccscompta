@@ -39,11 +39,11 @@ export default function NewClientPage() {
         
         try {
             const functions = getFunctions(getApp());
-            const createUserWithRole = httpsCallable(functions, 'createUserWithRole');
+            const createUserWithRoleFunc = httpsCallable(functions, 'createUserWithRole');
             
-            const result = await createUserWithRole(data);
-            const resultData = result.data as { success: boolean; message: string };
-
+            // Pass the form data directly to the callable function
+            const result = await createUserWithRoleFunc(data);
+            const resultData = result.data as { success: boolean; message: string; uid?: string };
 
             if (!resultData.success) {
                  throw new Error(resultData.message || `Erreur lors de la création.`);
