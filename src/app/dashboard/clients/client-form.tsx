@@ -104,7 +104,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                             <SelectItem value="client">Client</SelectItem>
                                             <SelectItem value="accountant">Comptable</SelectItem>
                                             <SelectItem value="secretary">Secrétaire</SelectItem>
-                                            <SelectItem value="admin">Administrateur</SelectItem>
+                                            {userRole === 'admin' && <SelectItem value="admin">Administrateur</SelectItem>}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -156,7 +156,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                                 <Input placeholder="14 chiffres" {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                Ce champ est obligatoire pour les clients.
+                                                Ce champ servira de mot de passe initial.
                                             </FormDescription>
                                             <FormMessage />
                                             </FormItem>
@@ -292,6 +292,3 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
         </Form>
     );
 }
-
-    
-    

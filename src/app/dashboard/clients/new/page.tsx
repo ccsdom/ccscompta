@@ -40,36 +40,11 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         
         try {
-            // Determine password
-            let password = 'password'; // Default password for non-clients
-            if (data.role === 'client' && data.siret) {
-                password = data.siret;
-            }
+            // This server action now handles Auth creation, claim setting, and profile creation.
+            const result = await addClientProfile(data);
 
-            // Step 1: Create user in Firebase Auth (client-side)
-            const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
-            const user = userCredential.user;
-            
-            // Step 2: Call server action to create Firestore profile and set custom claim
-            const profileResult = await addClientProfile({ ...data, uid: user.uid });
-
-            if (!profileResult.success) {
-                throw new Error(`Le profil a échoué: ${profileResult.error}`);
-            }
-
-            // Step 3: Sign in with the new user to get the custom claim and redirect properly
-            const loginCredential = await signInWithEmailAndPassword(auth, data.email, password);
-            const idTokenResult: IdTokenResult = await loginCredential.user.getIdTokenResult(true);
-            const userRole = idTokenResult.claims.role || 'client';
-            
-            localStorage.setItem('userRole', userRole);
-            localStorage.setItem('userName', loginCredential.user.displayName || data.name);
-            localStorage.setItem('userEmail', loginCredential.user.email!);
-            
-            if (userRole === 'client') {
-                localStorage.setItem('selectedClientId', loginCredential.user.uid);
-            } else {
-                localStorage.removeItem('selectedClientId');
+            if (!result.success) {
+                throw new Error(result.error);
             }
 
             toast({
@@ -82,35 +57,21 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
+                                Le mot de passe initial de l'utilisateur est : <strong>{result.password}</strong>
                             </AlertDescription>
                         </Alert>
                     </div>
                 ),
             });
             
-             let targetPath: string;
-            switch (userRole) {
-                case 'admin': targetPath = '/dashboard/admin'; break;
-                case 'accountant': targetPath = '/dashboard/accountant'; break;
-                case 'secretary': targetPath = '/dashboard/secretary'; break;
-                case 'client': targetPath = '/dashboard/my-documents'; break;
-                default: targetPath = '/dashboard';
-            }
-            
-            window.dispatchEvent(new Event('storage'));
-            router.push(targetPath);
+            // Stay on the admin session and redirect to the clients list.
+            router.push('/dashboard/clients');
+            router.refresh();
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-            if (error.code === 'auth/email-already-in-use') {
-                 errorMessage = 'Un compte avec cet email existe déjà.';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'L\'adresse email est invalide.';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'Le mot de passe doit contenir au moins 6 caractères.';
-            } else if (error.message) {
+            if (error.message) {
                  errorMessage = error.message;
             }
             toast({

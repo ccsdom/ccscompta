@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -23,43 +24,54 @@ const AddClientInputSchema = z.object({
   role: z.enum(['client', 'admin', 'accountant', 'secretary']),
   assignedAccountantId: z.string().optional(),
   cabinetId: z.string().optional(),
-  password: z.string().optional(),
-  uid: z.string(), // UID from the client-created auth user
 });
 
 
 export async function addClientProfile(
   clientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
-  console.log("[Client Action] SERVER-SIDE: Adding user profile:", clientData.name);
+  console.log("[Client Action] SERVER-SIDE: Adding new user:", clientData.name);
   
   try {
-    // 1. Validate incoming data
     const validatedData = AddClientInputSchema.parse(clientData);
-    const { role, uid, password, ...profileData } = validatedData;
+    const { role, ...profileData } = validatedData;
     
-    // 2. Set custom claim for the user's role
-    await adminAuth.setCustomUserClaims(uid, { role: role });
-    console.log(`[Client Action] SERVER-SIDE: Custom claim '${role}' set for user ${uid}`);
+    // Determine password
+    let password = 'password'; // Default password for non-clients
+    if (validatedData.role === 'client' && validatedData.siret) {
+        password = validatedData.siret;
+    }
+
+    // Step 1: Create user in Firebase Auth
+    const userRecord = await adminAuth.createUser({
+        email: validatedData.email,
+        password: password,
+        displayName: validatedData.name,
+        emailVerified: true, // For simplicity in this app
+        disabled: false,
+    });
     
-    // 3. Create profile in Firestore using the UID from the client
-    const clientDocRef = doc(db, 'clients', uid);
+    // Step 2: Set custom claim for the user's role
+    await adminAuth.setCustomUserClaims(userRecord.uid, { role: role });
+    console.log(`[Client Action] SERVER-SIDE: Custom claim '${role}' set for user ${userRecord.uid}`);
+    
+    // 3. Create profile in Firestore
+    const clientDocRef = doc(db, 'clients', userRecord.uid);
     const newUser: Omit<Client, 'id'| 'uid'> = {
       ...profileData,
-      role, // include role in the document
+      role,
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
       status: 'onboarding',
     };
     
-    // Explicitly remove undefined fields to prevent Firestore errors
     const cleanUser = Object.fromEntries(
         Object.entries(newUser).filter(([_, v]) => v !== undefined && v !== null && v !== '')
     );
     
     await setDoc(clientDocRef, cleanUser);
     
-    console.log("[Client Action] SERVER-SIDE: User profile created with ID:", uid);
+    console.log("[Client Action] SERVER-SIDE: User profile created with ID:", userRecord.uid);
     
     const finalDoc = await getDoc(clientDocRef);
 
@@ -67,17 +79,24 @@ export async function addClientProfile(
         success: true, 
         data: { 
             ...(finalDoc.data() as Client),
-            id: uid
+            id: userRecord.uid
         },
+        password: password
     };
 
   } catch (error: any) {
-    console.error('[Client Action] SERVER-SIDE: Error adding user profile:', error);
+    console.error('[Client Action] SERVER-SIDE: Error adding user:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
     
-    const errorMessage = error.message ? error.message : 'Erreur inconnue lors de l\'ajout du profil utilisateur.';
+    let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
+    if (error.code === 'auth/email-already-exists') {
+        errorMessage = 'Un compte avec cette adresse email existe déjà.';
+    } else if (error.code === 'auth/invalid-password') {
+        errorMessage = `Le mot de passe fourni (${error.password}) n'est pas valide. Il doit comporter au moins 6 caractères.`;
+    }
+
     return { success: false, error: errorMessage };
   }
 }
