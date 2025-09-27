@@ -99,27 +99,30 @@ export async function getClients(): Promise<Client[]> {
 
             for (const client of MOCK_CLIENTS) {
                 try {
-                    let userRecord;
-                    // Try to get user first, create if not exists
+                    // BRUTAL BUT RELIABLE: Delete user from Auth if they exist to prevent password/state conflicts.
                     try {
-                        userRecord = await adminAuth.getUserByEmail(client.email);
-                        console.log(`Mock user ${client.email} already exists in Auth. Setting role and overwriting Firestore doc.`);
-                         await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
+                        const existingUser = await adminAuth.getUserByEmail(client.email);
+                        console.log(`Deleting existing Auth user ${client.email} to ensure clean seed.`);
+                        await adminAuth.deleteUser(existingUser.uid);
                     } catch (error: any) {
-                        if (error.code === 'auth/user-not-found') {
-                            console.log(`Creating mock user ${client.email} in Auth.`);
-                            userRecord = await adminAuth.createUser({
-                                email: client.email,
-                                password: client.password, // This is crucial for login
-                                emailVerified: true,
-                                disabled: false,
-                                displayName: client.name,
-                            });
-                            await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
-                        } else {
-                            throw error; // Rethrow other auth errors
+                        if (error.code !== 'auth/user-not-found') {
+                            throw error; // Rethrow if it's not the "user not found" error
                         }
+                        // User not found, which is fine.
                     }
+
+                    // ALWAYS create the user from scratch to guarantee password and state.
+                    console.log(`Creating fresh mock user ${client.email} in Auth.`);
+                    const userRecord = await adminAuth.createUser({
+                        email: client.email,
+                        password: client.password, // This is crucial for login
+                        emailVerified: true,
+                        disabled: false,
+                        displayName: client.name,
+                    });
+                    
+                    // Set their role via custom claims
+                    await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
                     
                     // ALWAYS set Firestore doc to ensure consistency
                     const docRef = doc(db, 'clients', userRecord.uid);
@@ -128,7 +131,7 @@ export async function getClients(): Promise<Client[]> {
                     batch.set(docRef, clientData);
 
                 } catch (error: any) {
-                     console.error(`Error seeding user ${client.email}:`, error);
+                     console.error(`Error seeding user ${client.email}:`, error.message);
                 }
             }
             await batch.commit();
