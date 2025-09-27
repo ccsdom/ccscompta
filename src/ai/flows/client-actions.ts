@@ -26,6 +26,7 @@ const AddClientInputSchema = z.object({
   role: z.enum(['client', 'admin', 'accountant', 'secretary']),
   assignedAccountantId: z.string().optional(),
   cabinetId: z.string().optional(),
+  password: z.string().optional(),
 });
 
 

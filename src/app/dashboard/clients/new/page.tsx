@@ -14,8 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth as clientAuth } from "@/lib/firebase-client";
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase-client';
+import { addClient } from '@/ai/flows/client-actions';
 
 
 export default function NewClientPage() {
@@ -43,28 +42,24 @@ export default function NewClientPage() {
         
         const password = data.siret && data.siret.length === 14 
             ? data.siret 
-            : data.password || `password${Math.floor(Math.random() * 1000)}`;
+            : `password${Math.floor(Math.random() * 1000)}`;
         
         try {
             // Step 1: Create user in Firebase Auth (Client-side)
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Create profile in Firestore (Client-side)
-            const { uid, ...profileData } = {
+            // Step 2: Call server action to create profile and set claims
+            const profileResult = await addClient({
                 ...data,
-                id: user.uid,
-                newDocuments: 0,
-                lastActivity: new Date().toISOString(),
-                status: 'onboarding' as const,
-            };
-            
-             // Ensure optional fields are handled correctly
-            const cleanProfileData = Object.fromEntries(
-                Object.entries(profileData).filter(([_, v]) => v !== undefined && v !== null && v !== '')
-            );
+                uid: user.uid,
+            });
 
-            await setDoc(doc(db, "clients", user.uid), cleanProfileData);
+            if (!profileResult.success) {
+                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
+                // For now, we'll just throw the specific error.
+                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
+            }
 
             toast({
                 duration: 10000,
