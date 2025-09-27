@@ -22,7 +22,7 @@ export const MOCK_CLIENTS: Client[] = [
     {
         id: 'user-admin',
         name: 'Super Admin',
-        email: 'admin@ccs.com',
+        email: 'app.cc94@gmail.com',
         role: 'admin',
         status: 'active',
         lastActivity: new Date().toISOString(),
@@ -143,4 +143,4 @@ export const MOCK_BILANS: Record<string, Bilan[]> = {
     'client-04': [
         { id: 'b6', clientId: 'client-04', year: 2023, status: 'pending', netIncome: 0, turnover: 0, submissionDate: undefined },
     ],
-};
+];
