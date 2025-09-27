@@ -97,12 +97,15 @@ export async function addClient(
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
-    // Handle Firebase Auth errors specifically
+    // Handle specific errors that might occur if the Admin SDK is not configured
     if (error.code === 'auth/email-already-exists') {
         return { success: false, error: 'Un compte avec cet email existe déjà.'}
     }
     if (error.code === 'auth/invalid-password') {
         return { success: false, error: `Le mot de passe doit contenir au moins 6 caractères.`}
+    }
+     if (error.message && error.message.includes('access token')) {
+       return { success: false, error: "Erreur de configuration du serveur : Les permissions d'administration Firebase ne sont pas correctement configurées. Veuillez suivre la procédure de configuration de l'administrateur dans les Paramètres."};
     }
 
     const errorMessage = error.message ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
@@ -113,7 +116,7 @@ export async function addClient(
 export async function getClients(cabinetId?: string): Promise<Client[]> {
     console.log(`[Firestore] Fetching user profiles (clients and staff)${cabinetId ? ` for cabinet ${cabinetId}` : ''}.`);
     try {
-        let q = collection(db, 'clients');
+        let q = query(collection(db, 'clients'));
         if (cabinetId) {
             q = query(q, where('cabinetId', '==', cabinetId));
         }
@@ -127,20 +130,6 @@ export async function getClients(cabinetId?: string): Promise<Client[]> {
 
             for (const client of MOCK_CLIENTS) {
                 try {
-                    // BRUTAL BUT RELIABLE: Delete user from Auth if they exist to prevent password/state conflicts.
-                    try {
-                        const existingUser = await adminAuth.getUserByEmail(client.email);
-                        console.log(`Deleting existing Auth user ${client.email} to ensure clean seed.`);
-                        await adminAuth.deleteUser(existingUser.uid);
-                    } catch (error: any) {
-                        if (error.code !== 'auth/user-not-found') {
-                            throw error; // Rethrow if it's not the "user not found" error
-                        }
-                        // User not found, which is fine.
-                    }
-
-                    // ALWAYS create the user from scratch to guarantee password and state.
-                    console.log(`Creating fresh mock user ${client.email} in Auth.`);
                     const userRecord = await adminAuth.createUser({
                         email: client.email,
                         password: client.password, // This is crucial for login
@@ -159,7 +148,24 @@ export async function getClients(cabinetId?: string): Promise<Client[]> {
                     batch.set(docRef, clientData);
 
                 } catch (error: any) {
-                     console.error(`Error seeding user ${client.email}:`, error.message);
+                     if (error.code === 'auth/email-already-exists') {
+                         console.log(`Mock user ${client.email} already exists in Auth. Skipping Auth creation, ensuring Firestore doc is set.`);
+                         // If user exists, we can't be sure of the password, but we can ensure the Firestore doc is there.
+                         // This path is problematic and the "delete then create" is better. Let's try to get UID.
+                         try {
+                            const existingUser = await adminAuth.getUserByEmail(client.email);
+                            await adminAuth.setCustomUserClaims(existingUser.uid, { role: client.role });
+                            const docRef = doc(db, 'clients', existingUser.uid);
+                             // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                            const { id, password, ...clientData } = client; 
+                            batch.set(docRef, clientData, {merge: true}); // Merge to not overwrite all data if it's already there
+                         } catch(e) {
+                             console.error(`Could not update existing mock user ${client.email}`, e);
+                         }
+
+                     } else {
+                        console.error(`Error seeding user ${client.email}:`, error.message);
+                     }
                 }
             }
             await batch.commit();

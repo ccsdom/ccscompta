@@ -146,7 +146,7 @@ export default function SettingsPage() {
                 errorMessage = "Vous devez être connecté pour effectuer cette action.";
             } else if (error.code === 'functions/permission-denied') {
                 errorMessage = "Vous n'avez pas les permissions nécessaires.";
-            } else if (error.message.includes('functions/not-found')) {
+            } else if (error.message && error.message.includes('functions/not-found')) {
                 errorMessage = "La Cloud Function 'setAdminRole' ne semble pas être déployée. Veuillez suivre les instructions de déploiement.";
             }
             toast({
