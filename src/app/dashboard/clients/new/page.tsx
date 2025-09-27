@@ -14,7 +14,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth as clientAuth } from "@/lib/firebase-client";
-import { addClient } from '@/ai/flows/client-actions';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase-client';
 
 
 export default function NewClientPage() {
@@ -40,28 +41,30 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password = 'password'; // Default for staff
-        if (data.role === 'client') {
-             // For clients, generate a more secure temporary password or use SIRET
-             password = data.siret && data.siret.length === 14 ? data.siret : `password${Math.floor(Math.random() * 1000)}`;
-        }
+        const password = data.siret && data.siret.length === 14 
+            ? data.siret 
+            : data.password || `password${Math.floor(Math.random() * 1000)}`;
         
         try {
             // Step 1: Create user in Firebase Auth (Client-side)
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Call the server action to create the Firestore profile and set claims.
-            const profileResult = await addClient({
+            // Step 2: Create profile in Firestore (Client-side)
+            const { uid, ...profileData } = {
                 ...data,
-                uid: user.uid,
-            });
+                id: user.uid,
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+                status: 'onboarding' as const,
+            };
+            
+             // Ensure optional fields are handled correctly
+            const cleanProfileData = Object.fromEntries(
+                Object.entries(profileData).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+            );
 
-            if (!profileResult.success) {
-                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
-                // For now, we'll just throw the specific error.
-                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
-            }
+            await setDoc(doc(db, "clients", user.uid), cleanProfileData);
 
             toast({
                 duration: 10000,
@@ -69,18 +72,18 @@ export default function NewClientPage() {
                 description: (
                     <div className="space-y-2">
                         <p>Le profil et le compte de connexion pour <strong>{data.name}</strong> ont été créés.</p>
-                        <Alert variant="default">
+                         <Alert variant="default">
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
                                 Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
                             </AlertDescription>
                         </Alert>
+                        <p className="text-xs pt-2">Vous pouvez maintenant vous connecter avec ce compte et vous assigner le rôle "Admin" depuis la page des paramètres.</p>
                     </div>
                 ),
             });
-            router.push('/dashboard/clients');
-            router.refresh();
+            router.push('/login');
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
