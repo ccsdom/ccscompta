@@ -58,7 +58,7 @@ export default function LoginPage() {
         // Force refresh of the token to get custom claims RIGHT after login
         const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
         const userRole = idTokenResult.claims.role || 'client';
-        const displayName = user.displayName || user.email.split('@')[0];
+        const displayName = user.displayName || user.email!.split('@')[0];
 
         localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', displayName);
@@ -84,11 +84,11 @@ export default function LoginPage() {
 
     } catch (error: any) {
         console.error("Login Error:", error);
-        let description = "Email ou mot de passe incorrect.";
+        let description = "Une erreur inconnue est survenue.";
         if (error.code === 'auth/too-many-requests') {
             description = "Compte temporairement bloqué en raison de trop nombreuses tentatives. Réessayez plus tard.";
-        } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-             description = "L'adresse email ou le mot de passe que vous avez entré est incorrect.";
+        } else if (error.code === 'auth/invalid-credential') {
+             description = "L'adresse email ou le mot de passe que vous avez entré est incorrect. Veuillez vérifier vos informations.";
         }
         toast({ variant: "destructive", title: "Erreur de connexion", description });
         setIsLoading(false);

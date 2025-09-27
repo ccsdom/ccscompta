@@ -143,39 +143,39 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                             )}
                             />
 
-                        {selectedRole === 'client' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField
+                                control={form.control}
+                                name="siret"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>SIRET</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="14 chiffres" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                            <FormField
+                                control={form.control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Téléphone</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="01 23 45 67 89" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground pt-2">Le mot de passe initial pour tous les nouveaux utilisateurs est "password". Ils seront invités à le changer.</p>
+
+                        {selectedRole === 'client' && (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormField
-                                        control={form.control}
-                                        name="siret"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>SIRET</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="14 chiffres" {...field} />
-                                            </FormControl>
-                                            <FormDescription>
-                                                Ce champ servira de mot de passe initial.
-                                            </FormDescription>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )}
-                                        />
-                                    <FormField
-                                        control={form.control}
-                                        name="phone"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Téléphone</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="01 23 45 67 89" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )}
-                                        />
-                                </div>
                                 <FormField
                                     control={form.control}
                                     name="address"
@@ -221,8 +221,6 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                         />
                                 </div>
                             </>
-                        ) : (
-                             <p className="text-sm text-muted-foreground">Le mot de passe initial pour les employés est "password". Ils seront invités à le changer.</p>
                         )}
 
 

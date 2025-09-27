@@ -36,11 +36,8 @@ export async function addClientProfile(
     const validatedData = AddClientInputSchema.parse(clientData);
     const { role, ...profileData } = validatedData;
     
-    // Determine password
-    let password = 'password'; // Default password for non-clients
-    if (validatedData.role === 'client' && validatedData.siret) {
-        password = validatedData.siret;
-    }
+    // Standardize initial password for all roles
+    const password = 'password';
 
     // Step 1: Create user in Firebase Auth
     const userRecord = await adminAuth.createUser({
