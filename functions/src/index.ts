@@ -51,7 +51,7 @@ export const createUserWithRole = onCall(async (request) => {
     }
 
     // 2. Get payload
-    const { email, password = 'password', ...profileData } = request.data;
+    const { email, password, ...profileData } = request.data;
     if (!email) {
       throw new HttpsError('invalid-argument', 'Email requis pour la création.');
     }
@@ -63,7 +63,7 @@ export const createUserWithRole = onCall(async (request) => {
         // 3. Create user in Firebase Auth
         const userRecord = await auth.createUser({
             email,
-            password,
+            password: password || 'password', // Default password if not provided
             emailVerified: true,
             disabled: false,
             displayName: profileData.name,
