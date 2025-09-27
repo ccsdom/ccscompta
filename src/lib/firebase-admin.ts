@@ -5,28 +5,17 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 let app: App;
 
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-  : null;
-
+// Simpler initialization to rely on Application Default Credentials
 try {
-  if (serviceAccount) {
-     app = getApps().length 
-      ? getApp('admin') 
-      : initializeApp({
-          credential: cert(serviceAccount),
-          projectId: serviceAccount.project_id
-        }, 'admin');
-  } else {
-     app = getApps().length 
-      ? getApp('admin') 
-      : initializeApp({
-          credential: applicationDefault(),
-        }, 'admin');
-  }
+  app = getApps().length 
+    ? getApp() 
+    : initializeApp({
+        credential: applicationDefault(),
+      });
 } catch (error) {
   console.error("Firebase Admin SDK initialization failed:", error);
   // Create a dummy app to avoid crashing the server on import
+  // This allows the app to run, although Firebase Admin features will fail.
   app = {
     name: 'admin',
     options: {},
