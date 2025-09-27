@@ -41,24 +41,23 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password = 'password';
-        if (data.role === 'client' && data.siret) {
-            password = data.siret;
-        } else if (data.role === 'client' && !data.siret) {
-            password = 'password123';
+        let password = 'password'; // Default for staff
+        if (data.role === 'client') {
+             // For clients, generate a more secure temporary password or use SIRET
+             password = data.siret && data.siret.length === 14 ? data.siret : `password${Math.floor(Math.random() * 1000)}`;
         }
         
         try {
             // Step 1: Create user in Firebase Auth (Client-side)
-            // This is the simplest way to get a user into the system.
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Call the server action to create the Firestore profile and set claims.
-            // This happens on the server with admin privileges.
-            const profileResult = await addClient(data);
+            // Step 2: Call the server action to create the Firestore profile and set claims, passing the new UID.
+            const profileResult = await addClient({ uid: user.uid, ...data });
 
             if (!profileResult.success) {
+                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
+                // For now, we'll just throw the specific error.
                 throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
             }
 
@@ -72,7 +71,7 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>.
+                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
                             </AlertDescription>
                         </Alert>
                     </div>
@@ -85,7 +84,7 @@ export default function NewClientPage() {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
             if (error.code === 'auth/email-already-in-use') {
-                errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez utiliser un autre email.";
+                errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez supprimer l'ancien compte depuis la console Firebase ou utiliser un autre email.";
             } else if (error.code === 'auth/weak-password') {
                 errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
             } else {

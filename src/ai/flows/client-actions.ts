@@ -14,6 +14,7 @@ type ServerActionResponse<T> =
   | { success: false; error: string };
 
 const AddClientInputSchema = z.object({
+  uid: z.string().min(1, "L'UID de l'utilisateur est requis."),
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
   siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional().or(z.literal('')),
   email: z.string().email("Email invalide."),
@@ -33,28 +34,17 @@ export async function addClient(
   
   try {
     const validatedData = AddClientInputSchema.parse(clientData);
-
-    const { email, role, siret, ...profileData } = validatedData;
+    const { uid, role, siret, ...profileData } = validatedData;
     
-    // NOTE: This server action now REQUIRES the user to be created on the client-side first.
-    // This action's primary role is now to create the Firestore profile and set custom claims.
-
-    let userRecord;
-    try {
-        userRecord = await adminAuth.getUserByEmail(email);
-    } catch (error) {
-        return { success: false, error: 'L\'utilisateur d\'authentification correspondant à cet email n\'a pas été trouvé. Assurez-vous que le compte a été créé avant d\'appeler cette fonction.' };
-    }
-
-    // 1. Set custom claim for role
-    await adminAuth.setCustomUserClaims(userRecord.uid, { role: role });
+    // 1. Set custom claim for role using the provided UID
+    await adminAuth.setCustomUserClaims(uid, { role: role });
 
     // 2. Create profile in Firestore
-    const clientDocRef = doc(db, 'clients', userRecord.uid);
+    const clientDocRef = doc(db, 'clients', uid);
     
     const docSnap = await getDoc(clientDocRef);
     if (docSnap.exists()) {
-       console.log(`[Client Action] Profile for user ${email} already exists. It will be overwritten.`);
+       console.log(`[Client Action] Profile for user ${uid} already exists. It will be overwritten.`);
     }
     
     const newUser: Omit<Client, 'id' | 'password'> = {
@@ -64,14 +54,17 @@ export async function addClient(
       status: 'onboarding',
     };
     
+    // Explicitly remove uid from the object to be written to Firestore doc
+    const { uid: _, ...userForFirestore } = newUser;
+
     // Explicitly remove undefined fields to prevent Firestore errors
     const cleanUser = Object.fromEntries(
-        Object.entries(newUser).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        Object.entries(userForFirestore).filter(([_, v]) => v !== undefined && v !== null && v !== '')
     );
     
     await setDoc(clientDocRef, cleanUser);
     
-    console.log("[Client Action] User profile created/updated with ID:", userRecord.uid);
+    console.log("[Client Action] User profile created/updated with ID:", uid);
     
     const finalDoc = await getDoc(clientDocRef);
 
@@ -79,7 +72,7 @@ export async function addClient(
         success: true, 
         data: { 
             ...(finalDoc.data() as Client),
-            id: userRecord.uid
+            id: uid
         }
     };
 
