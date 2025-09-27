@@ -89,12 +89,18 @@ export async function addClient(
   }
 }
 
-export async function getClients(): Promise<Client[]> {
-    console.log("[Firestore] Fetching all user profiles (clients and staff).");
+export async function getClients(cabinetId?: string): Promise<Client[]> {
+    console.log(`[Firestore] Fetching user profiles (clients and staff)${cabinetId ? ` for cabinet ${cabinetId}` : ''}.`);
     try {
-        const snapshot = await getDocs(collection(db, 'clients'));
+        let q = collection(db, 'clients');
+        if (cabinetId) {
+            q = query(q, where('cabinetId', '==', cabinetId));
+        }
+
+        const snapshot = await getDocs(q);
         
-        if (snapshot.empty && MOCK_CLIENTS.length > 0) {
+        // Seeding logic should probably not be tied to a specific cabinet query
+        if (snapshot.empty && MOCK_CLIENTS.length > 0 && !cabinetId) {
             console.log("No users found in Firestore, seeding with mock data...");
             const batch = writeBatch(db);
 
@@ -239,5 +245,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return MOCK_ACCOUNTANTS;
     }
 }
-
-    

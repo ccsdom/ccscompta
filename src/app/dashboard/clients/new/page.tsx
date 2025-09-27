@@ -40,9 +40,12 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        const password = data.siret && data.siret.length === 14 
-            ? data.siret 
-            : `password${Math.floor(Math.random() * 1000)}`;
+        let password;
+        if (data.role === 'client') {
+            password = data.siret || `password${Math.floor(Math.random() * 1000)}`;
+        } else {
+            password = 'password';
+        }
         
         try {
             // Step 1: Create user in Firebase Auth (Client-side)
@@ -74,11 +77,15 @@ export default function NewClientPage() {
                                 Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
                             </AlertDescription>
                         </Alert>
-                        <p className="text-xs pt-2">Vous pouvez maintenant vous connecter avec ce compte et vous assigner le rôle "Admin" depuis la page des paramètres.</p>
                     </div>
                 ),
             });
-            router.push('/login');
+            // Redirect back to the list of cabinets or clients
+            if (data.cabinetId) {
+                router.push(`/dashboard/cabinets/${data.cabinetId}`);
+            } else {
+                router.push('/dashboard/clients');
+            }
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
@@ -101,15 +108,14 @@ export default function NewClientPage() {
     }
     
     const handleCompanySelect = (company: ExtractClientDataOutput | null) => {
+        const currentParams = new URLSearchParams(searchParams.toString());
         if (company) {
-             const queryParams = new URLSearchParams();
              Object.entries(company).forEach(([key, value]) => {
-                if(value) queryParams.set(key, value);
+                if(value) currentParams.set(key, value);
              });
-             router.replace(`/dashboard/clients/new?${queryParams.toString()}`);
-        } else {
-            router.replace('/dashboard/clients/new');
-        }
+        } 
+        // We only add, we don't remove if company is null
+        router.replace(`/dashboard/clients/new?${currentParams.toString()}`);
     }
 
     return (
@@ -123,7 +129,7 @@ export default function NewClientPage() {
                 <CompanySearchCombobox onCompanySelect={handleCompanySelect} />
             </div>
             <ClientForm 
-                key={initialData?.siret || 'new'}
+                key={initialData?.siret || initialData?.cabinetId || 'new'}
                 onSave={handleSave} 
                 isSubmitting={isSubmitting} 
                 initialData={initialData}

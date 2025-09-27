@@ -9,6 +9,7 @@ import { getCabinets, getCabinetUserCount } from '@/ai/flows/cabinet-actions';
 import type { Cabinet } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 export default function CabinetsPage() {
     const [cabinets, setCabinets] = useState<(Cabinet & { userCount: number })[]>([]);
@@ -69,7 +70,9 @@ export default function CabinetsPage() {
                                     <span className="text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/>Utilisateurs:</span>
                                     <span className="font-semibold">{cabinet.userCount}</span>
                                 </div>
-                                <Button className="w-full mt-2" disabled>Gérer le cabinet</Button>
+                                <Button className="w-full mt-2" asChild>
+                                  <Link href={`/dashboard/cabinets/${cabinet.id}`}>Gérer le cabinet</Link>
+                                </Button>
                             </CardContent>
                         </Card>
                     ))}
@@ -93,5 +96,3 @@ export default function CabinetsPage() {
         </div>
     );
 }
-
-    

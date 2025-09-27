@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase-client';
-import { collection, getDocs, addDoc, query, where, getCountFromServer } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import type { Cabinet } from '@/lib/types';
 import { z } from 'zod';
 
@@ -76,6 +76,21 @@ export async function getCabinets(): Promise<Cabinet[]> {
     } catch (error) {
         console.error("Error fetching cabinets:", error);
         return [];
+    }
+}
+
+export async function getCabinetById(id: string): Promise<Cabinet | null> {
+    console.log(`[Firestore] Fetching cabinet by ID: ${id}`);
+    try {
+        const docRef = doc(db, 'cabinets', id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            return null;
+        }
+        return { id: docSnap.id, ...docSnap.data() } as Cabinet;
+    } catch(error) {
+        console.error(`Error fetching cabinet ${id}:`, error);
+        return null;
     }
 }
 
