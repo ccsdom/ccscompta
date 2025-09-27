@@ -11,9 +11,9 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { addClientProfile } from '@/ai/flows/client-actions';
-import { auth } from '@/lib/firebase-client';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type IdTokenResult } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase-client';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 
 export default function NewClientPage() {
@@ -38,14 +38,28 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
+        const password = 'password';
         
         try {
-            // This server action now handles Auth creation, claim setting, and profile creation.
-            const result = await addClientProfile(data);
+            // Step 1: Create user in Firebase Auth (client-side)
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
+            const user = userCredential.user;
 
-            if (!result.success) {
-                throw new Error(result.error);
-            }
+            // Step 2: Create profile in Firestore (client-side)
+            const { ...profileData } = data;
+             const clientDocRef = doc(db, 'clients', user.uid);
+             const newUser: Omit<Client, 'id'| 'uid'> = {
+                ...profileData,
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+                status: 'onboarding',
+            };
+
+            const cleanUser = Object.fromEntries(
+                Object.entries(newUser).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+            );
+
+            await setDoc(clientDocRef, cleanUser);
 
             toast({
                 duration: 10000,
@@ -57,22 +71,24 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>{result.password}</strong>
+                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
                             </AlertDescription>
                         </Alert>
+                        <p className="text-xs text-muted-foreground">Note: Pour assigner un rôle (Comptable, Admin), vous devez déployer les Cloud Functions et utiliser l'option dans les paramètres.</p>
                     </div>
                 ),
             });
             
-            // Stay on the admin session and redirect to the clients list.
             router.push('/dashboard/clients');
             router.refresh();
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-            if (error.message) {
-                 errorMessage = error.message;
+             if (error.code === 'auth/email-already-exists') {
+                errorMessage = 'Un compte avec cette adresse email existe déjà.';
+            } else if (error.code === 'auth/invalid-password') {
+                errorMessage = `Le mot de passe fourni n'est pas valide. Il doit comporter au moins 6 caractères.`;
             }
             toast({
                 variant: 'destructive',
