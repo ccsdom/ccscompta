@@ -15,13 +15,6 @@ initializeApp();
 
 /**
  * An onCall Cloud Function that allows a user to grant themselves the 'admin' role.
- *
- * This function performs the following steps:
- * 1. Checks if the user calling the function is authenticated.
- * 2. Sets a custom user claim `role: 'admin'`.
- * 3. Updates the user's profile in the 'clients' Firestore collection with `role: 'admin'`.
- * 4. Returns a success message.
- *
  * This function should ideally be protected to only allow the first user or a specific set of users
  * to call it, but for initial setup, it allows any authenticated user to become an admin.
  */
@@ -50,25 +43,21 @@ export const setAdminRole = onCall({ cors: true }, async (request) => {
     }
 });
 
+
 /**
  * An onCall Cloud Function to create a new user with a specific role.
- *
- * This function performs the following steps:
- * 1. Checks if the caller is an admin.
- * 2. Creates a new user in Firebase Authentication.
- * 3. Sets a custom user claim for the specified role.
- * 4. Creates a corresponding user profile document in Firestore.
+ * This is the recommended approach as it centralizes logic and handles CORS automatically.
  */
 export const createUserWithRole = onCall({ cors: true }, async (request) => {
     // 1. Check if the caller is an admin
     if (request.auth?.token.role !== 'admin') {
-         throw new HttpsError('permission-denied', 'Seul un administrateur peut créer des utilisateurs.');
+         throw new HttpsError('permission-denied', 'Seul un administrateur peut effectuer cette action.');
     }
 
     const { email, password, ...profileData } = request.data;
     
     if (!email || !password) {
-        throw new HttpsError('invalid-argument', 'Email et mot de passe sont requis.');
+        throw new HttpsError('invalid-argument', 'Email et mot de passe sont requis pour la création.');
     }
 
     const db = getFirestore();
@@ -79,7 +68,7 @@ export const createUserWithRole = onCall({ cors: true }, async (request) => {
         const userRecord = await auth.createUser({
             email,
             password,
-            emailVerified: true, // Set to true for simplicity, can be false to require email verification
+            emailVerified: true,
             disabled: false,
             displayName: profileData.name,
         });
@@ -92,24 +81,28 @@ export const createUserWithRole = onCall({ cors: true }, async (request) => {
         
         // 4. Create the user profile in Firestore
         const userDocRef = db.collection('clients').doc(uid);
-        const newUserProfile = {
+        await userDocRef.set({
             ...profileData,
+            email, // ensure email is stored in firestore
+            role, // ensure role is stored in firestore
             newDocuments: 0,
             lastActivity: new Date().toISOString(),
             status: 'onboarding',
-        };
-        await userDocRef.set(newUserProfile);
+        });
         
         console.log(`Successfully created user ${uid} with role ${role}.`);
         return { success: true, uid: userRecord.uid, message: "Utilisateur créé avec succès." };
 
     } catch(error: any) {
         console.error('Error creating new user:', error);
-        let message = "Une erreur est survenue lors de la création de l'utilisateur.";
+        // Provide more specific error messages to the client
         if (error.code === 'auth/email-already-exists') {
-            message = "Un compte avec cette adresse email existe déjà."
+            throw new HttpsError('already-exists', "Un compte avec cette adresse email existe déjà.");
         }
-        // Instead of throwing a generic error, throw a specific HttpsError
-        throw new HttpsError('internal', message, error);
+         if (error.code === 'auth/invalid-password') {
+            throw new HttpsError('invalid-argument', "Le mot de passe doit comporter au moins 6 caractères.");
+        }
+        // Generic internal error for other cases
+        throw new HttpsError('internal', "Une erreur est survenue lors de la création de l'utilisateur.", error.message);
     }
 });
