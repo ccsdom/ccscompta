@@ -26,43 +26,21 @@ const AddClientInputSchema = z.object({
   assignedAccountantId: z.string().optional(),
   cabinetId: z.string().optional(),
   password: z.string().optional(),
+  uid: z.string(), // UID from the client-created auth user
 });
 
 
-export async function addClient(
-  clientData: Omit<z.infer<typeof AddClientInputSchema>, 'uid'>
+export async function addClientProfile(
+  clientData: z.infer<typeof AddClientInputSchema>
 ): Promise<ServerActionResponse<Client>> {
   console.log("[Client Action] SERVER-SIDE: Adding user profile:", clientData.name);
   
   try {
     // 1. Validate incoming data
-    const validatedData = AddClientInputSchema.omit({uid: true}).parse(clientData);
-    const { role, ...profileData } = validatedData;
+    const validatedData = AddClientInputSchema.parse(clientData);
+    const { role, uid, password, ...profileData } = validatedData;
     
-    // 2. Determine password
-    let password = validatedData.password;
-    if (!password) {
-        if (role === 'client' && validatedData.siret) {
-            password = validatedData.siret;
-        } else {
-            password = `password${Math.floor(Math.random() * 1000)}`;
-        }
-    }
-
-    // 3. Create user in Firebase Auth using Admin SDK
-    const userRecord = await adminAuth.createUser({
-        email: validatedData.email,
-        password: password,
-        displayName: validatedData.name,
-        emailVerified: true,
-        disabled: false
-    });
-    const uid = userRecord.uid;
-
-    // 4. Set custom claims for the role
-    await adminAuth.setCustomUserClaims(uid, { role: role });
-
-    // 5. Create profile in Firestore
+    // 2. Create profile in Firestore using the UID from the client
     const clientDocRef = doc(db, 'clients', uid);
     const newUser: Omit<Client, 'id'| 'uid'> = {
       ...profileData,
@@ -79,7 +57,7 @@ export async function addClient(
     
     await setDoc(clientDocRef, cleanUser);
     
-    console.log("[Client Action] SERVER-SIDE: User profile and Auth account created with ID:", uid);
+    console.log("[Client Action] SERVER-SIDE: User profile created with ID:", uid);
     
     const finalDoc = await getDoc(clientDocRef);
 
@@ -89,26 +67,15 @@ export async function addClient(
             ...(finalDoc.data() as Client),
             id: uid
         },
-        password: password // Return the generated password
     };
 
   } catch (error: any) {
-    console.error('[Client Action] SERVER-SIDE: Error adding user:', error);
+    console.error('[Client Action] SERVER-SIDE: Error adding user profile:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
-    // Handle specific errors that might occur if the Admin SDK is not configured
-    if (error.code === 'auth/email-already-exists') {
-        return { success: false, error: 'Un compte avec cet email existe déjà.'}
-    }
-    if (error.code === 'auth/invalid-password') {
-        return { success: false, error: `Le mot de passe doit contenir au moins 6 caractères.`}
-    }
-     if (error.message && error.message.includes('access token')) {
-       return { success: false, error: "Erreur de configuration du serveur : Les permissions d'administration Firebase ne sont pas correctement configurées. Veuillez suivre la procédure de configuration de l'administrateur dans les Paramètres."};
-    }
-
-    const errorMessage = error.message ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
+    
+    const errorMessage = error.message ? error.message : 'Erreur inconnue lors de l\'ajout du profil utilisateur.';
     return { success: false, error: errorMessage };
   }
 }
@@ -123,49 +90,37 @@ export async function getClients(cabinetId?: string): Promise<Client[]> {
 
         const snapshot = await getDocs(q);
         
-        // Seeding logic should probably not be tied to a specific cabinet query
         if (snapshot.empty && MOCK_CLIENTS.length > 0 && !cabinetId) {
             console.log("No users found in Firestore, seeding with mock data...");
             const batch = writeBatch(db);
 
             for (const client of MOCK_CLIENTS) {
                 try {
+                     // Try to delete user if exists, to ensure clean state
+                    try {
+                        const existingUser = await adminAuth.getUserByEmail(client.email);
+                        await adminAuth.deleteUser(existingUser.uid);
+                    } catch (e) {
+                        // Ignore if user does not exist
+                    }
+
                     const userRecord = await adminAuth.createUser({
                         email: client.email,
-                        password: client.password, // This is crucial for login
+                        password: client.password,
                         emailVerified: true,
                         disabled: false,
                         displayName: client.name,
                     });
                     
-                    // Set their role via custom claims
                     await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
                     
-                    // ALWAYS set Firestore doc to ensure consistency
                     const docRef = doc(db, 'clients', userRecord.uid);
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { id, password, ...clientData } = client; 
                     batch.set(docRef, clientData);
 
                 } catch (error: any) {
-                     if (error.code === 'auth/email-already-exists') {
-                         console.log(`Mock user ${client.email} already exists in Auth. Skipping Auth creation, ensuring Firestore doc is set.`);
-                         // If user exists, we can't be sure of the password, but we can ensure the Firestore doc is there.
-                         // This path is problematic and the "delete then create" is better. Let's try to get UID.
-                         try {
-                            const existingUser = await adminAuth.getUserByEmail(client.email);
-                            await adminAuth.setCustomUserClaims(existingUser.uid, { role: client.role });
-                            const docRef = doc(db, 'clients', existingUser.uid);
-                             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                            const { id, password, ...clientData } = client; 
-                            batch.set(docRef, clientData, {merge: true}); // Merge to not overwrite all data if it's already there
-                         } catch(e) {
-                             console.error(`Could not update existing mock user ${client.email}`, e);
-                         }
-
-                     } else {
-                        console.error(`Error seeding user ${client.email}:`, error.message);
-                     }
+                    console.error(`Error seeding user ${client.email}:`, error.message);
                 }
             }
             await batch.commit();

@@ -8,11 +8,13 @@ import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download, UserPlus, Ke
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/lib/types';
-import { addClient } from '@/ai/flows/client-actions';
+import { addClientProfile } from '@/ai/flows/client-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase-client';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
@@ -99,16 +101,32 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         let errorMessages: string[] = [];
         
         for (const clientData of parsedData) {
-            const result = await addClient({
-                ...clientData,
-                status: 'onboarding',
-            });
-            if (result.success) {
-                importedCount++;
-            } else {
+            try {
+                // Step 1: Create Auth user
+                const userCredential = await createUserWithEmailAndPassword(auth, clientData.email, clientData.siret!); // Use SIRET as password
+                const user = userCredential.user;
+
+                // Step 2: Create Firestore profile
+                const profileResult = await addClientProfile({
+                    ...clientData,
+                    uid: user.uid,
+                    role: 'client',
+                });
+
+                if (profileResult.success) {
+                    importedCount++;
+                } else {
+                     throw new Error(profileResult.error);
+                }
+
+            } catch (error: any) {
                 errorCount++;
-                errorMessages.push(`Erreur pour ${clientData.name}: ${result.error}`);
-                console.error(`Failed to import client ${clientData.name}: ${result.error}`);
+                let msg = `Erreur pour ${clientData.name}: ${error.message}`;
+                 if(error.code === 'auth/email-already-in-use') {
+                     msg = `L'email ${clientData.email} est déjà utilisé.`;
+                 }
+                errorMessages.push(msg);
+                console.error(`Failed to import client ${clientData.name}: ${error.message}`);
             }
         }
 
@@ -123,7 +141,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                              <KeyRound className="h-4 w-4" />
                              <AlertTitle>Mots de passe initiaux</AlertTitle>
                              <AlertDescription>
-                                Le mot de passe initial pour chaque client est son numéro de SIRET.
+                                Le mot de passe initial pour chaque client importé est son numéro de SIRET.
                              </AlertDescription>
                          </Alert>
                     </div>

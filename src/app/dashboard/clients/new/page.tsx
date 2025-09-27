@@ -11,7 +11,9 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { addClient } from '@/ai/flows/client-actions';
+import { addClientProfile } from '@/ai/flows/client-actions';
+import { auth } from '@/lib/firebase-client';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 
 export default function NewClientPage() {
@@ -38,12 +40,27 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         
         try {
-            // Call the server action which now handles EVERYTHING
-            // (Auth user creation, claims, and Firestore profile)
-            const result = await addClient(data);
+            // Determine password
+            let password = data.password;
+            if (!password) {
+                if (data.role === 'client' && data.siret) {
+                    password = data.siret;
+                } else {
+                    password = `password${Math.floor(Math.random() * 1000)}`;
+                }
+            }
 
-            if (!result.success) {
-                throw new Error(result.error);
+            // Step 1: Create user in Firebase Auth (client-side)
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
+            const user = userCredential.user;
+            
+            // Step 2: Call server action to create Firestore profile
+            const profileResult = await addClientProfile({ ...data, uid: user.uid });
+
+            if (!profileResult.success) {
+                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
+                // For now, we'll just throw the specific error.
+                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
             }
 
             toast({
@@ -56,12 +73,13 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>{result.password}</strong>
+                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
                             </AlertDescription>
                         </Alert>
                     </div>
                 ),
             });
+            
             // Redirect back to the list of cabinets or clients
             if (data.cabinetId) {
                 router.push(`/dashboard/cabinets/${data.cabinetId}`);
@@ -72,7 +90,13 @@ export default function NewClientPage() {
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-            if (error.message) {
+            if (error.code === 'auth/email-already-in-use') {
+                 errorMessage = 'Un compte avec cet email existe déjà.';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'L\'adresse email est invalide.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'Le mot de passe doit contenir au moins 6 caractères.';
+            } else if (error.message) {
                  errorMessage = error.message;
             }
             toast({
