@@ -83,6 +83,8 @@ export default function LoginPage() {
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        // Force refresh of the token to get custom claims RIGHT after login
+        await userCredential.user.getIdTokenResult(true);
         await performLogin(userCredential.user);
     } catch (error: any) {
         console.error("Login Error:", error);
