@@ -15,7 +15,7 @@ type ServerActionResponse<T> =
 
 const AddClientInputSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
-  siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional(),
+  siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional().or(z.literal('')),
   email: z.string().email("Email invalide."),
   phone: z.string().optional(),
   legalRepresentative: z.string().optional(),
