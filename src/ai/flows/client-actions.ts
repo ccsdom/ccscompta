@@ -158,7 +158,7 @@ export async function getClientById(id: string): Promise<Client | null> {
     }
 }
 
-export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id' | 'email'>>}): Promise<ServerActionResponse<Client>> {
+export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id'>>}): Promise<ServerActionResponse<Client>> {
     console.log(`[Firestore] Updating user profile ID: ${id}`);
     try {
          if (updates.siret) {
@@ -168,6 +168,10 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
              if (conflictingDoc) {
                 return { success: false, error: 'Un autre utilisateur utilise déjà ce SIRET.'};
             }
+        }
+        
+        if (updates.email) {
+             await adminAuth.updateUser(id, { email: updates.email });
         }
         
         // If the role is being updated, also update the custom claim
