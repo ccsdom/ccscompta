@@ -10,7 +10,7 @@ import { auth as adminAuth } from '@/lib/firebase-admin';
 
 type ServerActionResponse<T> =
   | { success: true; data: T, password?: string }
-  | { { success: false; error: string };
+  | { success: false; error: string };
 
 const AddClientInputSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
@@ -228,4 +228,3 @@ export async function getAccountants(): Promise<Accountant[]> {
         return MOCK_ACCOUNTANTS;
     }
 }
-
