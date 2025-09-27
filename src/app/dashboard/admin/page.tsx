@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Top 5 Clients les Plus Actifs</CardTitle>
+                        <CardTitle>Top 5 Clients les Plus Actifs (Global)</CardTitle>
                         <CardDescription>Clients avec le plus grand nombre de documents sur la plateforme.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -160,17 +160,14 @@ export default function AdminDashboardPage() {
                 <Card>
                      <CardHeader>
                         <CardTitle>Actions Administrateur</CardTitle>
-                        <CardDescription>Gérez la plateforme et ses utilisateurs.</CardDescription>
+                        <CardDescription>Gérez la plateforme, les cabinets et les paramètres globaux.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
-                        <p className="text-sm text-muted-foreground">
-                            Les fonctionnalités de gestion des cabinets, des utilisateurs administrateurs et des paramètres globaux de la plateforme seront bientôt disponibles ici.
-                        </p>
                         <Button asChild>
-                            <Link href="/dashboard/clients">Gérer tous les clients</Link>
+                            <Link href="/dashboard/cabinets">Gérer les cabinets</Link>
                         </Button>
                          <Button variant="outline" asChild>
-                            <Link href="/dashboard/settings">Accéder aux paramètres</Link>
+                            <Link href="/dashboard/settings">Accéder aux paramètres globaux</Link>
                         </Button>
                     </CardContent>
                 </Card>
