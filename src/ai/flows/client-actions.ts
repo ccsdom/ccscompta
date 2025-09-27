@@ -15,7 +15,6 @@ type ServerActionResponse<T> =
   | { success: false; error: string };
 
 const AddClientInputSchema = z.object({
-  uid: z.string().min(1, "L'UID de l'utilisateur est requis."),
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
   siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional().or(z.literal('')),
   email: z.string().email("Email invalide."),
@@ -31,43 +30,56 @@ const AddClientInputSchema = z.object({
 
 
 export async function addClient(
-  clientData: z.infer<typeof AddClientInputSchema>
+  clientData: Omit<z.infer<typeof AddClientInputSchema>, 'uid'>
 ): Promise<ServerActionResponse<Client>> {
-  console.log("[Client Action] Adding user profile:", clientData.name);
+  console.log("[Client Action] SERVER-SIDE: Adding user profile:", clientData.name);
   
   try {
-    const validatedData = AddClientInputSchema.parse(clientData);
-    const { uid, role, ...profileData } = validatedData;
+    // 1. Validate incoming data
+    const validatedData = AddClientInputSchema.omit({uid: true}).parse(clientData);
+    const { role, ...profileData } = validatedData;
     
-    // 1. Set custom claim for role using the provided UID
+    // 2. Determine password
+    let password = validatedData.password;
+    if (!password) {
+        if (role === 'client' && validatedData.siret) {
+            password = validatedData.siret;
+        } else {
+            password = `password${Math.floor(Math.random() * 1000)}`;
+        }
+    }
+
+    // 3. Create user in Firebase Auth using Admin SDK
+    const userRecord = await adminAuth.createUser({
+        email: validatedData.email,
+        password: password,
+        displayName: validatedData.name,
+        emailVerified: true,
+        disabled: false
+    });
+    const uid = userRecord.uid;
+
+    // 4. Set custom claims for the role
     await adminAuth.setCustomUserClaims(uid, { role: role });
 
-    // 2. Create profile in Firestore
+    // 5. Create profile in Firestore
     const clientDocRef = doc(db, 'clients', uid);
-    
-    const docSnap = await getDoc(clientDocRef);
-    if (docSnap.exists()) {
-       console.log(`[Client Action] Profile for user ${uid} already exists. It will be overwritten.`);
-    }
-    
-    const newUser: Omit<Client, 'id' | 'password'> = {
-      ...validatedData,
+    const newUser: Omit<Client, 'id'| 'uid'> = {
+      ...profileData,
+      role, // include role in the document
       newDocuments: 0,
       lastActivity: new Date().toISOString(),
       status: 'onboarding',
     };
     
-    // Explicitly remove uid from the object to be written to Firestore doc
-    const { uid: _, ...userForFirestore } = newUser;
-
     // Explicitly remove undefined fields to prevent Firestore errors
     const cleanUser = Object.fromEntries(
-        Object.entries(userForFirestore).filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        Object.entries(newUser).filter(([_, v]) => v !== undefined && v !== null && v !== '')
     );
     
     await setDoc(clientDocRef, cleanUser);
     
-    console.log("[Client Action] User profile created/updated with ID:", uid);
+    console.log("[Client Action] SERVER-SIDE: User profile and Auth account created with ID:", uid);
     
     const finalDoc = await getDoc(clientDocRef);
 
@@ -76,15 +88,24 @@ export async function addClient(
         data: { 
             ...(finalDoc.data() as Client),
             id: uid
-        }
+        },
+        password: password // Return the generated password
     };
 
-  } catch (error) {
-    console.error('[Client Action] Error adding user profile:', error);
+  } catch (error: any) {
+    console.error('[Client Action] SERVER-SIDE: Error adding user:', error);
     if (error instanceof z.ZodError) {
         return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
     }
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout du profil utilisateur.';
+    // Handle Firebase Auth errors specifically
+    if (error.code === 'auth/email-already-exists') {
+        return { success: false, error: 'Un compte avec cet email existe déjà.'}
+    }
+    if (error.code === 'auth/invalid-password') {
+        return { success: false, error: `Le mot de passe doit contenir au moins 6 caractères.`}
+    }
+
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
     return { success: false, error: errorMessage };
   }
 }

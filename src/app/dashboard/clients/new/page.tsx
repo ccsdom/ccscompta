@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import { ClientForm, formSchema } from "../client-form";
@@ -12,8 +11,6 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth as clientAuth } from "@/lib/firebase-client";
 import { addClient } from '@/ai/flows/client-actions';
 
 
@@ -40,28 +37,13 @@ export default function NewClientPage() {
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
         
-        let password;
-        if (data.role === 'client') {
-            password = data.siret || `password${Math.floor(Math.random() * 1000)}`;
-        } else {
-            password = 'password';
-        }
-        
         try {
-            // Step 1: Create user in Firebase Auth (Client-side)
-            const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
-            const user = userCredential.user;
+            // Call the server action which now handles EVERYTHING
+            // (Auth user creation, claims, and Firestore profile)
+            const result = await addClient(data);
 
-            // Step 2: Call server action to create profile and set claims
-            const profileResult = await addClient({
-                ...data,
-                uid: user.uid,
-            });
-
-            if (!profileResult.success) {
-                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
-                // For now, we'll just throw the specific error.
-                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
+            if (!result.success) {
+                throw new Error(result.error);
             }
 
             toast({
@@ -74,7 +56,7 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
+                                Le mot de passe initial de l'utilisateur est : <strong>{result.password}</strong>
                             </AlertDescription>
                         </Alert>
                     </div>
@@ -90,10 +72,8 @@ export default function NewClientPage() {
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = "Un compte utilisateur avec cet email existe déjà. Veuillez supprimer l'ancien compte depuis la console Firebase ou utiliser un autre email.";
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
+            if (error.message.includes('auth/email-already-exists')) {
+                errorMessage = "Un compte utilisateur avec cet email existe déjà.";
             } else {
                 errorMessage = error.message;
             }
