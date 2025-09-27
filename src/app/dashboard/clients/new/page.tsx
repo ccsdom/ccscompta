@@ -11,8 +11,7 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { getFunctions, httpsCallable, HttpsCallable } from "firebase/functions";
-import { app } from "@/lib/firebase-client";
+import { auth } from "@/lib/firebase-client";
 
 
 export default function NewClientPage() {
@@ -39,11 +38,26 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         
         try {
-            const functions = getFunctions(app, 'us-central1');
-            const createUserWithRole: HttpsCallable<any, any> = httpsCallable(functions, 'createUserWithRole');
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("Authentification requise.");
+            }
+            const idToken = await user.getIdToken();
+
+            const response = await fetch(`https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/createUserWithRole`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify(data),
+            });
             
-            // The password will be defaulted to 'password' on the server-side if not provided
-            const result = await createUserWithRole({ ...data });
+            const result = await response.json();
+
+            if (!response.ok) {
+                 throw new Error(result.error || `Erreur HTTP: ${response.status}`);
+            }
 
             toast({
                 duration: 10000,
