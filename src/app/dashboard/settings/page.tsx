@@ -71,12 +71,13 @@ export default function SettingsPage() {
     const handleProfileSave = (e: React.FormEvent) => {
         e.preventDefault();
         localStorage.setItem('userName', userName);
+        localStorage.setItem('userEmail', userEmail);
         if (userUid) {
-            updateClient({ id: userUid, updates: { name: userName } });
+            updateClient({ id: userUid, updates: { name: userName, email: userEmail } });
         }
         toast({
             title: "Profil enregistré",
-            description: "Votre nom a été mis à jour.",
+            description: "Vos informations ont été mises à jour.",
         });
         window.dispatchEvent(new Event('storage'));
     }
@@ -200,7 +201,7 @@ export default function SettingsPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="email">Email</Label>
-                                        <Input id="email" type="email" value={userEmail} readOnly disabled/>
+                                        <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} />
                                     </div>
                                 </div>
                             </CardContent>
@@ -326,7 +327,7 @@ export default function SettingsPage() {
                                 </CardContent>
                                  <CardFooter className="border-t px-6 py-4 justify-end">
                                     <Button onClick={handleAutomationSave}>Enregistrer</Button>
-                                </CardFooter>
+                                 </CardFooter>
                             </Card>
                         </TabsContent>
                         

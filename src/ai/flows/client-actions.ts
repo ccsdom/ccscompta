@@ -157,7 +157,7 @@ export async function getClientById(id: string): Promise<Client | null> {
     }
 }
 
-export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id' | 'email'>>}): Promise<ServerActionResponse<Client>> {
+export async function updateClient({id, updates}: {id: string, updates: Partial<Omit<Client, 'id'>>}): Promise<ServerActionResponse<Client>> {
     console.log(`[Firestore] Updating user profile ID: ${id}`);
     try {
          if (updates.siret) {
