@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { z } from 'zod';
@@ -12,7 +10,7 @@ import { auth as adminAuth } from '@/lib/firebase-admin';
 
 type ServerActionResponse<T> =
   | { success: true; data: T, password?: string }
-  | { success: false; error: string };
+  | { { success: false; error: string };
 
 const AddClientInputSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
@@ -40,7 +38,11 @@ export async function addClientProfile(
     const validatedData = AddClientInputSchema.parse(clientData);
     const { role, uid, password, ...profileData } = validatedData;
     
-    // 2. Create profile in Firestore using the UID from the client
+    // 2. Set custom claim for the user's role
+    await adminAuth.setCustomUserClaims(uid, { role: role });
+    console.log(`[Client Action] SERVER-SIDE: Custom claim '${role}' set for user ${uid}`);
+    
+    // 3. Create profile in Firestore using the UID from the client
     const clientDocRef = doc(db, 'clients', uid);
     const newUser: Omit<Client, 'id'| 'uid'> = {
       ...profileData,
@@ -226,3 +228,4 @@ export async function getAccountants(): Promise<Accountant[]> {
         return MOCK_ACCOUNTANTS;
     }
 }
+
