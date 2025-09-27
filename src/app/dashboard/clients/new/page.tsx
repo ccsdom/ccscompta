@@ -1,4 +1,3 @@
-
 'use client'
 
 import { ClientForm, formSchema } from "../client-form";
@@ -11,7 +10,8 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { auth } from "@/lib/firebase-client";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getApp } from "firebase/app";
 
 
 export default function NewClientPage() {
@@ -38,25 +38,15 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         
         try {
-            const user = auth.currentUser;
-            if (!user) {
-                throw new Error("Authentification requise.");
-            }
-            const idToken = await user.getIdToken();
-
-            const response = await fetch(`https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/createUserWithRole`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify(data),
-            });
+            const functions = getFunctions(getApp());
+            const createUserWithRole = httpsCallable(functions, 'createUserWithRole');
             
-            const result = await response.json();
+            const result = await createUserWithRole(data);
+            const resultData = result.data as { success: boolean; message: string };
 
-            if (!response.ok) {
-                 throw new Error(result.error || `Erreur HTTP: ${response.status}`);
+
+            if (!resultData.success) {
+                 throw new Error(resultData.message || `Erreur lors de la création.`);
             }
 
             toast({

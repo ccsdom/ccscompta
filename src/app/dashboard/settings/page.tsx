@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from "react";
@@ -20,6 +19,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { updateClient } from "@/ai/flows/client-actions";
 import { useRouter } from "next/navigation";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getApp } from "firebase/app";
 
 
 export default function SettingsPage() {
@@ -125,21 +126,14 @@ export default function SettingsPage() {
      const handleSetAdminRole = async () => {
         setIsAdminRoleLoading(true);
         try {
-            const user = clientAuth.currentUser;
-            if (!user) {
-                throw new Error("Authentification requise pour cette action.");
-            }
-            const idToken = await user.getIdToken();
-            const response = await fetch(`https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/setAdminRole`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                }
-            });
+            const functions = getFunctions(getApp());
+            const setAdminRoleFunc = httpsCallable(functions, 'setAdminRole');
 
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.error || `HTTP error! status: ${response.status}`);
+            const result = await setAdminRoleFunc();
+            const data = result.data as { success: boolean, message: string };
+
+            if (!data.success) {
+                throw new Error(data.message || 'Une erreur est survenue.');
             }
             
             toast({
@@ -152,18 +146,10 @@ export default function SettingsPage() {
 
         } catch (error: any) {
             console.error(error);
-            let errorMessage = "Une erreur inconnue est survenue.";
-            if (error.message.includes('401')) {
-                errorMessage = "Vous devez être connecté pour effectuer cette action.";
-            } else if (error.message.includes('403')) {
-                errorMessage = "Vous n'avez pas les permissions nécessaires.";
-            } else if (error.message) {
-                 errorMessage = error.message;
-            }
             toast({
                 variant: 'destructive',
                 title: 'Erreur',
-                description: errorMessage,
+                description: error.message || "Une erreur inconnue est survenue lors de l'assignation du rôle.",
             });
         } finally {
             setIsAdminRoleLoading(false);
