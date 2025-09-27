@@ -66,7 +66,7 @@ export default function CabinetsPage() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground flex items-center gap-2"><Briefcase className="h-4 w-4"/>Utilisateurs:</span>
+                                    <span className="text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/>Utilisateurs:</span>
                                     <span className="font-semibold">{cabinet.userCount}</span>
                                 </div>
                                 <Button className="w-full mt-2" disabled>Gérer le cabinet</Button>
@@ -93,3 +93,5 @@ export default function CabinetsPage() {
         </div>
     );
 }
+
+    
