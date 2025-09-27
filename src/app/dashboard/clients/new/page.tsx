@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
 import { addClientProfile } from '@/ai/flows/client-actions';
 import { auth } from '@/lib/firebase-client';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type IdTokenResult } from 'firebase/auth';
 
 
 export default function NewClientPage() {
@@ -41,26 +41,35 @@ export default function NewClientPage() {
         
         try {
             // Determine password
-            let password = data.password;
-            if (!password) {
-                if (data.role === 'client' && data.siret) {
-                    password = data.siret;
-                } else {
-                    password = `password${Math.floor(Math.random() * 1000)}`;
-                }
+            let password = 'password'; // Default password for non-clients
+            if (data.role === 'client' && data.siret) {
+                password = data.siret;
             }
 
             // Step 1: Create user in Firebase Auth (client-side)
             const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
             const user = userCredential.user;
             
-            // Step 2: Call server action to create Firestore profile
+            // Step 2: Call server action to create Firestore profile and set custom claim
             const profileResult = await addClientProfile({ ...data, uid: user.uid });
 
             if (!profileResult.success) {
-                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
-                // For now, we'll just throw the specific error.
-                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
+                throw new Error(`Le profil a échoué: ${profileResult.error}`);
+            }
+
+            // Step 3: Sign in with the new user to get the custom claim and redirect properly
+            const loginCredential = await signInWithEmailAndPassword(auth, data.email, password);
+            const idTokenResult: IdTokenResult = await loginCredential.user.getIdTokenResult(true);
+            const userRole = idTokenResult.claims.role || 'client';
+            
+            localStorage.setItem('userRole', userRole);
+            localStorage.setItem('userName', loginCredential.user.displayName || data.name);
+            localStorage.setItem('userEmail', loginCredential.user.email!);
+            
+            if (userRole === 'client') {
+                localStorage.setItem('selectedClientId', loginCredential.user.uid);
+            } else {
+                localStorage.removeItem('selectedClientId');
             }
 
             toast({
@@ -68,7 +77,7 @@ export default function NewClientPage() {
                 title: "Utilisateur créé avec succès !",
                 description: (
                     <div className="space-y-2">
-                        <p>Le profil et le compte de connexion pour <strong>{data.name}</strong> ont été créés.</p>
+                        <p>Le compte pour <strong>{data.name}</strong> a été créé.</p>
                          <Alert variant="default">
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
@@ -80,12 +89,17 @@ export default function NewClientPage() {
                 ),
             });
             
-            // Redirect back to the list of cabinets or clients
-            if (data.cabinetId) {
-                router.push(`/dashboard/cabinets/${data.cabinetId}`);
-            } else {
-                router.push('/dashboard/clients');
+             let targetPath: string;
+            switch (userRole) {
+                case 'admin': targetPath = '/dashboard/admin'; break;
+                case 'accountant': targetPath = '/dashboard/accountant'; break;
+                case 'secretary': targetPath = '/dashboard/secretary'; break;
+                case 'client': targetPath = '/dashboard/my-documents'; break;
+                default: targetPath = '/dashboard';
             }
+            
+            window.dispatchEvent(new Event('storage'));
+            router.push(targetPath);
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
@@ -116,7 +130,6 @@ export default function NewClientPage() {
                 if(value) currentParams.set(key, value);
              });
         } 
-        // We only add, we don't remove if company is null
         router.replace(`/dashboard/clients/new?${currentParams.toString()}`);
     }
 

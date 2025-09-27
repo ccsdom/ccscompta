@@ -47,45 +47,41 @@ export default function LoginPage() {
     clearState();
   }, []);
 
-  const performLogin = async (user: any) => {
-      // Force refresh to get custom claims
-      const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
-      const userRole = idTokenResult.claims.role || 'client';
-      const displayName = user.displayName || user.email.split('@')[0];
-
-      localStorage.setItem('userRole', userRole);
-      localStorage.setItem('userName', displayName);
-      localStorage.setItem('userEmail', user.email);
-      
-      if (userRole === 'client') {
-          localStorage.setItem('selectedClientId', user.uid);
-      } else {
-          localStorage.removeItem('selectedClientId');
-      }
-      
-      let targetPath: string;
-      switch (userRole) {
-          case 'admin': targetPath = '/dashboard/admin'; break;
-          case 'accountant': targetPath = '/dashboard/accountant'; break;
-          case 'secretary': targetPath = '/dashboard/secretary'; break;
-          case 'client': targetPath = '/dashboard/my-documents'; break;
-          default: targetPath = '/dashboard';
-      }
-      
-      window.dispatchEvent(new Event('storage'));
-      router.push(targetPath);
-  }
-
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
         // Force refresh of the token to get custom claims RIGHT after login
-        await userCredential.user.getIdTokenResult(true);
-        await performLogin(userCredential.user);
+        const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
+        const userRole = idTokenResult.claims.role || 'client';
+        const displayName = user.displayName || user.email.split('@')[0];
+
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', displayName);
+        localStorage.setItem('userEmail', user.email!);
+        
+        if (userRole === 'client') {
+            localStorage.setItem('selectedClientId', user.uid);
+        } else {
+            localStorage.removeItem('selectedClientId');
+        }
+        
+        let targetPath: string;
+        switch (userRole) {
+            case 'admin': targetPath = '/dashboard/admin'; break;
+            case 'accountant': targetPath = '/dashboard/accountant'; break;
+            case 'secretary': targetPath = '/dashboard/secretary'; break;
+            case 'client': targetPath = '/dashboard/my-documents'; break;
+            default: targetPath = '/dashboard';
+        }
+        
+        window.dispatchEvent(new Event('storage'));
+        router.push(targetPath);
+
     } catch (error: any) {
         console.error("Login Error:", error);
         let description = "Email ou mot de passe incorrect.";
