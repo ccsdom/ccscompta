@@ -17,10 +17,11 @@ try {
   // Create a dummy app to avoid crashing the server on import
   // This allows the app to run, although Firebase Admin features will fail.
   app = {
-    name: 'admin',
+    name: '[DEFAULT]',
     options: {},
     auth: () => { throw new Error("Firebase Admin not initialized") },
     firestore: () => { throw new Error("Firebase Admin not initialized") },
+    // Add other methods you use if necessary
   } as unknown as App;
 }
 

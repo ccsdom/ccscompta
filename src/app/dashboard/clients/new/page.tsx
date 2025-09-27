@@ -72,10 +72,8 @@ export default function NewClientPage() {
         } catch (error: any) {
             console.error("Failed to add user:", error);
             let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-            if (error.message.includes('auth/email-already-exists')) {
-                errorMessage = "Un compte utilisateur avec cet email existe déjà.";
-            } else {
-                errorMessage = error.message;
+            if (error.message) {
+                 errorMessage = error.message;
             }
             toast({
                 variant: 'destructive',

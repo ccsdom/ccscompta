@@ -105,7 +105,7 @@ export async function addClient(
         return { success: false, error: `Le mot de passe doit contenir au moins 6 caractères.`}
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
+    const errorMessage = error.message ? error.message : 'Erreur inconnue lors de l\'ajout de l\'utilisateur.';
     return { success: false, error: errorMessage };
   }
 }
@@ -219,7 +219,6 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
         console.log(`[Firestore] User profile ${id} updated.`);
         return { success: true, data: updatedDoc };
     } catch(error) {
-        console.error(`Error updating user ${id}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue.';
         return { success: false, error: errorMessage};
     }
