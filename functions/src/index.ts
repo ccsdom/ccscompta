@@ -18,7 +18,7 @@ initializeApp();
  * This function should ideally be protected to only allow the first user or a specific set of users
  * to call it, but for initial setup, it allows any authenticated user to become an admin.
  */
-export const setAdminRole = onCall(async (request) => {
+export const setAdminRole = onCall({ cors: true }, async (request) => {
     // 1. Check if the user is authenticated.
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Vous devez être connecté pour effectuer cette action.');
@@ -48,15 +48,15 @@ export const setAdminRole = onCall(async (request) => {
  * An onCall Cloud Function to create a new user with a specific role.
  * This is the recommended approach as it centralizes logic and handles CORS automatically.
  */
-export const createUserWithRole = onCall(async (request) => {
+export const createUserWithRole = onCall({ cors: true }, async (request) => {
     // 1. Check if the caller is an admin
     if (request.auth?.token.role !== 'admin') {
          throw new HttpsError('permission-denied', 'Seul un administrateur peut effectuer cette action.');
     }
 
-    const { email, password, ...profileData } = request.data;
+    const { email, password = 'password', ...profileData } = request.data;
     
-    if (!email || !password) {
+    if (!email) {
         throw new HttpsError('invalid-argument', 'Email et mot de passe sont requis pour la création.');
     }
 

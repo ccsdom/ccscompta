@@ -37,16 +37,13 @@ export default function NewClientPage() {
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         setIsSubmitting(true);
-        const password = 'password';
         
         try {
             const functions = getFunctions(app, 'us-central1');
             const createUserWithRole: HttpsCallable<any, any> = httpsCallable(functions, 'createUserWithRole');
             
-            const result = await createUserWithRole({
-                ...data,
-                password,
-            });
+            // The password will be defaulted to 'password' on the server-side if not provided
+            const result = await createUserWithRole({ ...data });
 
             toast({
                 duration: 10000,
@@ -58,7 +55,7 @@ export default function NewClientPage() {
                             <KeyRound className="h-4 w-4" />
                             <AlertTitle>Mot de passe initial</AlertTitle>
                             <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
+                                Le mot de passe initial de l'utilisateur est : <strong>password</strong>
                             </AlertDescription>
                         </Alert>
                     </div>
