@@ -173,7 +173,7 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
             }
         }
         
-        if (updates.email) {
+        if (updates.email && updates.email !== (await adminAuth.getUser(id)).email) {
              await adminAuth.updateUser(id, { email: updates.email });
         }
         
