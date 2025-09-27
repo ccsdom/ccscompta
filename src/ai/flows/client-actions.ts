@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -34,7 +35,7 @@ export async function addClient(
   
   try {
     const validatedData = AddClientInputSchema.parse(clientData);
-    const { uid, role, siret, ...profileData } = validatedData;
+    const { uid, role, ...profileData } = validatedData;
     
     // 1. Set custom claim for role using the provided UID
     await adminAuth.setCustomUserClaims(uid, { role: role });

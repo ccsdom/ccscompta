@@ -1,7 +1,8 @@
 
+
 'use client'
 
-import { ClientForm, formSchema as baseFormSchema } from "../client-form";
+import { ClientForm, formSchema } from "../client-form";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import * as z from "zod";
@@ -12,11 +13,10 @@ import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth as clientAuth } from "@/lib/firebase-client";
-import { addClient } from "@/ai/flows/client-actions";
+import { auth as clientAuth, db } from "@/lib/firebase-client";
+import { doc, setDoc } from "firebase/firestore";
+import type { Client } from "@/lib/types";
 
-
-const formSchema = baseFormSchema;
 
 export default function NewClientPage() {
     const router = useRouter();
@@ -52,14 +52,19 @@ export default function NewClientPage() {
             const userCredential = await createUserWithEmailAndPassword(clientAuth, data.email, password);
             const user = userCredential.user;
 
-            // Step 2: Call the server action to create the Firestore profile and set claims, passing the new UID.
-            const profileResult = await addClient({ uid: user.uid, ...data });
-
-            if (!profileResult.success) {
-                // This is a compensating action: if profile creation fails, we should ideally delete the auth user.
-                // For now, we'll just throw the specific error.
-                throw new Error(`Le compte a été créé, mais la création du profil a échoué: ${profileResult.error}`);
-            }
+            // Step 2: Create profile in Firestore (Client-side)
+            const clientDocRef = doc(db, 'clients', user.uid);
+            
+            const newUserProfile: Omit<Client, 'id' | 'password'> = {
+                ...data,
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+                status: 'onboarding',
+            };
+            
+            await setDoc(clientDocRef, newUserProfile);
+            
+            console.log("[Client Action] User profile created with ID:", user.uid);
 
             toast({
                 duration: 10000,
