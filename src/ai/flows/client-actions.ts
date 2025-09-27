@@ -224,26 +224,18 @@ export interface Accountant {
 }
 
 const MOCK_ACCOUNTANTS: Accountant[] = [
-    { id: 'acc-01', name: 'Alain Comptable' },
-    { id: 'acc-02', name: 'Béatrice Fiscale' },
+    { id: 'user-comptable-ccs', name: 'Comptable CCS' },
 ];
 
 export async function getAccountants(): Promise<Accountant[]> {
-    console.log("[SIMULATION] Fetching mock accountants.");
-    return Promise.resolve(MOCK_ACCOUNTANTS);
-}
-
-// Simple mock for cabinets
-export interface Cabinet {
-    id: string;
-    name: string;
-}
-
-const MOCK_CABINETS: Cabinet[] = [
-    { id: 'cab-01', name: 'Cabinet Principal (CCS)' },
-];
-
-export async function getCabinets(): Promise<Cabinet[]> {
-    console.log("[SIMULATION] Fetching mock cabinets.");
-    return Promise.resolve(MOCK_CABINETS);
+    console.log("[Firestore] Fetching accountants.");
+    try {
+        const q = query(collection(db, 'clients'), where('role', '==', 'accountant'));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return MOCK_ACCOUNTANTS;
+        return snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+    } catch (e) {
+        console.error("Error fetching accountants, returning mock data", e);
+        return MOCK_ACCOUNTANTS;
+    }
 }

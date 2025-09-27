@@ -71,6 +71,14 @@ export interface Invoice {
     status: 'paid' | 'pending' | 'overdue';
 }
 
+export interface Cabinet {
+    id: string;
+    name: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+}
+
 
 export interface Document {
   id: string;

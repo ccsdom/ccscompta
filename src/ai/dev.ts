@@ -12,4 +12,5 @@ import '@/ai/flows/security-rules-actions.ts';
 import '@/ai/flows/search-company-flow.ts';
 import '@/ai/flows/extract-client-data-flow.ts';
 import '@/ai/flows/invoice-actions.ts';
+import '@/ai/flows/cabinet-actions.ts';
     
