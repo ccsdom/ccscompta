@@ -11,7 +11,7 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable, HttpsCallable } from "firebase/functions";
 import { app } from "@/lib/firebase-client";
 
 
@@ -40,8 +40,8 @@ export default function NewClientPage() {
         const password = 'password';
         
         try {
-            const functions = getFunctions(app);
-            const createUserWithRole = httpsCallable(functions, 'createUserWithRole');
+            const functions = getFunctions(app, 'us-central1');
+            const createUserWithRole: HttpsCallable<any, any> = httpsCallable(functions, 'createUserWithRole');
             
             const result = await createUserWithRole({
                 ...data,

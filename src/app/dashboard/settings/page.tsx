@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth as clientAuth } from '@/lib/firebase-client';
 import { updateClient } from "@/ai/flows/client-actions";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable, HttpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 
 
@@ -126,8 +126,8 @@ export default function SettingsPage() {
      const handleSetAdminRole = async () => {
         setIsAdminRoleLoading(true);
         try {
-            const functions = getFunctions(clientAuth.app);
-            const setAdminRole = httpsCallable(functions, 'setAdminRole');
+            const functions = getFunctions(clientAuth.app, 'us-central1');
+            const setAdminRole: HttpsCallable<any, any> = httpsCallable(functions, 'setAdminRole');
             const result = await setAdminRole();
             
             toast({
@@ -135,7 +135,6 @@ export default function SettingsPage() {
                 description: "Vous avez maintenant le rôle d'administrateur. Veuillez vous déconnecter et vous reconnecter pour que les changements prennent effet.",
             });
             
-            // Log out the user so they have to log back in to get the new custom claim
             await clientAuth.signOut();
             router.push('/login');
 
@@ -148,6 +147,8 @@ export default function SettingsPage() {
                 errorMessage = "Vous n'avez pas les permissions nécessaires.";
             } else if (error.message && error.message.includes('functions/not-found')) {
                 errorMessage = "La Cloud Function 'setAdminRole' ne semble pas être déployée. Veuillez suivre les instructions de déploiement.";
+            } else if (error.code === 'functions/internal') {
+                 errorMessage = 'Erreur interne de la fonction. Vérifiez les logs de la fonction dans la console Firebase.';
             }
             toast({
                 variant: 'destructive',
