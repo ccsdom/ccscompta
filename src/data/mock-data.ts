@@ -143,4 +143,4 @@ export const MOCK_BILANS: Record<string, Bilan[]> = {
     'client-04': [
         { id: 'b6', clientId: 'client-04', year: 2023, status: 'pending', netIncome: 0, turnover: 0, submissionDate: undefined },
     ],
-];
+};
