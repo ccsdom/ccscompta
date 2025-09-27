@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAccountants, getCabinets, type Accountant, type Cabinet } from '@/ai/flows/client-actions';
+import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
+import { getCabinets } from '@/ai/flows/cabinet-actions';
+import type { Cabinet } from '@/lib/types';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -290,3 +292,5 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
         </Form>
     );
 }
+
+    
