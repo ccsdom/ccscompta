@@ -26,6 +26,10 @@ export default function NewClientPage() {
         const data: Partial<z.infer<typeof formSchema>> = {
             role: 'client' // Default role
         };
+        const cabinetId = searchParams.get('cabinetId');
+        if (cabinetId) {
+            data.cabinetId = cabinetId;
+        }
         searchParams.forEach((value, key) => {
             if (key in formSchema.shape) {
                 data[key as keyof typeof data] = value;
@@ -82,7 +86,7 @@ export default function NewClientPage() {
     }
     
     const handleCompanySelect = (company: ExtractClientDataOutput | null) => {
-        const currentParams = new URLSearchParams(searchParams.toString());
+        const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
         if (company) {
              Object.entries(company).forEach(([key, value]) => {
                 if(value) currentParams.set(key, value);
