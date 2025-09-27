@@ -26,7 +26,7 @@ initializeApp();
  * This function should ideally be protected to only allow the first user or a specific set of users
  * to call it, but for initial setup, it allows any authenticated user to become an admin.
  */
-export const setAdminRole = onCall(async request => {
+export const setAdminRole = onCall({ cors: true }, async request => {
   // 1. Check if the user is authenticated.
   if (!request.auth) {
     throw new HttpsError(
@@ -63,7 +63,7 @@ export const setAdminRole = onCall(async request => {
 });
 
 
-export const createUserWithRole = onCall(async (request) => {
+export const createUserWithRole = onCall({ cors: true }, async (request) => {
     // Only admins can create new users
     if (request.auth?.token.role !== 'admin') {
          throw new HttpsError(
