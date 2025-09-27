@@ -11,9 +11,8 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { auth, db } from '@/lib/firebase-client';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "@/lib/firebase-client";
 
 
 export default function NewClientPage() {
@@ -41,25 +40,13 @@ export default function NewClientPage() {
         const password = 'password';
         
         try {
-            // Step 1: Create user in Firebase Auth (client-side)
-            const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
-            const user = userCredential.user;
-
-            // Step 2: Create profile in Firestore (client-side)
-            const { ...profileData } = data;
-             const clientDocRef = doc(db, 'clients', user.uid);
-             const newUser: Omit<Client, 'id'| 'uid'> = {
-                ...profileData,
-                newDocuments: 0,
-                lastActivity: new Date().toISOString(),
-                status: 'onboarding',
-            };
-
-            const cleanUser = Object.fromEntries(
-                Object.entries(newUser).filter(([_, v]) => v !== undefined && v !== null && v !== '')
-            );
-
-            await setDoc(clientDocRef, cleanUser);
+            const functions = getFunctions(app);
+            const createUserWithRole = httpsCallable(functions, 'createUserWithRole');
+            
+            const result = await createUserWithRole({
+                ...data,
+                password,
+            });
 
             toast({
                 duration: 10000,
@@ -74,7 +61,6 @@ export default function NewClientPage() {
                                 Le mot de passe initial de l'utilisateur est : <strong>{password}</strong>
                             </AlertDescription>
                         </Alert>
-                        <p className="text-xs text-muted-foreground">Note: Pour assigner un rôle (Comptable, Admin), vous devez déployer les Cloud Functions et utiliser l'option dans les paramètres.</p>
                     </div>
                 ),
             });
@@ -84,16 +70,10 @@ export default function NewClientPage() {
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
-            let errorMessage = "Une erreur est survenue lors de la création de l'utilisateur.";
-             if (error.code === 'auth/email-already-exists') {
-                errorMessage = 'Un compte avec cette adresse email existe déjà.';
-            } else if (error.code === 'auth/invalid-password') {
-                errorMessage = `Le mot de passe fourni n'est pas valide. Il doit comporter au moins 6 caractères.`;
-            }
             toast({
                 variant: 'destructive',
-                title: "Erreur lors de l'ajout",
-                description: errorMessage
+                title: "Erreur lors de la création",
+                description: error.message || "Une erreur inconnue est survenue."
             });
         } finally {
             setIsSubmitting(false);

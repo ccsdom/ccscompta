@@ -10,21 +10,8 @@ import { auth as adminAuth } from '@/lib/firebase-admin';
 
 
 type ServerActionResponse<T> =
-  | { success: true; data: T, password?: string }
+  | { success: true; data: T }
   | { success: false; error: string };
-
-const AddClientInputSchema = z.object({
-  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
-  siret: z.string().length(14, "Le SIRET doit contenir 14 chiffres.").optional().or(z.literal('')),
-  email: z.string().email("Email invalide."),
-  phone: z.string().optional(),
-  legalRepresentative: z.string().optional(),
-  address: z.string().optional(),
-  fiscalYearEndDate: z.string().regex(/^(3[01]|[12][0-9]|0[1-9])\/(1[0-2]|0[1-9])$/, "Format JJ/MM invalide.").optional(),
-  role: z.enum(['client', 'admin', 'accountant', 'secretary']),
-  assignedAccountantId: z.string().optional(),
-  cabinetId: z.string().optional(),
-});
 
 
 export async function getClients(cabinetId?: string): Promise<Client[]> {
@@ -39,40 +26,36 @@ export async function getClients(cabinetId?: string): Promise<Client[]> {
         
         if (snapshot.empty && MOCK_CLIENTS.length > 0 && !cabinetId) {
             console.log("No users found in Firestore, seeding with mock data...");
-            const batch = writeBatch(db);
-
-            for (const client of MOCK_CLIENTS) {
-                try {
-                     // Try to delete user if exists, to ensure clean state
-                    try {
-                        const existingUser = await adminAuth.getUserByEmail(client.email);
-                        await adminAuth.deleteUser(existingUser.uid);
-                    } catch (e) {
-                        // Ignore if user does not exist
-                    }
-
+            
+            try {
+                // Ensure the admin user exists
+                 const adminEmail = 'app.cc94@gmail.com';
+                 let adminUser = await getClientByEmail(adminEmail);
+                 if (!adminUser) {
                     const userRecord = await adminAuth.createUser({
-                        email: client.email,
-                        password: client.password,
+                        email: adminEmail,
+                        password: 'password', // set a default password
                         emailVerified: true,
                         disabled: false,
-                        displayName: client.name,
+                        displayName: 'Super Admin',
                     });
-                    
-                    await adminAuth.setCustomUserClaims(userRecord.uid, { role: client.role });
-                    
-                    const docRef = doc(db, 'clients', userRecord.uid);
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { id, password, ...clientData } = client; 
-                    batch.set(docRef, clientData);
+                     await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'admin' });
+                     const docRef = doc(db, 'clients', userRecord.uid);
+                     await setDoc(docRef, {
+                        name: 'Super Admin',
+                        email: adminEmail,
+                        role: 'admin',
+                        status: 'active',
+                        lastActivity: new Date().toISOString(),
+                        newDocuments: 0,
+                     });
+                 }
 
-                } catch (error: any) {
-                    console.error(`Error seeding user ${client.email}:`, error.message);
-                }
+            } catch (e) {
+                 console.error("Error creating initial admin user:", e);
             }
-            await batch.commit();
-            console.log("Seeding complete. Refetching users...");
-            const seededSnapshot = await getDocs(collection(db, 'clients'));
+             console.log("Seeding complete. Refetching users...");
+             const seededSnapshot = await getDocs(collection(db, 'clients'));
              return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
@@ -93,6 +76,22 @@ export async function getClientById(id: string): Promise<Client | null> {
         return { id: docSnap.id, ...docSnap.data() } as Client;
     } catch(error) {
         console.error(`Error fetching user ${id}:`, error);
+        return null;
+    }
+}
+
+export async function getClientByEmail(email: string): Promise<Client | null> {
+     console.log(`[Firestore] Fetching user profile by email: ${email}`);
+    try {
+        const q = query(collection(db, 'clients'), where('email', '==', email), limit(1));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            return null;
+        }
+        const docData = snapshot.docs[0];
+        return { id: docData.id, ...docData.data() } as Client;
+    } catch (error) {
+         console.error(`Error fetching user by email ${email}:`, error);
         return null;
     }
 }

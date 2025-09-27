@@ -61,3 +61,59 @@ export const setAdminRole = onCall(async request => {
     );
   }
 });
+
+
+export const createUserWithRole = onCall(async (request) => {
+    // Only admins can create new users
+    if (request.auth?.token.role !== 'admin') {
+         throw new HttpsError(
+            'permission-denied',
+            "Vous n'avez pas les permissions pour créer un utilisateur."
+         );
+    }
+    
+    const { email, password, ...profileData } = request.data;
+    
+    if (!email || !password) {
+        throw new HttpsError('invalid-argument', 'Email and password are required.');
+    }
+
+    const db = getFirestore();
+    const auth = getAuth();
+    
+    try {
+        // 1. Create user in Auth
+        const userRecord = await auth.createUser({
+            email,
+            password,
+            emailVerified: true,
+            disabled: false,
+            displayName: profileData.name,
+        });
+
+        const uid = userRecord.uid;
+        const role = profileData.role || 'client';
+
+        // 2. Set custom claim for the role
+        await auth.setCustomUserClaims(uid, { role });
+
+        // 3. Create profile in Firestore
+        const userDocRef = db.collection('clients').doc(uid);
+        const newUserProfile = {
+            ...profileData,
+            newDocuments: 0,
+            lastActivity: new Date().toISOString(),
+            status: 'onboarding',
+        };
+        await userDocRef.set(newUserProfile);
+
+        return { success: true, uid: userRecord.uid, message: "Utilisateur créé avec succès." };
+    } catch(error: any) {
+        console.error('Error creating new user:', error);
+        let message = "Une erreur est survenue lors de la création de l'utilisateur.";
+        if (error.code === 'auth/email-already-exists') {
+            message = "Un compte avec cette adresse email existe déjà."
+        }
+        throw new HttpsError('internal', message, error);
+    }
+});
