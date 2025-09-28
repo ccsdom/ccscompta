@@ -78,29 +78,32 @@ export default function ScanPage() {
          const file = await (await fetch(dataUrl)).blob();
 
         const storagePath = `${clientId}/${Date.now()}-${fileName}`;
-        const initialTrail = addAuditEvent([], 'Document scanné par le client');
-        const docForDb: Omit<Document, 'id'> = {
-            name: fileName,
-            uploadDate: new Date().toISOString(),
-            status: 'pending',
-            storagePath: storagePath,
-            clientId: clientId,
-            auditTrail: initialTrail,
-            comments: [],
-        };
+        let createdDoc: Document | null = null;
         
-        let createdDoc = await addDocument(docForDb);
-        if (!createdDoc) {
-          throw new Error("Échec de la création de l'entrée du document dans la base de données.");
-        }
-        
-        window.dispatchEvent(new Event('storage')); // Refresh lists
-
-        let trail = createdDoc.auditTrail;
-
         try {
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
+
+            const initialTrail = addAuditEvent([], 'Document scanné par le client');
+            const docForDb: Omit<Document, 'id'> = {
+                name: fileName,
+                uploadDate: new Date().toISOString(),
+                status: 'pending',
+                storagePath: storagePath,
+                clientId: clientId,
+                auditTrail: initialTrail,
+                comments: [],
+            };
+            
+            createdDoc = await addDocument(docForDb);
+            if (!createdDoc) {
+              throw new Error("Échec de la création de l'entrée du document dans la base de données.");
+            }
+            
+            window.dispatchEvent(new Event('storage')); // Refresh lists
+
+            let trail = createdDoc.auditTrail;
+
             trail = addAuditEvent(trail, 'Fichier stocké (scan)');
             await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail, status: 'processing' } });
 
@@ -123,8 +126,8 @@ export default function ScanPage() {
 
         } catch (error) {
             console.error(`Error processing scanned file:`, error);
-            trail = addAuditEvent(trail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`);
             if (createdDoc) {
+                 const trail = addAuditEvent(createdDoc.auditTrail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`);
                  await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
                  createNotification({ ...createdDoc, status: 'error' }, 'a échoué lors du traitement.');
             }
@@ -240,5 +243,3 @@ export default function ScanPage() {
         </div>
     );
 }
-
-    

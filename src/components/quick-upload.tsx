@@ -70,10 +70,11 @@ export function QuickUpload() {
     const processSingleFile = useCallback(async (file: File, clientId: string) => {
         let createdDocId: string | null = null;
         try {
-            const dataUrl = await fileToDataUri(file);
             const storagePath = `${clientId}/${Date.now()}-${file.name}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
+
+            const dataUrl = await fileToDataUri(file);
 
             const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
                 name: file.name,
