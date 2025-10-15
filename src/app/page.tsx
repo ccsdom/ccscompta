@@ -91,19 +91,16 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
-        <section className="relative py-20 md:py-32">
-             <div
-                aria-hidden="true"
-                className="absolute inset-0 grid grid-cols-2 -space-x-52 opacity-40 dark:opacity-20"
-              >
-                <div className="blur-[106px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700" />
-                <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600" />
-              </div>
+        <section className="relative overflow-hidden py-24 md:py-32">
+          <div aria-hidden="true" className="absolute inset-0">
+            <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-br from-primary/10 via-transparent to-cyan-400/10 blur-3xl" />
+          </div>
           <div className="container relative mx-auto max-w-5xl px-4 text-center">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <Badge
                     variant="outline"
-                    className="mb-6 rounded-full px-4 py-1 font-medium border-primary/30"
+                    className="mb-6 rounded-full px-4 py-1 font-medium border-primary/30 bg-background"
                 >
                     La comptabilité du futur est arrivée
                 </Badge>
@@ -118,7 +115,7 @@ export default function LandingPage() {
                 <Button size="lg" asChild className="w-full sm:w-auto">
                   <Link href="/login">Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto bg-background">
                    <Link href="/support">Demander une démo</Link>
                 </Button>
               </div>
@@ -325,3 +322,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
