@@ -146,22 +146,22 @@ export default function FeaturesPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent">
+                <Link href="/about" legacyBehavior={false} passHref>
+                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent data-[active]:bg-accent/50">
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent">
+                <Link href="/blog" legacyBehavior={false} passHref>
+                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent data-[active]:bg-accent/50">
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent">
+                <Link href="/support" legacyBehavior={false} passHref>
+                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent data-[active]:bg-accent/50">
                     Support
                   </NavigationMenuLink>
                 </Link>
@@ -260,5 +260,3 @@ export default function FeaturesPage() {
     </div>
   );
 }
-
-    
