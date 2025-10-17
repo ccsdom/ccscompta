@@ -112,21 +112,21 @@ export default function BlogPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" asChild>
+                <Link href="/about" legacyBehavior passHref>
                   <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/blog" asChild>
+                <Link href="/blog" legacyBehavior passHref>
                   <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/support" asChild>
+                <Link href="/support" legacyBehavior passHref>
                   <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
                     Support
                   </NavigationMenuLink>
