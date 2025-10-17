@@ -62,7 +62,10 @@ export function Breadcrumb() {
     <nav aria-label="fil d'ariane" className="mb-4">
       <ol className="flex items-center space-x-1.5 text-sm">
         <li>
-          <Link href="/dashboard" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="/dashboard"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+            legacyBehavior>
             <Home className="h-4 w-4" />
             <span className="sr-only">Accueil</span>
           </Link>
@@ -91,7 +94,7 @@ export function Breadcrumb() {
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                   aria-current={isLast ? 'page' : undefined}
-                >
+                  legacyBehavior>
                   {name}
                 </Link>
               </li>

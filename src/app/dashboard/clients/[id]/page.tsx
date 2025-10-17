@@ -97,44 +97,45 @@ export default function ClientProfilePage() {
                     <p className="text-muted-foreground mt-1">Dossier client et synthèse d'activité.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" asChild><Link href={`/dashboard/analytics`} onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage'));}}><BarChart2 className="h-4 w-4 mr-2"/>Analyser</Link></Button>
-                    <Button asChild><Link href={`/dashboard/clients/${client.id}/edit`}><Edit className="h-4 w-4 mr-2"/>Modifier</Link></Button>
+                    <Button variant="outline" asChild><Link
+                        href={`/dashboard/analytics`}
+                        onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage'));}}
+                        legacyBehavior><BarChart2 className="h-4 w-4 mr-2"/>Analyser</Link></Button>
+                    <Button asChild><Link href={`/dashboard/clients/${client.id}/edit`} legacyBehavior><Edit className="h-4 w-4 mr-2"/>Modifier</Link></Button>
                 </div>
             </div>
-            
-             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Documents en attente</CardTitle>
-                        <FileWarning className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.pendingDocs}</div>
-                        <p className="text-xs text-muted-foreground">En attente de traitement ou d'examen</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Factures en retard</CardTitle>
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.overdueInvoices}</div>
-                        <p className="text-xs text-muted-foreground">Factures d'honoraires non réglées</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Prochaine Échéance</CardTitle>
-                        <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{format(stats.nextDeadline, 'dd LLLL yyyy', {locale: fr})}</div>
-                        <p className="text-xs text-muted-foreground">Déclaration de TVA</p>
-                    </CardContent>
-                </Card>
-            </div>
-
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+               <Card>
+                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                       <CardTitle className="text-sm font-medium">Documents en attente</CardTitle>
+                       <FileWarning className="h-4 w-4 text-muted-foreground" />
+                   </CardHeader>
+                   <CardContent>
+                       <div className="text-2xl font-bold">{stats.pendingDocs}</div>
+                       <p className="text-xs text-muted-foreground">En attente de traitement ou d'examen</p>
+                   </CardContent>
+               </Card>
+               <Card>
+                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                       <CardTitle className="text-sm font-medium">Factures en retard</CardTitle>
+                       <Clock className="h-4 w-4 text-muted-foreground" />
+                   </CardHeader>
+                   <CardContent>
+                       <div className="text-2xl font-bold">{stats.overdueInvoices}</div>
+                       <p className="text-xs text-muted-foreground">Factures d'honoraires non réglées</p>
+                   </CardContent>
+               </Card>
+               <Card>
+                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                       <CardTitle className="text-sm font-medium">Prochaine Échéance</CardTitle>
+                       <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                   </CardHeader>
+                   <CardContent>
+                       <div className="text-2xl font-bold">{format(stats.nextDeadline, 'dd LLLL yyyy', {locale: fr})}</div>
+                       <p className="text-xs text-muted-foreground">Déclaration de TVA</p>
+                   </CardContent>
+               </Card>
+           </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6">
                     <Card>
@@ -179,5 +180,5 @@ export default function ClientProfilePage() {
                 </div>
             </div>
         </div>
-    )
+    );
 }

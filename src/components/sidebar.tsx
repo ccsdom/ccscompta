@@ -80,7 +80,7 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
                         isNavItemActive(pathname, item.href, currentRole) ? 'bg-muted text-primary' : ''
                     )}
-                >
+                    legacyBehavior>
                     <item.icon className="h-4 w-4" />
                     {item.label}
                 </Link>
@@ -105,23 +105,22 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                 <SheetDescription className="sr-only">
                     Navigation principale et options du compte pour l'application CCS Compta.
                 </SheetDescription>
-                <Link href="/" className="flex items-center gap-2 font-semibold">
+                <Link href="/" className="flex items-center gap-2 font-semibold" legacyBehavior>
                     <Logo className="h-6 w-6" />
                     <span>CCS Compta</span>
                 </Link>
             </SheetHeader>
-            
             <ScrollArea className="flex-1">
                 <nav className="grid items-start px-4 py-4 text-sm font-medium space-y-2">
                     <NavItems currentRole={currentRole} />
                 </nav>
             </ScrollArea>
-             <div className="mt-auto p-4 border-t flex items-center justify-center">
-                <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-                    {theme === 'light' ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
-                    <span className="sr-only">Changer de thème</span>
-                </Button>
-            </div>
+            <div className="mt-auto p-4 border-t flex items-center justify-center">
+               <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                   {theme === 'light' ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
+                   <span className="sr-only">Changer de thème</span>
+               </Button>
+           </div>
         </div>
     );
 }
@@ -170,61 +169,62 @@ export function Sidebar() {
 
   if (!mounted) {
       return (
-        <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
-            <div className="flex items-center justify-center h-16 border-b">
-                <Link href="/dashboard" className="flex items-center space-x-2">
-                    <Logo className="h-6 w-6 text-primary" />
-                    <span className="font-bold text-lg">CCS Compta</span>
-                </Link>
-            </div>
-            <div className="p-4 border-b h-[68px]">
-                <Skeleton className="h-10 w-full" />
-            </div>
-            <nav className="flex-1 px-4 py-4 space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </nav>
-            <div className="mt-auto p-4 border-t">
-                <Skeleton className="h-10 w-full" />
-            </div>
-        </aside>
-      )
+          <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
+              <div className="flex items-center justify-center h-16 border-b">
+                  <Link href="/dashboard" className="flex items-center space-x-2" legacyBehavior>
+                      <Logo className="h-6 w-6 text-primary" />
+                      <span className="font-bold text-lg">CCS Compta</span>
+                  </Link>
+              </div>
+              <div className="p-4 border-b h-[68px]">
+                  <Skeleton className="h-10 w-full" />
+              </div>
+              <nav className="flex-1 px-4 py-4 space-y-2">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+              </nav>
+              <div className="mt-auto p-4 border-t">
+                  <Skeleton className="h-10 w-full" />
+              </div>
+          </aside>
+      );
   }
 
   return (
-    <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
-      <div className="flex items-center justify-center h-16 border-b">
-        <Link href={getDashboardHomeLink()} className="flex items-center space-x-2">
-            <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">CCS Compta</span>
-        </Link>
-      </div>
-      
-      <ScrollArea className="flex-1">
-        <nav className="px-4 py-4 space-y-2">
-            <NavItems currentRole={currentRole} />
-        </nav>
-      </ScrollArea>
-      
-      <div className="mt-auto p-2 border-t">
-        <TooltipProvider>
-            <div className="flex items-center justify-center">
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-                            {theme === 'light' ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
-                            <span className="sr-only">Changer de thème</span>
-                        </Button>
-                    </TooltipTrigger>
-                     <TooltipContent side="right">
-                        <p>Changer de thème</p>
-                    </TooltipContent>
-                </Tooltip>
-            </div>
-        </TooltipProvider>
-      </div>
-    </aside>
+      <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
+          <div className="flex items-center justify-center h-16 border-b">
+            <Link
+                href={getDashboardHomeLink()}
+                className="flex items-center space-x-2"
+                legacyBehavior>
+                <Logo className="h-6 w-6 text-primary" />
+                <span className="font-bold text-lg">CCS Compta</span>
+            </Link>
+          </div>
+          <ScrollArea className="flex-1">
+            <nav className="px-4 py-4 space-y-2">
+                <NavItems currentRole={currentRole} />
+            </nav>
+          </ScrollArea>
+          <div className="mt-auto p-2 border-t">
+            <TooltipProvider>
+                <div className="flex items-center justify-center">
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+                                {theme === 'light' ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
+                                <span className="sr-only">Changer de thème</span>
+                            </Button>
+                        </TooltipTrigger>
+                         <TooltipContent side="right">
+                            <p>Changer de thème</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            </TooltipProvider>
+          </div>
+      </aside>
   );
 }

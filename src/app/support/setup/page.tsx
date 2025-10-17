@@ -81,20 +81,19 @@ export default function SetupPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
-       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">CCS Compta</span>
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Button asChild>
-              <Link href="/login">Retour à la connexion</Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
-
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
+       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+         <Link href="/" className="flex items-center gap-2 font-semibold" legacyBehavior>
+           <Logo className="h-6 w-6 text-primary" />
+           <span className="font-bold text-lg">CCS Compta</span>
+         </Link>
+         <nav className="flex items-center gap-4">
+           <Button asChild>
+             <Link href="/login">Retour à la connexion</Link>
+           </Button>
+         </nav>
+       </div>
+     </header>
       <main className="flex-1">
         <section className="py-20 md:py-24">
             <div className="container mx-auto max-w-3xl px-4 space-y-8">

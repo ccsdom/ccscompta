@@ -110,10 +110,10 @@ export default function AccountantDashboard() {
 
     return (
         <div className="space-y-6">
-             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
-                <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activité de tous vos clients.</p>
-            </div>
+            <div>
+               <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
+               <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activité de tous vos clients.</p>
+           </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -125,7 +125,7 @@ export default function AccountantDashboard() {
                         <p className="text-xs text-muted-foreground">Total des dossiers gérés</p>
                     </CardContent>
                 </Card>
-                <Link href="/dashboard/documents?filter=today">
+                <Link href="/dashboard/documents?filter=today" legacyBehavior>
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Documents du jour</CardTitle>
@@ -137,7 +137,7 @@ export default function AccountantDashboard() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/dashboard/documents?filter=pending_review">
+                <Link href="/dashboard/documents?filter=pending_review" legacyBehavior>
                      <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">En attente d'examen</CardTitle>
@@ -149,7 +149,7 @@ export default function AccountantDashboard() {
                         </CardContent>
                     </Card>
                 </Link>
-                 <Link href="/dashboard/documents?filter=approved_today">
+                 <Link href="/dashboard/documents?filter=approved_today" legacyBehavior>
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Validations du jour</CardTitle>
@@ -162,7 +162,6 @@ export default function AccountantDashboard() {
                     </Card>
                 </Link>
             </div>
-            
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">
                     <CardHeader>

@@ -90,10 +90,10 @@ export default function SecretaryDashboard() {
 
     return (
         <div className="space-y-6">
-             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Tableau de bord Secrétariat</h1>
-                <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activité administrative des clients.</p>
-            </div>
+            <div>
+               <h1 className="text-3xl font-bold tracking-tight">Tableau de bord Secrétariat</h1>
+               <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activité administrative des clients.</p>
+           </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -105,7 +105,7 @@ export default function SecretaryDashboard() {
                         <p className="text-xs text-muted-foreground">Total des dossiers gérés</p>
                     </CardContent>
                 </Card>
-                <Link href="/dashboard/documents?filter=today">
+                <Link href="/dashboard/documents?filter=today" legacyBehavior>
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Nouveaux documents</CardTitle>
@@ -117,7 +117,7 @@ export default function SecretaryDashboard() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/dashboard/documents?filter=pending_review">
+                <Link href="/dashboard/documents?filter=pending_review" legacyBehavior>
                      <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Documents à traiter</CardTitle>
@@ -130,7 +130,6 @@ export default function SecretaryDashboard() {
                     </Card>
                 </Link>
             </div>
-            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="lg:col-span-1">
                     <CardHeader>

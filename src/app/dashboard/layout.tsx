@@ -86,7 +86,7 @@ function BottomNavBar() {
                 'flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground transition-all hover:bg-muted',
                 isActive && 'text-primary'
               )}
-            >
+              legacyBehavior>
               <item.icon className="h-5 w-5" />
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
