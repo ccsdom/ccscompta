@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
 import { cn } from '@/lib/utils';
 import React from 'react';
+import { usePathname } from "next/navigation";
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
@@ -146,22 +147,22 @@ export default function FeaturesPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink asChild className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent data-[active]:bg-accent/50">
+                <Link href="/about" legacyBehavior={false} passHref={true}>
+                  <NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/about" ? "bg-accent/50" : "")}>
                     <p>À Propos</p>
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink asChild className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent data-[active]:bg-accent/50">
+                <Link href="/blog" legacyBehavior={false} passHref={true}>
+                  <NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/blog" ? "bg-accent/50" : "")}>
                     <p>Blog</p>
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink asChild className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent data-[active]:bg-accent/50">
+                <Link href="/support" legacyBehavior={false} passHref={true}>
+                  <NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/support" ? "bg-accent/50" : "")}>
                     <p>Support</p>
                   </NavigationMenuLink>
                 </Link>
@@ -260,3 +261,5 @@ export default function FeaturesPage() {
     </div>
   );
 }
+
+    
