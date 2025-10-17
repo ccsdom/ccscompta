@@ -193,3 +193,5 @@ export default function MentionsLegalesPage() {
     </div>
   );
 }
+
+    
