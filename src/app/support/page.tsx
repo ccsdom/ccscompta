@@ -111,25 +111,25 @@ export default function SupportPage() {
                </NavigationMenuContent>
              </NavigationMenuItem>
              <NavigationMenuItem>
-               <Link href="/about" legacyBehavior passHref>
-                 <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
-                   À Propos
-                 </NavigationMenuLink>
-               </Link>
+                <Link href="/about" legacyBehavior passHref>
+                  <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
+                    À Propos
+                  </NavigationMenuLink>
+                </Link>
              </NavigationMenuItem>
               <NavigationMenuItem>
-               <Link href="/blog" legacyBehavior passHref>
-                 <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
-                   Blog
-                 </NavigationMenuLink>
-               </Link>
+                <Link href="/blog" legacyBehavior passHref>
+                  <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
+                    Blog
+                  </NavigationMenuLink>
+                </Link>
              </NavigationMenuItem>
               <NavigationMenuItem>
-               <Link href="/support" legacyBehavior passHref>
-                 <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
-                   Support
-                 </NavigationMenuLink>
-               </Link>
+                <Link href="/support" legacyBehavior passHref>
+                  <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
+                    Support
+                  </NavigationMenuLink>
+                </Link>
              </NavigationMenuItem>
            </NavigationMenuList>
          </NavigationMenu>
@@ -271,3 +271,5 @@ export default function SupportPage() {
     </div>
   );
 }
+
+    
