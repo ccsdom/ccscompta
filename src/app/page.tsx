@@ -92,10 +92,25 @@ export default function LandingPage() {
 
       <main className="flex-1">
         <section className="relative overflow-hidden py-24 md:py-32">
-          <div aria-hidden="true" className="absolute inset-0">
-            <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-            <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-br from-primary/10 via-transparent to-cyan-400/10 blur-3xl" />
-          </div>
+           <div aria-hidden="true" className="absolute inset-0">
+                <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+                <motion.div
+                    animate={{
+                        transform: [
+                            'translateX(-10%) translateY(-10%)',
+                            'translateX(10%) translateY(10%)',
+                            'translateX(-10%) translateY(-10%)',
+                        ],
+                    }}
+                    transition={{
+                        duration: 15,
+                        ease: "easeInOut",
+                        repeat: Infinity,
+                        repeatType: "mirror",
+                    }}
+                    className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 blur-3xl"
+                />
+            </div>
           <div className="container relative mx-auto max-w-5xl px-4 text-center">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                 <Badge
@@ -136,7 +151,7 @@ export default function LandingPage() {
             <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
               {features.map((feature, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1, duration: 0.5 }} viewport={{ once: true }}>
-                  <Card className="h-full text-center">
+                  <Card className="h-full text-center hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                         {feature.icon}
@@ -163,31 +178,30 @@ export default function LandingPage() {
                         Gagnez du temps à chaque étape, de la collecte à la validation.
                     </p>
                 </div>
-                <div className="mt-16 grid grid-cols-1 gap-y-12 md:grid-cols-3 md:gap-x-8">
-                     {howItWorks.map((step, i) => (
-                        <motion.div 
-                            key={i} 
-                            className="relative flex flex-col items-center text-center"
-                            initial={{ opacity: 0, y: 20 }} 
-                            whileInView={{ opacity: 1, y: 0 }} 
-                            transition={{ delay: i * 0.1, duration: 0.5 }} 
-                            viewport={{ once: true }}
-                        >
-                            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10 mb-6">
-                                {step.icon}
-                            </div>
-                            <h3 className="text-xl font-bold mb-2">{step.title}</h3>
-                            <p className="text-muted-foreground">{step.description}</p>
-                            {i < howItWorks.length - 1 && (
-                                <div className="hidden md:block absolute top-10 left-1/2 w-full translate-x-1/2">
-                                    <svg className="w-full h-auto text-gray-200 dark:text-gray-700" viewBox="0 0 100 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M5 10 C 25 1, 75 19, 95 10" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
-                                    </svg>
+                 <div className="relative mt-16">
+                     <div aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px bg-border/50 hidden md:block"></div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-12 md:gap-x-16 items-center">
+                         {howItWorks.map((step, i) => (
+                            <motion.div 
+                                key={i}
+                                className={`relative flex flex-col md:flex-row items-center gap-6 ${i % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}
+                                initial={{ opacity: 0, x: i % 2 === 0 ? -50 : 50 }} 
+                                whileInView={{ opacity: 1, x: 0 }} 
+                                transition={{ duration: 0.6 }}
+                                viewport={{ once: true }}
+                            >
+                                <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10 shrink-0 relative">
+                                    {step.icon}
+                                    <div className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm">{step.step}</div>
                                 </div>
-                            )}
-                        </motion.div>
-                     ))}
-                </div>
+                                <div className={`text-center ${i % 2 === 0 ? 'md:text-left' : 'md:text-right'}`}>
+                                    <h3 className="text-xl font-bold mb-2">{step.title}</h3>
+                                    <p className="text-muted-foreground">{step.description}</p>
+                                </div>
+                            </motion.div>
+                         ))}
+                     </div>
+                 </div>
             </div>
         </section>
 
@@ -198,7 +212,7 @@ export default function LandingPage() {
                 <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">Que vous soyez un cabinet en croissance ou une entreprise moderne, nous avons la solution.</p>
             </div>
             <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
-                <Card className="flex flex-col">
+                <Card className="flex flex-col hover:shadow-lg transition-shadow">
                     <CardHeader>
                         <div className="flex items-center gap-4">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
@@ -216,7 +230,7 @@ export default function LandingPage() {
                         </ul>
                     </CardContent>
                 </Card>
-                 <Card className="flex flex-col">
+                 <Card className="flex flex-col hover:shadow-lg transition-shadow">
                     <CardHeader>
                          <div className="flex items-center gap-4">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
@@ -250,7 +264,7 @@ export default function LandingPage() {
                 </div>
                  <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
                     {testimonials.map((testimonial) => (
-                        <Card key={testimonial.name} className="overflow-hidden">
+                        <Card key={testimonial.name} className="overflow-hidden hover:shadow-lg transition-shadow">
                            <CardContent className="p-8">
                                 <p className="text-lg font-medium leading-relaxed text-foreground">"{testimonial.text}"</p>
                             </CardContent>
@@ -322,5 +336,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-    

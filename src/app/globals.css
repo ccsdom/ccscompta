@@ -10,48 +10,48 @@
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 221 83% 53%;
+    --primary: 262 83% 58%; /* New primary color: vibrant purple */
     --primary-foreground: 0 0% 98%;
-    --secondary: 220 13% 91%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 160 50% 92%; /* New secondary color: mint green accent */
+    --secondary-foreground: 260 60% 10%;
     --muted: 220 13% 91%;
     --muted-foreground: 220 9% 46%;
-    --accent: 275 79% 95%;
-    --accent-foreground: 276 59% 41%;
+    --accent: 262 83% 96%; /* Lighter purple for accents */
+    --accent-foreground: 262 60% 30%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 85%;
     --input: 220 13% 85%;
-    --ring: 221 83% 53%;
-    --chart-1: 221 83% 53%;
-    --chart-2: 276 59% 61%;
+    --ring: 262 83% 58%;
+    --chart-1: 262 83% 58%;
+    --chart-2: 160 70% 45%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
   .dark {
-    --background: 224 71.4% 4.1%;
+    --background: 224 71% 10%;
     --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
+    --card: 224 71% 12%;
     --card-foreground: 210 20% 98%;
     --popover: 224 71.4% 4.1%;
     --popover-foreground: 210 20% 98%;
-    --primary: 217 91% 60%;
+    --primary: 262 90% 68%;
     --primary-foreground: 210 20% 98%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 160 50% 20%;
+    --secondary-foreground: 160 90% 90%;
     --muted: 215 28% 17%;
     --muted-foreground: 215 20% 65%;
-    --accent: 275 50% 25%;
-    --accent-foreground: 276 90% 85%;
+    --accent: 262 50% 25%;
+    --accent-foreground: 262 90% 85%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
-    --border: 215 28% 17%;
+    --border: 215 28% 20%;
     --input: 215 28% 17%;
-    --ring: 217 91% 60%;
-    --chart-1: 217 91% 60%;
-    --chart-2: 276 59% 61%;
+    --ring: 262 91% 60%;
+    --chart-1: 262 90% 68%;
+    --chart-2: 160 70% 55%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;

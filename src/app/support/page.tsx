@@ -91,7 +91,7 @@ export default function SupportPage() {
               <div className="text-center">
                 <HelpCircle className="mx-auto h-12 w-12 text-primary mb-4" />
                 <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-display">Aide & Support</h1>
-                <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">Trouvez les réponses à vos questions ou contactez notre équipe. Nous sommes là pour vous aider.</p>
+                <p className="text-muted-foreground mt-3 max-w-2xl mx-auto text-lg">Trouvez les réponses à vos questions ou contactez notre équipe. Nous sommes là pour vous aider.</p>
               </div>
 
               <Card>
