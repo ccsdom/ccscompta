@@ -168,39 +168,39 @@ export default function LandingPage() {
           </div>
         </section>
         
-        <section id="how-it-works" className="py-20 md:py-32">
-            <div className="container mx-auto max-w-6xl px-4">
+         <section id="how-it-works" className="py-20 md:py-32">
+            <div className="container mx-auto max-w-4xl px-4">
                 <div className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-                        Un processus simple en 3 étapes
+                        Un processus d'une simplicité redoutable
                     </h2>
                     <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
                         Gagnez du temps à chaque étape, de la collecte à la validation.
                     </p>
                 </div>
-                 <div className="relative mt-16">
-                     <div aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px bg-border/50 hidden md:block"></div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-12 md:gap-x-16 items-center">
-                         {howItWorks.map((step, i) => (
-                            <motion.div 
-                                key={i}
-                                className={`relative flex flex-col md:flex-row items-center gap-6 ${i % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}
-                                initial={{ opacity: 0, x: i % 2 === 0 ? -50 : 50 }} 
-                                whileInView={{ opacity: 1, x: 0 }} 
-                                transition={{ duration: 0.6 }}
-                                viewport={{ once: true }}
-                            >
-                                <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/10 shrink-0 relative">
-                                    {step.icon}
-                                    <div className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm">{step.step}</div>
-                                </div>
-                                <div className={`text-center ${i % 2 === 0 ? 'md:text-left' : 'md:text-right'}`}>
-                                    <h3 className="text-xl font-bold mb-2">{step.title}</h3>
-                                    <p className="text-muted-foreground">{step.description}</p>
-                                </div>
-                            </motion.div>
-                         ))}
-                     </div>
+                 <div className="relative mt-16 space-y-12">
+                     {howItWorks.map((step, i) => (
+                        <motion.div 
+                            key={i}
+                            initial={{ opacity: 0, y: 50 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: i * 0.2 }}
+                            viewport={{ once: true, amount: 0.5 }}
+                            className="relative flex flex-col items-center"
+                        >
+                            {i > 0 && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 h-16 w-px bg-border border-dashed" />
+                            )}
+                            <div className="z-10 flex h-24 w-24 items-center justify-center rounded-full border-4 border-background bg-primary/10 shrink-0 relative">
+                                {step.icon}
+                                <div className="absolute -top-3 -right-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl ring-4 ring-background">{step.step}</div>
+                            </div>
+                             <Card className="mt-[-2rem] pt-16 pb-8 px-8 w-full max-w-md text-center shadow-lg">
+                                <CardTitle className="mb-3">{step.title}</CardTitle>
+                                <p className="text-muted-foreground">{step.description}</p>
+                             </Card>
+                        </motion.div>
+                     ))}
                  </div>
             </div>
         </section>
