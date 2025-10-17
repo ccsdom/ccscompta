@@ -7,13 +7,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import Image from 'next/image';
-import { Mail, Phone, HelpCircle } from "lucide-react";
+import { Mail, Phone, HelpCircle, MessageSquare, Bot } from "lucide-react";
 import Link from "next/link";
 import { Logo } from '@/components/logo';
 
@@ -21,47 +17,22 @@ export default function SupportPage() {
 
   const faqs = [
     {
-      question: "Comment téléverser mes documents ?",
-      answer: "C'est très simple ! Sur la page 'Mes Documents' dans votre espace client, utilisez la zone de glisser-déposer ou le bouton 'Parcourir' pour sélectionner vos fichiers (PDF, JPG, PNG). Vous pouvez aussi utiliser l'icône d'ajout rapide (+) dans l'en-tête pour un accès encore plus rapide.",
-      image: {
-        src: "https://picsum.photos/seed/faq1/600/300",
-        alt: "Capture d'écran du téléverseur de fichiers",
-        hint: "file uploader"
-      }
+      question: "La sécurité de mes données est-elle garantie ?",
+      answer: "Absolument. Nous utilisons des protocoles de chiffrement de pointe et les infrastructures sécurisées de Google Cloud pour garantir que vos données sont protégées en permanence. L'accès est strictement contrôlé par des règles de sécurité robustes.",
     },
     {
-      question: "Que signifient les différents statuts des documents ?",
-      answer: "Chaque document passe par plusieurs étapes : 'En attente' (téléversé, non traité), 'En traitement' (l'IA analyse le document), 'En examen' (prêt pour la validation de votre comptable), 'Approuvé' (validé par votre comptable), et 'Erreur' (le traitement a échoué).",
-      image: {
-        src: "https://picsum.photos/seed/faq2/600/250",
-        alt: "Capture d'écran montrant les badges de statut",
-        hint: "status badges"
-      }
+      question: "La mise en place est-elle compliquée ?",
+      answer: "Pas du tout ! CCS Compta est conçu pour être intuitif. La création de votre cabinet et de vos premiers clients peut se faire en quelques minutes. Notre assistant IA peut même pré-remplir les informations des entreprises pour accélérer le processus.",
     },
     {
-      question: "Comment communiquer avec mon comptable au sujet d'un document ?",
-      answer: "Ouvrez n'importe quel document en cliquant dessus dans la liste. Dans le panneau de détails, vous trouverez un onglet 'Commentaires'. Vous pouvez y ajouter des messages, poser des questions et voir les réponses de votre comptable.",
-      image: {
-        src: "https://picsum.photos/seed/faq3/600/400",
-        alt: "Capture d'écran de la section commentaires",
-        hint: "comments section"
-      }
+      question: "Quels types de documents puis-je traiter ?",
+      answer: "Notre IA est entraînée pour reconnaître une grande variété de documents comptables : factures d'achat, factures de vente, tickets de caisse, notes de frais, et même les relevés bancaires pour un rapprochement facilité.",
     },
     {
-        question: "Comment fonctionne l'Ajout Rapide par IA (pour les comptables) ?",
-        answer: "Sur la page de gestion des clients, cliquez sur le bouton 'Ajout Rapide par IA'. Entrez simplement le nom de l'entreprise ou son numéro de SIRET. L'IA va automatiquement rechercher les informations publiques (raison sociale, adresse, etc.) et pré-remplir le formulaire de création de client pour vous faire gagner du temps.",
-        image: {
-            src: "https://picsum.photos/seed/faq4/600/350",
-            alt: "Capture d'écran de la boîte de dialogue d'ajout par IA",
-            hint: "AI feature"
-        }
+      question: "Comment puis-je contacter mon comptable ?",
+      answer: "Dans votre espace client, ouvrez n'importe quel document. Vous y trouverez un onglet 'Commentaires' qui vous permet de communiquer directement avec votre comptable au sujet de ce document spécifique.",
     }
   ];
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert('Votre message a été envoyé ! Notre équipe vous répondra dans les plus brefs délais.');
-  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
@@ -87,94 +58,59 @@ export default function SupportPage() {
 
       <main className="flex-1">
         <section className="py-20 md:py-24">
-            <div className="container mx-auto max-w-5xl px-4 space-y-12">
+            <div className="container mx-auto max-w-5xl px-4 space-y-16">
               <div className="text-center">
                 <HelpCircle className="mx-auto h-12 w-12 text-primary mb-4" />
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-display">Aide & Support</h1>
-                <p className="text-muted-foreground mt-3 max-w-2xl mx-auto text-lg">Trouvez les réponses à vos questions ou contactez notre équipe. Nous sommes là pour vous aider.</p>
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-display">Centre d'Aide</h1>
+                <p className="text-muted-foreground mt-3 max-w-2xl mx-auto text-lg">Nous sommes là pour vous aider. Trouvez les réponses à vos questions ou contactez directement notre équipe.</p>
               </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Foire Aux Questions (FAQ)</CardTitle>
-                  <CardDescription>Consultez les réponses aux questions les plus fréquentes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Accordion type="single" collapsible className="w-full">
-                    {faqs.map((faq, index) => (
-                      <AccordionItem key={index} value={`item-${index}`}>
-                        <AccordionTrigger className="text-lg text-left">{faq.question}</AccordionTrigger>
-                        <AccordionContent className="space-y-4 pt-2">
-                          <p className="text-base text-muted-foreground">{faq.answer}</p>
-                           <div className="overflow-hidden rounded-md border shadow-sm">
-                                <Image 
-                                    src={faq.image.src} 
-                                    alt={faq.image.alt}
-                                    width={600}
-                                    height={300}
-                                    className="w-full object-cover"
-                                    data-ai-hint={faq.image.hint}
-                                />
-                           </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <Card className="flex flex-col items-center p-6 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                        <Bot className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">ComptaBot IA</h3>
+                      <p className="text-muted-foreground text-sm mt-1 mb-4">Obtenez des réponses instantanées à vos questions sur l'utilisation de la plateforme.</p>
+                      <Button variant="outline" className="w-full mt-auto">Discuter avec le bot</Button>
+                  </Card>
+                   <Card className="flex flex-col items-center p-6 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                        <Mail className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Support par Email</h3>
+                      <p className="text-muted-foreground text-sm mt-1 mb-4">Envoyez-nous un email. Nous nous efforçons de répondre en moins de 24h.</p>
+                      <Button asChild className="w-full mt-auto">
+                        <a href="mailto:support@ccs-compta.com">support@ccs-compta.com</a>
+                      </Button>
+                  </Card>
+                   <Card className="flex flex-col items-center p-6 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                        <Phone className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Support Téléphonique</h3>
+                      <p className="text-muted-foreground text-sm mt-1 mb-4">Notre ligne est ouverte du Lundi au Vendredi, de 9h à 17h.</p>
+                      <Button variant="secondary" className="w-full mt-auto text-lg font-bold">01 23 45 67 89</Button>
+                  </Card>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Contacter le support</CardTitle>
-                    <CardDescription>Pour toute question spécifique, remplissez le formulaire ci-dessous.</CardDescription>
-                  </CardHeader>
-                   <form onSubmit={handleSubmit}>
-                        <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Votre Nom</Label>
-                            <Input id="name" placeholder="Jean Dupont" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Votre Email</Label>
-                            <Input id="email" type="email" placeholder="jean.dupont@email.com" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="subject">Sujet</Label>
-                            <Input id="subject" placeholder="Question sur la facturation" required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="message">Votre Message</Label>
-                            <Textarea id="message" placeholder="Décrivez votre problème ou votre question ici..." rows={5} required/>
-                        </div>
-                        </CardContent>
-                        <CardFooter>
-                            <Button type="submit" className="w-full">Envoyer le message</Button>
-                        </CardFooter>
-                   </form>
-                </Card>
-                 <Card className="bg-muted/30">
-                    <CardHeader>
-                        <CardTitle>Autres moyens de contact</CardTitle>
-                        <CardDescription>Vous pouvez aussi nous joindre directement.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6 text-sm">
-                        <div className="flex items-start gap-4">
-                            <Mail className="h-6 w-6 text-primary mt-1" />
-                            <div>
-                                <h4 className="font-semibold">Par Email</h4>
-                                <p className="text-muted-foreground">Envoyez-nous un email à l'adresse ci-dessous. Nous nous efforçons de répondre en moins de 24h.</p>
-                                <a href="mailto:support@ccs-compta.com" className="text-primary font-medium hover:underline">support@ccs-compta.com</a>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-4">
-                            <Phone className="h-6 w-6 text-primary mt-1" />
-                            <div>
-                                <h4 className="font-semibold">Par Téléphone</h4>
-                                <p className="text-muted-foreground">Notre ligne téléphonique est ouverte du Lundi au Vendredi, de 9h à 17h.</p>
-                                <p className="font-medium text-foreground">01 23 45 67 89</p>
-                            </div>
-                        </div>
+              <div className="pt-16">
+                <div className="text-center mb-12">
+                    <h2 className="text-3xl font-bold tracking-tight font-display">Questions Fréquentes</h2>
+                    <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">Consultez les réponses aux questions les plus courantes.</p>
+                </div>
+                 <Card>
+                    <CardContent className="p-6">
+                    <Accordion type="single" collapsible className="w-full">
+                        {faqs.map((faq, index) => (
+                        <AccordionItem key={index} value={`item-${index}`}>
+                            <AccordionTrigger className="text-lg text-left font-semibold">{faq.question}</AccordionTrigger>
+                            <AccordionContent className="pt-2">
+                            <p className="text-base text-muted-foreground">{faq.answer}</p>
+                            </AccordionContent>
+                        </AccordionItem>
+                        ))}
+                    </Accordion>
                     </CardContent>
                 </Card>
               </div>
