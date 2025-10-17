@@ -7,6 +7,36 @@ import { Button } from "@/components/ui/button";
 import { Building, Users, Handshake, Target, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { motion } from 'framer-motion';
+import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
+import { cn } from '@/lib/utils';
+import React from 'react';
+
+const ListItem = React.forwardRef<
+  React.ElementRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        </a>
+      </NavigationMenuLink>
+    </li>
+  )
+})
+ListItem.displayName = "ListItem"
+
 
 export default function AboutPage() {
   const team = [
@@ -24,17 +54,68 @@ export default function AboutPage() {
             <Logo className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">CCS Compta</span>
           </Link>
-          <nav className="flex items-center gap-4">
-             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Fonctionnalités</Link>
-             <Link href="/pricing" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Tarifs</Link>
-             <Link href="/security" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Sécurité</Link>
-             <Link href="/blog" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Blog</Link>
-             <Link href="/about" className="text-sm font-medium text-primary sm:block">À Propos</Link>
-             <Link href="/support" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Support</Link>
+          <NavigationMenu className="hidden md:flex">
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Découvrir</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+                    <li className="row-span-3">
+                      <NavigationMenuLink asChild>
+                        <a
+                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
+                          href="/"
+                        >
+                          <Logo className="h-6 w-6" />
+                          <div className="mb-2 mt-4 text-lg font-medium">
+                            CCS Compta
+                          </div>
+                          <p className="text-sm leading-tight text-muted-foreground">
+                            La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
+                          </p>
+                        </a>
+                      </NavigationMenuLink>
+                    </li>
+                    <ListItem href="/features" title="Fonctionnalités">
+                      Découvrez comment l'IA transforme votre productivité.
+                    </ListItem>
+                    <ListItem href="/pricing" title="Tarifs">
+                      Des plans simples et transparents pour tous les besoins.
+                    </ListItem>
+                    <ListItem href="/security" title="Sécurité">
+                      Votre confiance, notre priorité.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link href="/about" legacyBehavior passHref>
+                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent">
+                    À Propos
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+               <NavigationMenuItem>
+                <Link href="/blog" legacyBehavior passHref>
+                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent">
+                    Blog
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+               <NavigationMenuItem>
+                <Link href="/support" legacyBehavior passHref>
+                  <NavigationMenuLink className="font-medium text-sm px-4 py-2 rounded-md hover:bg-accent">
+                    Support
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+          <div className="flex items-center gap-4">
             <Button asChild>
               <Link href="/login">Se connecter</Link>
             </Button>
-          </nav>
+          </div>
         </div>
       </header>
 
@@ -157,3 +238,5 @@ export default function AboutPage() {
     </div>
   );
 }
+
+    
