@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
-import { ArrowRight, Bot, ShieldCheck, Users, UploadCloud, ScanSearch, CheckSquare, Building } from 'lucide-react';
+import { ArrowRight, Bot, Check, Users, UploadCloud, ScanSearch, CheckSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
@@ -16,19 +16,19 @@ import { Badge } from "@/components/ui/badge";
 export default function LandingPage() {
   const features = [
     {
-      icon: <Bot className="h-8 w-8 text-primary" />,
+      icon: <Bot className="h-6 w-6 text-primary" />,
       title: "Extraction par IA",
       description: "Notre IA analyse vos documents, extrait les données clés et pré-remplit les informations pour vous faire gagner un temps précieux.",
     },
     {
-      icon: <Users className="h-8 w-8 text-primary" />,
+      icon: <Users className="h-6 w-6 text-primary" />,
       title: "Collaboration en temps réel",
       description: "Comptables et clients collaborent sur la même plateforme. Posez des questions et laissez des commentaires directement sur les documents.",
     },
     {
-      icon: <ShieldCheck className="h-8 w-8 text-primary" />,
-      title: "Sécurité et Conformité",
-      description: "Vos données sont stockées de manière sécurisée et nous garantissons la conformité avec les normes comptables en vigueur.",
+      icon: <Check className="h-6 w-6 text-primary" />,
+      title: "Validation Simplifiée",
+      description: "Vérifiez et approuvez les données extraites en un clic, assurant l'exactitude avant l'intégration comptable.",
     },
   ];
 
@@ -58,13 +58,13 @@ export default function LandingPage() {
       name: "Alain D.",
       role: "Expert-Comptable, Cabinet Fidu-Conseil",
       avatar: "https://randomuser.me/api/portraits/men/75.jpg",
-      text: "CCS Compta a divisé par deux le temps que nous passions sur la saisie manuelle. C'est une révolution pour notre cabinet.",
+      text: "CCS Compta a divisé par deux le temps que nous passions sur la saisie manuelle. C'est une révolution pour notre cabinet et la relation avec nos clients est plus fluide que jamais.",
     },
     {
       name: "Sophie L.",
       role: "Gérante, PME 'Innov-Solutions'",
       avatar: "https://randomuser.me/api/portraits/women/68.jpg",
-      text: "En tant que dirigeante, je n'ai plus à me soucier de la paperasse. Je prends une photo, je l'envoie, et c'est tout. Simple et efficace !",
+      text: "En tant que dirigeante, je n'ai plus à me soucier de la paperasse. Je prends une photo, je l'envoie, et c'est tout. L'application me donne une visibilité claire sur mes dépenses, c'est simple et efficace !",
     },
   ];
 
@@ -91,84 +91,73 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
-        <section className="relative overflow-hidden py-24 md:py-32">
-           <div aria-hidden="true" className="absolute inset-0">
-                <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-                <motion.div
-                    animate={{
-                        transform: [
-                            'translateX(-10%) translateY(-10%)',
-                            'translateX(10%) translateY(10%)',
-                            'translateX(-10%) translateY(-10%)',
-                        ],
-                    }}
-                    transition={{
-                        duration: 15,
-                        ease: "easeInOut",
-                        repeat: Infinity,
-                        repeatType: "mirror",
-                    }}
-                    className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 blur-3xl"
-                />
+        {/* Hero Section */}
+        <section className="relative py-24 md:py-32">
+            <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background z-10"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]"></div>
+            
+            <div className="container relative z-20 mx-auto max-w-6xl px-4 text-center">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                    <Badge variant="outline" className="mb-6 rounded-full px-4 py-1 font-medium border-primary/30 bg-background/50 backdrop-blur-sm">
+                        La comptabilité du futur est arrivée
+                    </Badge>
+                    <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl font-display">
+                        La comptabilité, réinventée. <br/>
+                        <span className="text-primary">Simple, Intelligente, Collaborative.</span>
+                    </h1>
+                    <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+                        Arrêtez de courir après les documents. CCS Compta automatise la collecte et la saisie pour que vous puissiez vous concentrer sur ce qui compte vraiment : conseiller vos clients.
+                    </p>
+                    <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                        <Button size="lg" asChild className="w-full sm:w-auto">
+                            <Link href="/login">Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                        </Button>
+                        <Button size="lg" variant="ghost" asChild className="w-full sm:w-auto">
+                            <Link href="/features">Découvrir les fonctionnalités</Link>
+                        </Button>
+                    </div>
+                </motion.div>
+                
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+                    <div className="relative mt-16 md:mt-24 mx-auto max-w-4xl">
+                        <div className="relative rounded-xl bg-muted/50 p-2 ring-1 ring-inset ring-primary/10">
+                            <Image 
+                                src="https://picsum.photos/seed/dashboard-ui/1200/700" 
+                                alt="Dashboard de l'application CCS Compta"
+                                width={1200}
+                                height={700}
+                                className="rounded-md shadow-2xl"
+                                data-ai-hint="dashboard application"
+                            />
+                        </div>
+                    </div>
+                </motion.div>
             </div>
-          <div className="container relative mx-auto max-w-5xl px-4 text-center">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <Badge
-                    variant="outline"
-                    className="mb-6 rounded-full px-4 py-1 font-medium border-primary/30 bg-background"
-                >
-                    La comptabilité du futur est arrivée
-                </Badge>
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl font-display">
-                La comptabilité, réinventée. <br/>
-                <span className="text-primary">Simple, Intelligente, Collaborative.</span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-                Arrêtez de courir après les documents. CCS Compta automatise la collecte et la saisie pour que vous puissiez vous concentrer sur ce qui compte vraiment : conseiller vos clients.
-              </p>
-              <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-                <Button size="lg" asChild className="w-full sm:w-auto">
-                  <Link href="/login">Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                </Button>
-                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto bg-background">
-                   <Link href="/support">Demander une démo</Link>
-                </Button>
-              </div>
-            </motion.div>
-          </div>
         </section>
 
-        <section id="features" className="py-20 md:py-32 bg-muted/30">
+        {/* Features Section */}
+        <section id="features" className="py-20 md:py-24">
           <div className="container mx-auto max-w-6xl px-4">
-            <div className="text-center">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-                Une plateforme tout-en-un
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-                De la collecte de documents à la validation comptable, tout est centralisé.
-              </p>
-            </div>
-            <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
               {features.map((feature, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1, duration: 0.5 }} viewport={{ once: true }}>
-                  <Card className="h-full text-center hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                        {feature.icon}
-                      </div>
-                      <CardTitle>{feature.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">{feature.description}</p>
-                    </CardContent>
-                  </Card>
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                      {feature.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">{feature.title}</h3>
+                      <p className="mt-1 text-muted-foreground">{feature.description}</p>
+                    </div>
+                  </div>
                  </motion.div>
               ))}
             </div>
           </div>
         </section>
         
-         <section id="how-it-works" className="py-20 md:py-32">
+        {/* How It Works Section */}
+        <section id="how-it-works" className="py-20 md:py-32 bg-muted/30">
             <div className="container mx-auto max-w-4xl px-4">
                 <div className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
@@ -188,8 +177,8 @@ export default function LandingPage() {
                             viewport={{ once: true, amount: 0.5 }}
                             className="relative flex flex-col items-center"
                         >
-                            {i > 0 && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 h-16 w-px bg-border border-dashed" />
+                            {i < howItWorks.length - 1 && (
+                                <div className="absolute top-12 left-1/2 -translate-x-1/2 h-full w-px bg-border border-dashed" />
                             )}
                             <div className="z-10 flex h-24 w-24 items-center justify-center rounded-full border-4 border-background bg-primary/10 shrink-0 relative">
                                 {step.icon}
@@ -204,59 +193,13 @@ export default function LandingPage() {
                  </div>
             </div>
         </section>
-
-        <section id="for-who" className="py-20 md:py-32 bg-muted/30">
-          <div className="container mx-auto max-w-6xl px-4">
-            <div className="text-center">
-                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">Conçu pour vous</h2>
-                <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">Que vous soyez un cabinet en croissance ou une entreprise moderne, nous avons la solution.</p>
-            </div>
-            <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
-                <Card className="flex flex-col hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                                <Users className="h-8 w-8 text-primary" />
-                            </div>
-                            <CardTitle className="text-2xl">Pour les Cabinets Comptables</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 space-y-4">
-                       <p className="text-muted-foreground">Libérez-vous des tâches répétitives et concentrez-vous sur le conseil à forte valeur ajoutée.</p>
-                        <ul className="space-y-2 list-disc pl-5">
-                            <li><span className="font-semibold">Gain de productivité :</span> Automatisez la saisie et le traitement des pièces comptables.</li>
-                            <li><span className="font-semibold">Réduction des erreurs :</span> L'IA minimise les risques d'erreurs manuelles et détecte les anomalies.</li>
-                            <li><span className="font-semibold">Relation client améliorée :</span> Offrez à vos clients un portail moderne et collaboratif.</li>
-                        </ul>
-                    </CardContent>
-                </Card>
-                 <Card className="flex flex-col hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                         <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                                <Building className="h-8 w-8 text-primary" />
-                            </div>
-                            <CardTitle className="text-2xl">Pour les Entreprises</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 space-y-4">
-                        <p className="text-muted-foreground">Ne perdez plus de temps avec la paperasse et gardez une vision claire sur vos finances.</p>
-                        <ul className="space-y-2 list-disc pl-5">
-                            <li><span className="font-semibold">Simplicité maximale :</span> Envoyez vos documents par une simple photo ou un téléversement.</li>
-                            <li><span className="font-semibold">Zéro papier :</span> Centralisez toutes vos factures et reçus en un seul endroit sécurisé.</li>
-                            <li><span className="font-semibold">Visibilité en temps réel :</span> Suivez le statut de vos documents et communiquez facilement avec votre comptable.</li>
-                        </ul>
-                    </CardContent>
-                </Card>
-            </div>
-          </div>
-        </section>
-
-         <section id="testimonials" className="py-20 md:py-32">
+        
+        {/* Testimonials Section */}
+        <section id="testimonials" className="py-20 md:py-32">
             <div className="container mx-auto max-w-6xl px-4">
                  <div className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-                        Ce que nos utilisateurs disent
+                        Ils nous font confiance
                     </h2>
                     <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
                         Découvrez comment CCS Compta transforme le quotidien des cabinets et de leurs clients.
@@ -284,34 +227,20 @@ export default function LandingPage() {
             </div>
         </section>
 
-        <section id="faq" className="py-20 md:py-32 bg-muted/30">
-            <div className="container mx-auto max-w-4xl px-4">
-                 <div className="text-center">
-                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">Questions Fréquentes</h2>
-                    <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-                        Trouvez ici les réponses aux questions les plus courantes.
-                    </p>
+        {/* Final CTA Section */}
+        <section className="py-24 bg-primary/5">
+            <div className="container mx-auto max-w-4xl px-4 text-center">
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
+                    Prêt à transformer votre comptabilité ?
+                </h2>
+                <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+                    Rejoignez les cabinets et entreprises qui ont choisi de travailler plus intelligemment.
+                </p>
+                <div className="mt-8">
+                    <Button size="lg" asChild>
+                        <Link href="/login">Créer un compte gratuitement</Link>
+                    </Button>
                 </div>
-                <Accordion type="single" collapsible className="w-full mt-12">
-                    <AccordionItem value="item-1">
-                        <AccordionTrigger className="text-lg">Mes données sont-elles en sécurité ?</AccordionTrigger>
-                        <AccordionContent className="text-base text-muted-foreground">
-                        Absolument. Nous utilisons un cryptage de pointe et nos serveurs sont hébergés dans des centres de données hautement sécurisés. La confidentialité et la sécurité de vos données financières sont notre priorité absolue.
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="item-2">
-                        <AccordionTrigger className="text-lg">Quels types de documents sont supportés ?</AccordionTrigger>
-                        <AccordionContent className="text-base text-muted-foreground">
-                        Vous pouvez téléverser la plupart des formats d'image (JPG, PNG) et les fichiers PDF. Notre système est optimisé pour reconnaître les factures d'achat, les factures de vente, les reçus et les relevés bancaires.
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="item-3">
-                        <AccordionTrigger className="text-lg">Est-ce compatible avec mon logiciel de production ?</AccordionTrigger>
-                        <AccordionContent className="text-base text-muted-foreground">
-                        Oui. CCS Compta est conçu pour s'intégrer facilement avec les principaux logiciels de production comptable, notamment Cegid. Les données validées peuvent être exportées dans un format compatible pour une intégration fluide.
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
             </div>
         </section>
       </main>
