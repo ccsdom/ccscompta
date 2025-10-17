@@ -43,12 +43,12 @@ export default function SupportPage() {
             <span className="font-bold text-lg">CCS Compta</span>
           </Link>
           <nav className="flex items-center gap-4">
-             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
-              Fonctionnalités
-            </Link>
-             <Link href="/support" className="text-sm font-medium text-primary sm:block">
-              Support
-            </Link>
+             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Fonctionnalités</Link>
+             <Link href="/pricing" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Tarifs</Link>
+             <Link href="/security" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Sécurité</Link>
+             <Link href="/blog" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Blog</Link>
+             <Link href="/about" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">À Propos</Link>
+             <Link href="/support" className="text-sm font-medium text-primary sm:block">Support</Link>
             <Button asChild>
               <Link href="/login">Se connecter</Link>
             </Button>
@@ -124,13 +124,12 @@ export default function SupportPage() {
                 <p className="text-sm text-muted-foreground text-center md:text-left">
                     &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
                 </p>
-                <nav className="flex items-center gap-4">
-                    <Link href="/features" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                        Fonctionnalités
-                    </Link>
-                    <Link href="/support" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                        Support
-                    </Link>
+                 <nav className="flex items-center gap-4">
+                    <Link href="/features" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
+                    <Link href="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
+                    <Link href="/security" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
+                    <Link href="/about" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
+                    <Link href="/support" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Support</Link>
                 </nav>
             </div>
         </div>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
-import { ArrowRight, Bot, Users, UploadCloud, ScanSearch, CheckSquare, Building, Briefcase, Share2, ShieldCheck, Zap, Scale } from 'lucide-react';
+import { ArrowRight, Bot, Users, CheckSquare, UploadCloud, ScanSearch, Building, Briefcase, Handshake, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
@@ -92,12 +92,12 @@ export default function LandingPage() {
             <span className="font-bold text-lg">CCS Compta</span>
           </Link>
           <nav className="flex items-center gap-4">
-             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
-              Fonctionnalités
-            </Link>
-             <Link href="/support" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">
-              Support
-            </Link>
+             <Link href="/features" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Fonctionnalités</Link>
+             <Link href="/pricing" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Tarifs</Link>
+             <Link href="/security" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Sécurité</Link>
+             <Link href="/blog" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Blog</Link>
+             <Link href="/about" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">À Propos</Link>
+             <Link href="/support" className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-primary sm:block">Support</Link>
             <Button asChild>
               <Link href="/login">Se connecter</Link>
             </Button>
@@ -108,10 +108,9 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative py-24 md:py-32 overflow-hidden">
-            <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background z-10"></div>
             <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]"></div>
             
-            <div className="container relative z-20 mx-auto max-w-6xl px-4">
+            <div className="container relative z-10 mx-auto max-w-6xl px-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
                     <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
                         <Badge variant="secondary" className="mb-6 rounded-full px-4 py-1 font-medium">
@@ -185,26 +184,28 @@ export default function LandingPage() {
                     </p>
                 </div>
                  <div className="relative mt-20">
-                     <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border border-dashed" />
-                     {howItWorks.map((step, i) => (
-                        <motion.div 
-                            key={i}
-                            initial={{ opacity: 0, y: 50 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: i * 0.2 }}
-                            viewport={{ once: true, amount: 0.5 }}
-                            className="relative flex flex-col items-center mb-12"
-                        >
-                            <div className="z-10 flex h-24 w-24 items-center justify-center rounded-full border-4 border-background bg-primary/10 shrink-0 relative">
-                                {step.icon}
-                                <div className="absolute -top-3 -right-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl ring-4 ring-background">{step.step}</div>
-                            </div>
-                             <div className="mt-6 text-center">
-                                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                                <p className="text-muted-foreground max-w-xs">{step.description}</p>
-                             </div>
-                        </motion.div>
-                     ))}
+                     <div aria-hidden="true" className="absolute inset-x-0 top-12 h-px -translate-y-1/2 bg-border border-dashed md:block hidden" />
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+                        {howItWorks.map((step, i) => (
+                            <motion.div 
+                                key={i}
+                                initial={{ opacity: 0, y: 50 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: i * 0.2 }}
+                                viewport={{ once: true, amount: 0.5 }}
+                                className="relative flex flex-col items-center"
+                            >
+                                <div className="z-10 flex h-24 w-24 items-center justify-center rounded-full border-4 border-background bg-primary/10 shrink-0 relative">
+                                    {step.icon}
+                                    <div className="absolute -top-3 -right-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl ring-4 ring-background">{step.step}</div>
+                                </div>
+                                 <div className="mt-6">
+                                    <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+                                    <p className="text-muted-foreground">{step.description}</p>
+                                 </div>
+                            </motion.div>
+                        ))}
+                    </div>
                  </div>
             </div>
         </section>
@@ -340,13 +341,12 @@ export default function LandingPage() {
                 <p className="text-sm text-muted-foreground text-center md:text-left">
                     &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
                 </p>
-                <nav className="flex items-center gap-4">
-                    <Link href="/features" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                        Fonctionnalités
-                    </Link>
-                    <Link href="/support" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                        Support
-                    </Link>
+                 <nav className="flex items-center gap-4">
+                    <Link href="/features" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
+                    <Link href="/pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
+                    <Link href="/security" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
+                    <Link href="/about" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
+                    <Link href="/support" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Support</Link>
                 </nav>
             </div>
         </div>
@@ -354,4 +354,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
