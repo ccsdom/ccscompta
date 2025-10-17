@@ -1,18 +1,12 @@
-
 'use client';
 
 import Link from "next/link";
 import { Logo } from '@/components/logo';
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar, User } from "lucide-react";
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
 import { cn } from '@/lib/utils';
 import React from 'react';
 import { usePathname } from "next/navigation";
-import { Input } from "@/components/ui/input";
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
@@ -40,38 +34,10 @@ const ListItem = React.forwardRef<
 })
 ListItem.displayName = "ListItem"
 
-
-export default function BlogPage() {
-  const posts = [
-    {
-      title: "5 astuces pour optimiser votre processus de clôture comptable avec l'IA",
-      category: "Conseils",
-      author: "Alice Dubois",
-      date: "15 Juillet 2024",
-      image: { src: "https://picsum.photos/seed/blog1/800/450", alt: "Personne travaillant sur un ordinateur portable avec des graphiques", hint: "accounting process optimization" },
-      excerpt: "La clôture comptable est souvent un processus stressant. Découvrez comment l'intelligence artificielle peut transformer cette tâche en un processus fluide et sans erreur."
-    },
-    {
-      title: "CCS Compta annonce son intégration avec le logiciel Cegid",
-      category: "Nouveautés",
-      author: "Bruno Petit",
-      date: "1 Juillet 2024",
-      image: { src: "https://picsum.photos/seed/blog2/800/450", alt: "Logos de CCS Compta et Cegid côte à côte", hint: "software integration logos" },
-      excerpt: "Nous sommes fiers d'annoncer notre nouvelle intégration native avec Cegid, permettant une synchronisation transparente de vos données comptables."
-    },
-    {
-      title: "Comment la numérisation des notes de frais révolutionne la vie des entrepreneurs",
-      category: "Productivité",
-      author: "Carla Moreau",
-      date: "20 Juin 2024",
-      image: { src: "https://picsum.photos/seed/blog3/800/450", alt: "Smartphone scannant un reçu de restaurant", hint: "mobile receipt scanning" },
-      excerpt: "Fini les boîtes à chaussures remplies de reçus ! Le scan mobile change la donne pour la gestion des notes de frais au quotidien."
-    }
-  ];
-
+export default function PolitiqueConfidentialitePage() {
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
-       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Logo className="h-6 w-6 text-primary" />
@@ -90,106 +56,77 @@ export default function BlogPage() {
                           href="/"
                         >
                           <Logo className="h-6 w-6" />
-                          <div className="mb-2 mt-4 text-lg font-medium">
-                            CCS Compta
-                          </div>
+                          <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
                           <p className="text-sm leading-tight text-muted-foreground">
                             La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
                           </p>
                         </a>
                       </NavigationMenuLink>
                     </li>
-                    <ListItem href="/features" title="Fonctionnalités">
-                      Découvrez comment l'IA transforme votre productivité.
-                    </ListItem>
-                    <ListItem href="/pricing" title="Tarifs">
-                      Des plans simples et transparents pour tous les besoins.
-                    </ListItem>
-                    <ListItem href="/security" title="Sécurité">
-                      Votre confiance, notre priorité.
-                    </ListItem>
+                    <ListItem href="/features" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
+                    <ListItem href="/pricing" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
+                    <ListItem href="/security" title="Sécurité">Votre confiance, notre priorité.</ListItem>
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior={false} passHref={true}>
-                  <NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/about" ? "bg-accent/50" : "")}>
-                    <p>À Propos</p>
-                  </NavigationMenuLink>
-                </Link>
+                <Link href="/about" legacyBehavior={false} passHref><NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/about" ? "bg-accent/50" : "")}><p>À Propos</p></NavigationMenuLink></Link>
               </NavigationMenuItem>
-               <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior={false} passHref={true}>
-                  <NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/blog" ? "bg-accent/50" : "")}>
-                    <p>Blog</p>
-                  </NavigationMenuLink>
-                </Link>
+              <NavigationMenuItem>
+                <Link href="/blog" legacyBehavior={false} passHref><NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/blog" ? "bg-accent/50" : "")}><p>Blog</p></NavigationMenuLink></Link>
               </NavigationMenuItem>
-               <NavigationMenuItem>
-                <Link href="/support" legacyBehavior={false} passHref={true}>
-                  <NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/support" ? "bg-accent/50" : "")}>
-                    <p>Support</p>
-                  </NavigationMenuLink>
-                </Link>
+              <NavigationMenuItem>
+                <Link href="/support" legacyBehavior={false} passHref><NavigationMenuLink asChild className={cn("font-medium text-sm px-4 py-2 rounded-md hover:bg-accent", usePathname() === "/support" ? "bg-accent/50" : "")}><p>Support</p></NavigationMenuLink></Link>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
           <div className="flex items-center gap-4">
-            <Button asChild>
-              <Link href="/login">Se connecter</Link>
-            </Button>
+            <Button asChild><Link href="/login">Se connecter</Link></Button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1">
-        <section className="py-20 md:py-24 text-center">
-            <div className="container mx-auto max-w-4xl px-4">
-                 <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl font-display">
-                    Notre Blog
-                </h1>
-                <p className="text-muted-foreground mt-6 max-w-3xl mx-auto text-lg">
-                    Conseils, nouveautés et réflexions sur le futur de la comptabilité.
-                </p>
-            </div>
-        </section>
+      <main className="flex-1 py-16 md:py-24">
+        <div className="container mx-auto max-w-3xl px-4">
+          <div className="prose dark:prose-invert max-w-none">
+            <h1>Politique de Confidentialité</h1>
+            <p className="lead">Dernière mise à jour : 25 Juillet 2024</p>
+            
+            <p>Votre vie privée est importante pour nous. Il est de la politique de CCS Compta de respecter votre vie privée concernant toute information que nous pouvons collecter auprès de vous sur notre site web, <Link href="/">https://ccs-compta.app</Link>, et autres sites que nous possédons et exploitons.</p>
 
-        <section className="py-12 md:py-20 bg-muted/30">
-            <div className="container mx-auto max-w-6xl px-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {posts.map((post, index) => (
-                        <Card key={index} className="overflow-hidden flex flex-col">
-                            <Image 
-                                src={post.image.src}
-                                alt={post.image.alt}
-                                width={800}
-                                height={450}
-                                className="w-full h-48 object-cover"
-                                data-ai-hint={post.image.hint}
-                            />
-                             <CardHeader>
-                                <Badge variant="secondary" className="mb-2 w-fit">{post.category}</Badge>
-                                <CardTitle className="text-xl h-20">{post.title}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex-1">
-                                <p className="text-muted-foreground">{post.excerpt}</p>
-                            </CardContent>
-                             <CardFooter className="flex-col items-start gap-4">
-                               <div className="text-xs text-muted-foreground flex items-center gap-4">
-                                  <span className="flex items-center gap-1.5"><User className="h-3 w-3" /> {post.author}</span>
-                                  <span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> {post.date}</span>
-                                </div>
-                                <Button variant="outline" className="w-full">Lire l'article <ArrowRight className="ml-2 h-4 w-4" /></Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
-            </div>
-        </section>
+            <h2>1. Collecte de l'information</h2>
+            <p>Nous collectons des informations lorsque vous vous inscrivez sur notre site, vous connectez à votre compte, faites un achat, et/ou vous déconnectez. Les informations collectées incluent votre nom, votre adresse e-mail, numéro de téléphone, et les données relatives aux documents que vous téléversez.</p>
 
+            <h2>2. Utilisation des informations</h2>
+            <p>Toute information que nous collectons auprès de vous peut être utilisée pour :</p>
+            <ul>
+                <li>Personnaliser votre expérience et répondre à vos besoins individuels</li>
+                <li>Fournir un contenu publicitaire personnalisé</li>
+                <li>Améliorer notre site</li>
+                <li>Améliorer le service client et vos besoins de prise en charge</li>
+                <li>Vous contacter par e-mail</li>
+                <li>Administrer un concours, une promotion, ou une enquête</li>
+            </ul>
+
+            <h2>3. Confidentialité des documents</h2>
+            <p>Nous sommes les seuls propriétaires des informations recueillies sur ce site. Vos informations personnelles et les documents que vous téléversez ne seront pas vendus, échangés, transférés, ou donnés à une autre société pour n'importe quelle raison, sans votre consentement, en dehors de ce qui est nécessaire pour répondre à une demande et / ou une transaction, comme par exemple pour expédier une commande.</p>
+
+            <h2>4. Protection des informations</h2>
+            <p>Nous mettons en œuvre une variété de mesures de sécurité pour préserver la sécurité de vos informations personnelles. Nous utilisons un cryptage à la pointe de la technologie pour protéger les informations sensibles transmises en ligne. Nous protégeons également vos informations hors ligne. Seuls les employés qui ont besoin d'effectuer un travail spécifique (par exemple, la facturation ou le service à la clientèle) ont accès aux informations personnelles identifiables.</p>
+
+            <h2>5. Cookies</h2>
+            <p>Nous utilisons des cookies pour améliorer l'accès à notre site et identifier les visiteurs réguliers. En outre, nos cookies améliorent l’expérience d’utilisateur grâce au suivi et au ciblage de ses intérêts. Cependant, cette utilisation des cookies n'est en aucune façon liée à des informations personnelles identifiables sur notre site.</p>
+            
+            <h2>6. Consentement</h2>
+            <p>En utilisant notre site, vous consentez à notre politique de confidentialité.</p>
+
+            <h2>7. Vos Droits</h2>
+             <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, de suppression, de portabilité et d'opposition au traitement de vos données. Vous pouvez exercer ces droits en nous contactant à l'adresse <a href="mailto:privacy@ccs-compta.com">privacy@ccs-compta.com</a>.</p>
+          </div>
+        </div>
       </main>
 
-      <footer className="border-t bg-muted/20">
+       <footer className="border-t bg-muted/20">
         <div className="container mx-auto max-w-7xl px-4 py-16">
             <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
                 <div className="lg:col-span-1">

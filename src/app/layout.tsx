@@ -4,6 +4,7 @@ import './globals.css';
 import { Inter, Space_Grotesk } from "next/font/google"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from '@/components/theme-provider';
+import { CookieBanner } from '@/components/cookie-banner';
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
           >
             {children}
             <Toaster />
+            <CookieBanner />
           </ThemeProvider>
       </body>
     </html>
