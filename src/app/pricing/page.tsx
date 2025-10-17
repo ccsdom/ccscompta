@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
+import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle } from '@/components/ui/navigation-menu';
 import React from 'react';
 import { usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -130,22 +130,22 @@ export default function PricingPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/about"}>
+                <Link href="/about" asChild>
+                  <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/blog"}>
+                <Link href="/blog" asChild>
+                  <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/support"}>
+                <Link href="/support" asChild>
+                  <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
                     Support
                   </NavigationMenuLink>
                 </Link>
@@ -285,5 +285,3 @@ export default function PricingPage() {
     </div>
   );
 }
-
-    

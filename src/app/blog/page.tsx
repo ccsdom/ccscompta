@@ -8,7 +8,7 @@ import { ArrowRight, Calendar, User } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
+import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle } from '@/components/ui/navigation-menu';
 import { cn } from '@/lib/utils';
 import React from 'react';
 import { usePathname } from "next/navigation";
@@ -112,22 +112,22 @@ export default function BlogPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/about"}>
+                <Link href="/about" asChild>
+                  <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/blog"}>
+                <Link href="/blog" asChild>
+                  <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
                <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/support"}>
+                <Link href="/support" asChild>
+                  <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
                     Support
                   </NavigationMenuLink>
                 </Link>
@@ -247,5 +247,3 @@ export default function BlogPage() {
     </div>
   );
 }
-
-    
