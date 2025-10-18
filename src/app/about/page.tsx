@@ -131,7 +131,113 @@ export default function AboutPage() {
       </header>
 
       <main className="flex-1">
-        {/* ... le reste du contenu principal reste identique ... */}
+        <section className="py-20 md:py-24 text-center">
+          <div className="container mx-auto max-w-4xl px-4">
+            <motion.h1 
+              className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl font-display"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              Notre mission : simplifier la vie des <span className="text-primary">experts-comptables</span>.
+            </motion.h1>
+            <motion.p 
+              className="text-muted-foreground mt-6 max-w-3xl mx-auto text-lg"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              Nous croyons que la technologie peut libérer les comptables des tâches répétitives pour leur permettre de se concentrer sur leur véritable valeur ajoutée : le conseil.
+            </motion.p>
+          </div>
+        </section>
+
+        <section className="py-12 md:py-20 bg-muted/30">
+          <div className="container mx-auto max-w-6xl px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                  <Building className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg">Fondation</h3>
+                <p className="text-muted-foreground text-sm">Fondé en 2023</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg">Équipe</h3>
+                <p className="text-muted-foreground text-sm">4 passionnés</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                  <Handshake className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg">Partenaires</h3>
+                <p className="text-muted-foreground text-sm">+10 cabinets</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
+                  <Target className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg">Vision</h3>
+                <p className="text-muted-foreground text-sm">Zéro saisie manuelle</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-24">
+          <div className="container mx-auto max-w-6xl px-4">
+            <div className="grid md:grid-cols-2 gap-16 items-center">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight font-display mb-4">
+                  L'histoire derrière CCS Compta
+                </h2>
+                <p className="text-muted-foreground mb-4 text-lg">
+                  Née de la frustration face à des processus comptables obsolètes et chronophages, CCS Compta a été créée par une équipe d'experts-comptables et de développeurs. Notre objectif commun : créer un outil qui travaille pour le comptable, et non l'inverse.
+                </p>
+                <p className="text-muted-foreground text-lg">
+                  Chaque fonctionnalité a été pensée et conçue en collaboration directe avec des professionnels du secteur pour répondre à des besoins réels et concrets.
+                </p>
+              </div>
+              <div>
+                <Image
+                  src="https://picsum.photos/seed/team/800/600"
+                  alt="Équipe travaillant ensemble"
+                  width={800}
+                  height={600}
+                  className="rounded-xl shadow-lg"
+                  data-ai-hint="team working together"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <section className="py-20 bg-muted/30">
+          <div className="container mx-auto max-w-4xl px-4 text-center">
+            <h2 className="text-3xl font-bold tracking-tight font-display mb-12">
+              Une équipe dédiée à votre succès
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {team.map((member, index) => (
+                <motion.div 
+                  key={index}
+                  className="flex flex-col items-center"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  <Image src={member.avatar} alt={member.name} width={96} height={96} className="rounded-full mb-3" />
+                  <p className="font-semibold">{member.name}</p>
+                  <p className="text-sm text-primary">{member.role}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="py-24">
           <div className="container mx-auto max-w-4xl px-4 text-center">
