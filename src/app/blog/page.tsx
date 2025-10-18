@@ -90,7 +90,7 @@ export default function BlogPage() {
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">CCS Compta</span>
+            <span className="hidden font-bold text-lg sm:inline-block">CCS Compta</span>
           </Link>
 
           <NavigationMenu className="hidden md:flex">
