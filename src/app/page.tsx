@@ -156,22 +156,22 @@ export default function LandingPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                 <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                <Link href="/about" legacyBehavior passHref>
+                  <NavigationMenuLink active={usePathname() === '/about'} className={navigationMenuTriggerStyle()}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                 <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                <Link href="/blog" legacyBehavior passHref>
+                  <NavigationMenuLink active={usePathname() === '/blog'} className={navigationMenuTriggerStyle()}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                 <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                <Link href="/support" legacyBehavior passHref>
+                  <NavigationMenuLink active={usePathname() === '/support'} className={navigationMenuTriggerStyle()}>
                     Support
                   </NavigationMenuLink>
                 </Link>
