@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/logo';
-import { ArrowRight, Bot, Users, CheckSquare, UploadCloud, ScanSearch, Building, Briefcase } from 'lucide-react';
+import { ArrowRight, Bot, Users, CheckSquare, UploadCloud, ScanSearch, Building, Briefcase, Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 import { usePathname } from "next/navigation";
 import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
@@ -86,6 +87,15 @@ export default function LandingPage() {
     { icon: <CheckSquare className="h-10 w-10 text-primary" />, step: 3, title: "Validation en un Clic", description: "Le comptable valide les informations avant intégration." },
   ];
 
+  const navLinks = [
+    { href: "/features", text: "Fonctionnalités" },
+    { href: "/pricing", text: "Tarifs" },
+    { href: "/about", text: "À Propos" },
+    { href: "/blog", text: "Blog" },
+    { href: "/support", text: "Support" }
+  ];
+
+
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
@@ -151,7 +161,30 @@ export default function LandingPage() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+             <div className="md:hidden">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Menu className="h-5 w-5" />
+                      <span className="sr-only">Ouvrir le menu</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left">
+                     <nav className="grid gap-6 text-lg font-medium mt-8">
+                       <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                         <Logo className="h-6 w-6 text-primary" />
+                         <span className="font-bold text-lg">CCS Compta</span>
+                       </Link>
+                       {navLinks.map(link => (
+                         <SheetClose asChild key={link.href}>
+                            <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
+                         </SheetClose>
+                       ))}
+                     </nav>
+                  </SheetContent>
+                </Sheet>
+              </div>
             <Button asChild>
               <Link href="/login">Se connecter</Link>
             </Button>

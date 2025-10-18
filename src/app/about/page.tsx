@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Logo } from '@/components/logo';
 import { Button } from "@/components/ui/button";
-import { Building, Users, Handshake, Target, ArrowRight } from "lucide-react";
+import { Building, Users, Handshake, Target, ArrowRight, Menu } from "lucide-react";
 import Image from "next/image";
 import { motion } from 'framer-motion';
 import {
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { usePathname } from "next/navigation";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
@@ -56,6 +57,15 @@ export default function AboutPage() {
     { name: "Carla Moreau", role: "Responsable Produit", avatar: "https://randomuser.me/api/portraits/women/46.jpg" },
     { name: "David Martin", role: "Développeur Principal", avatar: "https://randomuser.me/api/portraits/men/47.jpg" },
   ];
+  
+  const navLinks = [
+    { href: "/features", text: "Fonctionnalités" },
+    { href: "/pricing", text: "Tarifs" },
+    { href: "/about", text: "À Propos" },
+    { href: "/blog", text: "Blog" },
+    { href: "/support", text: "Support" }
+  ];
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
@@ -122,7 +132,30 @@ export default function AboutPage() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Ouvrir le menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left">
+                   <nav className="grid gap-6 text-lg font-medium mt-8">
+                     <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                       <Logo className="h-6 w-6 text-primary" />
+                       <span className="font-bold text-lg">CCS Compta</span>
+                     </Link>
+                     {navLinks.map(link => (
+                       <SheetClose asChild key={link.href}>
+                          <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
+                       </SheetClose>
+                     ))}
+                   </nav>
+                </SheetContent>
+              </Sheet>
+            </div>
             <Button asChild>
               <Link href="/login">Se connecter</Link>
             </Button>

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/accordion"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, HelpCircle, MessageSquare, Bot } from "lucide-react";
+import { Mail, Phone, HelpCircle, MessageSquare, Bot, Menu } from "lucide-react";
 import Link from "next/link";
 import { Logo } from '@/components/logo';
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle } from '@/components/ui/navigation-menu';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 import { usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
@@ -46,6 +47,14 @@ ListItem.displayName = "ListItem"
 
 
 export default function SupportPage() {
+    const navLinks = [
+    { href: "/features", text: "Fonctionnalités" },
+    { href: "/pricing", text: "Tarifs" },
+    { href: "/about", text: "À Propos" },
+    { href: "/blog", text: "Blog" },
+    { href: "/support", text: "Support" }
+  ];
+
 
   const faqs = [
     {
@@ -131,7 +140,30 @@ export default function SupportPage() {
              </NavigationMenuItem>
            </NavigationMenuList>
          </NavigationMenu>
-         <div className="flex items-center gap-4">
+         <div className="flex items-center gap-2">
+            <div className="md:hidden">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Menu className="h-5 w-5" />
+                      <span className="sr-only">Ouvrir le menu</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left">
+                     <nav className="grid gap-6 text-lg font-medium mt-8">
+                       <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                         <Logo className="h-6 w-6 text-primary" />
+                         <span className="font-bold text-lg">CCS Compta</span>
+                       </Link>
+                       {navLinks.map(link => (
+                         <SheetClose asChild key={link.href}>
+                            <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
+                         </SheetClose>
+                       ))}
+                     </nav>
+                  </SheetContent>
+                </Sheet>
+              </div>
            <Button asChild>
              <Link href="/login">Se connecter</Link>
            </Button>
@@ -258,7 +290,7 @@ export default function SupportPage() {
                       href="#"
                       className="text-muted-foreground hover:text-primary"
                     >
-                      <span className="sr-only">LinkedIn</span><svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd" /></svg>
+                      <span className="sr-only">LinkedIn</span><svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd"/></svg>
                     </Link>
                  </div>
              </div>
