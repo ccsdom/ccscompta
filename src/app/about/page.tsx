@@ -132,7 +132,10 @@ export default function AboutPage() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+             <Button asChild className="hidden md:inline-flex">
+              <Link href="/login">Se connecter</Link>
+            </Button>
             <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
@@ -152,13 +155,13 @@ export default function AboutPage() {
                           <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
                        </SheetClose>
                      ))}
+                      <SheetClose asChild>
+                        <Link href="/login" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
+                      </SheetClose>
                    </nav>
                 </SheetContent>
               </Sheet>
             </div>
-            <Button asChild>
-              <Link href="/login">Se connecter</Link>
-            </Button>
           </div>
         </div>
       </header>

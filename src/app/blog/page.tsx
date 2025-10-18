@@ -143,33 +143,36 @@ export default function BlogPage() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          <div className="flex items-center gap-2">
-             <div className="md:hidden">
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon">
-                      <Menu className="h-5 w-5" />
-                      <span className="sr-only">Ouvrir le menu</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left">
-                     <nav className="grid gap-6 text-lg font-medium mt-8">
-                       <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
-                         <Logo className="h-6 w-6 text-primary" />
-                         <span className="font-bold text-lg">CCS Compta</span>
-                       </Link>
-                       {navLinks.map(link => (
-                         <SheetClose asChild key={link.href}>
-                            <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
-                         </SheetClose>
-                       ))}
-                     </nav>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            <Button asChild>
+          <div className="flex items-center gap-4">
+             <Button asChild className="hidden md:inline-flex">
               <Link href="/login">Se connecter</Link>
             </Button>
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Ouvrir le menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left">
+                   <nav className="grid gap-6 text-lg font-medium mt-8">
+                     <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                       <Logo className="h-6 w-6 text-primary" />
+                       <span className="font-bold text-lg">CCS Compta</span>
+                     </Link>
+                     {navLinks.map(link => (
+                       <SheetClose asChild key={link.href}>
+                          <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
+                       </SheetClose>
+                     ))}
+                      <SheetClose asChild>
+                        <Link href="/login" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
+                      </SheetClose>
+                   </nav>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </header>
