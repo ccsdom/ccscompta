@@ -171,11 +171,11 @@ export function Sidebar() {
       return (
           <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
               <div className="flex items-center justify-center h-16 border-b">
-                  <Link href="/dashboard" legacyBehavior>
-                    <a className="flex items-center space-x-2">
+                  <Link href={getDashboardHomeLink()}>
+                    <div className="flex items-center space-x-2">
                         <Logo className="h-6 w-6 text-primary" />
                         <span className="font-bold text-lg">CCS Compta</span>
-                    </a>
+                    </div>
                   </Link>
               </div>
               <div className="p-4 border-b h-[68px]">
@@ -199,11 +199,9 @@ export function Sidebar() {
           <div className="flex items-center justify-center h-16 border-b">
             <Link
                 href={getDashboardHomeLink()}
-                legacyBehavior>
-                <a className="flex items-center space-x-2">
-                    <Logo className="h-6 w-6 text-primary" />
-                    <span className="font-bold text-lg">CCS Compta</span>
-                </a>
+                className="flex items-center space-x-2">
+                <Logo className="h-6 w-6 text-primary" />
+                <span className="font-bold text-lg">CCS Compta</span>
             </Link>
           </div>
           <ScrollArea className="flex-1">
