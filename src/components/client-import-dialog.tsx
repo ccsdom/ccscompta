@@ -8,12 +8,10 @@ import { FileUp, File, CheckCircle, AlertCircle, Loader2, Download, UserPlus, Ke
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/lib/types';
-import { addClientProfile } from '@/ai/flows/client-actions';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
 
 interface ClientImportDialogProps {
@@ -98,34 +96,47 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         setIsLoading(true);
         let importedCount = 0;
         let errorCount = 0;
-        let errorMessages: string[] = [];
         
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            toast({ variant: 'destructive', title: 'Erreur d\'authentification', description: 'Veuillez vous reconnecter.' });
+            setIsLoading(false);
+            return;
+        }
+
+        const idToken = await currentUser.getIdToken();
+
         for (const clientData of parsedData) {
             try {
-                // Step 1: Create Auth user
-                const userCredential = await createUserWithEmailAndPassword(auth, clientData.email, clientData.siret!); // Use SIRET as password
-                const user = userCredential.user;
-
-                // Step 2: Create Firestore profile
-                const profileResult = await addClientProfile({
+                const dataToSend = {
                     ...clientData,
-                    uid: user.uid,
                     role: 'client',
+                    password: clientData.siret // Use SIRET as default password
+                };
+
+                const response = await fetch('https://us-central1-ccs-compta.cloudfunctions.net/createUserWithRole', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({ data: dataToSend }),
                 });
 
-                if (profileResult.success) {
-                    importedCount++;
-                } else {
-                     throw new Error(profileResult.error);
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error?.message || `Erreur HTTP: ${response.status}`);
                 }
+
+                importedCount++;
 
             } catch (error: any) {
                 errorCount++;
                 let msg = `Erreur pour ${clientData.name}: ${error.message}`;
-                 if(error.code === 'auth/email-already-in-use') {
+                if(error.code === 'auth/email-already-in-use') {
                      msg = `L'email ${clientData.email} est déjà utilisé.`;
-                 }
-                errorMessages.push(msg);
+                }
                 console.error(`Failed to import client ${clientData.name}: ${error.message}`);
             }
         }
