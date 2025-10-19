@@ -143,7 +143,6 @@ export default function MyDocumentsPage() {
         };
         
         const createdDoc = await addDocument(newDocData);
-        if (!createdDoc) throw new Error("Failed to save document metadata.");
         
         await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
         
@@ -158,7 +157,7 @@ export default function MyDocumentsPage() {
         toast({
             variant: 'destructive',
             title: `Échec du téléversement pour ${file.name}`,
-            description: "Veuillez réessayer. Si le problème persiste, contactez le support."
+            description: "La sauvegarde des informations du document a échoué. Veuillez réessayer."
         });
         return { success: false };
     }

@@ -79,7 +79,6 @@ export default function ScanPage() {
          const file = await (await fetch(dataUrl)).blob();
 
         const storagePath = `${clientId}/${Date.now()}-${fileName}`;
-        let createdDoc: Document | null = null;
         
         try {
             const storageRef = ref(storage, storagePath);
@@ -96,10 +95,7 @@ export default function ScanPage() {
                 comments: [],
             };
             
-            createdDoc = await addDocument(docForDb);
-            if (!createdDoc) {
-              throw new Error("Échec de la création de l'entrée du document dans la base de données.");
-            }
+            const createdDoc = await addDocument(docForDb);
             
             window.dispatchEvent(new Event('storage')); // Refresh lists
 
@@ -127,12 +123,8 @@ export default function ScanPage() {
 
         } catch (error) {
             console.error(`Error processing scanned file:`, error);
-            if (createdDoc) {
-                 const trail = addAuditEvent(createdDoc.auditTrail, `Erreur de traitement: ${error instanceof Error ? error.message : 'inconnue'}`);
-                 await updateDocument({ id: createdDoc.id, updates: { status: 'error', auditTrail: trail } });
-                 createNotification({ ...createdDoc, status: 'error' }, 'a échoué lors du traitement.');
-            }
-            throw error; // Re-throw to be caught by handleSend
+            // We re-throw the error to let the caller handle the UI feedback
+            throw error;
         }
     }, [storage, toast]);
 
@@ -167,7 +159,7 @@ export default function ScanPage() {
             toast({ title: 'Document envoyé !', description: 'Votre document a été traité et envoyé à votre comptable.' });
             setCapturedImage(null);
         } catch (error) {
-             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document.' });
+             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer le document. La sauvegarde a échoué.' });
         } finally {
             setIsProcessing(false);
             window.dispatchEvent(new Event('storage'));

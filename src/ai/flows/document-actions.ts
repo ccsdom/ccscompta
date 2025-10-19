@@ -4,11 +4,12 @@
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
 import { createSupplier, findSupplier } from '@/services/cegid';
-import { firestore as db } from '@/firebase'; // CHANGED: Use client SDK
+import { useFirebase } from '@/firebase'; // CHANGED: Use client SDK
 import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
 
 
 export async function getDocuments(clientId: string): Promise<Document[]> {
+    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Fetching documents for client: ${clientId}`);
     try {
         const q = query(collection(db, 'documents'), where('clientId', '==', clientId));
@@ -22,6 +23,7 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
 }
 
 export async function getDocumentById(docId: string): Promise<Document | null> {
+    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Fetching document by ID: ${docId}`);
     try {
         const docRef = doc(db, 'documents', docId);
@@ -36,19 +38,24 @@ export async function getDocumentById(docId: string): Promise<Document | null> {
     }
 }
 
-export async function addDocument(docData: Omit<Document, 'id'>): Promise<Document | null> {
+export async function addDocument(docData: Omit<Document, 'id'>): Promise<Document> {
+    const { firestore: db } = useFirebase();
     try {
         const docRef = await addDoc(collection(db, 'documents'), docData);
         console.log(`[Firestore] Added new document for client ${docData.clientId} with ID: ${docRef.id}`);
-        return { ...docData, id: docRef.id };
+        const newDoc = { ...docData, id: docRef.id };
+        // We can't return the doc snapshot directly, so we construct the object.
+        return newDoc as Document;
     } catch (error) {
         console.error(`[Firestore] Error adding document:`, error);
-        return null;
+        // Re-throw the error to be handled by the caller
+        throw error;
     }
 }
 
 
 export async function updateDocument({ id, updates }: {id: string, updates: Partial<Document> }): Promise<void> {
+    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Updating document ${id}`);
     try {
         const docRef = doc(db, 'documents', id);
@@ -59,7 +66,8 @@ export async function updateDocument({ id, updates }: {id: string, updates: Part
 }
 
 export async function deleteDocument(docId: string): Promise<void> {
-     console.log(`[Firestore] Deleting document ${docId}`);
+    const { firestore: db } = useFirebase();
+    console.log(`[Firestore] Deleting document ${docId}`);
     try {
         await deleteDoc(doc(db, 'documents', docId));
     } catch (error) {
@@ -118,6 +126,7 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
 }
 
 export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
+    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Fetching bilans for client: ${clientId}`);
     try {
         const q = query(collection(db, 'bilans'), where('clientId', '==', clientId));
