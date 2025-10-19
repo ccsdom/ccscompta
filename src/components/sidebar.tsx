@@ -80,7 +80,7 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
                         isNavItemActive(pathname, item.href, currentRole) ? 'bg-muted text-primary' : ''
                     )}
-                    legacyBehavior>
+                >
                     <item.icon className="h-4 w-4" />
                     {item.label}
                 </Link>
@@ -105,7 +105,7 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
                 <SheetDescription className="sr-only">
                     Navigation principale et options du compte pour l'application CCS Compta.
                 </SheetDescription>
-                <Link href="/" className="flex items-center gap-2 font-semibold" legacyBehavior>
+                <Link href="/" className="flex items-center gap-2 font-semibold">
                     <Logo className="h-6 w-6" />
                     <span>CCS Compta</span>
                 </Link>
@@ -171,9 +171,11 @@ export function Sidebar() {
       return (
           <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
               <div className="flex items-center justify-center h-16 border-b">
-                  <Link href="/dashboard" className="flex items-center space-x-2" legacyBehavior>
-                      <Logo className="h-6 w-6 text-primary" />
-                      <span className="font-bold text-lg">CCS Compta</span>
+                  <Link href="/dashboard" legacyBehavior>
+                    <a className="flex items-center space-x-2">
+                        <Logo className="h-6 w-6 text-primary" />
+                        <span className="font-bold text-lg">CCS Compta</span>
+                    </a>
                   </Link>
               </div>
               <div className="p-4 border-b h-[68px]">
@@ -197,10 +199,11 @@ export function Sidebar() {
           <div className="flex items-center justify-center h-16 border-b">
             <Link
                 href={getDashboardHomeLink()}
-                className="flex items-center space-x-2"
                 legacyBehavior>
-                <Logo className="h-6 w-6 text-primary" />
-                <span className="font-bold text-lg">CCS Compta</span>
+                <a className="flex items-center space-x-2">
+                    <Logo className="h-6 w-6 text-primary" />
+                    <span className="font-bold text-lg">CCS Compta</span>
+                </a>
             </Link>
           </div>
           <ScrollArea className="flex-1">
