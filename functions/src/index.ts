@@ -8,8 +8,11 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
+import * as cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 
 // Initialize the Firebase Admin SDK.
 initializeApp();
@@ -18,7 +21,7 @@ initializeApp();
  * Function to set current authenticated user as admin.
  * This is a Callable Function.
  */
-export const setAdminRole = onCall({ cors: true }, async (request) => {
+export const setAdminRole = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Vous devez être connecté pour effectuer cette action.');
   }
@@ -45,18 +48,22 @@ export const setAdminRole = onCall({ cors: true }, async (request) => {
 
 /**
  * Function to create a new user with a specific role.
- * This is a Callable Function.
+ * This is now an onRequest function to handle CORS explicitly.
  */
-export const createUserWithRole = onCall({ cors: true }, async (request) => {
-    // 1. Verify admin
-    if (request.auth?.token.role !== 'admin') {
-      throw new HttpsError('permission-denied', 'Seul un administrateur peut effectuer cette action.');
+export const createUserWithRole = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    // 1. Verify admin from the context passed by the client SDK
+    if (req.body.data.context?.auth?.token.role !== 'admin') {
+      logger.warn('Permission denied for createUserWithRole', { auth: req.body.data.context?.auth });
+      res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+      return;
     }
 
     // 2. Get payload from request.data
-    const { email, password, ...profileData } = request.data;
+    const { email, password, ...profileData } = req.body.data;
     if (!email) {
-      throw new HttpsError('invalid-argument', 'Email requis pour la création.');
+       res.status(400).send({ error: { message: 'Email requis pour la création.', status: 'INVALID_ARGUMENT' } });
+       return;
     }
 
     const auth = getAuth();
@@ -89,17 +96,25 @@ export const createUserWithRole = onCall({ cors: true }, async (request) => {
         });
 
         logger.info(`Successfully created user ${uid} with role ${role}`);
-        return { success: true, uid, message: 'Utilisateur créé avec succès.' };
+        res.status(200).send({ data: { success: true, uid, message: 'Utilisateur créé avec succès.' } });
     } catch (error: any) {
         logger.error('Error creating new user:', error);
+        let status = 500;
+        let code = 'INTERNAL';
+        let message = "Une erreur est survenue lors de la création de l'utilisateur.";
 
         if (error.code === 'auth/email-already-exists') {
-            throw new HttpsError('already-exists', "Un compte avec cette adresse email existe déjà.");
+            status = 409;
+            code = 'ALREADY_EXISTS';
+            message = "Un compte avec cette adresse email existe déjà.";
         }
         if (error.code === 'auth/invalid-password') {
-             throw new HttpsError('invalid-argument', "Le mot de passe doit comporter au moins 6 caractères.");
+            status = 400;
+            code = 'INVALID_ARGUMENT';
+            message = "Le mot de passe doit comporter au moins 6 caractères.";
         }
 
-        throw new HttpsError('internal', "Une erreur est survenue lors de la création de l'utilisateur.", error.message);
+        res.status(status).send({ error: { message, status: code }});
     }
+  });
 });
