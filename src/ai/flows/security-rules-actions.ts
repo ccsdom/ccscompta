@@ -66,6 +66,11 @@ service cloud.firestore {
         allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
         allow create, update, delete: if isStaff();
     }
+
+    match /cabinets/{cabinetId} {
+        allow read, list: if isStaff();
+        allow create, update, delete: if isStaff();
+    }
   }
 }
   `.trim();
