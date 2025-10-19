@@ -58,7 +58,7 @@ export const createUserWithRole = onRequest(async (req, res) => {
     }
 
     if (req.method !== 'POST') {
-        res.status(405).send('Method Not Allowed');
+        res.status(405).send({ error: { message: 'Method Not Allowed' }});
         return;
     }
 
