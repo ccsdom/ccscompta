@@ -47,16 +47,11 @@ export const setAdminRole = onCall(async (request) => {
 
 /**
  * Function to create a new user with a specific role.
- * This is now an onRequest function to handle CORS explicitly.
+ * This is an HTTP onRequest function with explicit CORS handling via middleware.
  */
 export const createUserWithRole = onRequest(async (req, res) => {
   corsHandler(req, res, async () => {
-    // Manually handle preflight requests
-    if (req.method === 'OPTIONS') {
-        res.status(204).send('');
-        return;
-    }
-
+    
     if (req.method !== 'POST') {
         res.status(405).send({ error: { message: 'Method Not Allowed' }});
         return;
