@@ -73,18 +73,6 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
             }
         }
         
-        /*
-        // This requires the admin SDK, which we are not using on the client-side for now.
-        if (updates.email && updates.email !== (await adminAuth.getUser(id)).email) {
-             await adminAuth.updateUser(id, { email: updates.email });
-        }
-        
-        // If the role is being updated, also update the custom claim
-        if (updates.role) {
-            await adminAuth.setCustomUserClaims(id, { role: updates.role });
-        }
-        */
-
         const docRef = doc(db, 'clients', id);
         await setDoc(docRef, updates, { merge: true });
 
@@ -103,11 +91,8 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
 export async function deleteClient(id: string): Promise<{success: boolean}> {
     console.log(`[Firestore] Deleting user profile ID: ${id}`);
     try {
-        // Use Admin SDK to delete the user from Auth - This needs to be done in a Cloud Function
-        // await adminAuth.deleteUser(id);
-        // console.log(`[Admin SDK] Auth user ${id} deleted.`);
-        
-        // Delete Firestore document
+        // NOTE: The user is deleted from Auth via a Cloud Function for security reasons.
+        // This action only deletes the Firestore document.
         await deleteDoc(doc(db, 'clients', id));
         console.log(`[Firestore] User profile ${id} deleted.`);
         
