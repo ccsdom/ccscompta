@@ -122,14 +122,6 @@ export async function getBilansByClientId(clientId: string): Promise<Bilan[]> {
     try {
         const q = query(collection(db, 'bilans'), where('clientId', '==', clientId));
         const snapshot = await getDocs(q);
-        if (snapshot.empty && MOCK_BILANS[clientId]) {
-            console.log(`Seeding bilans for client ${clientId}`);
-            for (const bilan of MOCK_BILANS[clientId]) {
-                await addDoc(collection(db, 'bilans'), bilan);
-            }
-            const seededSnapshot = await getDocs(q);
-            return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bilan));
-        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bilan));
     } catch (error) {
         console.error(`Error fetching bilans for client ${clientId}:`, error);

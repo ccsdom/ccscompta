@@ -6,28 +6,10 @@ import { db } from '@/lib/firebase-client'; // CHANGED: Use client SDK
 import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer, getDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
 
 
-const MOCK_INVOICES: Omit<Invoice, 'id'>[] = [
-    { clientId: 'client-01', clientName: 'ACTION AVENTURE', number: 'FACT-2024-007', date: '2024-07-01', dueDate: '2024-07-31', amount: 350.00, status: 'pending' },
-    { clientId: 'client-02', clientName: 'AUTO ECOLE DE LA MAIRIE', number: 'FACT-2024-006', date: '2024-06-01', dueDate: '2024-06-30', amount: 350.00, status: 'paid' },
-    { clientId: 'client-03', clientName: 'BODY MINUTE', number: 'FACT-2024-005', date: '2024-05-01', dueDate: '2024-05-31', amount: 350.00, status: 'paid' },
-    { clientId: 'client-04', clientName: 'CABINET FLORET', number: 'FACT-2023-BILAN', date: '2024-04-15', dueDate: '2024-05-15', amount: 1800.00, status: 'overdue' },
-    { clientId: 'vsw-sas', clientName: 'VSW SAS', number: 'FACT-2024-004', date: '2024-04-01', dueDate: '2024-04-30', amount: 350.00, status: 'paid' },
-];
-
-
 export async function getInvoices(): Promise<Invoice[]> {
     console.log('[Firestore] Fetching all invoices.');
     try {
         const snapshot = await getDocs(collection(db, 'invoices'));
-        if (snapshot.empty) {
-            console.log("No invoices found in Firestore, seeding with mock data...");
-            for(const invoice of MOCK_INVOICES) {
-                await addDoc(collection(db, 'invoices'), invoice);
-            }
-            console.log(`${MOCK_INVOICES.length} mock invoices seeded.`);
-            const seededSnapshot = await getDocs(collection(db, 'invoices'));
-            return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
-        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
     } catch(e) {
         console.error("[Firestore] Error fetching invoices:", e);
