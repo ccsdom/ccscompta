@@ -45,7 +45,7 @@ export default function SettingsPage() {
     const [isAdminRoleLoading, setIsAdminRoleLoading] = useState(false);
     
     const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'ccs-compta';
-    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'ccs-compta.appspot.com';
+    const storageBucket = "ccs-compta.firebasestorage.app";
     const corsCommand = `echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json`;
     const gcloudCorsCommand = `gcloud storage buckets update gs://${storageBucket} --cors-file=cors.json`;
 

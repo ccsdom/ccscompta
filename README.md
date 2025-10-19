@@ -39,11 +39,11 @@ Cette méthode est la plus fiable et fonctionne sur tous les systèmes d'exploit
     echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json
     ```
 
-5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** trouvez l'adresse exacte de votre bucket dans la console Firebase (Storage -> onglet Fichiers, elle commence par `gs://`) et remplacez `gs://VOTRE-BUCKET-ICI.appspot.com` dans la commande ci-dessous si nécessaire.
+5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** trouvez l'adresse exacte de votre bucket dans la console Firebase (Storage -> onglet Fichiers, elle commence par `gs://`) et remplacez `gs://VOTRE-BUCKET-ICI.firebasestorage.app` dans la commande ci-dessous si nécessaire.
     
     ```bash
-    # Exemple : gcloud storage buckets update gs://mon-projet-a-moi.appspot.com --cors-file=cors.json
-    gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=cors.json
+    # Exemple : gcloud storage buckets update gs://mon-projet-a-moi.firebasestorage.app --cors-file=cors.json
+    gcloud storage buckets update gs://ccs-compta.firebasestorage.app --cors-file=cors.json
     ```
 
 6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell. Les modifications peuvent prendre quelques minutes à se propager.
