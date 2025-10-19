@@ -335,25 +335,33 @@ export function Header({children}: {children?: React.ReactNode}) {
                            </>
                         )}
                         <DropdownMenuItem asChild>
-                             <Link href={"/dashboard/settings"} legacyBehavior>
-                                <User className="mr-2 h-4 w-4" /> Profil
+                             <Link href={"/dashboard/settings"} legacyBehavior passHref>
+                                <a>
+                                  <User className="mr-2 h-4 w-4" /> Profil
+                                </a>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                              <Link
                                  href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/billing" : "/dashboard/my-invoices"}
-                                 legacyBehavior>
+                                 legacyBehavior passHref>
+                                <a>
                                 <CreditCard className="mr-2 h-4 w-4" /> Facturation
+                                </a>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                            <Link href={"/dashboard/settings"} legacyBehavior>
+                            <Link href={"/dashboard/settings"} legacyBehavior passHref>
+                                <a>
                                 <Settings className="mr-2 h-4 w-4" /> Paramètres
+                                </a>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                            <Link href="/support" legacyBehavior>
+                            <Link href="/support" legacyBehavior passHref>
+                               <a>
                                 <LifeBuoy className="mr-2 h-4 w-4" /> Aide & Support
+                               </a>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
