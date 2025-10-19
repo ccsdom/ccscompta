@@ -139,7 +139,7 @@ export default function LandingPage() {
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
-             <NavigationMenuItem>
+              <NavigationMenuItem>
                 <Link href="/about" legacyBehavior passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()}>
                     À Propos
@@ -456,3 +456,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
