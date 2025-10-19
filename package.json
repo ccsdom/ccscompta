@@ -43,6 +43,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^10.12.3",
     "framer-motion": "^11.5.8",
     "genkit": "^1.14.1",
     "isomorphic-fetch": "^3.0.0",
