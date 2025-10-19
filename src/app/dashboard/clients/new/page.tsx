@@ -43,8 +43,6 @@ export default function NewClientPage() {
         
         try {
             const functions = getFunctions(getApp());
-            // Important: We are now calling an onRequest function, not an onCall.
-            // The structure of the call changes slightly.
             const createUserWithRoleFunc = httpsCallable(functions, 'createUserWithRole');
             
             const result = await createUserWithRoleFunc(data);
@@ -76,8 +74,7 @@ export default function NewClientPage() {
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
-            // The error from an onRequest function might be structured differently
-            const errorMessage = error.details?.message || error.message || "Une erreur inconnue est survenue.";
+            const errorMessage = error.message || "Une erreur inconnue est survenue.";
             toast({
                 variant: 'destructive',
                 title: "Erreur lors de la création",
