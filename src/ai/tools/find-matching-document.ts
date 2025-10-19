@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A tool for finding matching documents in the system.
@@ -98,5 +97,3 @@ export const findMatchingDocumentTool = ai.defineTool(
        return matchId || undefined;
     }
 );
-
-    

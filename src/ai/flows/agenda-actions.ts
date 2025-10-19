@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { AgendaEvent } from '@/lib/types';

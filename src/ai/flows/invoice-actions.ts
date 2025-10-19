@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { Invoice, Client } from '@/lib/types';

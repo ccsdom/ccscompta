@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow to search for french companies using the public government API.
