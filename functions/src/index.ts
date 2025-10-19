@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
@@ -17,7 +18,7 @@ initializeApp();
  * Function to set current authenticated user as admin.
  * This is a Callable Function.
  */
-export const setAdminRole = onCall(async (request) => {
+export const setAdminRole = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Vous devez être connecté pour effectuer cette action.');
   }
@@ -46,7 +47,7 @@ export const setAdminRole = onCall(async (request) => {
  * Function to create a new user with a specific role.
  * This is a Callable Function.
  */
-export const createUserWithRole = onCall(async (request) => {
+export const createUserWithRole = onCall({ cors: true }, async (request) => {
     // 1. Verify admin
     if (request.auth?.token.role !== 'admin') {
       throw new HttpsError('permission-denied', 'Seul un administrateur peut effectuer cette action.');
