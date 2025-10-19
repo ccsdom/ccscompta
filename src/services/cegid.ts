@@ -1,4 +1,3 @@
-
 'use server';
 
 // This is a mock/simulation of a Cegid API client service.

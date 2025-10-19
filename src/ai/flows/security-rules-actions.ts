@@ -1,5 +1,4 @@
 'use server';
-
 /**
  * @fileOverview Actions related to Firebase security rules configuration.
  */
