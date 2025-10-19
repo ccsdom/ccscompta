@@ -2,59 +2,9 @@
 import type { Document, Bilan, Client } from '@/lib/types';
 
 export const MOCK_CLIENTS: Client[] = [
-    {
-        id: 'client-01',
-        name: 'ACTION AVENTURE',
-        siret: '84042838300010',
-        address: '15 RUE DE LA REPUBLIQUE 69002 LYON 2EME',
-        legalRepresentative: 'JEAN-MICHEL AVENTURIER',
-        fiscalYearEndDate: '31/12',
-        role: 'client',
-        status: 'active',
-        newDocuments: 2,
-        lastActivity: '2024-07-20',
-        email: 'aventure.action@example.com',
-        phone: '0478000001',
-        assignedAccountantId: 'user-comptable-ccs',
-        cabinetId: 'cab-01',
-        password: '84042838300010',
-    },
-    {
-        id: 'user-admin',
-        name: 'Super Admin',
-        email: 'app.cc94@gmail.com',
-        role: 'admin',
-        status: 'active',
-        lastActivity: new Date().toISOString(),
-        newDocuments: 0,
-        siret: '',
-        cabinetId: 'cab-01',
-        password: 'password',
-    },
-    {
-        id: 'user-comptable-ccs',
-        name: 'Comptable CCS',
-        email: 'contact.ccs94@gmail.com',
-        role: 'accountant',
-        status: 'active',
-        lastActivity: new Date().toISOString(),
-        newDocuments: 0,
-        siret: '',
-        cabinetId: 'cab-01',
-        password: 'password',
-    },
-     {
-        id: 'user-secretary',
-        name: 'Sophie Secrétaire',
-        email: 'secretary@ccs.com',
-        role: 'secretary',
-        status: 'active',
-        lastActivity: new Date().toISOString(),
-        newDocuments: 0,
-        siret: '',
-        cabinetId: 'cab-01',
-        password: 'password',
-    },
+    // Données de démonstration retirées pour une initialisation propre.
+    // Le premier utilisateur admin est créé via la logique de la page de connexion
+    // si aucun utilisateur n'existe.
 ];
 
 export const MOCK_DOCUMENTS: Record<string, Omit<Document, 'id'>[]> = {

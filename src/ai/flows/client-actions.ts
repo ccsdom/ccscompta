@@ -24,40 +24,6 @@ export async function getClients(cabinetId?: string): Promise<Client[]> {
 
         const snapshot = await getDocs(q);
         
-        if (snapshot.empty && MOCK_CLIENTS.length > 0 && !cabinetId) {
-            console.log("No users found in Firestore, seeding with mock data...");
-            
-            try {
-                // Ensure the admin user exists
-                 const adminEmail = 'app.cc94@gmail.com';
-                 let adminUser = await getClientByEmail(adminEmail);
-                 if (!adminUser) {
-                    const userRecord = await adminAuth.createUser({
-                        email: adminEmail,
-                        password: 'password', // set a default password
-                        emailVerified: true,
-                        disabled: false,
-                        displayName: 'Super Admin',
-                    });
-                     await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'admin' });
-                     const docRef = doc(db, 'clients', userRecord.uid);
-                     await setDoc(docRef, {
-                        name: 'Super Admin',
-                        email: adminEmail,
-                        role: 'admin',
-                        status: 'active',
-                        lastActivity: new Date().toISOString(),
-                        newDocuments: 0,
-                     });
-                 }
-
-            } catch (e) {
-                 console.error("Error creating initial admin user:", e);
-            }
-             console.log("Seeding complete. Refetching users...");
-             const seededSnapshot = await getDocs(collection(db, 'clients'));
-             return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
     } catch (error) {
         console.error("Error fetching users:", error);

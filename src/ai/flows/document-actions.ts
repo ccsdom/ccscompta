@@ -14,16 +14,6 @@ export async function getDocuments(clientId: string): Promise<Document[]> {
         const q = query(collection(db, 'documents'), where('clientId', '==', clientId));
         const snapshot = await getDocs(q);
         
-        if (snapshot.empty && (clientId === 'client-01' || clientId === 'client-02')) {
-            console.log(`No documents found for mock client ${clientId}, seeding...`);
-            const docsToSeed = MOCK_DOCUMENTS[clientId];
-            for (const docData of docsToSeed) {
-                 await addDoc(collection(db, 'documents'), docData);
-            }
-            console.log(`${docsToSeed.length} mock documents seeded for client ${clientId}.`);
-            const seededSnapshot = await getDocs(q);
-            return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
-        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
     } catch (error) {
         console.error(`Error fetching documents for client ${clientId}:`, error);
