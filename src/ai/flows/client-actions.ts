@@ -2,11 +2,10 @@
 'use server';
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase-client';
+import { db, auth } from '@/firebase';
 import { collection, getDocs, query, where, limit, doc, getDoc, deleteDoc, setDoc, writeBatch } from 'firebase/firestore';
 import type { Client } from '@/lib/types';
 import { MOCK_CLIENTS } from '@/data/mock-data';
-import { auth as adminAuth } from '@/lib/firebase-admin';
 
 
 type ServerActionResponse<T> =
@@ -74,6 +73,8 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
             }
         }
         
+        /*
+        // This requires the admin SDK, which we are not using on the client-side for now.
         if (updates.email && updates.email !== (await adminAuth.getUser(id)).email) {
              await adminAuth.updateUser(id, { email: updates.email });
         }
@@ -82,6 +83,7 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
         if (updates.role) {
             await adminAuth.setCustomUserClaims(id, { role: updates.role });
         }
+        */
 
         const docRef = doc(db, 'clients', id);
         await setDoc(docRef, updates, { merge: true });
@@ -101,9 +103,9 @@ export async function updateClient({id, updates}: {id: string, updates: Partial<
 export async function deleteClient(id: string): Promise<{success: boolean}> {
     console.log(`[Firestore] Deleting user profile ID: ${id}`);
     try {
-        // Use Admin SDK to delete the user from Auth
-        await adminAuth.deleteUser(id);
-        console.log(`[Admin SDK] Auth user ${id} deleted.`);
+        // Use Admin SDK to delete the user from Auth - This needs to be done in a Cloud Function
+        // await adminAuth.deleteUser(id);
+        // console.log(`[Admin SDK] Auth user ${id} deleted.`);
         
         // Delete Firestore document
         await deleteDoc(doc(db, 'clients', id));
