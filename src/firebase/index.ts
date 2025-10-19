@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -50,3 +51,7 @@ export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './errors';
 export * from './error-emitter';
+
+// Client-side db instance for direct use in client components if needed
+const { firestore: db, auth } = initializeFirebase();
+export { db, auth };
