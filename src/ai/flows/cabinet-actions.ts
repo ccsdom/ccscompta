@@ -1,6 +1,6 @@
 'use server';
 
-import { useFirebase } from '@/firebase';
+import { db } from '@/firebase/server';
 import { collection, getDocs, addDoc, query, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import type { Cabinet } from '@/lib/types';
 import { z } from 'zod';
@@ -19,7 +19,6 @@ const AddCabinetInputSchema = z.object({
 export async function addCabinet(
   cabinetData: z.infer<typeof AddCabinetInputSchema>
 ): Promise<ServerActionResponse<Cabinet>> {
-  const { firestore: db } = useFirebase();
   console.log("[Cabinet Action] Adding new cabinet:", cabinetData.name);
   try {
     const validatedData = AddCabinetInputSchema.parse(cabinetData);
@@ -56,7 +55,6 @@ const MOCK_CABINETS: Cabinet[] = [
 
 
 export async function getCabinets(): Promise<Cabinet[]> {
-    const { firestore: db } = useFirebase();
     console.log("[Firestore] Fetching all cabinets.");
     try {
         const snapshot = await getDocs(collection(db, 'cabinets'));
@@ -81,7 +79,6 @@ export async function getCabinets(): Promise<Cabinet[]> {
 }
 
 export async function getCabinetById(id: string): Promise<Cabinet | null> {
-    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Fetching cabinet by ID: ${id}`);
     try {
         const docRef = doc(db, 'cabinets', id);
@@ -97,7 +94,6 @@ export async function getCabinetById(id: string): Promise<Cabinet | null> {
 }
 
 export async function getCabinetUserCount(cabinetId: string): Promise<number> {
-    const { firestore: db } = useFirebase();
     try {
         const q = query(collection(db, 'clients'), where('cabinetId', '==', cabinetId));
         const snapshot = await getCountFromServer(q);

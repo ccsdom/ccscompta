@@ -1,12 +1,11 @@
 'use server';
 
 import type { Invoice, Client } from '@/lib/types';
-import { useFirebase } from '@/firebase'; // CHANGED: Use client SDK
-import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer, getDoc } from 'firebase/firestore'; // CHANGED: Use client SDK
+import { db } from '@/firebase/server';
+import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer, getDoc } from 'firebase/firestore';
 
 
 export async function getInvoices(): Promise<Invoice[]> {
-    const { firestore: db } = useFirebase();
     console.log('[Firestore] Fetching all invoices.');
     try {
         const snapshot = await getDocs(collection(db, 'invoices'));
@@ -18,7 +17,6 @@ export async function getInvoices(): Promise<Invoice[]> {
 }
 
 export async function addInvoice(invoice: Omit<Invoice, 'id' | 'number'>): Promise<Invoice> {
-    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Adding new invoice for client ${invoice.clientId}`);
     try {
         const coll = collection(db, "invoices");
@@ -40,7 +38,6 @@ export async function addInvoice(invoice: Omit<Invoice, 'id' | 'number'>): Promi
 }
 
 export async function updateInvoice(invoiceId: string, updates: Partial<Invoice>): Promise<Invoice | null> {
-    const { firestore: db } = useFirebase();
     console.log(`[Firestore] Updating invoice ${invoiceId}`);
     try {
         const docRef = doc(db, 'invoices', invoiceId);
