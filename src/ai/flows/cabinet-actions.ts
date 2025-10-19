@@ -1,6 +1,6 @@
 'use server';
 
-import { db } from '@/lib/firebase/server';
+import { db } from '@/firebase';
 import { collection, getDocs, addDoc, query, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
 import type { Cabinet } from '@/lib/types';
 import { z } from 'zod';

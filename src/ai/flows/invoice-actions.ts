@@ -1,7 +1,7 @@
 'use server';
 
 import type { Invoice, Client } from '@/lib/types';
-import { db } from '@/lib/firebase/server';
+import { db } from '@/firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, getCountFromServer, getDoc } from 'firebase/firestore';
 
 

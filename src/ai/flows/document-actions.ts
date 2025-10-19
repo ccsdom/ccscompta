@@ -3,7 +3,7 @@
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
 import { MOCK_DOCUMENTS, MOCK_BILANS } from '@/data/mock-data';
 import { createSupplier, findSupplier } from '@/services/cegid';
-import { db } from '@/lib/firebase/server';
+import { db } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 
