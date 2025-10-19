@@ -1,52 +1,124 @@
+
 "use strict";
 'use server';
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setAdminRole = void 0;
+exports.createUserWithRole = exports.setAdminRole = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
- * This file contains the backend logic for assigning user roles.
+ * Backend logic for assigning user roles and creating users.
  */
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
+const cors = require("cors");
+const corsHandler = cors({ origin: true });
 // Initialize the Firebase Admin SDK.
 (0, app_1.initializeApp)();
 /**
- * An onCall Cloud Function that allows a user to grant themselves the 'admin' role.
- *
- * This function performs the following steps:
- * 1. Checks if the user calling the function is authenticated.
- * 2. Fetches the user's record using the Admin SDK.
- * 3. Sets a custom user claim `role: 'admin'`.
- * 4. Updates the user's profile in the 'clients' Firestore collection with `role: 'admin'`.
- * 5. Returns a success message.
- *
- * This function should ideally be protected to only allow the first user or a specific set of users
- * to call it, but for initial setup, it allows any authenticated user to become an admin.
+ * Function to set current authenticated user as admin.
+ * This is a Callable Function.
  */
 exports.setAdminRole = (0, https_1.onCall)(async (request) => {
-    // 1. Check if the user is authenticated.
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Vous devez être connecté pour effectuer cette action.');
     }
     const uid = request.auth.uid;
     const db = (0, firestore_1.getFirestore)();
     try {
-        // 2. Set the custom claim 'admin' on the user's auth token.
         await (0, auth_1.getAuth)().setCustomUserClaims(uid, { role: 'admin' });
-        // 3. Update the user's document in Firestore to reflect the new role.
         const userDocRef = db.collection('clients').doc(uid);
         await userDocRef.update({ role: 'admin' });
-        console.log(`Successfully set user ${uid} as an admin.`);
+        logger.info(`Successfully set user ${uid} as admin`);
         return {
             success: true,
             message: "Rôle admin défini avec succès. Veuillez vous déconnecter et vous reconnecter.",
         };
     }
     catch (error) {
-        console.error('Error setting admin role:', error);
-        throw new https_1.HttpsError('internal', "Une erreur est survenue lors de l'assignation du rôle admin.", error);
+        logger.error('Error setting admin role:', error);
+        throw new https_1.HttpsError('internal', "Une erreur est survenue lors de l'assignation du rôle admin.", error.message);
     }
+});
+/**
+ * Function to create a new user with a specific role.
+ * This is an HTTP onRequest function with explicit CORS handling via middleware.
+ */
+exports.createUserWithRole = (0, https_1.onRequest)(async (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).send({ error: { message: 'Method Not Allowed' } });
+            return;
+        }
+        // 1. Verify admin from the ID token sent in the Authorization header
+        const idToken = req.headers.authorization?.split('Bearer ')[1];
+        if (!idToken) {
+            res.status(401).send({ error: { message: 'Jeton d\'authentification manquant.', status: 'UNAUTHENTICATED' } });
+            return;
+        }
+        const auth = (0, auth_1.getAuth)();
+        try {
+            const decodedToken = await auth.verifyIdToken(idToken);
+            if (decodedToken.role !== 'admin') {
+                res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+                return;
+            }
+        }
+        catch (error) {
+            logger.error('Token verification failed', error);
+            res.status(401).send({ error: { message: 'Jeton d\'authentification invalide.', status: 'UNAUTHENTICATED' } });
+            return;
+        }
+        // 2. Get payload from request body.
+        const { email, password, ...profileData } = req.body.data;
+        if (!email) {
+            res.status(400).send({ error: { message: 'Email requis pour la création.', status: 'INVALID_ARGUMENT' } });
+            return;
+        }
+        const db = (0, firestore_1.getFirestore)();
+        try {
+            // 3. Create user in Firebase Auth
+            const userRecord = await auth.createUser({
+                email,
+                password: password || 'password', // Default password if not provided
+                emailVerified: true,
+                disabled: false,
+                displayName: profileData.name,
+            });
+            const uid = userRecord.uid;
+            const role = profileData.role || 'client';
+            // 4. Set custom claim
+            await auth.setCustomUserClaims(uid, { role });
+            // 5. Create Firestore document
+            await db.collection('clients').doc(uid).set({
+                ...profileData,
+                email,
+                role,
+                newDocuments: 0,
+                lastActivity: new Date().toISOString(),
+                status: 'onboarding',
+            });
+            logger.info(`Successfully created user ${uid} with role ${role}`);
+            res.status(200).send({ data: { success: true, uid, message: 'Utilisateur créé avec succès.' } });
+        }
+        catch (error) {
+            logger.error('Error creating new user:', error);
+            let status = 500;
+            let code = 'INTERNAL';
+            let message = "Une erreur est survenue lors de la création de l'utilisateur.";
+            if (error.code === 'auth/email-already-exists') {
+                status = 409;
+                code = 'ALREADY_EXISTS';
+                message = "Un compte avec cette adresse email existe déjà.";
+            }
+            if (error.code === 'auth/invalid-password') {
+                status = 400;
+                code = 'INVALID_ARGUMENT';
+                message = "Le mot de passe doit comporter au moins 6 caractères.";
+            }
+            res.status(status).send({ error: { message, status: code } });
+        }
+    });
 });
 //# sourceMappingURL=index.js.map
