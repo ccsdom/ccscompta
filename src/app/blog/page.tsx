@@ -122,25 +122,19 @@ export default function BlogPage() {
               </NavigationMenuItem>
 
              <NavigationMenuItem>
-                <Link href="/about" passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
-                    À Propos
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
+                  <Link href="/about">À Propos</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/blog" passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
-                    Blog
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
+                  <Link href="/blog">Blog</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/support" passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
-                    Support
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
+                  <Link href="/support">Support</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
@@ -234,5 +228,3 @@ export default function BlogPage() {
     </div>
   );
 }
-
-    

@@ -112,25 +112,19 @@ export default function AboutPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/about" passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
-                    À Propos
+                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
+                    <Link href="/about">À Propos</Link>
                   </NavigationMenuLink>
-                </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/blog" passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
-                    Blog
+                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
+                    <Link href="/blog">Blog</Link>
                   </NavigationMenuLink>
-                </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/support" passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
-                    Support
+                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
+                    <Link href="/support">Support</Link>
                   </NavigationMenuLink>
-                </Link>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
@@ -382,5 +376,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
-    
