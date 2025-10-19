@@ -97,11 +97,18 @@ export default function ClientProfilePage() {
                     <p className="text-muted-foreground mt-1">Dossier client et synthèse d'activité.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" asChild><Link
-                        href={`/dashboard/analytics`}
-                        onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage'));}}
-                        legacyBehavior><BarChart2 className="h-4 w-4 mr-2"/>Analyser</Link></Button>
-                    <Button asChild><Link href={`/dashboard/clients/${client.id}/edit`} legacyBehavior><Edit className="h-4 w-4 mr-2"/>Modifier</Link></Button>
+                    <Button variant="outline" asChild>
+                        <Link
+                            href={`/dashboard/analytics`}
+                            onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage'));}}>
+                            <BarChart2 className="h-4 w-4 mr-2"/>Analyser
+                        </Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href={`/dashboard/clients/${client.id}/edit`}>
+                            <Edit className="h-4 w-4 mr-2"/>Modifier
+                        </Link>
+                    </Button>
                 </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

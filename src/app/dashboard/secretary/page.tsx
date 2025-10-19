@@ -105,7 +105,7 @@ export default function SecretaryDashboard() {
                         <p className="text-xs text-muted-foreground">Total des dossiers gérés</p>
                     </CardContent>
                 </Card>
-                <Link href="/dashboard/documents?filter=today" legacyBehavior>
+                <Link href="/dashboard/documents?filter=today">
                     <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Nouveaux documents</CardTitle>
@@ -117,7 +117,7 @@ export default function SecretaryDashboard() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/dashboard/documents?filter=pending_review" legacyBehavior>
+                <Link href="/dashboard/documents?filter=pending_review">
                      <Card className="hover:bg-muted/50 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Documents à traiter</CardTitle>

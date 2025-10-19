@@ -86,21 +86,21 @@ export default function MentionsLegalesPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
+                <Link href="/about" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
+                <Link href="/blog" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
+                <Link href="/support" passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
                     Support
                   </NavigationMenuLink>
@@ -144,7 +144,7 @@ export default function MentionsLegalesPage() {
                      </nav>
                   </SheetContent>
                 </Sheet>
-            </div>
+              </div>
           </div>
         </div>
       </header>
