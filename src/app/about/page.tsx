@@ -73,7 +73,7 @@ export default function AboutPage() {
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">CCS Compta</span>
+            <span className="hidden sm:inline font-bold text-lg">CCS Compta</span>
           </Link>
 
           <NavigationMenu className="hidden md:flex">
@@ -107,7 +107,7 @@ export default function AboutPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
+                <Link href="/about" asChild>
                   <NavigationMenuLink active={pathname === "/about"} className={navigationMenuTriggerStyle()}>
                     À Propos
                   </NavigationMenuLink>
@@ -115,7 +115,7 @@ export default function AboutPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
+                <Link href="/blog" asChild>
                   <NavigationMenuLink active={pathname === "/blog"} className={navigationMenuTriggerStyle()}>
                     Blog
                   </NavigationMenuLink>
@@ -123,7 +123,7 @@ export default function AboutPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
+                <Link href="/support" asChild>
                   <NavigationMenuLink active={pathname === "/support"} className={navigationMenuTriggerStyle()}>
                     Support
                   </NavigationMenuLink>
@@ -146,10 +146,12 @@ export default function AboutPage() {
                 </SheetTrigger>
                 <SheetContent side="left">
                    <nav className="grid gap-6 text-lg font-medium mt-8">
-                     <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
-                       <Logo className="h-6 w-6 text-primary" />
-                       <span className="font-bold text-lg">CCS Compta</span>
-                     </Link>
+                     <SheetClose asChild>
+                       <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                         <Logo className="h-6 w-6 text-primary" />
+                         <span className="font-bold text-lg">CCS Compta</span>
+                       </Link>
+                     </SheetClose>
                      {navLinks.map(link => (
                        <SheetClose asChild key={link.href}>
                           <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
