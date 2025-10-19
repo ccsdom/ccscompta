@@ -81,7 +81,7 @@ export default function SupportPage() {
        <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
          <Link href="/" className="flex items-center gap-2 font-semibold">
            <Logo className="h-6 w-6 text-primary" />
-           <span className="hidden sm:inline font-bold text-lg">CCS Compta</span>
+           <span className="font-bold text-lg">CCS Compta</span>
          </Link>
          <NavigationMenu className="hidden md:flex">
            <NavigationMenuList>
@@ -118,21 +118,21 @@ export default function SupportPage() {
                </NavigationMenuContent>
              </NavigationMenuItem>
              <NavigationMenuItem>
-                <Link href="/about" asChild>
+                <Link href="/about" legacyBehavior passHref>
                   <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
              </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/blog" asChild>
+                <Link href="/blog" legacyBehavior passHref>
                   <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
              </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/support" asChild>
+                <Link href="/support" legacyBehavior passHref>
                   <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
                     Support
                   </NavigationMenuLink>
@@ -304,3 +304,5 @@ export default function SupportPage() {
     </div>
   );
 }
+
+    

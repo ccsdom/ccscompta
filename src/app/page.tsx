@@ -102,7 +102,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Logo className="h-6 w-6 text-primary" />
-            <span className="hidden sm:inline font-bold text-lg">CCS Compta</span>
+            <span className="font-bold text-lg">CCS Compta</span>
           </Link>
 
           <NavigationMenu className="hidden md:flex">
@@ -138,21 +138,21 @@ export default function LandingPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" asChild>
+                <Link href="/about" legacyBehavior passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/blog" asChild>
+                <Link href="/blog" legacyBehavior passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/support" asChild>
+                <Link href="/support" legacyBehavior passHref>
                   <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
                     Support
                   </NavigationMenuLink>
@@ -450,3 +450,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
