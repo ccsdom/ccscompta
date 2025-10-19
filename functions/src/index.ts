@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
@@ -10,9 +9,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import * as cors from 'cors';
-
-const corsHandler = cors({ origin: true });
+// No need for external cors library, we will handle headers manually for robustness.
 
 // Initialize the Firebase Admin SDK.
 initializeApp();
@@ -48,73 +45,99 @@ export const setAdminRole = onCall(async (request) => {
 
 /**
  * Function to create a new user with a specific role.
- * This is now an onRequest function to handle CORS explicitly.
+ * This is an HTTP onRequest function with manual CORS handling.
  */
-export const createUserWithRole = onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    // 1. Verify admin from the context passed by the client SDK
-    if (req.body.data.context?.auth?.token.role !== 'admin') {
-      logger.warn('Permission denied for createUserWithRole', { auth: req.body.data.context?.auth });
-      res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+export const createUserWithRole = onRequest(async (req, res) => {
+  // Set CORS headers for all responses
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+
+  // Handle preflight (OPTIONS) requests
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+      res.status(405).send({ error: { message: 'Method Not Allowed' }});
       return;
-    }
+  }
 
-    // 2. Get payload from request.data
-    const { email, password, ...profileData } = req.body.data;
-    if (!email) {
-       res.status(400).send({ error: { message: 'Email requis pour la création.', status: 'INVALID_ARGUMENT' } });
-       return;
-    }
+  // 1. Verify admin from the ID token sent in the Authorization header
+  const idToken = req.headers.authorization?.split('Bearer ')[1];
+  if (!idToken) {
+      res.status(401).send({ error: { message: 'Jeton d\'authentification manquant.', status: 'UNAUTHENTICATED' } });
+      return;
+  }
 
-    const auth = getAuth();
-    const db = getFirestore();
+  const auth = getAuth();
+  try {
+      const decodedToken = await auth.verifyIdToken(idToken);
+      if (decodedToken.role !== 'admin') {
+           res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+           return;
+      }
+  } catch(error) {
+      logger.error('Token verification failed', error);
+      res.status(401).send({ error: { message: 'Jeton d\'authentification invalide.', status: 'UNAUTHENTICATED' } });
+      return;
+  }
 
-    try {
-        // 3. Create user in Firebase Auth
-        const userRecord = await auth.createUser({
-            email,
-            password: password || 'password', // Default password if not provided
-            emailVerified: true,
-            disabled: false,
-            displayName: profileData.name,
-        });
+  // 2. Get payload from request body.
+  const { email, password, ...profileData } = req.body.data;
+  if (!email) {
+     res.status(400).send({ error: { message: 'Email requis pour la création.', status: 'INVALID_ARGUMENT' } });
+     return;
+  }
 
-        const uid = userRecord.uid;
-        const role = profileData.role || 'client';
+  const db = getFirestore();
 
-        // 4. Set custom claim
-        await auth.setCustomUserClaims(uid, { role });
+  try {
+      // 3. Create user in Firebase Auth
+      const userRecord = await auth.createUser({
+          email,
+          password: password || 'password', // Default password if not provided
+          emailVerified: true,
+          disabled: false,
+          displayName: profileData.name,
+      });
 
-        // 5. Create Firestore document
-        await db.collection('clients').doc(uid).set({
-            ...profileData,
-            email,
-            role,
-            newDocuments: 0,
-            lastActivity: new Date().toISOString(),
-            status: 'onboarding',
-        });
+      const uid = userRecord.uid;
+      const role = profileData.role || 'client';
 
-        logger.info(`Successfully created user ${uid} with role ${role}`);
-        res.status(200).send({ data: { success: true, uid, message: 'Utilisateur créé avec succès.' } });
-    } catch (error: any) {
-        logger.error('Error creating new user:', error);
-        let status = 500;
-        let code = 'INTERNAL';
-        let message = "Une erreur est survenue lors de la création de l'utilisateur.";
+      // 4. Set custom claim
+      await auth.setCustomUserClaims(uid, { role });
 
-        if (error.code === 'auth/email-already-exists') {
-            status = 409;
-            code = 'ALREADY_EXISTS';
-            message = "Un compte avec cette adresse email existe déjà.";
-        }
-        if (error.code === 'auth/invalid-password') {
-            status = 400;
-            code = 'INVALID_ARGUMENT';
-            message = "Le mot de passe doit comporter au moins 6 caractères.";
-        }
+      // 5. Create Firestore document
+      await db.collection('clients').doc(uid).set({
+          ...profileData,
+          email,
+          role,
+          newDocuments: 0,
+          lastActivity: new Date().toISOString(),
+          status: 'onboarding',
+      });
 
-        res.status(status).send({ error: { message, status: code }});
-    }
-  });
+      logger.info(`Successfully created user ${uid} with role ${role}`);
+      res.status(200).send({ data: { success: true, uid, message: 'Utilisateur créé avec succès.' } });
+  } catch (error: any) {
+      logger.error('Error creating new user:', error);
+      let status = 500;
+      let code = 'INTERNAL';
+      let message = "Une erreur est survenue lors de la création de l'utilisateur.";
+
+      if (error.code === 'auth/email-already-exists') {
+          status = 409;
+          code = 'ALREADY_EXISTS';
+          message = "Un compte avec cette adresse email existe déjà.";
+      }
+      if (error.code === 'auth/invalid-password') {
+          status = 400;
+          code = 'INVALID_ARGUMENT';
+          message = "Le mot de passe doit comporter au moins 6 caractères.";
+      }
+
+      res.status(status).send({ error: { message, status: code }});
+  }
 });
