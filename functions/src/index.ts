@@ -72,17 +72,20 @@ export const createUserWithRole = onRequest(async (req, res) => {
     }
     
     const auth = getAuth();
+    let decodedToken;
     try {
-        const decodedToken = await auth.verifyIdToken(idToken);
-        if (decodedToken.role !== 'admin') {
-             res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
-             return;
-        }
+        decodedToken = await auth.verifyIdToken(idToken);
     } catch(error) {
         logger.error('Token verification failed', error);
         res.status(401).send({ error: { message: 'Jeton d\'authentification invalide.', status: 'UNAUTHENTICATED' } });
         return;
     }
+    
+    if (decodedToken.role !== 'admin' && decodedToken.role !== 'accountant') {
+        res.status(403).send({ error: { message: 'Seul un administrateur ou un comptable peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+        return;
+    }
+
 
     // 2. Get payload from request body.
     const { email, password, ...profileData } = req.body.data;
