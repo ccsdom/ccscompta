@@ -43,7 +43,6 @@ export default function SettingsPage() {
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
     const [isAdminRoleLoading, setIsAdminRoleLoading] = useState(false);
     
-    const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'ccs-compta';
     const storageBucket = "ccs-compta.firebasestorage.app";
     const corsCommand = `echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json`;
     const gcloudCorsCommand = `gcloud storage buckets update gs://${storageBucket} --cors-file=cors.json`;
@@ -125,7 +124,7 @@ export default function SettingsPage() {
         navigator.clipboard.writeText(text);
         toast({
             title: "Copié !",
-            description: "La commande a été copiée dans le presse-papiers.",
+            description: "Le contenu a été copié dans le presse-papiers.",
         });
     }
     
@@ -463,4 +462,5 @@ export default function SettingsPage() {
             </Tabs>
         </div>
     );
-}
+
+    
