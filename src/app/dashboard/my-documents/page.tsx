@@ -184,9 +184,6 @@ export default function MyDocumentsPage() {
     
     if (successCount > 0) {
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été envoyés avec succès.` });
-      // The Cloud Function will trigger, and Firestore listeners will update the UI,
-      // so we might not need to manually refetch here unless we want to be very explicit.
-      setTimeout(() => fetchDocuments(clientId), 5000); // Optional: refetch after a delay
     } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être envoyé. Veuillez réessayer.` });
     }

@@ -6,13 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
-import { fileToDataUri } from '@/lib/utils';
 import { ref, uploadBytes } from 'firebase/storage';
 import { useFirebase } from '@/firebase';
-import { addDocument, updateDocument, getDocuments } from '@/ai/flows/document-actions';
-import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
-import { extractData } from '@/ai/flows/extract-data-from-documents';
-import type { Document, Notification, AuditEvent } from '@/lib/types';
+import { addDocument } from '@/ai/flows/document-actions';
+import type { Document, AuditEvent } from '@/lib/types';
 import { PlusCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -54,33 +51,16 @@ export function QuickUpload() {
         return [...trail, event];
     }
 
-    const createNotification = (doc: Document, message: string) => {
-        const newNotification: Notification = {
-          id: crypto.randomUUID(),
-          documentId: doc.id,
-          documentName: doc.name,
-          message,
-          date: new Date().toISOString(),
-          isRead: false
-        };
-        const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
-        localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-        window.dispatchEvent(new Event('storage'));
-    };
-
     const processSingleFile = useCallback(async (file: File, clientId: string) => {
-        let createdDocId: string | null = null;
         try {
             const storagePath = `${clientId}/${Date.now()}-${file.name}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
 
-            const dataUrl = await fileToDataUri(file);
-
             const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
                 name: file.name,
                 uploadDate: new Date().toISOString(),
-                status: 'processing' as const,
+                status: 'pending' as const,
                 storagePath,
                 clientId: clientId,
                 comments: [],
@@ -89,29 +69,9 @@ export function QuickUpload() {
 
             const createdDoc = await addDocument(newDocData);
             if (!createdDoc) throw new Error("Failed to save document metadata.");
-            
-            createdDocId = createdDoc.id;
-            
-            const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-            const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
-
-            const finalUpdates: Partial<Document> = {
-                status: 'reviewing',
-                extractedData: extracted,
-                type: recognition.documentType,
-                confidence: recognition.confidence,
-                auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé, en attente de validation comptable')
-            };
-
-            await updateDocument({ id: createdDoc.id, updates: finalUpdates });
-            createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
 
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
-            if (createdDocId) {
-                const trail = addAuditEvent([], 'Erreur de traitement IA');
-                await updateDocument({ id: createdDocId, updates: { status: 'error', auditTrail: trail } });
-            }
             toast({
                 variant: "destructive",
                 title: "Le traitement a échoué",
@@ -140,7 +100,7 @@ export function QuickUpload() {
         
         setIsLoading(false);
         window.dispatchEvent(new Event('storage')); // Notify other components to refetch
-        toast({ title: "Téléversement et traitement terminés", description: `${files.length} document(s) ont été envoyés à votre comptable pour examen.` });
+        toast({ title: "Téléversement terminé", description: `${files.length} document(s) ont été envoyés. Ils seront traités sous peu.` });
     };
 
 
@@ -156,7 +116,7 @@ export function QuickUpload() {
                 <DialogHeader>
                     <DialogTitle>Téléversement Rapide</DialogTitle>
                     <DialogDescription>
-                        Déposez vos documents ici. Ils seront automatiquement traités et envoyés à votre comptable pour examen.
+                        Déposez vos documents ici. Ils seront automatiquement envoyés à votre comptable pour traitement.
                     </DialogDescription>
                 </DialogHeader>
                 
@@ -167,13 +127,13 @@ export function QuickUpload() {
                 {isLoading && filesToProcessCount > 0 && (
                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Traitement de {processedFiles.length + 1} / {filesToProcessCount}...</span>
+                        <span>Téléversement de {processedFiles.length + 1} / {filesToProcessCount}...</span>
                     </div>
                 )}
                 
                 {processedFiles.length > 0 && !isLoading && (
                     <div className="py-4">
-                        <h3 className="text-sm font-medium mb-2">Fichiers traités avec succès :</h3>
+                        <h3 className="text-sm font-medium mb-2">Fichiers envoyés avec succès :</h3>
                         <ul className="space-y-2">
                            {processedFiles.map((file, index) => (
                                <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground p-2 bg-muted/50 rounded-md">

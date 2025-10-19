@@ -7,11 +7,12 @@
 
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as cors from 'cors';
+import { getStorage } from 'firebase-admin/storage';
 
 // Genkit/AI imports - these will be dynamically available in the cloud function environment
 declare function recognizeDocumentType(input: { documentDataUri: string }): Promise<{ documentType: string; confidence: number; }>;
@@ -22,6 +23,7 @@ const corsHandler = cors({ origin: true });
 
 // Initialize the Firebase Admin SDK.
 initializeApp();
+const db = getFirestore();
 
 /**
  * Function to set current authenticated user as admin.
@@ -33,7 +35,6 @@ export const setAdminRole = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const db = getFirestore();
 
   try {
     await getAuth().setCustomUserClaims(uid, { role: 'admin' });
@@ -74,8 +75,9 @@ export const createUserWithRole = onRequest(async (req, res) => {
     const auth = getAuth();
     try {
         const decodedToken = await auth.verifyIdToken(idToken);
-        if (decodedToken.role !== 'admin') {
-             res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+        const userRole = decodedToken.role;
+        if (userRole !== 'admin' && userRole !== 'accountant' && userRole !== 'secretary') {
+             res.status(403).send({ error: { message: 'Action non autorisée.', status: 'PERMISSION_DENIED' } });
              return;
         }
     } catch(error) {
@@ -91,7 +93,6 @@ export const createUserWithRole = onRequest(async (req, res) => {
        return;
     }
 
-    const db = getFirestore();
 
     try {
         // 3. Create user in Firebase Auth
@@ -141,4 +142,69 @@ export const createUserWithRole = onRequest(async (req, res) => {
         res.status(status).send({ error: { message, status: code }});
     }
   });
+});
+
+
+/**
+ * Triggered when a new document is created. This function runs the AI processing.
+ */
+export const processDocument = onDocumentCreated("documents/{docId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+        logger.log("No data associated with the event");
+        return;
+    }
+    const docData = snapshot.data();
+    const docId = event.params.docId;
+
+    logger.log(`Processing document: ${docId}`);
+
+    const docRef = db.collection('documents').doc(docId);
+
+    try {
+        await docRef.update({ 
+            status: 'processing',
+            auditTrail: db.FieldValue.arrayUnion({ action: 'Traitement IA initié', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+        });
+        
+        // Generate a signed URL to read the file for AI processing
+        const bucket = getStorage().bucket();
+        const file = bucket.file(docData.storagePath);
+        const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+        });
+        
+        const response = await fetch(signedUrl);
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const mimeType = response.headers.get('content-type') || 'application/octet-stream';
+        const dataUrl = `data:${mimeType};base64,${base64}`;
+
+        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+        await docRef.update({ 
+            auditTrail: db.FieldValue.arrayUnion({ action: `Type reconnu: ${recognition.documentType}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+        });
+        
+        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: docData.clientId });
+        
+        const finalUpdates = {
+            status: 'reviewing',
+            extractedData: extracted,
+            type: recognition.documentType,
+            confidence: recognition.confidence,
+            auditTrail: db.FieldValue.arrayUnion({ action: 'Données extraites par IA', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+        };
+
+        await docRef.update(finalUpdates);
+
+        logger.log(`Document ${docId} processed successfully.`);
+
+    } catch (error) {
+        logger.error(`Error processing document ${docId}:`, error);
+        await docRef.update({ 
+            status: 'error',
+            auditTrail: db.FieldValue.arrayUnion({ action: `Erreur de traitement IA: ${error instanceof Error ? error.message : 'Inconnue'}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+        });
+    }
 });
