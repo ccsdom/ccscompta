@@ -1,15 +1,10 @@
 import { initializeApp, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { firebaseConfig } from '@/firebase/config';
 
 // Initialize Firebase Admin SDK
 if (!getApps().length) {
-  initializeApp({
-    credential: undefined, // Will use Application Default Credentials
-    projectId: firebaseConfig.projectId,
-    storageBucket: firebaseConfig.storageBucket,
-  });
+  initializeApp(); // Call without arguments to use Application Default Credentials
 }
 
 const db = getFirestore();
