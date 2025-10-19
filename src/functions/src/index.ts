@@ -7,8 +7,11 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
+import * as cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 
 // Initialize the Firebase Admin SDK.
 initializeApp();
@@ -44,22 +47,48 @@ export const setAdminRole = onCall(async (request) => {
 
 /**
  * Function to create a new user with a specific role.
- * This is now a Callable Function (onCall) for simpler auth and CORS handling.
+ * This is now an onRequest function to handle CORS explicitly.
  */
-export const createUserWithRole = onCall(async (request) => {
-    // 1. Verify admin from the context passed by the client SDK
-    if (request.auth?.token.role !== 'admin') {
-      logger.warn('Permission denied for createUserWithRole', { auth: request.auth });
-      throw new HttpsError('permission-denied', 'Seul un administrateur peut effectuer cette action.');
+export const createUserWithRole = onRequest(async (req, res) => {
+  corsHandler(req, res, async () => {
+    // Manually handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
     }
 
-    // 2. Get payload from request.data
-    const { email, password, ...profileData } = request.data;
-    if (!email) {
-       throw new HttpsError('invalid-argument', 'Email requis pour la création.');
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
     }
 
+    // 1. Verify admin from the ID token sent in the Authorization header
+    const idToken = req.headers.authorization?.split('Bearer ')[1];
+    if (!idToken) {
+        res.status(401).send({ error: { message: 'Jeton d\'authentification manquant.', status: 'UNAUTHENTICATED' } });
+        return;
+    }
+    
     const auth = getAuth();
+    try {
+        const decodedToken = await auth.verifyIdToken(idToken);
+        if (decodedToken.role !== 'admin') {
+             res.status(403).send({ error: { message: 'Seul un administrateur peut effectuer cette action.', status: 'PERMISSION_DENIED' } });
+             return;
+        }
+    } catch(error) {
+        logger.error('Token verification failed', error);
+        res.status(401).send({ error: { message: 'Jeton d\'authentification invalide.', status: 'UNAUTHENTICATED' } });
+        return;
+    }
+
+    // 2. Get payload from request body.
+    const { email, password, ...profileData } = req.body.data;
+    if (!email) {
+       res.status(400).send({ error: { message: 'Email requis pour la création.', status: 'INVALID_ARGUMENT' } });
+       return;
+    }
+
     const db = getFirestore();
 
     try {
@@ -89,17 +118,25 @@ export const createUserWithRole = onCall(async (request) => {
         });
 
         logger.info(`Successfully created user ${uid} with role ${role}`);
-        return { success: true, uid, message: 'Utilisateur créé avec succès.' };
+        res.status(200).send({ data: { success: true, uid, message: 'Utilisateur créé avec succès.' } });
     } catch (error: any) {
         logger.error('Error creating new user:', error);
-        
+        let status = 500;
+        let code = 'INTERNAL';
+        let message = "Une erreur est survenue lors de la création de l'utilisateur.";
+
         if (error.code === 'auth/email-already-exists') {
-            throw new HttpsError('already-exists', "Un compte avec cette adresse email existe déjà.");
+            status = 409;
+            code = 'ALREADY_EXISTS';
+            message = "Un compte avec cette adresse email existe déjà.";
         }
         if (error.code === 'auth/invalid-password') {
-            throw new HttpsError('invalid-argument', "Le mot de passe doit comporter au moins 6 caractères.");
+            status = 400;
+            code = 'INVALID_ARGUMENT';
+            message = "Le mot de passe doit comporter au moins 6 caractères.";
         }
 
-        throw new HttpsError('internal', "Une erreur est survenue lors de la création de l'utilisateur.", error.message);
+        res.status(status).send({ error: { message, status: code }});
     }
+  });
 });

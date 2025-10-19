@@ -10,9 +10,7 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getApp } from "firebase/app";
-
+import { auth } from "@/lib/firebase-client";
 
 export default function NewClientPage() {
     const router = useRouter();
@@ -42,14 +40,26 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         
         try {
-            const functions = getFunctions(getApp());
-            const createUserWithRoleFunc = httpsCallable(functions, 'createUserWithRole');
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("Vous n'êtes pas authentifié.");
+            }
             
-            const result = await createUserWithRoleFunc(data);
-            const resultData = result.data as { success: boolean; message: string; uid?: string };
+            const idToken = await user.getIdToken();
+            
+            const response = await fetch('https://us-central1-ccs-compta.cloudfunctions.net/createUserWithRole', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ data }),
+            });
 
-            if (!resultData.success) {
-                 throw new Error(resultData.message || `Erreur lors de la création.`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                 throw new Error(result.error?.message || `Erreur HTTP: ${response.status}`);
             }
 
             toast({
