@@ -20,7 +20,7 @@ import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
-import { storage } from '@/lib/firebase-client';
+import { useFirebase } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { increment } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
@@ -64,6 +64,7 @@ export default function MyDocumentsPage() {
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
   const [showPasswordAlert, setShowPasswordAlert] = useState(false);
   const { toast } = useToast();
+  const { storage } = useFirebase();
   
   const fetchDocuments = useCallback(async (id: string) => {
     setIsLoading(true);

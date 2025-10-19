@@ -12,7 +12,7 @@ import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
 import { ref, uploadBytes } from "firebase/storage";
-import { storage } from '@/lib/firebase-client';
+import { useFirebase } from '@/firebase';
 import { fileToDataUri } from '@/lib/utils';
 
 
@@ -26,6 +26,7 @@ export default function ScanPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { toast } = useToast();
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const { storage } = useFirebase();
 
     useEffect(() => {
         const clientId = localStorage.getItem('selectedClientId');
@@ -133,7 +134,7 @@ export default function ScanPage() {
             }
             throw error; // Re-throw to be caught by handleSend
         }
-    }, []);
+    }, [storage]);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {

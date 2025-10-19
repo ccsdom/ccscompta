@@ -23,7 +23,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { storage } from '@/lib/firebase-client';
+import { useFirebase } from '@/firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { increment } from 'firebase/firestore';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -68,6 +68,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { storage } = useFirebase();
 
    const fetchDocumentsAndClients = useCallback(async (clientId: string) => {
     setIsLoading(true);
