@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
-import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, User, Briefcase, UserCog } from "lucide-react";
+import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, User, Briefcase, UserCog, UploadCloud } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
@@ -43,6 +43,11 @@ export default function SettingsPage() {
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
     const [isAdminRoleLoading, setIsAdminRoleLoading] = useState(false);
+    
+    const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'ccs-compta';
+    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'ccs-compta.appspot.com';
+    const corsCommand = `echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json`;
+    const gcloudCorsCommand = `gcloud storage buckets update gs://${storageBucket} --cors-file=cors.json`;
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
@@ -121,7 +126,7 @@ export default function SettingsPage() {
         navigator.clipboard.writeText(text);
         toast({
             title: "Copié !",
-            description: "Les règles ont été copiées dans le presse-papiers.",
+            description: "La commande a été copiée dans le presse-papiers.",
         });
     }
     
@@ -331,35 +336,77 @@ export default function SettingsPage() {
                             </Card>
                         </TabsContent>
                         
-                        <TabsContent value="data-security">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><DatabaseZap className="h-5 w-5"/> Sécurité des Données (Firestore)</CardTitle>
-                                    <CardDescription>Configurez les règles de sécurité Firestore pour isoler les données des clients et protéger votre application.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {firestoreRules ? (
-                                        <div className="space-y-4">
+                         <TabsContent value="data-security">
+                            <Tabs defaultValue="firestore" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="firestore"><DatabaseZap className="mr-2 h-4 w-4"/>Règles Firestore</TabsTrigger>
+                                    <TabsTrigger value="storage"><UploadCloud className="mr-2 h-4 w-4"/>Règles Storage (CORS)</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="firestore" className="mt-4">
+                                     <Card>
+                                        <CardHeader>
+                                            <CardTitle>Sécurité Firestore</CardTitle>
+                                            <CardDescription>Configurez les règles d'accès à la base de données pour protéger les données.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {firestoreRules ? (
+                                                <div className="space-y-4">
+                                                    <Alert>
+                                                        <AlertCircle className="h-4 w-4" />
+                                                        <AlertTitle>Action Manuelle Requise</AlertTitle>
+                                                        <AlertDescription>
+                                                            Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                    <Textarea readOnly value={firestoreRules} className="h-72 font-mono text-xs bg-muted" />
+                                                    <Button onClick={() => copyToClipboard(firestoreRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                                                    <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour votre base de données.</p>
+                                                    <Button onClick={handleFetchFirestoreRules} disabled={isLoadingFirestoreRules}>
+                                                        {isLoadingFirestoreRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles Firestore"}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                                <TabsContent value="storage" className="mt-4">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Configuration CORS du Stockage</CardTitle>
+                                            <CardDescription>Permettez à votre application de téléverser des fichiers vers Firebase Storage.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-6">
                                             <Alert>
                                                 <AlertCircle className="h-4 w-4" />
                                                 <AlertTitle>Action Manuelle Requise</AlertTitle>
                                                 <AlertDescription>
-                                                    Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Firestore Database</strong> de votre console Firebase.
+                                                    Pour corriger l'erreur de téléversement (CORS), ouvrez le <strong>Google Cloud Shell</strong> et exécutez les commandes ci-dessous, dans l'ordre.
                                                 </AlertDescription>
                                             </Alert>
-                                             <Textarea readOnly value={firestoreRules} className="h-72 font-mono text-xs bg-muted" />
-                                            <Button onClick={() => copyToClipboard(firestoreRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
-                                        </div>
-                                    ) : (
-                                         <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                            <p className="mb-4 text-muted-foreground">Générez les règles de sécurité finales pour votre application.</p>
-                                             <Button onClick={handleFetchFirestoreRules} disabled={isLoadingFirestoreRules}>
-                                                {isLoadingFirestoreRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles Firestore"}
-                                            </Button>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+
+                                            <div className="space-y-2">
+                                                <Label>Étape 1 : Créer le fichier de configuration</Label>
+                                                <div className="flex items-center gap-2">
+                                                    <Input value={corsCommand} readOnly className="font-mono text-xs" />
+                                                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(corsCommand)}><Copy className="h-4 w-4" /></Button>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Cette commande crée un fichier nommé `cors.json` dans votre Cloud Shell.</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Étape 2 : Appliquer la configuration au bucket</Label>
+                                                <div className="flex items-center gap-2">
+                                                    <Input value={gcloudCorsCommand} readOnly className="font-mono text-xs" />
+                                                    <Button variant="outline" size="icon" onClick={() => copyToClipboard(gcloudCorsCommand)}><Copy className="h-4 w-4" /></Button>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">Cette commande applique la configuration au bucket de stockage de votre projet.</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                            </Tabs>
                         </TabsContent>
 
                         <TabsContent value="integrations">
