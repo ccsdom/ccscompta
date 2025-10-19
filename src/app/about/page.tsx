@@ -84,12 +84,15 @@ export default function AboutPage() {
                   <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
                     <li className="row-span-3">
                       <NavigationMenuLink asChild>
-                        <Link href="/" className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
-                          <Logo className="h-6 w-6" />
-                          <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
-                          <p className="text-sm leading-tight text-muted-foreground">
-                            La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
-                          </p>
+                        <Link
+                          href="/">
+                          <div className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
+                            <Logo className="h-6 w-6" />
+                            <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
+                            <p className="text-sm leading-tight text-muted-foreground">
+                              La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
+                            </p>
+                          </div>
                         </Link>
                       </NavigationMenuLink>
                     </li>
@@ -147,14 +150,20 @@ export default function AboutPage() {
                 <SheetContent side="left">
                    <nav className="grid gap-6 text-lg font-medium mt-8">
                      <SheetClose asChild>
-                       <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                       <Link
+                         href="/"
+                         className="flex items-center gap-2 text-lg font-semibold mb-4">
                          <Logo className="h-6 w-6 text-primary" />
                          <span className="font-bold text-lg">CCS Compta</span>
                        </Link>
                      </SheetClose>
                      {navLinks.map(link => (
                        <SheetClose asChild key={link.href}>
-                          <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
+                          <Link
+                            href={link.href}
+                            className="text-muted-foreground hover:text-foreground">
+                            {link.text}
+                          </Link>
                        </SheetClose>
                      ))}
                       <SheetClose asChild>
@@ -167,7 +176,6 @@ export default function AboutPage() {
           </div>
         </div>
       </header>
-
       <main className="flex-1">
         <section className="py-20 md:py-24 text-center">
           <div className="container mx-auto max-w-4xl px-4">
@@ -287,7 +295,9 @@ export default function AboutPage() {
             </p>
             <div className="mt-8">
               <Button size="lg" asChild>
-                <Link href="/login" className="flex items-center justify-center gap-2">
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center gap-2">
                   Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -295,7 +305,6 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
-
       <footer className="border-t bg-background">
         <div className="container mx-auto max-w-7xl px-4 py-16">
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-4">
@@ -346,13 +355,17 @@ export default function AboutPage() {
           <div className="mt-12 border-t pt-8 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.</p>
             <div className="flex space-x-4">
-              <Link href="#" className="text-muted-foreground hover:text-primary">
+              <Link
+                href="#"
+                className="text-muted-foreground hover:text-primary">
                 <span className="sr-only">Twitter</span>
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.71v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
                 </svg>
               </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary">
+              <Link
+                href="#"
+                className="text-muted-foreground hover:text-primary">
                 <span className="sr-only">LinkedIn</span>
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd" />
@@ -365,5 +378,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
-    

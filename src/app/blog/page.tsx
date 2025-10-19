@@ -101,12 +101,14 @@ export default function BlogPage() {
                   <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
                     <li className="row-span-3">
                       <NavigationMenuLink asChild>
-                        <Link href="/" className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
-                          <Logo className="h-6 w-6" />
-                          <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
-                          <p className="text-sm leading-tight text-muted-foreground">
-                            La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
-                          </p>
+                        <Link href="/">
+                          <div className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
+                            <Logo className="h-6 w-6" />
+                            <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
+                            <p className="text-sm leading-tight text-muted-foreground">
+                              La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
+                            </p>
+                          </div>
                         </Link>
                       </NavigationMenuLink>
                     </li>
@@ -165,7 +167,9 @@ export default function BlogPage() {
                      </SheetClose>
                      {navLinks.map(link => (
                        <SheetClose asChild key={link.href}>
-                          <Link href={link.href} className="text-muted-foreground hover:text-foreground">{link.text}</Link>
+                          <Link href={link.href} className="text-muted-foreground hover:text-foreground">
+                            {link.text}
+                          </Link>
                        </SheetClose>
                      ))}
                       <SheetClose asChild>
@@ -178,7 +182,6 @@ export default function BlogPage() {
           </div>
         </div>
       </header>
-
       <main className="flex-1">
         {/* Section Blog Header */}
         <section className="py-20 md:py-24 text-center">
@@ -224,11 +227,8 @@ export default function BlogPage() {
           </div>
         </section>
       </main>
-
       {/* Footer identique au AboutPage */}
       {/* ... copier le footer corrigé du AboutPage ... */}
     </div>
   );
 }
-
-    
