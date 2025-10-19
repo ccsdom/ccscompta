@@ -138,26 +138,34 @@ export default function LandingPage() {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/about"} className={navigationMenuTriggerStyle()}>
-                    À Propos
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/blog"} className={navigationMenuTriggerStyle()}>
-                    Blog
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/support"} className={navigationMenuTriggerStyle()}>
-                    Support
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+  {/* Conversion de <Link> vers <a> pour 'À Propos' */}
+  <a 
+    href="/about" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    À Propos
+  </a>
+</NavigationMenuItem>
+
+<NavigationMenuItem>
+  {/* Conversion de <Link> vers <a> pour 'Blog' */}
+  <a 
+    href="/blog" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    Blog
+  </a>
+</NavigationMenuItem>
+
+<NavigationMenuItem>
+  {/* Conversion de <Link> vers <a> pour 'Support' */}
+  <a 
+    href="/support" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    Support
+  </a>
+</NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
 

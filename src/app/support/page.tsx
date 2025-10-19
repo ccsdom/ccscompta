@@ -119,26 +119,34 @@ export default function SupportPage() {
                </NavigationMenuContent>
              </NavigationMenuItem>
              <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/about"} className={navigationMenuTriggerStyle()}>
-                    À Propos
-                  </NavigationMenuLink>
-                </Link>
-             </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/blog"} className={navigationMenuTriggerStyle()}>
-                    Blog
-                  </NavigationMenuLink>
-                </Link>
-             </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={usePathname() === "/support"} className={navigationMenuTriggerStyle()}>
-                    Support
-                  </NavigationMenuLink>
-                </Link>
-             </NavigationMenuItem>
+  {/* CORRECTION 1 : À Propos (Remplacement de Link et usePathname) */}
+  <a 
+    href="/about" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    À Propos
+  </a>
+</NavigationMenuItem>
+
+<NavigationMenuItem>
+  {/* CORRECTION 2 : Blog (Remplacement de Link et usePathname) */}
+  <a 
+    href="/blog" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    Blog
+  </a>
+</NavigationMenuItem>
+
+<NavigationMenuItem>
+  {/* CORRECTION 3 : Support (Remplacement de Link et usePathname) */}
+  <a 
+    href="/support" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    Support
+  </a>
+</NavigationMenuItem>
            </NavigationMenuList>
          </NavigationMenu>
          <div className="flex items-center gap-4">

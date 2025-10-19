@@ -123,25 +123,31 @@ export default function FeaturesPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/about"} className={navigationMenuTriggerStyle()}>
-                    À Propos
-                  </NavigationMenuLink>
-                </Link>
+              <a 
+  href="/about" 
+  // La classe doit être conservée pour appliquer le style du lien de navigation
+  className={navigationMenuTriggerStyle()} 
+>
+  À Propos
+</a>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/blog"} className={navigationMenuTriggerStyle()}>
-                    Blog
-                  </NavigationMenuLink>
-                </Link>
+              <a 
+  href="/blog" 
+  // Conserve la classe pour le style du lien de navigation
+  className={navigationMenuTriggerStyle()} 
+>
+  Blog
+</a>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/support"} className={navigationMenuTriggerStyle()}>
-                    Support
-                  </NavigationMenuLink>
-                </Link>
+              <a 
+  href="/support" 
+  // La classe du style de navigation est conservée
+  className={navigationMenuTriggerStyle()} 
+>
+  Support
+</a>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>

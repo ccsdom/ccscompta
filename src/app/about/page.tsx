@@ -110,28 +110,39 @@ export default function AboutPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/about"} className={navigationMenuTriggerStyle()}>
-                    À Propos
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+    {/* Remplacement de <Link> et <NavigationMenuLink> par <a> */}
+    <a 
+      href="/about" 
+      // Conserve la classe pour le style et l'état actif simulé
+      className={navigationMenuTriggerStyle()} 
+    >
+      À Propos
+    </a>
+</NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/blog"} className={navigationMenuTriggerStyle()}>
-                    Blog
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+    {/* Remplacement de <Link> et <NavigationMenuLink> par <a> */}
+    <a 
+      href="/blog" 
+      // La classe combine le style de la NavigationMenuLink (y compris l'état actif)
+      className={navigationMenuTriggerStyle()} 
+      // Si la logique de l'état actif (pathname === "/blog") est critique, 
+      // vous devez la gérer dans la fonction navigationMenuTriggerStyle()
+    >
+      Blog
+    </a>
+</NavigationMenuItem>
 
-              <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/support"} className={navigationMenuTriggerStyle()}>
-                    Support
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+<NavigationMenuItem>
+    {/* Remplacement de <Link> et <NavigationMenuLink> par <a> */}
+    <a 
+      href="/support" 
+      // Conserve la classe de style pour l'apparence
+      className={navigationMenuTriggerStyle()} 
+    >
+      Support
+    </a>
+</NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
 
@@ -251,7 +262,7 @@ export default function AboutPage() {
                 <Image
                   src="https://picsum.photos/seed/team/800/600"
                   alt="Équipe travaillant ensemble"
-                  width={800}
+                  width={800} // Ajoutez la propriété width
                   height={600}
                   className="rounded-xl shadow-lg"
                   data-ai-hint="team working together"
@@ -276,7 +287,7 @@ export default function AboutPage() {
                   transition={{ duration: 0.3, delay: index * 0.1 }}
                   viewport={{ once: true }}
                 >
-                  <Image src={member.avatar} alt={member.name} width={96} height={96} className="rounded-full mb-3" />
+                  <Image src={member.avatar} alt={member.name} width={96} height={96} className="rounded-full mb-3" /> {/* Ajoutez la propriété width */}
                   <p className="font-semibold">{member.name}</p>
                   <p className="text-sm text-primary">{member.role}</p>
                 </motion.div>
@@ -316,7 +327,7 @@ export default function AboutPage() {
               <p className="text-muted-foreground max-w-xs text-sm">La comptabilité de demain, dès aujourd'hui. Simplifiez, automatisez, conseillez.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-2">
+            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-3 lg:col-span-2">
               <div>
                 <p className="font-semibold text-foreground">Produit</p>
                 <nav className="mt-4 flex flex-col space-y-3">

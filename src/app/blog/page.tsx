@@ -120,28 +120,34 @@ export default function BlogPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/about"} className={navigationMenuTriggerStyle()}>
-                    À Propos
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+  {/* CORRECTION POUR /about */}
+  <a 
+    href="/about" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    À Propos
+  </a>
+</NavigationMenuItem>
 
-              <NavigationMenuItem>
-                <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/blog"} className={navigationMenuTriggerStyle()}>
-                    Blog
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+<NavigationMenuItem>
+  {/* CORRECTION POUR /blog */}
+  <a 
+    href="/blog" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    Blog
+  </a>
+</NavigationMenuItem>
 
-              <NavigationMenuItem>
-                <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink active={pathname === "/support"} className={navigationMenuTriggerStyle()}>
-                    Support
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
+<NavigationMenuItem>
+  {/* CORRECTION POUR /support */}
+  <a 
+    href="/support" 
+    className={navigationMenuTriggerStyle()} 
+  >
+    Support
+  </a>
+</NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
 
