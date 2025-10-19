@@ -119,8 +119,8 @@ export default function LoginPage() {
              <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-primary/20" />
              <div className="relative h-full flex flex-col justify-between p-12 text-white">
                 <Link href="/" className="flex items-center gap-2 font-semibold text-white z-10">
-                    <Logo className="h-8 w-8" />
-                    <span className="text-xl">CCS Compta</span>
+                  <Logo className="h-8 w-8" />
+                  <span className="text-xl">CCS Compta</span>
                 </Link>
                 <div className="text-left z-10">
                     <h1 className="text-5xl font-bold leading-tight tracking-tight">La comptabilité, réinventée.</h1>
@@ -136,8 +136,8 @@ export default function LoginPage() {
               <div className="grid gap-2 text-center">
                  <div className="flex justify-center mb-4 lg:hidden">
                     <Link href="/" className="flex items-center gap-2 font-semibold">
-                        <Logo className="h-8 w-8 text-primary" />
-                        <span className="text-xl">CCS Compta</span>
+                      <Logo className="h-8 w-8 text-primary" />
+                      <span className="text-xl">CCS Compta</span>
                     </Link>
                 </div>
                 <h1 className="text-3xl font-bold">Bienvenue</h1>
@@ -227,3 +227,5 @@ export default function LoginPage() {
       </div>
   );
 }
+
+    

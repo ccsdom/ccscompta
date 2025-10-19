@@ -57,7 +57,7 @@ function BottomNavBar() {
     return null; // Avoid rendering on the server
   }
 
-  let navItems;
+  let navItems: typeof clientBottomNav; // Explicitly type navItems
   switch (currentRole) {
       case 'client':
           navItems = clientBottomNav;
@@ -79,17 +79,18 @@ function BottomNavBar() {
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground transition-all hover:bg-muted',
-                isActive && 'text-primary'
-              )}
-              legacyBehavior>
-              <item.icon className="h-5 w-5" />
-              <span className="text-xs font-medium">{item.label}</span>
-            </Link>
+            <a
+  key={item.href}
+  href={item.href}
+  className={cn(
+    'flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground transition-all hover:bg-muted',
+    isActive && 'text-primary'
+  )}
+>
+  {/* L'icône et le label restent inchangés */}
+  <item.icon className="h-5 w-5" />
+  <span className="text-xs font-medium">{item.label}</span>
+</a>
           );
         })}
       </nav>
