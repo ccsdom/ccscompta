@@ -57,7 +57,8 @@ export default function LoginPage() {
 
         // Force refresh of the token to get custom claims RIGHT after login
         const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
-        const userRole = idTokenResult.claims.role || 'client';
+        const userRoleValue = idTokenResult.claims.role;
+        const userRole = typeof userRoleValue === 'string' ? userRoleValue : 'client';
         const displayName = user.displayName || user.email!.split('@')[0];
 
         localStorage.setItem('userRole', userRole);
@@ -117,10 +118,7 @@ export default function LoginPage() {
             />
              <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-primary/20" />
              <div className="relative h-full flex flex-col justify-between p-12 text-white">
-                <Link
-                    href="/"
-                    className="flex items-center gap-2 font-semibold text-white z-10"
-                    legacyBehavior>
+                <Link href="/" className="flex items-center gap-2 font-semibold text-white z-10">
                     <Logo className="h-8 w-8" />
                     <span className="text-xl">CCS Compta</span>
                 </Link>
@@ -137,7 +135,7 @@ export default function LoginPage() {
             <div className="mx-auto grid w-full max-w-[400px] gap-8">
               <div className="grid gap-2 text-center">
                  <div className="flex justify-center mb-4 lg:hidden">
-                    <Link href="/" className="flex items-center gap-2 font-semibold" legacyBehavior>
+                    <Link href="/" className="flex items-center gap-2 font-semibold">
                         <Logo className="h-8 w-8 text-primary" />
                         <span className="text-xl">CCS Compta</span>
                     </Link>
