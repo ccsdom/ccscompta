@@ -5,6 +5,7 @@ import { Inter, Space_Grotesk } from "next/font/google"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from '@/components/theme-provider';
 import { CookieBanner } from '@/components/cookie-banner';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable, fontDisplay.variable)}>
+        <FirebaseClientProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -39,6 +41,7 @@ export default function RootLayout({
             <Toaster />
             <CookieBanner />
           </ThemeProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );
