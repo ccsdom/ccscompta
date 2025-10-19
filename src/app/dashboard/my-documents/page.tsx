@@ -125,7 +125,7 @@ export default function MyDocumentsPage() {
     return [...trail, event];
   };
 
-  const processSingleFile = async (file: File, clientId: string) => {
+  const processSingleFile = useCallback(async (file: File, clientId: string) => {
     try {
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
@@ -162,7 +162,7 @@ export default function MyDocumentsPage() {
         });
         return { success: false };
     }
-}
+}, [storage]);
 
 
   const handleFileDrop = async (files: File[]) => {
