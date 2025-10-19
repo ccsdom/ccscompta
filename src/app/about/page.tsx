@@ -71,9 +71,11 @@ export default function AboutPage() {
     <div className="flex flex-col min-h-screen bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">CCS Compta</span>
+          <Link href="/">
+            <div className="flex items-center gap-2 font-semibold">
+              <Logo className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg hidden sm:inline-block">CCS Compta</span>
+            </div>
           </Link>
 
           <NavigationMenu className="hidden md:flex">
@@ -110,43 +112,30 @@ export default function AboutPage() {
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-    {/* Remplacement de <Link> et <NavigationMenuLink> par <a> */}
-    <a 
-      href="/about" 
-      // Conserve la classe pour le style et l'état actif simulé
-      className={navigationMenuTriggerStyle()} 
-    >
-      À Propos
-    </a>
-</NavigationMenuItem>
-
+                <Link href="/about" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    À Propos
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
               <NavigationMenuItem>
-    {/* Remplacement de <Link> et <NavigationMenuLink> par <a> */}
-    <a 
-      href="/blog" 
-      // La classe combine le style de la NavigationMenuLink (y compris l'état actif)
-      className={navigationMenuTriggerStyle()} 
-      // Si la logique de l'état actif (pathname === "/blog") est critique, 
-      // vous devez la gérer dans la fonction navigationMenuTriggerStyle()
-    >
-      Blog
-    </a>
-</NavigationMenuItem>
-
-<NavigationMenuItem>
-    {/* Remplacement de <Link> et <NavigationMenuLink> par <a> */}
-    <a 
-      href="/support" 
-      // Conserve la classe de style pour l'apparence
-      className={navigationMenuTriggerStyle()} 
-    >
-      Support
-    </a>
-</NavigationMenuItem>
+                <Link href="/blog" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    Blog
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link href="/support" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    Support
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
              <Button asChild className="hidden md:inline-flex">
               <Link href="/login">Se connecter</Link>
             </Button>
@@ -163,9 +152,11 @@ export default function AboutPage() {
                      <SheetClose asChild>
                        <Link
                          href="/"
-                         className="flex items-center gap-2 text-lg font-semibold mb-4">
-                         <Logo className="h-6 w-6 text-primary" />
-                         <span className="font-bold text-lg">CCS Compta</span>
+                         >
+                         <div className="flex items-center gap-2 text-lg font-semibold mb-4">
+                            <Logo className="h-6 w-6 text-primary" />
+                            <span className="font-bold text-lg">CCS Compta</span>
+                         </div>
                        </Link>
                      </SheetClose>
                      {navLinks.map(link => (
@@ -262,7 +253,7 @@ export default function AboutPage() {
                 <Image
                   src="https://picsum.photos/seed/team/800/600"
                   alt="Équipe travaillant ensemble"
-                  width={800} // Ajoutez la propriété width
+                  width={800}
                   height={600}
                   className="rounded-xl shadow-lg"
                   data-ai-hint="team working together"
@@ -287,7 +278,7 @@ export default function AboutPage() {
                   transition={{ duration: 0.3, delay: index * 0.1 }}
                   viewport={{ once: true }}
                 >
-                  <Image src={member.avatar} alt={member.name} width={96} height={96} className="rounded-full mb-3" /> {/* Ajoutez la propriété width */}
+                  <Image src={member.avatar} alt={member.name} width={96} height={96} className="rounded-full mb-3" />
                   <p className="font-semibold">{member.name}</p>
                   <p className="text-sm text-primary">{member.role}</p>
                 </motion.div>
@@ -320,14 +311,16 @@ export default function AboutPage() {
         <div className="container mx-auto max-w-7xl px-4 py-16">
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-4">
             <div className="lg:col-span-1">
-              <Link href="/" className="flex items-center gap-2 mb-4">
-                <Logo className="h-7 w-7 text-primary" />
-                <span className="font-bold text-xl">CCS Compta</span>
+              <Link href="/">
+                <div className="flex items-center gap-2 mb-4">
+                  <Logo className="h-7 w-7 text-primary" />
+                  <span className="font-bold text-xl">CCS Compta</span>
+                </div>
               </Link>
               <p className="text-muted-foreground max-w-xs text-sm">La comptabilité de demain, dès aujourd'hui. Simplifiez, automatisez, conseillez.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-3 lg:col-span-2">
+            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-2">
               <div>
                 <p className="font-semibold text-foreground">Produit</p>
                 <nav className="mt-4 flex flex-col space-y-3">

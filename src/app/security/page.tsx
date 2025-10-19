@@ -74,9 +74,11 @@ export default function SecurityPage() {
       {/* --- Header --- */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">CCS Compta</span>
+          <Link href="/">
+            <div className="flex items-center gap-2 font-semibold">
+              <Logo className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg hidden sm:inline-block">CCS Compta</span>
+            </div>
           </Link>
 
           <NavigationMenu className="hidden md:flex">
@@ -129,7 +131,7 @@ export default function SecurityPage() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
              <Button asChild className="hidden md:inline-flex">
               <Link href="/login">Se connecter</Link>
             </Button>
@@ -144,9 +146,11 @@ export default function SecurityPage() {
                   <SheetContent side="left">
                      <nav className="grid gap-6 text-lg font-medium mt-8">
                        <SheetClose asChild>
-                         <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                         <Link href="/">
+                          <div className="flex items-center gap-2 text-lg font-semibold mb-4">
                            <Logo className="h-6 w-6 text-primary" />
                            <span className="font-bold text-lg">CCS Compta</span>
+                          </div>
                          </Link>
                        </SheetClose>
                        {navLinks.map(link => (
@@ -227,9 +231,11 @@ export default function SecurityPage() {
         <div className="container mx-auto max-w-7xl px-4 py-16">
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-4">
             <div className="lg:col-span-1">
-              <Link href="/" className="flex items-center gap-2 mb-4">
-                <Logo className="h-7 w-7 text-primary" />
-                <span className="font-bold text-xl">CCS Compta</span>
+              <Link href="/">
+                <div className="flex items-center gap-2 mb-4">
+                  <Logo className="h-7 w-7 text-primary" />
+                  <span className="font-bold text-xl">CCS Compta</span>
+                </div>
               </Link>
               <p className="text-muted-foreground max-w-xs text-sm">La comptabilité de demain, dès aujourd'hui. Simplifiez, automatisez, conseillez.</p>
             </div>
