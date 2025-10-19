@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Script pour guider l'application des règles CORS à votre bucket Firebase Storage.
@@ -20,7 +19,7 @@ echo "En résumé :"
 echo "1. Allez sur https://console.cloud.google.com/storage/browser?project=ccs-compta"
 echo "2. Activez le Cloud Shell (icône '>_' en haut à droite)."
 echo "3. Assurez-vous d'être dans le bon projet avec : gcloud config set project ccs-compta"
-echo "4. Créez le fichier de config : echo '[{\"origin\": [\"*\"], \"method\": [\"GET\"], \"maxAgeSeconds\": 3600}]' > cors.json"
+echo "4. Créez le fichier de config : echo '[{\"origin\": [\"*\"], \"method\": [\"GET\", \"POST\", \"PUT\"], \"responseHeader\": [\"Content-Type\", \"x-goog-resumable\"], \"maxAgeSeconds\": 3600}]' > cors.json"
 echo "5. Appliquez les règles (adaptez le nom du bucket si besoin) : gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=cors.json"
-echo "6. Rafraîchissez votre application."
+echo "6. Rafraîchissez votre application. Les changements peuvent prendre quelques minutes."
 echo ""

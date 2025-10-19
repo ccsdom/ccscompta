@@ -14,9 +14,9 @@ Si vous n'avez jamais utilisé Firebase Storage sur ce projet, vous devez l'acti
 3.  Suivez les instructions à l'écran. Vous pouvez généralement conserver les options par défaut (mode production, emplacement du bucket).
 4.  Une fois l'opération terminée, votre bucket de stockage est prêt.
 
-### Étape 2 : Activer l'accès aux fichiers (CORS)
+### Étape 2 : Activer le téléversement de fichiers (CORS)
 
-Après avoir activé Storage, vous devez autoriser votre application à y accéder en configurant les règles CORS.
+Après avoir activé Storage, vous devez autoriser votre application à y téléverser des fichiers en configurant les règles CORS.
 
 #### Instructions (Méthode recommandée via Google Cloud Shell)
 
@@ -36,17 +36,17 @@ Cette méthode est la plus fiable et fonctionne sur tous les systèmes d'exploit
 4.  Créez le fichier de configuration `cors.json` en copiant-collant la commande suivante, puis appuyez sur **Entrée** :
 
     ```bash
-    echo '[{"origin": ["*"], "method": ["GET"], "maxAgeSeconds": 3600}]' > cors.json
+    echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json
     ```
 
-5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** trouvez l'adresse exacte de votre bucket dans la console Firebase (Storage -> onglet Fichiers, elle commence par `gs://`) et remplacez `gs://VOTRE-BUCKET-ICI.appspot.com` dans la commande ci-dessous.
+5.  Maintenant, appliquez la configuration à votre bucket. **ATTENTION :** trouvez l'adresse exacte de votre bucket dans la console Firebase (Storage -> onglet Fichiers, elle commence par `gs://`) et remplacez `gs://VOTRE-BUCKET-ICI.appspot.com` dans la commande ci-dessous si nécessaire.
     
     ```bash
     # Exemple : gcloud storage buckets update gs://mon-projet-a-moi.appspot.com --cors-file=cors.json
     gcloud storage buckets update gs://ccs-compta.appspot.com --cors-file=cors.json
     ```
 
-6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell.
+6.  Un message de succès devrait s'afficher. C'est terminé ! Vous pouvez fermer la fenêtre Cloud Shell. Les modifications peuvent prendre quelques minutes à se propager.
 
 ### Étape 3 : Sécuriser l'application (Action Requise)
 
