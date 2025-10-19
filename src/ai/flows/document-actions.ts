@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { Document, AuditEvent, Bilan } from '@/lib/types';

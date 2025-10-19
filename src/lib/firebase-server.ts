@@ -1,14 +1,19 @@
+// IMPORTANT: This file is for server-side Firebase initialization.
+// It uses the same CLIENT SDK as the rest of the app, but ensures it's a singleton for the server environment.
 
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { firebaseConfig } from "@/firebase/config";
 
-// Dans un environnement Google Cloud (comme celui-ci), appeler initializeApp()
-// sans argument utilise automatiquement les "Application Default Credentials".
-// C'est la méthode la plus simple et la plus fiable.
+let app: FirebaseApp;
+let db: Firestore;
+
 if (!getApps().length) {
-  initializeApp();
+    app = initializeApp(firebaseConfig);
+} else {
+    app = getApp();
 }
 
-const db = getFirestore();
+db = getFirestore(app);
 
 export { db };
