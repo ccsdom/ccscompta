@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
- * Backend logic for assigning user roles and creating users.
+ * Backend logic for assigning user roles, creating users and processing documents.
  */
 
 import { initializeApp } from 'firebase-admin/app';
@@ -12,6 +12,11 @@ import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as cors from 'cors';
+
+// Genkit/AI imports - these will be dynamically available in the cloud function environment
+declare function recognizeDocumentType(input: { documentDataUri: string }): Promise<{ documentType: string; confidence: number; }>;
+declare function extractData(input: { documentDataUri: string; documentType: string; clientId: string; }): Promise<any>;
+
 
 const corsHandler = cors({ origin: true });
 
@@ -136,4 +141,62 @@ export const createUserWithRole = onRequest(async (req, res) => {
         res.status(status).send({ error: { message, status: code }});
     }
   });
+});
+
+/**
+ * Triggered when a new document is created in Firestore.
+ * This function processes the document using AI.
+ */
+export const processDocument = onDocumentCreated("documents/{docId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+        logger.log("No data associated with the event");
+        return;
+    }
+
+    const doc = snapshot.data() as any;
+    const docId = event.params.docId;
+    const db = getFirestore();
+    const docRef = db.collection('documents').doc(docId);
+
+    try {
+        await docRef.update({ status: 'processing', auditTrail: [...doc.auditTrail, { action: 'Traitement IA initié par le serveur', date: new Date().toISOString(), user: 'Système' }] });
+
+        // Construct the full path for the storage object
+        const bucket = `gs://${process.env.GCLOUD_PROJECT}.appspot.com`;
+        const filePath = doc.storagePath;
+        const gcsUri = `${bucket}/${filePath}`;
+        
+        // Convert to data URI for Genkit
+        const dataUrl = `data:${doc.fileType || 'application/octet-stream'};base64,${gcsUri}`;
+
+        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+        await docRef.update({ 
+            auditTrail: [...doc.auditTrail, { action: `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`, date: new Date().toISOString(), user: 'Système' }]
+        });
+
+        const extracted = await extractData({
+            documentDataUri: dataUrl,
+            documentType: recognition.documentType,
+            clientId: doc.clientId
+        });
+
+        const finalUpdates = {
+            status: 'reviewing',
+            type: recognition.documentType,
+            confidence: recognition.confidence,
+            extractedData: extracted,
+            auditTrail: [...doc.auditTrail, { action: 'Traitement IA terminé, prêt pour examen', date: new Date().toISOString(), user: 'Système' }]
+        };
+
+        await docRef.update(finalUpdates);
+        logger.info(`Document ${docId} processed successfully.`);
+
+    } catch (error: any) {
+        logger.error(`Error processing document ${docId}:`, error);
+        await docRef.update({
+            status: 'error',
+            auditTrail: [...doc.auditTrail, { action: `Échec du traitement IA: ${error.message}`, date: new Date().toISOString(), user: 'Système' }]
+        });
+    }
 });

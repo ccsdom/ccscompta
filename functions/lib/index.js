@@ -2,15 +2,16 @@
 "use strict";
 'use server';
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUserWithRole = exports.setAdminRole = void 0;
+exports.processDocument = exports.createUserWithRole = exports.setAdminRole = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
- * Backend logic for assigning user roles and creating users.
+ * Backend logic for assigning user roles, creating users and processing documents.
  */
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
+const firestore_2 = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const cors = require("cors");
 const corsHandler = cors({ origin: true });
@@ -120,5 +121,54 @@ exports.createUserWithRole = (0, https_1.onRequest)(async (req, res) => {
             res.status(status).send({ error: { message, status: code } });
         }
     });
+});
+/**
+ * Triggered when a new document is created in Firestore.
+ * This function processes the document using AI.
+ */
+exports.processDocument = (0, firestore_2.onDocumentCreated)("documents/{docId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+        logger.log("No data associated with the event");
+        return;
+    }
+    const doc = snapshot.data();
+    const docId = event.params.docId;
+    const db = (0, firestore_1.getFirestore)();
+    const docRef = db.collection('documents').doc(docId);
+    try {
+        await docRef.update({ status: 'processing', auditTrail: [...doc.auditTrail, { action: 'Traitement IA initié par le serveur', date: new Date().toISOString(), user: 'Système' }] });
+        // Construct the full path for the storage object
+        const bucket = `gs://${process.env.GCLOUD_PROJECT}.appspot.com`;
+        const filePath = doc.storagePath;
+        const gcsUri = `${bucket}/${filePath}`;
+        // Convert to data URI for Genkit
+        const dataUrl = `data:${doc.fileType || 'application/octet-stream'};base64,${gcsUri}`;
+        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
+        await docRef.update({
+            auditTrail: [...doc.auditTrail, { action: `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`, date: new Date().toISOString(), user: 'Système' }]
+        });
+        const extracted = await extractData({
+            documentDataUri: dataUrl,
+            documentType: recognition.documentType,
+            clientId: doc.clientId
+        });
+        const finalUpdates = {
+            status: 'reviewing',
+            type: recognition.documentType,
+            confidence: recognition.confidence,
+            extractedData: extracted,
+            auditTrail: [...doc.auditTrail, { action: 'Traitement IA terminé, prêt pour examen', date: new Date().toISOString(), user: 'Système' }]
+        };
+        await docRef.update(finalUpdates);
+        logger.info(`Document ${docId} processed successfully.`);
+    }
+    catch (error) {
+        logger.error(`Error processing document ${docId}:`, error);
+        await docRef.update({
+            status: 'error',
+            auditTrail: [...doc.auditTrail, { action: `Échec du traitement IA: ${error.message}`, date: new Date().toISOString(), user: 'Système' }]
+        });
+    }
 });
 //# sourceMappingURL=index.js.map
