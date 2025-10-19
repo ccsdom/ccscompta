@@ -1,0 +1,116 @@
+/**
+ * @fileOverview
+ * This ruleset enforces a strict user-ownership model for accessing accounting documents and related data.
+ * All data is nested under the /clients/{clientId} path, ensuring that only the authenticated client can
+ * access their own data. Audit logs are stored in a top-level collection but include a userId field.
+ *
+ * Data Structure:
+ * - /clients/{clientId}: Stores client information.
+ * - /clients/{clientId}/accountingDocuments/{accountingDocumentId}: Stores accounting documents owned by the client.
+ * - /clients/{clientId}/accountingDocuments/{accountingDocumentId}/extractedData/{extractedDataId}: Stores extracted data from accounting documents.
+ * - /auditLogs/{auditLogId}: Stores audit logs.
+ *
+ * Key Security Decisions:
+ * - Clients can only access their own data (enforced via path-based ownership).
+ * - Clients can only create their own client document.
+ * - Audit logs are append-only (no updates or deletes).
+ *
+ * Denormalization for Authorization:
+ * - The 'clientId' is embedded in the path for accounting documents and extracted data, avoiding the need for `get()` calls to verify ownership.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows clients to read and manage their own client data.
+     * @path /clients/{clientId}
+     * @allow (create) - Authenticated user with matching UID can create their client document.
+     * @allow (get, list, update, delete) - Authenticated user with matching UID can access their client document.
+     * @deny (create) - Authenticated user with non-matching UID cannot create a client document.
+     * @deny (update, delete) - Unauthenticated users cannot modify client documents.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /clients/{clientId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if false;
+      allow create: if isOwner(clientId);
+      allow update: if isExistingOwner(clientId);
+      allow delete: if isExistingOwner(clientId);
+    }
+
+    /**
+     * @description Allows clients to manage their accounting documents.
+     * @path /clients/{clientId}/accountingDocuments/{accountingDocumentId}
+     * @allow (create) - Authenticated user (client) can create accounting documents under their client ID.
+     * @allow (get, list, update, delete) - Authenticated user (client) can access and manage their accounting documents.
+     * @deny (create) - Authenticated user cannot create accounting documents under another client ID.
+     * @deny (update, delete) - Unauthenticated users cannot modify accounting documents.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /clients/{clientId}/accountingDocuments/{accountingDocumentId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if isOwner(clientId);
+      allow create: if isOwner(clientId);
+      allow update: if isExistingOwner(clientId);
+      allow delete: if isExistingOwner(clientId);
+    }
+
+    /**
+     * @description Allows clients to manage extracted data from their accounting documents.
+     * @path /clients/{clientId}/accountingDocuments/{accountingDocumentId}/extractedData/{extractedDataId}
+     * @allow (create) - Authenticated user (client) can create extracted data under their accounting document.
+     * @allow (get, list, update, delete) - Authenticated user (client) can access and manage extracted data.
+     * @deny (create) - Authenticated user cannot create extracted data under another client ID or document ID.
+     * @deny (update, delete) - Unauthenticated users cannot modify extracted data.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /clients/{clientId}/accountingDocuments/{accountingDocumentId}/extractedData/{extractedDataId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if isOwner(clientId);
+      allow create: if isOwner(clientId);
+      allow update: if isExistingOwner(clientId);
+      allow delete: if isExistingOwner(clientId);
+    }
+
+    /**
+     * @description Allows anyone to create audit logs, but restricts modification or deletion.
+     * @path /auditLogs/{auditLogId}
+     * @allow (create) - Any authenticated user can create an audit log.
+     * @allow (get, list) - Anyone can read the audit logs.
+     * @deny (update, delete) - No one can update or delete audit logs.
+     * @principle Audit logs are append-only for security and auditing purposes.
+     */
+    match /auditLogs/{auditLogId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

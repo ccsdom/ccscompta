@@ -1,0 +1,246 @@
+{
+  "entities": {
+    "Client": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Client",
+      "type": "object",
+      "description": "Represents a client who uploads accounting documents.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the client."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the client."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the client.",
+          "format": "email"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the client was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "createdAt"
+      ]
+    },
+    "AccountingDocument": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccountingDocument",
+      "type": "object",
+      "description": "Represents an accounting document uploaded by a client.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the accounting document."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Reference to Client. (Relationship: Client 1:N AccountingDocument)"
+        },
+        "documentType": {
+          "type": "string",
+          "description": "Type of accounting document (e.g., invoice, receipt, bank statement)."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date when the document was uploaded.",
+          "format": "date-time"
+        },
+        "filePath": {
+          "type": "string",
+          "description": "Path to the uploaded document file."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the document processing (e.g., uploaded, processing, validated, forwarded)."
+        }
+      },
+      "required": [
+        "id",
+        "clientId",
+        "documentType",
+        "uploadDate",
+        "filePath",
+        "status"
+      ]
+    },
+    "ExtractedData": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ExtractedData",
+      "type": "object",
+      "description": "Represents the extracted data from an accounting document.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the extracted data."
+        },
+        "accountingDocumentId": {
+          "type": "string",
+          "description": "Reference to AccountingDocument. (Relationship: AccountingDocument 1:1 ExtractedData)"
+        },
+        "invoiceDate": {
+          "type": "string",
+          "description": "Date of the invoice.",
+          "format": "date-time"
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Invoice number."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the invoice."
+        },
+        "vendorName": {
+          "type": "string",
+          "description": "Name of the vendor."
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency of the amount."
+        }
+      },
+      "required": [
+        "id",
+        "accountingDocumentId",
+        "invoiceDate",
+        "invoiceNumber",
+        "amount",
+        "vendorName",
+        "currency"
+      ]
+    },
+    "AuditLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AuditLog",
+      "type": "object",
+      "description": "Represents a log entry for an action performed in the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the audit log entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Identifier of the user who performed the action (can be null for system actions)."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of when the action was performed.",
+          "format": "date-time"
+        },
+        "action": {
+          "type": "string",
+          "description": "Description of the action performed (e.g., document uploaded, data extracted, data validated)."
+        },
+        "details": {
+          "type": "string",
+          "description": "Additional details about the action performed (e.g., document ID, data changes)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "timestamp",
+        "action",
+        "details"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/clients/{clientId}",
+        "definition": {
+          "entityName": "Client",
+          "schema": {
+            "$ref": "#/backend/entities/Client"
+          },
+          "description": "Stores client information.  The 'clientId' is used for path-based ownership in subcollections.",
+          "params": [
+            {
+              "name": "clientId",
+              "description": "Unique identifier for the client."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clients/{clientId}/accountingDocuments/{accountingDocumentId}",
+        "definition": {
+          "entityName": "AccountingDocument",
+          "schema": {
+            "$ref": "#/backend/entities/AccountingDocument"
+          },
+          "description": "Stores accounting documents uploaded by a client. Path-based ownership is used for security.",
+          "params": [
+            {
+              "name": "clientId",
+              "description": "Unique identifier for the client."
+            },
+            {
+              "name": "accountingDocumentId",
+              "description": "Unique identifier for the accounting document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clients/{clientId}/accountingDocuments/{accountingDocumentId}/extractedData/{extractedDataId}",
+        "definition": {
+          "entityName": "ExtractedData",
+          "schema": {
+            "$ref": "#/backend/entities/ExtractedData"
+          },
+          "description": "Stores extracted data from an accounting document. Path-based ownership is used for security.",
+          "params": [
+            {
+              "name": "clientId",
+              "description": "Unique identifier for the client."
+            },
+            {
+              "name": "accountingDocumentId",
+              "description": "Unique identifier for the accounting document."
+            },
+            {
+              "name": "extractedDataId",
+              "description": "Unique identifier for the extracted data."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/auditLogs/{auditLogId}",
+        "definition": {
+          "entityName": "AuditLog",
+          "schema": {
+            "$ref": "#/backend/entities/AuditLog"
+          },
+          "description": "Stores audit log entries for actions performed in the application.",
+          "params": [
+            {
+              "name": "auditLogId",
+              "description": "Unique identifier for the audit log entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability, aligning with the specified principles. Each client has a dedicated space for their documents, enabling straightforward security rules based on path-based ownership. \n\nClients are stored in a top-level `/clients` collection. Each client owns their accounting documents, stored in a subcollection `/clients/{clientId}/accountingDocuments`. Extracted data for each accounting document resides in the `/clients/{clientId}/accountingDocuments/{accountingDocumentId}/extractedData` subcollection. This nested structure establishes a clear ownership hierarchy, simplifying security rules and eliminating the need for complex `get()` calls.\n\nAudit logs are stored in a top-level `/auditLogs` collection. Because audit logs can be created for both clients and system-level actions, the userId field is included in each document. Although there is only one audit log collection, it is not considered Structural Segregation because the `userId` field allows for rules to be filtered based on the requesting user.\n\nThis structure facilitates straightforward security rules because:\n\n1.  **Authorization Independence:** Path-based ownership (`/clients/{clientId}/...`) removes the need to fetch parent document data to authorize access.\n2.  **QAPs:** Listing documents is secure as rules can easily filter by the `clientId` parameter, preventing unauthorized access.\n3.  **Structural Segregation:**  Each collection/subcollection contains documents with homogeneous security needs, further simplifying rules.\n\nNo custom claims are used. The structure solely relies on `request.auth.uid` for authorization in conjunction with the path-based ownership model."
+  }
+}
