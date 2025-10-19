@@ -26,9 +26,6 @@ import { increment } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-import { fileToDataUri } from '@/lib/utils';
-import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
-import { extractData } from '@/ai/flows/extract-data-from-documents';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -127,30 +124,12 @@ export default function MyDocumentsPage() {
     return [...trail, event];
   };
 
-  const createNotification = (doc: Document, message: string) => {
-    const newNotification: Notification = {
-      id: crypto.randomUUID(),
-      documentId: doc.id,
-      documentName: doc.name,
-      message,
-      date: new Date().toISOString(),
-      isRead: false
-    };
-    // This part would ideally be a server-side operation
-    const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
-    localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-    window.dispatchEvent(new Event('storage')); // Notify header
-  };
-
   const processSingleFile = async (file: File, clientId: string) => {
-    let createdDocId: string | null = null;
     try {
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
         
         await uploadBytes(storageRef, file);
-
-        const dataUrl = await fileToDataUri(file);
 
         const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
             name: file.name,
@@ -164,47 +143,23 @@ export default function MyDocumentsPage() {
         
         const createdDoc = await addDocument(newDocData);
         if (!createdDoc) throw new Error("Failed to save document metadata.");
-        createdDocId = createdDoc.id;
-
-        // Immediately update local state to show 'processing'
-        const processingDoc = { ...createdDoc, status: 'processing' as const, auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA initié') };
-        setDocuments(prev => [processingDoc, ...prev]);
-
-        await updateDocument({ id: createdDoc.id, updates: { status: 'processing' } });
-
+        
         await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
         
-        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
+        setDocuments(prev => [createdDoc, ...prev].sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
 
-        const finalUpdates: Partial<Document> = {
-            status: 'reviewing',
-            extractedData: extracted,
-            type: recognition.documentType,
-            confidence: recognition.confidence,
-            auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA terminé, prêt pour examen')
-        };
+        toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
 
-        await updateDocument({ id: createdDoc.id, updates: finalUpdates });
-        createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
-
-        toast({ title: `Document "${file.name}" envoyé`, description: "Il a été traité et est prêt pour examen par votre comptable." });
         return { success: true };
 
     } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        if (createdDocId) {
-            const trail = addAuditEvent([], 'Erreur de traitement IA');
-            await updateDocument({ id: createdDocId, updates: { status: 'error', auditTrail: trail } });
-        }
         toast({
             variant: 'destructive',
             title: `Échec du téléversement pour ${file.name}`,
             description: "Veuillez réessayer. Si le problème persiste, contactez le support."
         });
         return { success: false };
-    } finally {
-        if (clientId) fetchDocuments(clientId); // Refresh list to show final status
     }
 }
 
@@ -228,6 +183,9 @@ export default function MyDocumentsPage() {
     
     if (successCount > 0) {
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été envoyés avec succès.` });
+      // The Cloud Function will trigger, and Firestore listeners will update the UI,
+      // so we might not need to manually refetch here unless we want to be very explicit.
+      setTimeout(() => fetchDocuments(clientId), 5000); // Optional: refetch after a delay
     } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être envoyé. Veuillez réessayer.` });
     }
@@ -471,3 +429,4 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+

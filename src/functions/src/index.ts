@@ -1,15 +1,22 @@
+
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
- * Backend logic for assigning user roles and creating users.
+ * Backend logic for assigning user roles, creating users and processing documents.
  */
 
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as cors from 'cors';
+
+// Genkit/AI imports - these will be dynamically available in the cloud function environment
+declare function recognizeDocumentType(input: { documentDataUri: string }): Promise<{ documentType: string; confidence: number; }>;
+declare function extractData(input: { documentDataUri: string; documentType: string; clientId: string; }): Promise<any>;
+
 
 const corsHandler = cors({ origin: true });
 
