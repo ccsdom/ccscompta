@@ -1,26 +1,14 @@
 
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+'use server';
+
+import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { ServiceAccount } from 'firebase-admin';
 
-const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-
+// Dans un environnement Google Cloud (comme celui-ci), appeler initializeApp()
+// sans argument utilise automatiquement les "Application Default Credentials".
+// C'est la méthode la plus simple et la plus fiable.
 if (!getApps().length) {
-    if (serviceAccountKey) {
-        try {
-            const serviceAccount = JSON.parse(serviceAccountKey) as ServiceAccount;
-            initializeApp({
-                credential: cert(serviceAccount)
-            });
-        } catch (error) {
-            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", error);
-            initializeApp();
-        }
-    } else {
-        // This will work in Firebase environments (Functions, App Hosting)
-        // where Application Default Credentials are automatically available.
-        initializeApp();
-    }
+  initializeApp();
 }
 
 const db = getFirestore();
