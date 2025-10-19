@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
-import { auth } from '@/lib/firebase-client';
+import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import type { IdTokenResult } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,6 +27,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +46,7 @@ export default function LoginPage() {
         }
     };
     clearState();
-  }, []);
+  }, [auth]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

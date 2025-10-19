@@ -8,7 +8,7 @@ import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { fileToDataUri } from '@/lib/utils';
 import { ref, uploadBytes } from 'firebase/storage';
-import { storage } from '@/lib/firebase-client';
+import { useFirebase } from '@/firebase';
 import { addDocument, updateDocument, getDocuments } from '@/ai/flows/document-actions';
 import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData } from '@/ai/flows/extract-data-from-documents';
@@ -24,6 +24,7 @@ export function QuickUpload() {
     const [filesToProcessCount, setFilesToProcessCount] = useState(0);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const { toast } = useToast();
+    const { storage } = useFirebase();
 
     useEffect(() => {
         if (!isOpen) {
@@ -117,7 +118,7 @@ export function QuickUpload() {
                 description: `Impossible de traiter ${file.name}.`,
             });
         }
-    }, [toast]);
+    }, [storage, toast]);
     
     const handleFileDrop = async (files: File[]) => {
         if (!selectedClientId) {

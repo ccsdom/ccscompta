@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from "react";
@@ -16,7 +17,7 @@ import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actio
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { auth as clientAuth } from '@/lib/firebase-client';
+import { useAuth } from '@/firebase';
 import { updateClient } from "@/ai/flows/client-actions";
 import { useRouter } from "next/navigation";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -27,6 +28,7 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const { theme, setTheme } = useTheme();
+    const clientAuth = useAuth();
 
     const [userRole, setUserRole] = useState<string | null>(null);
     const [userName, setUserName] = useState("Utilisateur");
@@ -66,7 +68,7 @@ export default function SettingsPage() {
         }
 
         return () => unsubscribe();
-    }, []);
+    }, [clientAuth]);
 
     const handleProfileSave = (e: React.FormEvent) => {
         e.preventDefault();
