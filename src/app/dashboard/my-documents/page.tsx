@@ -155,19 +155,24 @@ export default function MyDocumentsPage() {
         const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
             name: file.name,
             uploadDate: new Date().toISOString(),
-            status: 'processing' as const,
+            status: 'pending' as const,
             storagePath,
             clientId: clientId,
             comments: [],
             auditTrail: addAuditEvent([], 'Document téléversé'),
         };
-
+        
         const createdDoc = await addDocument(newDocData);
         if (!createdDoc) throw new Error("Failed to save document metadata.");
-        
         createdDocId = createdDoc.id;
+
+        // Immediately update local state to show 'processing'
+        const processingDoc = { ...createdDoc, status: 'processing' as const, auditTrail: addAuditEvent(createdDoc.auditTrail, 'Traitement IA initié') };
+        setDocuments(prev => [processingDoc, ...prev]);
+
+        await updateDocument({ id: createdDoc.id, updates: { status: 'processing' } });
+
         await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
-        if (clientId) fetchDocuments(clientId);
         
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
