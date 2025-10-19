@@ -135,9 +135,11 @@ export default function LoginPage() {
             <div className="mx-auto grid w-full max-w-[400px] gap-8">
               <div className="grid gap-2 text-center">
                  <div className="flex justify-center mb-4 lg:hidden">
-                    <Link href="/" className="flex items-center gap-2 font-semibold">
-                      <Logo className="h-8 w-8 text-primary" />
-                      <span className="text-xl">CCS Compta</span>
+                    <Link href="/">
+                      <div className="flex items-center gap-2 font-semibold">
+                         <Logo className="h-8 w-8 text-primary" />
+                         <span className="text-xl">CCS Compta</span>
+                      </div>
                     </Link>
                 </div>
                 <h1 className="text-3xl font-bold">Bienvenue</h1>
@@ -213,12 +215,6 @@ export default function LoginPage() {
                   Google
                 </Button>
               </form>
-                 <div className="mt-4 text-center text-sm">
-                  Vous n'avez pas de compte ?{" "}
-                  <Link href="/dashboard/clients/new" className="underline text-primary">
-                    Créer un compte
-                  </Link>
-                </div>
                 <p className="mt-8 text-center text-xs text-muted-foreground">
                     &copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.
                 </p>
