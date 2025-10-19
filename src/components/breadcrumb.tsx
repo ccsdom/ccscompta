@@ -66,7 +66,7 @@ export function Breadcrumb() {
           <Link
             href="/dashboard"
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
-            legacyBehavior>
+          >
             <Home className="h-4 w-4" />
             <span className="sr-only">Accueil</span>
           </Link>
@@ -94,7 +94,7 @@ export function Breadcrumb() {
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                   aria-current={isLast ? 'page' : undefined}
-                  legacyBehavior>
+                >
                   {name}
                 </Link>
               </li>

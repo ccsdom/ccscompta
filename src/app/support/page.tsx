@@ -54,6 +54,7 @@ export default function SupportPage() {
     { href: "/blog", text: "Blog" },
     { href: "/support", text: "Support" }
   ];
+  const pathname = usePathname();
 
 
   const faqs = [
@@ -122,21 +123,21 @@ export default function SupportPage() {
              </NavigationMenuItem>
               <NavigationMenuItem>
                 <Link href="/about" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
                     À Propos
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <Link href="/blog" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
                     Blog
                   </NavigationMenuLink>
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <Link href="/support" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
                     Support
                   </NavigationMenuLink>
                 </Link>
