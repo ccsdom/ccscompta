@@ -162,7 +162,7 @@ export default function MyDocumentsPage() {
         });
         return { success: false };
     }
-}, [storage]);
+}, [storage, toast]);
 
 
   const handleFileDrop = async (files: File[]) => {
@@ -430,4 +430,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-

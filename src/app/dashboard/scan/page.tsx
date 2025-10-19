@@ -134,7 +134,7 @@ export default function ScanPage() {
             }
             throw error; // Re-throw to be caught by handleSend
         }
-    }, [storage]);
+    }, [storage, toast]);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
