@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Actions related to Firebase security rules configuration.
@@ -16,9 +17,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- FONCTIONS D'AIDE BASÉES SUR LE JETON D'AUTH (CUSTOM CLAIMS) ---
+    // --- Helper functions based on auth token (custom claims) ---
     function getCallerRole() {
-      // Lit le rôle directement à partir du jeton d'authentification (rapide et gratuit)
       return request.auth.token.role; 
     }
     
@@ -34,39 +34,47 @@ service cloud.firestore {
       return request.auth != null && getCallerRole() == 'admin';
     }
 
-    // --- COLLECTION D'UTILISATEURS ('clients') ---
+    // --- User collection ('clients') ---
     match /clients/{userId} {
       allow read, list: if isStaff() || isOwner(userId);
-      // Règle cruciale : Autorise un nouvel utilisateur à créer son propre profil.
+      // Crucial rule: Allows a new user to create their own profile.
       allow create: if request.auth.uid == userId;
-      // Seul un admin peut supprimer un utilisateur.
+      // Only an admin can delete a user.
       allow delete: if isAdmin();
-      // Un utilisateur ne peut pas changer son propre rôle, sauf s'il est admin.
+      // A user cannot change their own role, unless they are an admin.
       allow update: if (isOwner(userId) && !("role" in request.resource.data)) || isAdmin();
     }
 
-    // --- AUTRES COLLECTIONS ---
+    // --- Other collections ---
 
     match /documents/{docId} {
-      allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
-      allow create: if request.auth.uid == request.resource.data.clientId;
-      allow update: if isStaff() || (request.auth.uid == resource.data.clientId);
-      allow delete: if isStaff() || (request.auth.uid == resource.data.clientId);
+        // A user can read/list their own documents, staff can read/list any.
+        allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
+        // A user can create a document for themselves.
+        allow create: if request.auth.uid == request.resource.data.clientId;
+        // A user can update their own documents (e.g. add comments), staff can update any.
+        allow update: if isStaff() || (request.auth.uid == resource.data.clientId);
+        // A user can delete their own documents, staff can delete any.
+        allow delete: if isStaff() || (request.auth.uid == resource.data.clientId);
     }
     
     match /invoices/{invoiceId} {
+        // A user can read their own invoices, staff can read any.
         allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
+        // Only staff can create, update, or delete invoices.
         allow create, update, delete: if isStaff();
     }
     
      match /bilans/{bilanId} {
+        // A user can read their own bilans, staff can read any.
         allow read, list: if isStaff() || (request.auth.uid == resource.data.clientId);
+        // Only staff can create, update, or delete bilans.
         allow create, update, delete: if isStaff();
     }
 
     match /cabinets/{cabinetId} {
-        allow read, list: if isStaff();
-        allow create, update, delete: if isStaff();
+        // Only staff can interact with cabinets.
+        allow read, list, create, update, delete: if isStaff();
     }
   }
 }
