@@ -85,3 +85,32 @@ service cloud.firestore {
     rules: rules,
   };
 }
+
+/**
+ * Provides the recommended Firebase Storage security rules.
+ * This version allows users to read and write to their own designated folder.
+ *
+ * @returns {Promise<{success: boolean, rules: string}>} An object containing the success status and the recommended Storage rules.
+ */
+export async function configureStorageSecurityRules(): Promise<{success: boolean, rules: string}> {
+  const rules = `
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Files are stored in folders named after the client's UID.
+    // e.g., gs://<your-bucket>/<clientId>/document.pdf
+
+    // Allow a user to read, write, and delete files only in their own folder.
+    match /{clientId}/{allPaths=**} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == clientId;
+    }
+  }
+}
+  `.trim();
+
+  return {
+    success: true,
+    rules: rules,
+  };
+}

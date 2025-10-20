@@ -13,7 +13,7 @@ import { useTheme } from "next-themes";
 import { Copy, KeyRound, Bot, Shield, Loader2, AlertCircle, DatabaseZap, User, Briefcase, UserCog, UploadCloud } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { configureFirestoreSecurityRules } from "@/ai/flows/security-rules-actions";
+import { configureFirestoreSecurityRules, configureStorageSecurityRules } from "@/ai/flows/security-rules-actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,7 +42,9 @@ export default function SettingsPage() {
         autoSend: false,
     });
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
+    const [storageRules, setStorageRules] = useState<string | null>(null);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
+    const [isLoadingStorageRules, setIsLoadingStorageRules] = useState(false);
     const [isAdminRoleLoading, setIsAdminRoleLoading] = useState(false);
     
     const storageBucket = STORAGE_BUCKET || "VOTRE-BUCKET.appspot.com";
@@ -119,6 +121,21 @@ export default function SettingsPage() {
             });
         }
         setIsLoadingFirestoreRules(false);
+    }
+
+    const handleFetchStorageRules = async () => {
+        setIsLoadingStorageRules(true);
+        const result = await configureStorageSecurityRules();
+        if (result.success) {
+            setStorageRules(result.rules);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: "Erreur",
+                description: "Impossible de récupérer les règles de sécurité du stockage.",
+            });
+        }
+        setIsLoadingStorageRules(false);
     }
     
     const copyToClipboard = (text: string | null) => {
@@ -338,9 +355,10 @@ export default function SettingsPage() {
                         
                          <TabsContent value="data-security">
                             <Tabs defaultValue="firestore" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsList className="grid w-full grid-cols-3">
                                     <TabsTrigger value="firestore"><DatabaseZap className="mr-2 h-4 w-4"/>Règles Firestore</TabsTrigger>
-                                    <TabsTrigger value="storage"><UploadCloud className="mr-2 h-4 w-4"/>Règles Storage (CORS)</TabsTrigger>
+                                    <TabsTrigger value="storage"><Shield className="mr-2 h-4 w-4"/>Règles Storage</TabsTrigger>
+                                    <TabsTrigger value="storage-cors"><UploadCloud className="mr-2 h-4 w-4"/>Configuration CORS</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="firestore" className="mt-4">
                                      <Card>
@@ -373,6 +391,36 @@ export default function SettingsPage() {
                                     </Card>
                                 </TabsContent>
                                 <TabsContent value="storage" className="mt-4">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Règles de Sécurité du Stockage</CardTitle>
+                                            <CardDescription>Autorisez les utilisateurs à téléverser des fichiers dans leur propre dossier sécurisé.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                        {storageRules ? (
+                                                <div className="space-y-4">
+                                                    <Alert>
+                                                        <AlertCircle className="h-4 w-4" />
+                                                        <AlertTitle>Action Manuelle Requise</AlertTitle>
+                                                        <AlertDescription>
+                                                            Copiez ces règles et collez-les dans l'onglet <strong>Règles</strong> de la section <strong>Storage</strong> de votre console Firebase.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                    <Textarea readOnly value={storageRules} className="h-48 font-mono text-xs bg-muted" />
+                                                    <Button onClick={() => copyToClipboard(storageRules)}><Copy className="mr-2 h-4 w-4" /> Copier les règles</Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                                                    <p className="mb-4 text-muted-foreground">Générez les règles de sécurité pour votre espace de stockage.</p>
+                                                    <Button onClick={handleFetchStorageRules} disabled={isLoadingStorageRules}>
+                                                        {isLoadingStorageRules ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Génération...</> : "Générer les règles Storage"}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                                <TabsContent value="storage-cors" className="mt-4">
                                     <Card>
                                         <CardHeader>
                                             <CardTitle>Configuration CORS du Stockage</CardTitle>
