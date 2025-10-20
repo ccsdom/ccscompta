@@ -22,10 +22,11 @@ import { Textarea } from '@/components/ui/textarea';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { useFirebase } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { increment } from 'firebase/firestore';
+import { addDoc, collection, increment } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { db } from '@/firebase';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -127,11 +128,13 @@ export default function MyDocumentsPage() {
 
   const processSingleFile = useCallback(async (file: File, clientId: string) => {
     try {
+        // 1. Upload the file to Firebase Storage
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
-        
         await uploadBytes(storageRef, file);
 
+        // 2. Create the document entry in Firestore (client-side)
+        // This is the operation that triggers the Cloud Function
         const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
             name: file.name,
             uploadDate: new Date().toISOString(),
@@ -142,16 +145,16 @@ export default function MyDocumentsPage() {
             auditTrail: addAuditEvent([], 'Document téléversé'),
         };
         
-        const createdDoc = await addDocument(newDocData);
+        const docRef = await addDoc(collection(db, 'documents'), newDocData);
         
+        // 3. Update local state immediately for a responsive UI
+        const createdDoc: Document = { ...newDocData, id: docRef.id };
+        setDocuments(prev => [createdDoc, ...prev].sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
+
+        // 4. Update the client's new document count (optional, can also be a backend operation)
         await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
         
-        setDocuments(prev => [createdDoc, ...prev].sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
-
-        // The document processing is now handled by a Cloud Function.
-        // We just need to show a success message to the user.
         toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
-
         return { success: true };
 
     } catch (error) {
@@ -431,3 +434,5 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
+
+    
