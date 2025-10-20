@@ -1,5 +1,4 @@
 
-
 export interface AuditEvent {
     action: string;
     date: string;
@@ -55,7 +54,6 @@ export interface Client {
     lastActivity: string;
     phone?: string;
     assignedAccountantId?: string;
-    password?: string; // Optional: only used to pass temp password from server to client on creation
     cabinetId?: string;
 }
 
@@ -78,7 +76,6 @@ export interface Cabinet {
     phone?: string;
     email?: string;
 }
-
 
 export interface Document {
   id: string;

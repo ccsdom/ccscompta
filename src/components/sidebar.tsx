@@ -3,18 +3,16 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, LogOut, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun, Building } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun, Building } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
-import { ClientSwitcher } from './client-switcher';
 import { Skeleton } from './ui/skeleton';
 import { ScrollArea } from './ui/scroll-area';
 import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-
 
 type NavItem = {
     href: string;
@@ -59,14 +57,16 @@ const roleConfig = {
     client: { items: clientNavItems }
 }
 
-const isNavItemActive = (pathname: string, itemHref: string, currentRole: string) => {
-    if (['/dashboard/accountant', '/dashboard/admin', '/dashboard/my-documents', '/dashboard/secretary'].includes(itemHref)) {
+type Role = keyof typeof roleConfig;
+
+const isNavItemActive = (pathname: string, itemHref: string) => {
+    if (itemHref.endsWith('/accountant') || itemHref.endsWith('/admin') || itemHref.endsWith('/my-documents') || itemHref.endsWith('/secretary')) {
         return pathname === itemHref;
     }
     return pathname.startsWith(itemHref);
 }
 
-export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
+export function NavItems({ currentRole }: { currentRole: Role }) {
     const pathname = usePathname();
     const { items } = roleConfig[currentRole] || roleConfig.client;
 
@@ -78,7 +78,7 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
                     href={item.href}
                     className={cn(
                         'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted',
-                        isNavItemActive(pathname, item.href, currentRole) ? 'bg-muted text-primary' : ''
+                        isNavItemActive(pathname, item.href) ? 'bg-muted text-primary' : ''
                     )}
                 >
                     <item.icon className="h-4 w-4" />
@@ -89,14 +89,8 @@ export function NavItems({ currentRole }: { currentRole: 'client' | 'accountant'
     );
 }
 
-export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant' | 'admin' | 'secretary' }) {
-    const router = useRouter();
+export function MobileNav({ currentRole }: { currentRole: Role }) {
     const { theme, setTheme } = useTheme();
-
-    const handleLogout = () => {
-        localStorage.clear();
-        router.push('/login');
-    };
     
     return (
         <div className="flex h-full flex-col">
@@ -126,39 +120,9 @@ export function MobileNav({ currentRole }: { currentRole: 'client' | 'accountant
 }
 
 
-export function Sidebar() {
-  const [mounted, setMounted] = useState(false);
-  const [currentRole, setCurrentRole] = useState<'client' | 'accountant' | 'admin' | 'secretary'>('client');
+export function Sidebar({ currentRole }: { currentRole: Role }) {
   const { theme, setTheme } = useTheme();
 
-   useEffect(() => {
-    setMounted(true);
-    
-    const applyRole = () => {
-        const role = localStorage.getItem('userRole') as 'client' | 'accountant' | 'admin' | 'secretary' | null;
-        
-        document.body.classList.remove('accountant-theme', 'admin-theme');
-
-        if (role) {
-            setCurrentRole(role);
-            if (role === 'admin') {
-                document.body.classList.add('admin-theme');
-            } else if (role === 'accountant' || role === 'secretary') {
-                document.body.classList.add('accountant-theme');
-            }
-        } else {
-            setCurrentRole('client');
-        }
-    }
-
-    applyRole();
-    window.addEventListener('storage', applyRole);
-
-    return () => {
-        window.removeEventListener('storage', applyRole);
-    }
-  }, []);
-  
   const getDashboardHomeLink = () => {
     if (currentRole === 'client') return '/dashboard/my-documents';
     if (currentRole === 'accountant') return '/dashboard/accountant';
@@ -167,33 +131,16 @@ export function Sidebar() {
     return '/dashboard';
   }
 
-  if (!mounted) {
-      return (
-          <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
-              <div className="flex items-center justify-center h-16 border-b">
-                  <Link href={getDashboardHomeLink()}>
-                    <div className="flex items-center space-x-2">
-                        <Logo className="h-6 w-6 text-primary" />
-                        <span className="font-bold text-lg">CCS Compta</span>
-                    </div>
-                  </Link>
-              </div>
-              <div className="p-4 border-b h-[68px]">
-                  <Skeleton className="h-10 w-full" />
-              </div>
-              <nav className="flex-1 px-4 py-4 space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-              </nav>
-              <div className="mt-auto p-4 border-t">
-                  <Skeleton className="h-10 w-full" />
-              </div>
-          </aside>
-      );
-  }
-
+  useEffect(() => {
+    const body = document.body;
+    body.classList.remove('accountant-theme', 'admin-theme');
+    if (currentRole === 'admin') {
+        body.classList.add('admin-theme');
+    } else if (currentRole === 'accountant' || currentRole === 'secretary') {
+        body.classList.add('accountant-theme');
+    }
+  }, [currentRole]);
+  
   return (
       <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
           <div className="flex items-center justify-center h-16 border-b">
