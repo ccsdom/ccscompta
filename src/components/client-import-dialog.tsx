@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { auth } from '@/lib/firebase-client';
+import { auth } from '@/firebase';
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
