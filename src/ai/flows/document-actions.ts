@@ -1,3 +1,4 @@
+
 'use server';
 
 import type { Document, AuditEvent, Bilan } from '@/lib/types';
@@ -38,9 +39,11 @@ export async function addDocument(docData: Omit<Document, 'id'>): Promise<Docume
     try {
         const docRef = await addDoc(collection(db, 'documents'), docData);
         console.log(`[Firestore] Added new document for client ${docData.clientId} with ID: ${docRef.id}`);
-        const newDoc = { ...docData, id: docRef.id };
-        // We can't return the doc snapshot directly, so we construct the object.
-        return newDoc as Document;
+        const newDoc = await getDocumentById(docRef.id);
+        if (!newDoc) {
+            throw new Error('Could not retrieve newly created document');
+        }
+        return newDoc;
     } catch (error) {
         console.error(`[Firestore] Error adding document:`, error);
         // Re-throw the error to be handled by the caller

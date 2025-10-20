@@ -108,19 +108,15 @@ export interface Accountant {
     name: string;
 }
 
-const MOCK_ACCOUNTANTS: Accountant[] = [
-    { id: 'user-comptable-ccs', name: 'Comptable CCS' },
-];
-
 export async function getAccountants(): Promise<Accountant[]> {
     console.log("[Firestore] Fetching accountants.");
     try {
         const q = query(collection(db, 'clients'), where('role', '==', 'accountant'));
         const snapshot = await getDocs(q);
-        if (snapshot.empty) return MOCK_ACCOUNTANTS;
+        if (snapshot.empty) return [];
         return snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
     } catch (e) {
-        console.error("Error fetching accountants, returning mock data", e);
-        return MOCK_ACCOUNTANTS;
+        console.error("Error fetching accountants, returning empty array", e);
+        return [];
     }
 }
