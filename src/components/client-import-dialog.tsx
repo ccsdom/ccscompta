@@ -10,9 +10,11 @@ import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
-import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { auth } from '@/firebase';
+import { useAuth } from '@/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getApp } from 'firebase/app';
+
 
 interface ClientImportDialogProps {
     onClientsImported: () => void;
@@ -28,6 +30,8 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
     const [errors, setErrors] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const clientAuth = useAuth();
+
 
     const REQUIRED_HEADERS = ['name', 'siret', 'address', 'legalRepresentative', 'fiscalYearEndDate', 'email', 'phone'];
 
@@ -97,46 +101,35 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         let importedCount = 0;
         let errorCount = 0;
         
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
+        if (!clientAuth) {
             toast({ variant: 'destructive', title: 'Erreur d\'authentification', description: 'Veuillez vous reconnecter.' });
             setIsLoading(false);
             return;
         }
+        
+        const functions = getFunctions(getApp());
+        const createUserFunc = httpsCallable(functions, 'createUserWithRole');
 
-        const idToken = await currentUser.getIdToken();
 
         for (const clientData of parsedData) {
             try {
                 const dataToSend = {
                     ...clientData,
                     role: 'client',
-                    password: clientData.siret // Use SIRET as default password
                 };
-
-                const response = await fetch('https://us-central1-ccs-compta.cloudfunctions.net/createUserWithRole', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                    body: JSON.stringify({ data: dataToSend }),
-                });
-
-                const result = await response.json();
                 
-                if (!response.ok) {
-                    throw new Error(result.error?.message || `Erreur HTTP: ${response.status}`);
-                }
+                const result = await createUserFunc(dataToSend);
+                const resultData = result.data as { success: boolean };
 
-                importedCount++;
+                if (resultData.success) {
+                    importedCount++;
+                } else {
+                    throw new Error('La création a échoué côté serveur.');
+                }
 
             } catch (error: any) {
                 errorCount++;
                 let msg = `Erreur pour ${clientData.name}: ${error.message}`;
-                if(error.code === 'auth/email-already-in-use') {
-                     msg = `L'email ${clientData.email} est déjà utilisé.`;
-                }
                 console.error(`Failed to import client ${clientData.name}: ${error.message}`);
             }
         }
@@ -152,7 +145,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                              <KeyRound className="h-4 w-4" />
                              <AlertTitle>Mots de passe initiaux</AlertTitle>
                              <AlertDescription>
-                                Le mot de passe initial pour chaque client importé est son numéro de SIRET.
+                                Le mot de passe initial pour chaque client importé est "password".
                              </AlertDescription>
                          </Alert>
                     </div>
@@ -303,3 +296,5 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         </Dialog>
     );
 }
+
+    

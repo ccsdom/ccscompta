@@ -1,3 +1,4 @@
+
 'use client'
 
 import { ClientForm, formSchema } from "../client-form";
@@ -10,12 +11,15 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { auth } from "@/lib/firebase-client";
+import { useAuth } from "@/firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getApp } from "firebase/app";
 
 export default function NewClientPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const clientAuth = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [initialData, setInitialData] = useState<Partial<z.infer<typeof formSchema>>>({});
@@ -40,26 +44,17 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         
         try {
-            const user = auth.currentUser;
-            if (!user) {
-                throw new Error("Vous n'êtes pas authentifié.");
+            if (!clientAuth) {
+                throw new Error("Le service d'authentification n'est pas prêt.");
             }
             
-            const idToken = await user.getIdToken();
-            
-            const response = await fetch('https://us-central1-ccs-compta.cloudfunctions.net/createUserWithRole', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({ data }),
-            });
+            const functions = getFunctions(getApp());
+            const createUserFunc = httpsCallable(functions, 'createUserWithRole');
+            const result = await createUserFunc(data);
+            const resultData = result.data as { success: boolean; message: string; };
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                 throw new Error(result.error?.message || `Erreur HTTP: ${response.status}`);
+             if (!resultData.success) {
+                throw new Error(resultData.message || 'Une erreur inconnue est survenue.');
             }
 
             toast({
@@ -84,7 +79,7 @@ export default function NewClientPage() {
             
         } catch (error: any) {
             console.error("Failed to add user:", error);
-            const errorMessage = error.message || "Une erreur inconnue est survenue.";
+            const errorMessage = error.details?.message || error.message || "Une erreur inconnue est survenue.";
             toast({
                 variant: 'destructive',
                 title: "Erreur lors de la création",
@@ -124,3 +119,5 @@ export default function NewClientPage() {
         </div>
     )
 }
+
+    

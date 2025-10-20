@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
@@ -7,18 +8,15 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import * as cors from 'cors';
 import { getStorage } from 'firebase-admin/storage';
 
 // Genkit/AI imports - these will be dynamically available in the cloud function environment
 declare function recognizeDocumentType(input: { documentDataUri: string }): Promise<{ documentType: string; confidence: number; }>;
 declare function extractData(input: { documentDataUri: string; documentType: string; clientId: string; }): Promise<any>;
 
-
-const corsHandler = cors({ origin: true });
 
 // Initialize the Firebase Admin SDK.
 initializeApp();
@@ -54,45 +52,25 @@ export const setAdminRole = onCall(async (request) => {
 
 /**
  * Function to create a new user with a specific role.
- * This is an HTTP onRequest function with explicit CORS handling via middleware.
+ * This is a Callable Function.
  */
-export const createUserWithRole = onRequest(async (req, res) => {
-  corsHandler(req, res, async () => {
-    
-    if (req.method !== 'POST') {
-        res.status(405).send({ error: { message: 'Method Not Allowed' }});
-        return;
+export const createUserWithRole = onCall(async (request) => {
+    // 1. Verify admin from the ID token
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Jeton d\'authentification manquant.');
     }
-
-    // 1. Verify admin from the ID token sent in the Authorization header
-    const idToken = req.headers.authorization?.split('Bearer ')[1];
-    if (!idToken) {
-        res.status(401).send({ error: { message: 'Jeton d\'authentification manquant.', status: 'UNAUTHENTICATED' } });
-        return;
+    const callingUserRole = request.auth.token.role;
+    if (callingUserRole !== 'admin' && callingUserRole !== 'accountant' && callingUserRole !== 'secretary') {
+        throw new HttpsError('permission-denied', 'Action non autorisée.');
     }
     
-    const auth = getAuth();
-    try {
-        const decodedToken = await auth.verifyIdToken(idToken);
-        const userRole = decodedToken.role;
-        if (userRole !== 'admin' && userRole !== 'accountant' && userRole !== 'secretary') {
-             res.status(403).send({ error: { message: 'Action non autorisée.', status: 'PERMISSION_DENIED' } });
-             return;
-        }
-    } catch(error) {
-        logger.error('Token verification failed', error);
-        res.status(401).send({ error: { message: 'Jeton d\'authentification invalide.', status: 'UNAUTHENTICATED' } });
-        return;
-    }
-
     // 2. Get payload from request body.
-    const { email, password, ...profileData } = req.body.data;
+    const { email, password, ...profileData } = request.data;
     if (!email) {
-       res.status(400).send({ error: { message: 'Email requis pour la création.', status: 'INVALID_ARGUMENT' } });
-       return;
+       throw new HttpsError('invalid-argument', 'Email requis pour la création.');
     }
 
-
+    const auth = getAuth();
     try {
         // 3. Create user in Firebase Auth
         const userRecord = await auth.createUser({
@@ -120,27 +98,17 @@ export const createUserWithRole = onRequest(async (req, res) => {
         });
 
         logger.info(`Successfully created user ${uid} with role ${role}`);
-        res.status(200).send({ data: { success: true, uid, message: 'Utilisateur créé avec succès.' } });
+        return { success: true, uid, message: 'Utilisateur créé avec succès.' };
     } catch (error: any) {
         logger.error('Error creating new user:', error);
-        let status = 500;
-        let code = 'INTERNAL';
-        let message = "Une erreur est survenue lors de la création de l'utilisateur.";
-
         if (error.code === 'auth/email-already-exists') {
-            status = 409;
-            code = 'ALREADY_EXISTS';
-            message = "Un compte avec cette adresse email existe déjà.";
+            throw new HttpsError('already-exists', "Un compte avec cette adresse email existe déjà.");
         }
         if (error.code === 'auth/invalid-password') {
-            status = 400;
-            code = 'INVALID_ARGUMENT';
-            message = "Le mot de passe doit comporter au moins 6 caractères.";
+            throw new HttpsError('invalid-argument', "Le mot de passe doit comporter au moins 6 caractères.");
         }
-
-        res.status(status).send({ error: { message, status: code }});
+        throw new HttpsError('internal', "Une erreur est survenue lors de la création de l'utilisateur.", error.message);
     }
-  });
 });
 
 
@@ -207,3 +175,5 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
         });
     }
 });
+
+    
