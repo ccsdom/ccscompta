@@ -198,7 +198,8 @@ export default function MyDocumentsPage() {
     const newComment: Comment = { id: crypto.randomUUID(), text: commentText, user: getCurrentUser(), date: new Date().toISOString() };
     const trail = addAuditEvent(doc.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
     const updatedComments = [...(doc.comments || []), newComment];
-    await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
+    // Correction: Ensure comments and auditTrail are not undefined before updating
+ await updateDocument({ id: docId, updates: { comments: updatedComments || [], auditTrail: trail || [] } });
     
     const updatedDoc = await getDocumentById(docId);
     if(updatedDoc) {
@@ -242,10 +243,10 @@ export default function MyDocumentsPage() {
             }
             if (minAmount) {
                 docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
-            }
+ }
             if (maxAmount) {
                 docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
-            }
+ }
             if (startDate) {
                 docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
             }
@@ -258,7 +259,8 @@ export default function MyDocumentsPage() {
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
-                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
+                    // Correction: Join all relevant fields for searchable text
+ const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || []), d.type || ''].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
@@ -273,7 +275,8 @@ export default function MyDocumentsPage() {
         else if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             docs = docs.filter(doc => 
-                doc.name.toLowerCase().includes(lowercasedQuery) ||
+                // Correction: Also include document type in search
+ doc.name.toLowerCase().includes(lowercasedQuery) || (doc.type && doc.type.toLowerCase().includes(lowercasedQuery)) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
