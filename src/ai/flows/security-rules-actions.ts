@@ -37,8 +37,8 @@ service cloud.firestore {
     // --- User collection ('clients') ---
     match /clients/{userId} {
       allow read, list: if isStaff() || isOwner(userId);
-      // Crucial rule: Allows a new user to create their own profile.
-      allow create: if request.auth.uid == userId;
+      // Staff can create any user. A new user can create their own profile.
+      allow create: if isStaff() || request.auth.uid == userId;
       // Only an admin can delete a user.
       allow delete: if isAdmin();
       // A user cannot change their own role, unless they are an admin.
@@ -114,3 +114,4 @@ service firebase.storage {
     rules: rules,
   };
 }
+
