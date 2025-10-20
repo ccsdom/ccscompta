@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
@@ -175,5 +174,3 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
         });
     }
 });
-
-    

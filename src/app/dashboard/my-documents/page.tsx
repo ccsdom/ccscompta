@@ -148,6 +148,8 @@ export default function MyDocumentsPage() {
         
         setDocuments(prev => [createdDoc, ...prev].sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
 
+        // The document processing is now handled by a Cloud Function.
+        // We just need to show a success message to the user.
         toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
 
         return { success: true };

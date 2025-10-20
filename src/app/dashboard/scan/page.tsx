@@ -7,13 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { addDocument, updateDocument } from '@/ai/flows/document-actions';
-import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
-import { extractData } from '@/ai/flows/extract-data-from-documents';
+import { addDocument } from '@/ai/flows/document-actions';
 import type { Document, AuditEvent, Notification } from '@/lib/types';
 import { ref, uploadBytes } from "firebase/storage";
 import { useFirebase } from '@/firebase';
-import { fileToDataUri } from '@/lib/utils';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -63,16 +60,6 @@ export default function ScanPage() {
         const event: AuditEvent = { action, date: new Date().toISOString(), user: getCurrentUser() };
         return [...trail, event];
     }
-
-     const createNotification = (doc: Document, message: string) => {
-        const newNotification: Notification = {
-          id: crypto.randomUUID(), documentId: doc.id, documentName: doc.name,
-          message, date: new Date().toISOString(), isRead: false
-        };
-        const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
-        localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-        window.dispatchEvent(new Event('storage'));
-    };
     
     const processScannedDocument = useCallback(async (dataUrl: string, clientId: string) => {
          const fileName = `scan-${new Date().toISOString()}.jpg`;
@@ -95,31 +82,9 @@ export default function ScanPage() {
                 comments: [],
             };
             
-            const createdDoc = await addDocument(docForDb);
+            await addDocument(docForDb);
             
             window.dispatchEvent(new Event('storage')); // Refresh lists
-
-            let trail = createdDoc.auditTrail;
-
-            trail = addAuditEvent(trail, 'Fichier stocké (scan)');
-            await updateDocument({ id: createdDoc.id, updates: { auditTrail: trail, status: 'processing' } });
-
-            const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-            trail = addAuditEvent(trail, `Type reconnu: ${recognition.documentType}`);
-            
-            const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: clientId });
-            trail = addAuditEvent(trail, 'Traitement IA terminé');
-            
-            const finalUpdates: Partial<Document> = {
-                status: 'reviewing',
-                extractedData: extracted,
-                type: recognition.documentType,
-                confidence: recognition.confidence,
-                auditTrail: trail,
-            };
-
-            await updateDocument({ id: createdDoc.id, updates: finalUpdates });
-            createNotification({ ...createdDoc, ...finalUpdates }, 'est prêt pour examen.');
 
         } catch (error) {
             console.error(`Error processing scanned file:`, error);
