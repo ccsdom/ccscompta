@@ -22,6 +22,7 @@ import { updateClient } from "@/ai/flows/client-actions";
 import { useRouter } from "next/navigation";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
+import { STORAGE_BUCKET } from "@/firebase/config";
 
 
 export default function SettingsPage() {
@@ -44,7 +45,7 @@ export default function SettingsPage() {
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
     const [isAdminRoleLoading, setIsAdminRoleLoading] = useState(false);
     
-    const storageBucket = "ccs-compta.firebasestorage.app";
+    const storageBucket = STORAGE_BUCKET || "VOTRE-BUCKET.appspot.com";
     const corsCommand = `echo '[{"origin": ["*"], "method": ["GET", "POST", "PUT"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' > cors.json`;
     const gcloudCorsCommand = `gcloud storage buckets update gs://${storageBucket} --cors-file=cors.json`;
 
