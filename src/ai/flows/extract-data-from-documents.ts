@@ -11,7 +11,8 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { findMatchingDocumentTool } from '../tools/find-matching-document';
 import type { Document } from '@/lib/types';
-import { getDocuments } from '@/ai/flows/document-actions';
+import { db } from '@/lib/firebase-server';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 
 const DocumentSchemaForTool = z.object({
@@ -143,7 +144,11 @@ const extractDataFlow = ai.defineFlow(
     
     let allClientDocsForAI: Document[] = [];
     if (input.documentType === 'bank statement') {
-        allClientDocsForAI = (await getDocuments(input.clientId)).filter(
+        const q = query(collection(db, 'documents'), where('clientId', '==', input.clientId));
+        const snapshot = await getDocs(q);
+        const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
+        
+        allClientDocsForAI = allDocs.filter(
             doc => doc.type === 'purchase invoice' || doc.type === 'receipt'
         );
     }
