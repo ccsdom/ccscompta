@@ -20,7 +20,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { getClients } from "@/ai/flows/client-actions";
+import { useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query } from 'firebase/firestore';
+import { db } from '@/firebase';
 import type { Client } from "@/lib/types";
 
 type PopoverClient = {
@@ -31,47 +33,32 @@ type PopoverClient = {
 export function ClientSwitcher() {
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
-  const [clients, setClients] = useState<PopoverClient[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const fetchAndSetClients = useCallback(async () => {
-      try {
-          const clientsData = await getClients();
-          const role = localStorage.getItem('userRole');
-          setUserRole(role);
+  const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+  const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  
+  const clients: PopoverClient[] = (clientsData || []).map(c => ({ value: c.id, label: c.name }));
 
-          if (role === 'client') {
-              const userEmail = localStorage.getItem('userEmail');
-              const client = clientsData.find(c => c.email.toLowerCase() === userEmail?.toLowerCase());
-              if (client) {
-                  setClients([{ value: client.id, label: client.name }]);
-                  setSelectedValue(client.id);
-                  if (localStorage.getItem('selectedClientId') !== client.id) {
-                    localStorage.setItem('selectedClientId', client.id);
-                    window.dispatchEvent(new Event('storage'));
-                  }
-              }
-          } else {
-              setClients(clientsData.map(c => ({ value: c.id, label: c.name })));
-              const storedClientId = localStorage.getItem('selectedClientId');
-              if (storedClientId && clientsData.some(c => c.id === storedClientId)) {
-                setSelectedValue(storedClientId);
-              } else {
-                setSelectedValue(null);
-              }
-          }
-      } catch (error) {
-        console.error("Failed to fetch clients for switcher:", error);
-      }
-  }, []);
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+    const storedClientId = localStorage.getItem('selectedClientId');
+    if (storedClientId && clients.some(c => c.value === storedClientId)) {
+      setSelectedValue(storedClientId);
+    } else {
+      setSelectedValue(null);
+    }
+  }, [clientsData, clients]);
 
 
   useEffect(() => {
-    fetchAndSetClients();
-    
     // This listener handles updates from other components
     const handleStorageChange = () => {
-       fetchAndSetClients();
+       const role = localStorage.getItem('userRole');
+       setUserRole(role);
+       const storedClientId = localStorage.getItem('selectedClientId');
+       setSelectedValue(storedClientId);
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -80,7 +67,7 @@ export function ClientSwitcher() {
         window.removeEventListener('storage', handleStorageChange);
     };
 
-  }, [fetchAndSetClients]);
+  }, []);
 
   const handleClientChange = (value: string) => {
       setSelectedValue(value);
