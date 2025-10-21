@@ -33,7 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import type { Client, Accountant } from '@/lib/types';
+import type { Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -54,7 +54,7 @@ export default function ClientsPage() {
     const { data: allUsers, isLoading: isLoadingUsers } = useCollection<Client>(usersQuery);
 
     const accountantsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'accountant')), []);
-    const { data: accountants, isLoading: isLoadingAccountants } = useCollection<Accountant>(accountantsQuery);
+    const { data: accountants, isLoading: isLoadingAccountants } = useCollection<Client>(accountantsQuery);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [userToDelete, setUserToDelete] = useState<Client | null>(null);

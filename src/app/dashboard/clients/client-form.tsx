@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getCabinets } from '@/ai/flows/cabinet-actions';
 import type { Cabinet, Client } from '@/lib/types';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,18 +39,16 @@ interface ClientFormProps {
 
 export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProps) {
     const router = useRouter();
-    const [cabinets, setCabinets] = useState<Cabinet[]>([]);
     const [userRole, setUserRole] = useState<string | null>(null);
 
     const accountantsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'accountant')), []);
     const { data: accountants } = useCollection<Client>(accountantsQuery);
 
+    const cabinetsQuery = useMemoFirebase(() => query(collection(db, 'cabinets')), []);
+    const { data: cabinets } = useCollection<Cabinet>(cabinetsQuery);
+
+
     useEffect(() => {
-        const fetchData = async () => {
-            const fetchedCabinets = await getCabinets();
-            setCabinets(fetchedCabinets);
-        };
-        fetchData();
         setUserRole(localStorage.getItem('userRole'));
     }, []);
 
@@ -67,9 +64,13 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
             fiscalYearEndDate: initialData?.fiscalYearEndDate || "31/12",
             role: initialData?.role || 'client',
             assignedAccountantId: initialData?.assignedAccountantId || "unassigned",
-            cabinetId: initialData?.cabinetId || (cabinets.length > 0 ? cabinets[0].id : ""),
+            cabinetId: initialData?.cabinetId || (cabinets && cabinets.length > 0 ? cabinets[0].id : ""),
         },
     });
+
+     useEffect(() => {
+        if(initialData) form.reset(initialData)
+    }, [initialData, form])
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSave = { ...values };
@@ -263,7 +264,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                                 </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {cabinets.map((cab) => (
+                                                    {(cabinets || []).map((cab) => (
                                                         <SelectItem key={cab.id} value={cab.id}>
                                                             {cab.name}
                                                         </SelectItem>
