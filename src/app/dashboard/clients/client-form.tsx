@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAccountants, type Accountant } from '@/ai/flows/client-actions';
 import { getCabinets } from '@/ai/flows/cabinet-actions';
-import type { Cabinet } from '@/lib/types';
+import type { Cabinet, Client } from '@/lib/types';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-
+import { useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
+import { db } from "@/firebase";
 
 export const formSchema = z.object({
   name: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères." }),
@@ -39,17 +40,15 @@ interface ClientFormProps {
 
 export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProps) {
     const router = useRouter();
-    const [accountants, setAccountants] = useState<Accountant[]>([]);
     const [cabinets, setCabinets] = useState<Cabinet[]>([]);
     const [userRole, setUserRole] = useState<string | null>(null);
 
+    const accountantsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'accountant')), []);
+    const { data: accountants } = useCollection<Client>(accountantsQuery);
+
     useEffect(() => {
         const fetchData = async () => {
-            const [fetchedAccountants, fetchedCabinets] = await Promise.all([
-                getAccountants(),
-                getCabinets()
-            ]);
-            setAccountants(fetchedAccountants);
+            const fetchedCabinets = await getCabinets();
             setCabinets(fetchedCabinets);
         };
         fetchData();
@@ -239,7 +238,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                             </FormControl>
                                             <SelectContent>
                                                 <SelectItem value="unassigned">Non attribué</SelectItem>
-                                                {accountants.map((acc) => (
+                                                {(accountants || []).map((acc) => (
                                                     <SelectItem key={acc.id} value={acc.id}>
                                                         {acc.name}
                                                     </SelectItem>
