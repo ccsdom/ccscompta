@@ -133,18 +133,24 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
             auditTrail: db.FieldValue.arrayUnion({ action: 'Traitement IA initié', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
         
-        // Directly download the file from Storage using the Admin SDK
+        // Generate a signed URL to read the file for AI processing
         const bucket = getStorage().bucket();
         const file = bucket.file(docData.storagePath);
+        const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+        });
         
-        const [fileBuffer, metadata] = await Promise.all([
-          file.download(),
-          file.getMetadata()
-        ]);
+        const response = await fetch(signedUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch file with signed URL: ${response.statusText}`);
+        }
         
-        const base64 = fileBuffer[0].toString('base64');
-        const mimeType = metadata[0].contentType || 'application/octet-stream';
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const mimeType = response.headers.get('content-type') || 'application/octet-stream';
         const dataUrl = `data:${mimeType};base64,${base64}`;
+
 
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         await docRef.update({ 
