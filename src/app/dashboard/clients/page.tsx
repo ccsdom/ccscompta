@@ -44,7 +44,7 @@ import 'jspdf-autotable';
 import { AiClientDialog } from '@/components/ai-client-dialog';
 
 export default function ClientsPage() {
-    const [clients, setClients] = useState<Client[]>([]);
+    const [allUsers, setAllUsers] = useState<Client[]>([]);
     const [accountants, setAccountants] = useState<Accountant[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -53,14 +53,14 @@ export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchClientsAndAccountants = useCallback(async () => {
+    const fetchAllUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const [clientsData, accountantsData] = await Promise.all([
+            const [usersData, accountantsData] = await Promise.all([
                 getClients(),
                 getAccountants()
             ]);
-            setClients(clientsData.sort((a, b) => a.name.localeCompare(b.name)));
+            setAllUsers(usersData.sort((a, b) => a.name.localeCompare(b.name)));
             setAccountants(accountantsData);
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -75,12 +75,12 @@ export default function ClientsPage() {
     }, [toast]);
 
     useEffect(() => {
-        fetchClientsAndAccountants();
-    }, [fetchClientsAndAccountants]);
+        fetchAllUsers();
+    }, [fetchAllUsers]);
     
-    const filteredClients = useMemo(() => clients.filter(client =>
-        client.role === 'client' && client.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [clients, searchTerm]);
+    const filteredClients = useMemo(() => allUsers.filter(user =>
+        user.role === 'client' && user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [allUsers, searchTerm]);
 
     const handleSelectAll = (checked: boolean | string) => {
         if (checked) {
@@ -119,7 +119,7 @@ export default function ClientsPage() {
         await deleteClientAction(clientToDelete.id);
         toast({ title: 'Utilisateur supprimé', description: `L'utilisateur ${clientToDelete.name} a été supprimé.` });
         setClientToDelete(null);
-        fetchClientsAndAccountants(); // Refetch data
+        fetchAllUsers(); // Refetch data
     }
 
     const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
@@ -131,7 +131,7 @@ export default function ClientsPage() {
             description: `${selectedUserIds.length} utilisateurs ont été mis à jour.`
         });
         setSelectedUserIds([]);
-        fetchClientsAndAccountants(); // Refetch data
+        fetchAllUsers(); // Refetch data
     }
     
     const getUsersToExport = () => {
@@ -260,7 +260,7 @@ export default function ClientsPage() {
                 </div>
                  <div className="flex items-center gap-2">
                     <div className="hidden md:flex items-center gap-2">
-                        <ClientImportDialog onClientsImported={fetchClientsAndAccountants} />
+                        <ClientImportDialog onClientsImported={fetchAllUsers} />
                         <AiClientDialog />
                         <Button onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</Button>
                     </div>
@@ -270,7 +270,7 @@ export default function ClientsPage() {
                              <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><ClientImportDialog onClientsImported={fetchClientsAndAccountants} isMenuItem /></DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><ClientImportDialog onClientsImported={fetchAllUsers} isMenuItem /></DropdownMenuItem>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}><AiClientDialog isMenuItem /></DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -418,6 +418,5 @@ export default function ClientsPage() {
             </AlertDialog>
         </div>
     )
-}
 
     
