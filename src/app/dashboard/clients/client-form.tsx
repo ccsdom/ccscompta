@@ -55,22 +55,28 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            name: initialData?.name || "",
-            siret: initialData?.siret || "",
-            email: initialData?.email || "",
-            phone: initialData?.phone || "",
-            legalRepresentative: initialData?.legalRepresentative || "",
-            address: initialData?.address || "",
-            fiscalYearEndDate: initialData?.fiscalYearEndDate || "31/12",
-            role: initialData?.role || 'client',
-            assignedAccountantId: initialData?.assignedAccountantId || "unassigned",
-            cabinetId: initialData?.cabinetId || (cabinets && cabinets.length > 0 ? cabinets[0].id : ""),
+            name: "",
+            siret: "",
+            email: "",
+            phone: "",
+            legalRepresentative: "",
+            address: "",
+            fiscalYearEndDate: "31/12",
+            role: 'client',
+            assignedAccountantId: "unassigned",
+            cabinetId: "",
         },
     });
 
      useEffect(() => {
-        if(initialData) form.reset(initialData)
-    }, [initialData, form])
+        if(initialData) {
+            const defaultCabinetId = cabinets && cabinets.length > 0 ? cabinets[0].id : "";
+            form.reset({
+                ...initialData,
+                cabinetId: initialData.cabinetId || defaultCabinetId,
+            });
+        }
+    }, [initialData, cabinets, form])
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSave = { ...values };
@@ -257,7 +263,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                         render={({ field }) => (
                                             <FormItem>
                                             <FormLabel>Cabinet</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Sélectionner un cabinet" />
