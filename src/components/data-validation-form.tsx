@@ -19,7 +19,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { getDocuments, sendDocumentToCegid, getDocumentById } from '@/ai/flows/document-actions';
+import { sendDocumentToCegid } from '@/ai/flows/document-actions';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, useCollection, useMemoFirebase } from '@/firebase';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -264,20 +266,19 @@ const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { for
 export function DataValidationForm({ document, onUpdate, isLoading, onAddComment, onUpdateDocumentInList }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSending, setIsSending] = useState(false);
-  const [allDocs, setAllDocs] = useState<Document[]>([]);
+  
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState('Comptable');
 
+  const documentsQuery = useMemoFirebase(() => {
+    if (!document?.clientId) return null;
+    return db ? collection(db, 'documents') : null;
+  }, [document?.clientId]);
+  const { data: allDocs } = useCollection<Document>(documentsQuery);
+
   useEffect(() => {
     setCurrentUser(localStorage.getItem('userName') || 'Comptable');
-    if(document?.clientId) {
-      const fetchDocs = async () => {
-        const clientDocs = await getDocuments(document.clientId);
-        setAllDocs(clientDocs);
-      }
-      fetchDocs();
-    }
-  }, [document]);
+  }, []);
 
   useEffect(() => {
     if (document?.extractedData) {
@@ -305,9 +306,9 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     if(result.success) {
       toast({ title: "Données envoyées", description: `${document.name} a été envoyé à CEGID avec succès.` });
       // Fetch the updated document to get the new audit trail
-      const updatedDoc = await getDocumentById(document.id);
-      if (updatedDoc) {
-        onUpdateDocumentInList(updatedDoc);
+      const docSnap = await getDoc(doc(db, 'documents', document.id));
+      if (docSnap.exists()) {
+        onUpdateDocumentInList({ id: docSnap.id, ...docSnap.data() } as Document);
       }
     } else {
       toast({ variant: 'destructive', title: "Erreur d'envoi", description: result.error });
@@ -349,7 +350,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                 )}
                 
                 {hasExtractedData ? (
-                    isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} allDocs={allDocs} /> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
+                    isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} allDocs={allDocs || []} /> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
                 ) : (
                     <div className="text-center text-sm text-muted-foreground py-10">
                         {document.status === 'pending' && <Info className="h-8 w-8 mx-auto mb-2" />}
@@ -423,3 +424,5 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     </div>
   );
 }
+
+    
