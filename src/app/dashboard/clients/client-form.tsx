@@ -54,7 +54,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: {
+        defaultValues: initialData || {
             name: "",
             siret: "",
             email: "",
@@ -67,16 +67,6 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
             cabinetId: "",
         },
     });
-
-     useEffect(() => {
-        if(initialData) {
-            const defaultCabinetId = cabinets && cabinets.length > 0 ? cabinets[0].id : "";
-            form.reset({
-                ...initialData,
-                cabinetId: initialData.cabinetId || defaultCabinetId,
-            });
-        }
-    }, [initialData, cabinets, form])
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {
         const dataToSave = { ...values };
@@ -296,3 +286,5 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
         </Form>
     );
 }
+
+    
