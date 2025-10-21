@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -7,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { ref, uploadBytes } from 'firebase/storage';
-import { useFirebase } from '@/firebase';
-import { addDocument } from '@/ai/flows/document-actions';
+import { useFirebase, db } from '@/firebase';
+import { addDoc, collection, doc, increment, updateDoc } from 'firebase/firestore';
 import type { Document, AuditEvent } from '@/lib/types';
 import { PlusCircle, CheckCircle, Loader2 } from 'lucide-react';
 
@@ -67,8 +68,9 @@ export function QuickUpload() {
                 auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
             };
 
-            const createdDoc = await addDocument(newDocData);
-            if (!createdDoc) throw new Error("Failed to save document metadata.");
+            await addDoc(collection(db, 'documents'), newDocData);
+            await updateDoc(doc(db, "clients", clientId), { newDocuments: increment(1) });
+
 
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);

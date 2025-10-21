@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, File, FileType, LogIn, FileUp, CalendarClock, FileClock, Wand2, Users, Briefcase } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, LogIn, FileUp, Wand2, Users, Briefcase } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -33,8 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ClientImportDialog } from '@/components/client-import-dialog';
-import { getAccountants, type Accountant, getClients, updateClient, deleteClient as deleteClientAction } from '@/ai/flows/client-actions';
-import type { Client } from '@/lib/types';
+import type { Client, Accountant } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -42,46 +41,40 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AiClientDialog } from '@/components/ai-client-dialog';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, doc, writeBatch, where } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 export default function ClientsPage() {
-    const [allUsers, setAllUsers] = useState<Client[]>([]);
-    const [accountants, setAccountants] = useState<Accountant[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     const router = useRouter();
     const { toast } = useToast();
 
-    const fetchAllUsers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [usersData, accountantsData] = await Promise.all([
-                getClients(),
-                getAccountants()
-            ]);
-            setAllUsers(usersData.sort((a, b) => a.name.localeCompare(b.name)));
-            setAccountants(accountantsData);
-        } catch (error) {
-            console.error("Failed to fetch data:", error);
-            toast({
-                title: "Erreur de chargement",
-                description: "Impossible de récupérer les données des utilisateurs.",
-                variant: "destructive",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [toast]);
+    // Queries to Firestore
+    const usersQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const { data: allUsers, isLoading: isLoadingUsers } = useCollection<Client>(usersQuery);
 
-    useEffect(() => {
-        fetchAllUsers();
-    }, [fetchAllUsers]);
+    const accountantsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'accountant')), []);
+    const { data: accountants, isLoading: isLoadingAccountants } = useCollection<Accountant>(accountantsQuery);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [userToDelete, setUserToDelete] = useState<Client | null>(null);
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     
-    const filteredClients = useMemo(() => allUsers.filter(user =>
-        user.role === 'client' && user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [allUsers, searchTerm]);
+    const loading = isLoadingUsers || isLoadingAccountants;
 
+    const { filteredClients, filteredTeam } = useMemo(() => {
+        const users = allUsers || [];
+        const clients = users
+            .filter(user => user.role === 'client' && user.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const team = users
+            .filter(user => user.role !== 'client' && user.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .sort((a, b) => a.name.localeCompare(b.name));
+            
+        return { filteredClients: clients, filteredTeam: team };
+    }, [allUsers, searchTerm]);
+    
     const handleSelectAll = (checked: boolean | string) => {
         if (checked) {
             setSelectedUserIds(filteredClients.map(u => u.id));
@@ -113,25 +106,43 @@ export default function ClientsPage() {
         router.push('/dashboard/my-documents');
     }
     
-    const handleDeleteClient = async () => {
-        if (!clientToDelete) return;
+    const handleDeleteUser = async () => {
+        if (!userToDelete) return;
         
-        await deleteClientAction(clientToDelete.id);
-        toast({ title: 'Utilisateur supprimé', description: `L'utilisateur ${clientToDelete.name} a été supprimé.` });
-        setClientToDelete(null);
-        fetchAllUsers(); // Refetch data
+        try {
+            const batch = writeBatch(db);
+            const userRef = doc(db, 'clients', userToDelete.id);
+            batch.delete(userRef);
+            // Note: Deleting the user from Firebase Auth requires a backend function for security.
+            // This is handled by a separate process or function not shown here.
+            await batch.commit();
+
+            toast({ title: 'Utilisateur supprimé', description: `L'utilisateur ${userToDelete.name} a été supprimé.` });
+            setUserToDelete(null);
+            setSelectedUserIds(prev => prev.filter(id => id !== userToDelete.id));
+
+        } catch (error) {
+            toast({ title: 'Erreur', description: "La suppression de l'utilisateur a échoué.", variant: 'destructive' });
+        }
     }
 
     const handleBulkStatusChange = async (status: 'active' | 'inactive' | 'onboarding') => {
-        const promises = selectedUserIds.map(id => updateClient({id, updates: { status }}));
-        await Promise.all(promises);
-        
-        toast({
-            title: "Statuts mis à jour",
-            description: `${selectedUserIds.length} utilisateurs ont été mis à jour.`
-        });
-        setSelectedUserIds([]);
-        fetchAllUsers(); // Refetch data
+        try {
+            const batch = writeBatch(db);
+            selectedUserIds.forEach(id => {
+                const userRef = doc(db, 'clients', id);
+                batch.update(userRef, { status });
+            });
+            await batch.commit();
+            
+            toast({
+                title: "Statuts mis à jour",
+                description: `${selectedUserIds.length} utilisateurs ont été mis à jour.`
+            });
+            setSelectedUserIds([]);
+        } catch (error) {
+             toast({ title: 'Erreur', description: "La mise à jour en masse a échoué.", variant: 'destructive' });
+        }
     }
     
     const getUsersToExport = () => {
@@ -196,7 +207,7 @@ export default function ClientsPage() {
     }
     
     const getAccountantInitial = (accountantId?: string) => {
-        if (!accountantId) return '';
+        if (!accountantId || !accountants) return '';
         const accountant = accountants.find(a => a.id === accountantId);
         return accountant ? accountant.name.split(' ').map(n => n[0]).join('') : '';
     }
@@ -255,22 +266,22 @@ export default function ClientsPage() {
         <div className="space-y-6">
              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Gestion des Clients</h1>
-                    <p className="text-muted-foreground mt-1">Créez et gérez les profils de vos clients.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Gestion des Utilisateurs</h1>
+                    <p className="text-muted-foreground mt-1">Gérez les profils de vos clients et membres de votre cabinet.</p>
                 </div>
                  <div className="flex items-center gap-2">
                     <div className="hidden md:flex items-center gap-2">
-                        <ClientImportDialog onClientsImported={fetchAllUsers} />
+                        <ClientImportDialog onClientsImported={() => {}} />
                         <AiClientDialog />
-                        <Button onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</Button>
+                        <Button onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouvel Utilisateur</Button>
                     </div>
                      <div className="md:hidden">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button>Actions</Button></DropdownMenuTrigger>
                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouveau Client</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => router.push('/dashboard/clients/new')}><PlusCircle className="mr-2 h-4 w-4" />Nouvel Utilisateur</DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><ClientImportDialog onClientsImported={fetchAllUsers} isMenuItem /></DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><ClientImportDialog onClientsImported={() => {}} isMenuItem /></DropdownMenuItem>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}><AiClientDialog isMenuItem /></DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -279,7 +290,7 @@ export default function ClientsPage() {
             </div>
 
             <Card>
-                <CardHeader>
+                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div className="w-full max-w-sm">
                             <div className="relative">
@@ -314,7 +325,8 @@ export default function ClientsPage() {
                                         aria-label="Tout sélectionner"
                                     />
                                 </TableHead>
-                                <TableHead>Nom du client</TableHead>
+                                <TableHead>Nom</TableHead>
+                                <TableHead>Rôle</TableHead>
                                 <TableHead>Statut</TableHead>
                                 <TableHead className="hidden md:table-cell">Comptable Attribué</TableHead>
                                 <TableHead>Dernière activité</TableHead>
@@ -339,6 +351,7 @@ export default function ClientsPage() {
                                             {user.name}
                                         </button>
                                     </TableCell>
+                                    <TableCell>{user.role}</TableCell>
                                     <TableCell>{getStatusBadge(user.status)}</TableCell>
                                     <TableCell className="hidden md:table-cell">
                                         {user.assignedAccountantId ? (
@@ -350,7 +363,7 @@ export default function ClientsPage() {
                                                         </Avatar>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>{accountants.find(a => a.id === user.assignedAccountantId)?.name}</p>
+                                                        <p>{accountants?.find(a => a.id === user.assignedAccountantId)?.name}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
@@ -376,12 +389,8 @@ export default function ClientsPage() {
                                                         <LogIn className="mr-2 h-4 w-4" />
                                                         Prendre la main
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => { localStorage.setItem('selectedClientId', user.id); window.dispatchEvent(new Event('storage')); router.push('/dashboard/documents'); }}>
-                                                        <File className="mr-2 h-4 w-4" />
-                                                        Voir les documents
-                                                    </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => setClientToDelete(user)}>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(user)}>
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Supprimer
                                                     </DropdownMenuItem>
@@ -392,7 +401,7 @@ export default function ClientsPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         Aucun client trouvé.
                                     </TableCell>
                                 </TableRow>
@@ -402,21 +411,20 @@ export default function ClientsPage() {
                 </CardContent>
             </Card>
 
-            <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+            <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                     <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Le profil de "{clientToDelete?.name}" sera définitivement supprimé, y compris son accès utilisateur et tous les documents associés.
+                        Le profil de "{userToDelete?.name}" sera définitivement supprimé, y compris son accès utilisateur et tous les documents associés.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setClientToDelete(null)}>Annuler</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
+                    <AlertDialogCancel onClick={() => setUserToDelete(null)}>Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
     )
-
-    
+}

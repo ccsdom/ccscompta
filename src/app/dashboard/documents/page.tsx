@@ -9,9 +9,6 @@ import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-fro
 import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
 import { fileToDataUri } from '@/lib/utils';
-import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById, sendDocumentToCegid } from '@/ai/flows/document-actions';
-import { getClients, updateClient } from '@/ai/flows/client-actions';
-import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -23,9 +20,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useFirebase } from '@/firebase';
+import { useCollection, useMemoFirebase } from '@/firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { increment } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, increment, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { db, useFirebase } from '@/firebase';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +32,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClientSwitcher } from '@/components/client-switcher';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
+import { sendDocumentToCegid } from '@/ai/flows/document-actions';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -51,11 +51,8 @@ const getStatusInfo = (status: Document['status']): { icon: React.ElementType, l
 
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
@@ -70,22 +67,17 @@ export default function DocumentsPage() {
   const router = useRouter();
   const { storage } = useFirebase();
 
-   const fetchDocumentsAndClients = useCallback(async (clientId: string) => {
-    setIsLoading(true);
-    try {
-      const [docs, allClients] = await Promise.all([
-          getDocuments(clientId),
-          getClients()
-      ]);
-      setDocuments(docs);
-      setClients(allClients);
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-      toast({ title: "Erreur de chargement", description: "Impossible de récupérer les données.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
+  // Firestore hooks for real-time data
+  const documentsQuery = useMemoFirebase(() => {
+    if (!selectedClientId) return null;
+    return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
+  }, [selectedClientId]);
+  const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
+
+  const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+  const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  
+  const isLoading = isLoadingDocuments || isLoadingClients;
   
    useEffect(() => {
     const loadState = () => {
@@ -98,16 +90,12 @@ export default function DocumentsPage() {
              if (storedAutomation) setAutomationSettings(JSON.parse(storedAutomation));
              
              const clientId = localStorage.getItem('selectedClientId');
-             if (clientId && clientId !== selectedClientId) {
+             if (clientId !== selectedClientId) {
                 setSelectedClientId(clientId);
-                fetchDocumentsAndClients(clientId);
                 setActiveDocument(null);
              } else if (!clientId) {
-                setDocuments([]);
-                setClients([]);
                 setSelectedClientId(null);
                 setActiveDocument(null);
-                setIsLoading(false);
              }
 
              const filter = searchParams.get('filter');
@@ -120,7 +108,7 @@ export default function DocumentsPage() {
     loadState();
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
-  }, [selectedClientId, fetchDocumentsAndClients, searchParams])
+  }, [selectedClientId, searchParams])
 
 
   const createNotification = (doc: Document, message: string) => {
@@ -144,12 +132,13 @@ export default function DocumentsPage() {
         date: new Date().toISOString(),
         user,
     };
-    const doc = await getDocumentById(docId);
-    return [...(doc?.auditTrail || []), event];
+    const docSnap = await getDoc(doc(db, 'documents', docId));
+    const currentTrail = docSnap.data()?.auditTrail || [];
+    return [...currentTrail, event];
   };
 
   const updateLocalDocument = (updatedDoc: Document) => {
-      setDocuments(docs => docs.map(d => d.id === updatedDoc.id ? updatedDoc : d));
+      // The hook will update the list automatically. We just need to update the active doc.
       if (activeDocument?.id === updatedDoc.id) {
           handleSetActiveDocument(updatedDoc);
       }
@@ -157,12 +146,12 @@ export default function DocumentsPage() {
 
 
   const handleProcessDocument = async (docId: string) => {
-    const docToProcess = documents.find(d => d.id === docId);
+    const docToProcess = documents?.find(d => d.id === docId);
     if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
 
     setIsProcessing(true);
     let trail = await addAuditEvent(docId, 'Traitement IA initié');
-    updateLocalDocument({ ...docToProcess, status: 'processing', auditTrail: trail });
+    await updateDoc(doc(db, 'documents', docId), { status: 'processing', auditTrail: trail });
     
     try {
       let docWithDataUrl = { ...docToProcess };
@@ -217,16 +206,14 @@ export default function DocumentsPage() {
               toast({ title: "Document auto-approuvé", description: `${docToProcess.name} a été traité et approuvé automatiquement.` });
               createNotification({ ...docToProcess, ...finalUpdates }, 'a été approuvé automatiquement.');
               
-              const client = clients.find(c => c.id === docToProcess.clientId);
+              const client = clients?.find(c => c.id === docToProcess.clientId);
               if (client) {
                   await createInvoiceForDocument(client, docId);
-                   await updateClient({id: client.id, updates: { newDocuments: increment(-1) as unknown as number }});
+                   await updateDoc(doc(db, 'clients', client.id), { newDocuments: increment(-1) });
               }
 
               if (automationSettings.autoSend) {
-                const sendResult = await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
-                const finalDoc = await getDocumentById(docId);
-                if (finalDoc) updateLocalDocument(finalDoc);
+                await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
               }
 
           } else {
@@ -239,19 +226,12 @@ export default function DocumentsPage() {
          createNotification({ ...docToProcess, ...finalUpdates }, 'est prêt pour examen.');
       }
       
-      await updateDocument({ id: docId, updates: finalUpdates });
-      const finalDoc = await getDocumentById(docId);
-      if (finalDoc) {
-        updateLocalDocument({ ...finalDoc, dataUrl: docWithDataUrl.dataUrl });
-      }
+      await updateDoc(doc(db, 'documents', docId), finalUpdates as any);
 
     } catch (error) {
       console.error("Error processing document:", error);
       trail = await addAuditEvent(docId, 'Erreur de traitement IA');
-      await updateDocument({ id: docId, updates: { status: 'error', auditTrail: trail } });
-      const finalDoc = await getDocumentById(docId);
-      if (finalDoc) updateLocalDocument(finalDoc);
-      // The toast for CORS error is already shown inside the try block
+      await updateDoc(doc(db, 'documents', docId), { status: 'error', auditTrail: trail });
       if (!(error as Error).message.includes('CORS')) {
           toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${docToProcess.name}.` });
       }
@@ -262,21 +242,24 @@ export default function DocumentsPage() {
   };
   
   const handleUpdateDocumentData = async (docId: string, updatedData: ExtractDataOutput) => {
-    const doc = await getDocumentById(docId);
-    if (!doc || !doc.clientId) return;
+    const docRef = doc(db, 'documents', docId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists() || !docSnap.data()?.clientId) return;
+    const clientId = docSnap.data()!.clientId;
 
     const trail = await addAuditEvent(docId, 'Document approuvé manuellement', getCurrentUser());
     const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
-    await updateDocument({ id: docId, updates });
+    await updateDoc(docRef, updates);
     
-    const client = clients.find(c => c.id === doc.clientId);
+    const client = clients?.find(c => c.id === clientId);
     if (client) {
         await createInvoiceForDocument(client, docId);
-         await updateClient({id: client.id, updates: { newDocuments: increment(-1) as unknown as number }});
+        await updateDoc(doc(db, 'clients', client.id), { newDocuments: increment(-1) });
     }
     
-    const updatedDoc = await getDocumentById(docId);
-    if(updatedDoc) {
+    const updatedDocSnap = await getDoc(docRef);
+    if(updatedDocSnap.exists()) {
+        const updatedDoc = { id: updatedDocSnap.id, ...updatedDocSnap.data() } as Document;
         updateLocalDocument(updatedDoc);
         createNotification(updatedDoc, 'a été approuvé.');
         toast({ title: "Document approuvé", description: "Les données ont été validées et une facture de traitement a été générée." });
@@ -294,11 +277,11 @@ export default function DocumentsPage() {
       date: new Date().toISOString(),
     };
     const trail = await addAuditEvent(docId, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`, getCurrentUser());
-    const doc = await getDocumentById(docId);
-    const updatedComments = [...(doc?.comments || []), newComment];
-    await updateDocument({ id: docId, updates: { comments: updatedComments, auditTrail: trail } });
-    const updatedDoc = await getDocumentById(docId);
-    if(updatedDoc) updateLocalDocument(updatedDoc);
+    const docRef = doc(db, 'documents', docId);
+    const docSnap = await getDoc(docRef);
+    const currentComments = docSnap.data()?.comments || [];
+    const updatedComments = [...currentComments, newComment];
+    await updateDoc(docRef, { comments: updatedComments, auditTrail: trail });
   };
   
   const handleSetActiveDocument = async (doc: Document | null) => {
@@ -336,29 +319,31 @@ export default function DocumentsPage() {
   const handleBulkApprove = async () => {
     let approvedCount = 0;
     const docIdsToApprove = selectedDocumentIds.filter(docId => {
-      const doc = documents.find(d => d.id === docId);
+      const doc = documents?.find(d => d.id === docId);
       return doc && doc.status === 'reviewing';
     });
 
+    const batch = writeBatch(db);
+
     for(const docId of docIdsToApprove) {
-        const doc = documents.find(d => d.id === docId)!;
+        const docToApprove = documents!.find(d => d.id === docId)!;
         const trail = await addAuditEvent(docId, 'Document approuvé (en masse)', getCurrentUser());
-        await updateDocument({ id: docId, updates: { status: 'approved', auditTrail: trail } });
-        createNotification(doc, 'a été approuvé.');
+        batch.update(doc(db, 'documents', docId), { status: 'approved', auditTrail: trail });
+        createNotification(docToApprove, 'a été approuvé.');
         
-        const client = clients.find(c => c.id === doc.clientId);
+        const client = clients?.find(c => c.id === docToApprove.clientId);
         if (client) {
-            await createInvoiceForDocument(client, docId);
-            await updateClient({id: client.id, updates: { newDocuments: increment(-1) as unknown as number }});
+            await createInvoiceForDocument(client, docId); // Cannot be in batch
+            batch.update(doc(db, 'clients', client.id), { newDocuments: increment(-1) });
         }
         approvedCount++;
     }
-
-    if(selectedClientId && approvedCount > 0) {
-        fetchDocumentsAndClients(selectedClientId);
-        toast({ title: "Documents approuvés", description: `${approvedCount} documents ont été approuvés et les factures correspondantes générées.` });
-         window.dispatchEvent(new Event('storage'));
-    } else if (approvedCount === 0) {
+    
+    if (approvedCount > 0) {
+        await batch.commit();
+        toast({ title: "Documents approuvés", description: `${approvedCount} documents ont été approuvés.` });
+        window.dispatchEvent(new Event('storage'));
+    } else {
         toast({ title: "Aucun document à approuver", description: "Seuls les documents 'Prêt pour examen' peuvent être approuvés.", variant: 'destructive' });
     }
     setSelectedDocumentIds([]);
@@ -366,7 +351,7 @@ export default function DocumentsPage() {
 
   const handleBulkSend = async () => {
     let sentCount = 0;
-    const docsToSend = documents.filter(doc => selectedDocumentIds.includes(doc.id) && doc.status === 'approved');
+    const docsToSend = documents?.filter(doc => selectedDocumentIds.includes(doc.id) && doc.status === 'approved') || [];
 
     for (const doc of docsToSend) {
         const result = await sendDocumentToCegid(doc.id, getCurrentUser());
@@ -380,28 +365,27 @@ export default function DocumentsPage() {
     if (sentCount > 0) {
         toast({ title: "Données envoyées", description: `${sentCount} documents ont été envoyés à CEGID.` });
     }
-    if(selectedClientId) fetchDocumentsAndClients(selectedClientId);
     setSelectedDocumentIds([]);
   }
 
   const handleDeleteSingle = async (docId: string) => {
-     await deleteDocument(docId);
-     setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
+     await deleteDoc(doc(db, 'documents', docId));
      if (activeDocument?.id === docId) setActiveDocument(null);
      toast({ variant: 'destructive', title: "Document supprimé" });
   }
 
   const handleBulkDelete = async () => {
-    const promises = selectedDocumentIds.map(docId => deleteDocument(docId));
-    await Promise.all(promises);
-    setDocuments(prevDocs => prevDocs.filter(doc => !selectedDocumentIds.includes(doc.id)));
+    const batch = writeBatch(db);
+    selectedDocumentIds.forEach(docId => batch.delete(doc(db, 'documents', docId)));
+    await batch.commit();
+
     if (activeDocument && selectedDocumentIds.includes(activeDocument.id)) setActiveDocument(null);
     toast({ variant: 'destructive', title: "Documents supprimés", description: `${selectedDocumentIds.length} documents ont été supprimés.` });
     setSelectedDocumentIds([]);
   }
 
   const handleBulkExport = () => {
-    const docsToExport = documents.filter(doc => selectedDocumentIds.includes(doc.id) && doc.status === 'approved' && doc.extractedData);
+    const docsToExport = documents?.filter(doc => selectedDocumentIds.includes(doc.id) && doc.status === 'approved' && doc.extractedData) || [];
     if (docsToExport.length === 0) {
       toast({ title: "Aucun document à exporter", description: "Veuillez sélectionner des documents approuvés.", variant: "destructive" });
       return;
@@ -427,7 +411,7 @@ export default function DocumentsPage() {
   }
   
   const filteredDocuments = useMemo(() => {
-        let docs = [...documents];
+        let docs = [...(documents || [])];
         
         if (dashboardFilter) {
             const today = new Date();
@@ -478,7 +462,7 @@ export default function DocumentsPage() {
             }
              if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = [...documents].filter(doc => 
+                 docs = [...(documents || [])].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v != null && v.toLowerCase().includes(lowercasedQuery)))
                 );

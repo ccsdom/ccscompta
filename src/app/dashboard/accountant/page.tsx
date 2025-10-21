@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -8,38 +7,24 @@ import { BarChart, Bar, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { Document, AuditEvent } from '@/lib/types';
-import type { Client } from '@/lib/types';
-import { getClients } from '@/ai/flows/client-actions';
-import { getDocuments } from '@/ai/flows/document-actions';
+import type { Document, AuditEvent, Client } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 export default function AccountantDashboard() {
-    const [documents, setDocuments] = useState<Document[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-    useEffect(() => {
-        const loadState = async () => {
-            setLoading(true);
-            try {
-                const clientsData = await getClients();
-                setClients(clientsData);
-                // Fetch documents for all clients for the dashboard overview
-                const allDocsPromises = clientsData.map(c => getDocuments(c.id));
-                const allDocsArrays = await Promise.all(allDocsPromises);
-                const allDocs = allDocsArrays.flat();
-                setDocuments(allDocs);
-            } catch (error) {
-                console.error("Failed to load data", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadState();
-    }, []);
+    const documentsQuery = useMemoFirebase(() => query(collection(db, 'documents')), []);
+    const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
+
+    const loading = isLoadingClients || isLoadingDocuments;
 
     const dashboardData = useMemo(() => {
+        if (!documents || !clients) return null;
+
         const today = new Date();
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
@@ -76,7 +61,6 @@ export default function AccountantDashboard() {
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .slice(0, 5);
 
-
         return {
             totalClients: clients.filter(c => c.status === 'active').length,
             docsUploadedToday,
@@ -87,7 +71,7 @@ export default function AccountantDashboard() {
         };
     }, [documents, clients]);
 
-    if (loading) {
+    if (loading || !dashboardData) {
         return (
             <div className="space-y-6">
                 <div>

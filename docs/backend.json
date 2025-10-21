@@ -7,13 +7,22 @@
       "type": "object",
       "description": "Represents a client or staff member in the system.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier for the user." },
+        "id": { "type": "string", "description": "Unique identifier for the user (Firebase Auth UID)." },
         "name": { "type": "string", "description": "Name of the user or company." },
         "email": { "type": "string", "description": "Email address for login.", "format": "email" },
         "role": { "type": "string", "enum": ["admin", "accountant", "secretary", "client"] },
-        "createdAt": { "type": "string", "description": "Timestamp of creation.", "format": "date-time" }
+        "siret": { "type": "string", "description": "14-digit SIRET number for the company." },
+        "address": { "type": "string", "description": "Company's legal address." },
+        "legalRepresentative": { "type": "string", "description": "Name of the company's legal representative." },
+        "fiscalYearEndDate": { "type": "string", "description": "End date of the fiscal year in JJ/MM format." },
+        "status": { "type": "string", "enum": ["active", "inactive", "onboarding"] },
+        "newDocuments": { "type": "number", "description": "Counter for new unprocessed documents." },
+        "lastActivity": { "type": "string", "description": "Timestamp of the user's last activity.", "format": "date-time" },
+        "phone": { "type": "string", "description": "Contact phone number." },
+        "assignedAccountantId": { "type": "string", "description": "UID of the assigned accountant." },
+        "cabinetId": { "type": "string", "description": "ID of the accounting firm this user belongs to." }
       },
-      "required": ["id", "name", "email", "createdAt", "role"]
+      "required": ["id", "name", "email", "role", "status", "lastActivity"]
     },
     "AccountingDocument": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -23,29 +32,75 @@
       "properties": {
         "id": { "type": "string" },
         "clientId": { "type": "string", "description": "ID of the client who owns this document." },
-        "documentType": { "type": "string" },
+        "name": { "type": "string", "description": "Original file name of the document." },
         "uploadDate": { "type": "string", "format": "date-time" },
         "storagePath": { "type": "string", "description": "Path to the file in Firebase Storage." },
-        "status": { "type": "string", "enum": ["pending", "processing", "reviewing", "approved", "error"] }
+        "status": { "type": "string", "enum": ["pending", "processing", "reviewing", "approved", "error"] },
+        "type": { "type": "string", "description": "Type of the document as determined by AI (e.g., invoice)." },
+        "confidence": { "type": "number", "description": "AI confidence score for the type recognition." },
+        "extractedData": { "$ref": "#/entities/ExtractedData" },
+        "auditTrail": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "action": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" },
+              "user": { "type": "string" }
+            },
+            "required": ["action", "date", "user"]
+          }
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "user": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" }
+            },
+            "required": ["id", "text", "user", "date"]
+          }
+        }
       },
-      "required": ["id", "clientId", "uploadDate", "storagePath", "status"]
+      "required": ["id", "clientId", "name", "uploadDate", "storagePath", "status"]
     },
     "ExtractedData": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ExtractedData",
       "type": "object",
-      "description": "Represents the extracted data from an accounting document. Embedded within AccountingDocument.",
+      "description": "Represents the extracted data from an accounting document.",
       "properties": {
-        "invoiceDate": { "type": "string", "format": "date-time" },
-        "invoiceNumber": { "type": "string" },
-        "amount": { "type": "number" },
-        "vendorName": { "type": "string" },
-        "currency": { "type": "string" }
+        "dates": { "type": "array", "items": { "type": ["string", "null"], "format": "date" } },
+        "amounts": { "type": "array", "items": { "type": ["number", "null"] } },
+        "vendorNames": { "type": "array", "items": { "type": ["string", "null"] } },
+        "vatAmount": { "type": ["number", "null"] },
+        "vatRate": { "type": ["number", "null"] },
+        "category": { "type": ["string", "null"] },
+        "otherInformation": { "type": "string" },
+        "anomalies": { "type": "array", "items": { "type": "string" } },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string" },
+              "description": { "type": "string" },
+              "amount": { "type": "number" },
+              "vendor": { "type": "string" },
+              "category": { "type": "string" },
+              "matchingDocumentId": { "type": "string" }
+            },
+            "required": ["date", "description", "amount"]
+          }
+        }
       }
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": ["password", "google.com"]
   },
   "firestore": {
     "/clients/{clientId}": {

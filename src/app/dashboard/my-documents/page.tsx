@@ -1,13 +1,12 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
-import { getDocuments, addDocument, updateDocument, deleteDocument, getDocumentById } from '@/ai/flows/document-actions';
-import { updateClient } from '@/ai/flows/client-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Folder, FileText, Receipt, Landmark, ArrowDownToLine, ArrowUpFromLine, ShieldAlert } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, ShieldAlert } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -20,9 +19,9 @@ import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { addDoc, collection, increment } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc, deleteDoc, increment, getDoc, query, where, writeBatch } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -55,11 +54,9 @@ const getStatusBadge = (status: Document['status']) => {
 
 
 export default function MyDocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
@@ -67,18 +64,14 @@ export default function MyDocumentsPage() {
   const { toast } = useToast();
   const { storage } = useFirebase();
   
-  const fetchDocuments = useCallback(async (id: string) => {
-    setIsLoading(true);
-    try {
-        const docs = await getDocuments(id);
-        setDocuments(docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
-    } catch (error) {
-        console.error("Error fetching documents", error);
-        toast({title: "Erreur", description: "Impossible de charger les documents.", variant: "destructive"});
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
+  const documentsQuery = useMemoFirebase(() => {
+    if (!clientId) return null;
+    return query(collection(db, 'documents'), where('clientId', '==', clientId));
+  }, [clientId]);
+  
+  const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
+
+  const isLoading = isLoadingDocuments;
 
    useEffect(() => {
     const loadState = () => {
@@ -87,17 +80,15 @@ export default function MyDocumentsPage() {
             if (storedClientId) {
                 if (storedClientId !== clientId) {
                     setClientId(storedClientId);
-                    fetchDocuments(storedClientId);
                 }
             } else {
-                setIsLoading(false);
+                setClientId(null);
             }
             const storedQuery = localStorage.getItem('searchQuery');
             if (storedQuery) setSearchQuery(storedQuery);
             const storedCriteria = localStorage.getItem('searchCriteria');
             if (storedCriteria) setSearchCriteria(JSON.parse(storedCriteria));
             
-            // Check if the password alert has been dismissed
             const dismissed = localStorage.getItem(`password_alert_dismissed_${storedClientId}`);
             setShowPasswordAlert(!dismissed);
 
@@ -108,7 +99,7 @@ export default function MyDocumentsPage() {
     loadState();
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
-  }, [clientId, fetchDocuments])
+  }, [clientId])
 
   const handleDismissPasswordAlert = () => {
       if (clientId) {
@@ -128,13 +119,10 @@ export default function MyDocumentsPage() {
 
   const processSingleFile = useCallback(async (file: File, clientId: string) => {
     try {
-        // 1. Upload the file to Firebase Storage
         const storagePath = `${clientId}/${Date.now()}-${file.name}`;
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
 
-        // 2. Create the document entry in Firestore (client-side)
-        // This is the operation that triggers the Cloud Function
         const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
             name: file.name,
             uploadDate: new Date().toISOString(),
@@ -145,14 +133,8 @@ export default function MyDocumentsPage() {
             auditTrail: addAuditEvent([], 'Document téléversé'),
         };
         
-        const docRef = await addDoc(collection(db, 'documents'), newDocData);
-        
-        // 3. Update local state immediately for a responsive UI
-        const createdDoc: Document = { ...newDocData, id: docRef.id };
-        setDocuments(prev => [createdDoc, ...prev].sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
-
-        // 4. Update the client's new document count (optional, can also be a backend operation)
-        await updateClient({ id: clientId, updates: { newDocuments: increment(1) as unknown as number }});
+        await addDoc(collection(db, 'documents'), newDocData);
+        await updateDoc(doc(db, "clients", clientId), { newDocuments: increment(1) });
         
         toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
         return { success: true };
@@ -197,27 +179,18 @@ export default function MyDocumentsPage() {
 
   const handleAddComment = async (docId: string, commentText: string) => {
     if (!commentText.trim()) return;
-    const doc = documents.find(d => d.id === docId);
-    if (!doc) return;
+    const docToUpdate = documents?.find(d => d.id === docId);
+    if (!docToUpdate) return;
     
     const newComment: Comment = { id: crypto.randomUUID(), text: commentText, user: getCurrentUser(), date: new Date().toISOString() };
-    const trail = addAuditEvent(doc.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
-    const updatedComments = [...(doc.comments || []), newComment];
-    // Correction: Ensure comments and auditTrail are not undefined before updating
- await updateDocument({ id: docId, updates: { comments: updatedComments || [], auditTrail: trail || [] } });
-    
-    const updatedDoc = await getDocumentById(docId);
-    if(updatedDoc) {
-        const docs = await getDocuments(doc.clientId);
-        setDocuments(docs);
-        const active = docs.find(d => d.id === docId);
-        setActiveDocument(active || null);
-    }
+    const trail = addAuditEvent(docToUpdate.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
+    const updatedComments = [...(docToUpdate.comments || []), newComment];
+
+    await updateDoc(doc(db, 'documents', docId), { comments: updatedComments, auditTrail: trail });
   };
 
   const handleDelete = async (docId: string) => {
-     await deleteDocument(docId);
-     setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== docId));
+     await deleteDoc(doc(db, 'documents', docId));
      if (activeDocument?.id === docId) { setActiveDocument(null); setIsSheetOpen(false); }
      toast({ variant: 'destructive', title: "Document supprimé" });
   }
@@ -239,7 +212,7 @@ export default function MyDocumentsPage() {
   }
   
   const filteredDocuments = useMemo(() => {
-        let docs = [...documents];
+        let docs = [...(documents || [])];
         if (searchCriteria) { 
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
@@ -264,14 +237,13 @@ export default function MyDocumentsPage() {
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
-                    // Correction: Join all relevant fields for searchable text
  const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || []), d.type || ''].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
              if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = [...documents].filter(doc => 
+                 docs = [...(documents || [])].filter(doc => 
                     doc.name.toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowercasedQuery)))
                 );
@@ -280,13 +252,12 @@ export default function MyDocumentsPage() {
         else if (searchQuery) {
             const lowercasedQuery = searchQuery.toLowerCase();
             docs = docs.filter(doc => 
-                // Correction: Also include document type in search
  doc.name.toLowerCase().includes(lowercasedQuery) || (doc.type && doc.type.toLowerCase().includes(lowercasedQuery)) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
         
-        return docs;
+        return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
 
   }, [documents, searchQuery, searchCriteria]);
 

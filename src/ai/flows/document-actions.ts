@@ -1,32 +1,24 @@
 
 'use server';
 
-import type { Document, AuditEvent, Bilan } from '@/lib/types';
+// This file is being deprecated for most of its functions.
+// Data fetching logic is moving to client-side hooks (useCollection, useDoc).
+// Mutations will be handled by client-side Firebase SDK calls directly in components.
+// The 'sendDocumentToCegid' function is an exception and will remain as a server action
+// because it interacts with an external service (Cegid).
+
+import type { Bilan } from '@/lib/types';
 import { createSupplier, findSupplier } from '@/services/cegid';
 import { db } from '@/lib/firebase-server';
-import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 
 
-export async function getDocuments(clientId: string): Promise<Document[]> {
-    console.log(`[Firestore] Fetching documents for client: ${clientId}`);
-    try {
-        const q = query(collection(db, 'documents'), where('clientId', '==', clientId));
-        const snapshot = await getDocs(q);
-        
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
-    } catch (error) {
-        console.error(`Error fetching documents for client ${clientId}:`, error);
-        return [];
-    }
-}
-
-export async function getDocumentById(docId: string): Promise<Document | null> {
-    console.log(`[Firestore] Fetching document by ID: ${docId}`);
+async function getDocumentById(docId: string): Promise<any | null> {
     try {
         const docRef = doc(db, 'documents', docId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as Document;
+            return { id: docSnap.id, ...docSnap.data() };
         }
         return null;
     } catch(e) {
@@ -35,25 +27,7 @@ export async function getDocumentById(docId: string): Promise<Document | null> {
     }
 }
 
-export async function addDocument(docData: Omit<Document, 'id'>): Promise<Document> {
-    try {
-        const docRef = await addDoc(collection(db, 'documents'), docData);
-        console.log(`[Firestore] Added new document for client ${docData.clientId} with ID: ${docRef.id}`);
-        const newDoc = await getDocumentById(docRef.id);
-        if (!newDoc) {
-            throw new Error('Could not retrieve newly created document');
-        }
-        return newDoc;
-    } catch (error) {
-        console.error(`[Firestore] Error adding document:`, error);
-        // Re-throw the error to be handled by the caller
-        throw error;
-    }
-}
-
-
-export async function updateDocument({ id, updates }: {id: string, updates: Partial<Document> }): Promise<void> {
-    console.log(`[Firestore] Updating document ${id}`);
+async function updateDocumentServer(id: string, updates: any): Promise<void> {
     try {
         const docRef = doc(db, 'documents', id);
         await updateDoc(docRef, updates);
@@ -62,16 +36,8 @@ export async function updateDocument({ id, updates }: {id: string, updates: Part
     }
 }
 
-export async function deleteDocument(docId: string): Promise<void> {
-    console.log(`[Firestore] Deleting document ${docId}`);
-    try {
-        await deleteDoc(doc(db, 'documents', docId));
-    } catch (error) {
-        console.error(`[Firestore] Failed to delete document ${docId}:`, error);
-    }
-}
 
-const addAuditEvent = (trail: AuditEvent[], action: string, user: string = 'Système'): AuditEvent[] => {
+const addAuditEvent = (trail: any[], action: string, user: string = 'Système'): any[] => {
     return [...trail, { action, date: new Date().toISOString(), user }];
 }
 
@@ -88,24 +54,24 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
         }
 
         let trail = addAuditEvent(doc.auditTrail, `Envoi vers Cegid initié par ${user}`, user);
-        await updateDocument({ id: docId, updates: { auditTrail: trail } });
+        await updateDocumentServer(docId, { auditTrail: trail });
 
         const existingSupplier = await findSupplier(vendorName);
         
         if (!existingSupplier) {
             trail = addAuditEvent(trail, `Fournisseur "${vendorName}" non trouvé dans Cegid. Tentative de création...`);
-            await updateDocument({ id: docId, updates: { auditTrail: trail } });
+            await updateDocumentServer(docId, { auditTrail: trail });
 
             const newSupplier = await createSupplier({ name: vendorName, email: '' });
             trail = addAuditEvent(trail, `Fournisseur "${newSupplier.name}" créé avec succès dans Cegid.`);
-            await updateDocument({ id: docId, updates: { auditTrail: trail } });
+            await updateDocumentServer(docId, { auditTrail: trail });
         } else {
              trail = addAuditEvent(trail, `Fournisseur "${vendorName}" trouvé dans Cegid.`);
-             await updateDocument({ id: docId, updates: { auditTrail: trail } });
+             await updateDocumentServer(docId, { auditTrail: trail });
         }
 
         trail = addAuditEvent(trail, "Écriture comptable envoyée avec succès à Cegid.");
-        await updateDocument({ id: docId, updates: { status: "approved", auditTrail: trail } });
+        await updateDocumentServer(docId, { status: "approved", auditTrail: trail });
 
         return { success: true };
 
@@ -115,7 +81,7 @@ export async function sendDocumentToCegid(docId: string, user: string): Promise<
         let doc = await getDocumentById(docId);
         if (doc) {
              const trail = addAuditEvent(doc.auditTrail, `Échec de l'envoi à Cegid: ${errorMessage}`);
-             await updateDocument({ id: docId, updates: { auditTrail: trail } });
+             await updateDocumentServer(docId, { auditTrail: trail });
         }
         return { success: false, error: errorMessage };
     }
