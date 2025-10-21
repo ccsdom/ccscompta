@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Check, ChevronsUpDown, Building } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { Client } from "@/lib/types";
 
@@ -35,19 +35,23 @@ export function ClientSwitcher() {
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+  const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'client')), []);
   const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
-  const clients: PopoverClient[] = (clientsData || []).map(c => ({ value: c.id, label: c.name }));
+  const clients: PopoverClient[] = useMemo(() => (clientsData || []).map(c => ({ value: c.id, label: c.name })), [clientsData]);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
     setUserRole(role);
     const storedClientId = localStorage.getItem('selectedClientId');
-    if (storedClientId && clients.some(c => c.value === storedClientId)) {
+    if (storedClientId && (clients.length === 0 || clients.some(c => c.value === storedClientId))) {
       setSelectedValue(storedClientId);
-    } else {
+    } else if (clients.length > 0 && !storedClientId) {
+      // If no client is selected but we have clients, maybe default to the first one?
+      // For now, let's just ensure it's null if not valid.
       setSelectedValue(null);
+    } else {
+       setSelectedValue(null);
     }
   }, [clientsData, clients]);
 
