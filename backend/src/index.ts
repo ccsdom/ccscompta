@@ -6,7 +6,7 @@
 
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
@@ -130,7 +130,7 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
     try {
         await docRef.update({ 
             status: 'processing',
-            auditTrail: db.FieldValue.arrayUnion({ action: 'Traitement IA initié', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: FieldValue.arrayUnion({ action: 'Traitement IA initié', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
         
         // Generate a signed URL to read the file for AI processing
@@ -154,7 +154,7 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
 
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         await docRef.update({ 
-            auditTrail: db.FieldValue.arrayUnion({ action: `Type reconnu: ${recognition.documentType}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: FieldValue.arrayUnion({ action: `Type reconnu: ${recognition.documentType}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
         
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: docData.clientId });
@@ -164,7 +164,7 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
             extractedData: extracted,
             type: recognition.documentType,
             confidence: recognition.confidence,
-            auditTrail: db.FieldValue.arrayUnion({ action: 'Données extraites par IA', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: FieldValue.arrayUnion({ action: 'Données extraites par IA', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
         };
 
         await docRef.update(finalUpdates);
@@ -175,7 +175,7 @@ export const processDocument = onDocumentCreated("documents/{docId}", async (eve
         logger.error(`Error processing document ${docId}:`, error);
         await docRef.update({ 
             status: 'error',
-            auditTrail: db.FieldValue.arrayUnion({ action: `Erreur de traitement IA: ${error instanceof Error ? error.message : 'Inconnue'}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: FieldValue.arrayUnion({ action: `Erreur de traitement IA: ${error instanceof Error ? error.message : 'Inconnue'}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
     }
 });
