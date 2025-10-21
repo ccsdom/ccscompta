@@ -3,43 +3,35 @@
 
 import { ClientForm, formSchema } from "../../client-form";
 import { notFound, useParams, useRouter } from 'next/navigation';
-import { getClientById, updateClient } from '@/ai/flows/client-actions';
 import type { Client } from "@/lib/types";
 import { useEffect, useState } from "react";
 import type * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-
+import { useDoc, useMemoFirebase } from "@/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/firebase";
 
 
 export default function EditClientPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
     const { toast } = useToast();
-    const [client, setClient] = useState<Client | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const clientRef = useMemoFirebase(() => params.id ? doc(db, 'clients', params.id) : null, [params.id]);
+    const { data: client, isLoading: loading } = useDoc<Client>(clientRef);
 
-    useEffect(() => {
-        if (params.id) {
-            const fetchClient = async () => {
-                setLoading(true);
-                const fetchedClient = await getClientById(params.id);
-                setClient(fetchedClient || null);
-                setLoading(false);
-            };
-            fetchClient();
-        }
-    }, [params.id]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSave = async (data: z.infer<typeof formSchema>) => {
         if (!params.id) return;
         setIsSubmitting(true);
         
-        const result = await updateClient({ id: params.id, updates: data });
-
-        if (result.success) {
+        try {
+            const docRef = doc(db, 'clients', params.id);
+            await updateDoc(docRef, data);
+            
             toast({
                 title: "Modifications enregistrées",
                 description: `Les informations de ${data.name} ont été mises à jour.`
@@ -47,12 +39,12 @@ export default function EditClientPage() {
             // Force a refresh of the clients list page by navigating
             router.push('/dashboard/clients');
             router.refresh(); 
-        } else {
-            console.error("Failed to update client:", result.error);
+        } catch (error) {
+             console.error("Failed to update client:", error);
             toast({
                 variant: 'destructive',
                 title: "Erreur",
-                description: `Impossible de mettre à jour le client: ${result.error}`
+                description: `Impossible de mettre à jour le client.`
             });
         }
         
