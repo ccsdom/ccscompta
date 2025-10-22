@@ -1,11 +1,28 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
+    
+    // Les fichiers sont stockés dans des dossiers nommés d'après l'UID du client.
+    // e.g., gs://<your-bucket>/<clientId>/document.pdf
     match /{userId}/{allPaths=**} {
-      // Any authenticated user can read any file.
-      allow read: if request.auth != null;
-      // Only the file owner can write (create, update, delete).
-      allow write: if request.auth != null && request.auth.uid == userId;
+
+      function isOwner() {
+        return request.auth.uid == userId;
+      }
+
+      function isStaff() {
+        // Pour lire les documents, nous devons interroger Firestore pour obtenir le rôle.
+        // La fonction `get` permet de lire un document d'une autre service (Firestore) dans les règles.
+        // La ressource de l'utilisateur est dans /clients/{request.auth.uid}
+        return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in ['admin', 'accountant', 'secretary'];
+      }
+
+      // La lecture est autorisée si l'utilisateur est le propriétaire OU un membre du personnel.
+      allow read: if request.auth != null && (isOwner() || isStaff());
+
+      // L'écriture (création, mise à jour, suppression) est autorisée uniquement pour le propriétaire du dossier.
+      allow write: if request.auth != null && isOwner();
     }
   }
 }
