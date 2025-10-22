@@ -149,7 +149,7 @@ exports.processDocument = (0, firestore_2.onDocumentCreated)("documents/{docId}"
     try {
         await docRef.update({
             status: 'processing',
-            auditTrail: db.FieldValue.arrayUnion({ action: 'Traitement IA initié', date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: firestore_1.FieldValue.arrayUnion({ action: 'Traitement IA initié', date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
         // Generate a signed URL to read the file for AI processing
         const bucket = (0, storage_1.getStorage)().bucket();
@@ -168,7 +168,7 @@ exports.processDocument = (0, firestore_2.onDocumentCreated)("documents/{docId}"
         const dataUrl = `data:${mimeType};base64,${base64}`;
         const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
         await docRef.update({
-            auditTrail: db.FieldValue.arrayUnion({ action: `Type reconnu: ${recognition.documentType}`, date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: firestore_1.FieldValue.arrayUnion({ action: `Type reconnu: ${recognition.documentType}`, date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
         const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: docData.clientId });
         const finalUpdates = {
@@ -176,7 +176,7 @@ exports.processDocument = (0, firestore_2.onDocumentCreated)("documents/{docId}"
             extractedData: extracted,
             type: recognition.documentType,
             confidence: recognition.confidence,
-            auditTrail: db.FieldValue.arrayUnion({ action: 'Données extraites par IA', date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: firestore_1.FieldValue.arrayUnion({ action: 'Données extraites par IA', date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
         };
         await docRef.update(finalUpdates);
         logger.log(`Document ${docId} processed successfully.`);
@@ -185,7 +185,7 @@ exports.processDocument = (0, firestore_2.onDocumentCreated)("documents/{docId}"
         logger.error(`Error processing document ${docId}:`, error);
         await docRef.update({
             status: 'error',
-            auditTrail: db.FieldValue.arrayUnion({ action: `Erreur de traitement IA: ${error instanceof Error ? error.message : 'Inconnue'}`, date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
+            auditTrail: firestore_1.FieldValue.arrayUnion({ action: `Erreur de traitement IA: ${error instanceof Error ? error.message : 'Inconnue'}`, date: firestore_1.Timestamp.now().toDate().toISOString(), user: 'Système' })
         });
     }
 });

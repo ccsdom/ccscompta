@@ -11,11 +11,14 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import { getStorage } from 'firebase-admin/storage';
+import { setGlobalOptions } from 'firebase-functions/v2';
 
 // Genkit/AI imports - these will be dynamically available in the cloud function environment
 declare function recognizeDocumentType(input: { documentDataUri: string }): Promise<{ documentType: string; confidence: number; }>;
 declare function extractData(input: { documentDataUri: string; documentType: string; clientId: string; }): Promise<any>;
 
+// Set the region for all functions in this file
+setGlobalOptions({ region: 'europe-west9' });
 
 // Initialize the Firebase Admin SDK.
 initializeApp();
