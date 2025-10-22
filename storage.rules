@@ -1,28 +1,32 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Les fichiers sont stockés dans des dossiers nommés d'après l'UID du client.
-    // e.g., gs://<your-bucket>/<clientId>/document.pdf
+    // --- Helper function pour vérifier si l'utilisateur est un membre du personnel ---
+    function isStaff() {
+      // Pour utiliser cette fonction, vous devez avoir des "custom claims" sur vos utilisateurs
+      // contenant leur rôle. La fonction ci-dessous est un exemple.
+      // Assurez-vous que votre backend assigne bien ces rôles.
+      return request.auth.token.role in ['admin', 'accountant', 'secretary'];
+    }
+
     match /{userId}/{allPaths=**} {
+      
+      // PERMISSION DE LECTURE (GET)
+      // Qui peut voir le contenu d'un fichier spécifique ?
+      // - L'utilisateur propriétaire du dossier.
+      // - Les membres du personnel.
+      allow get: if request.auth != null && (request.auth.uid == userId || isStaff());
 
-      function isOwner() {
-        return request.auth.uid == userId;
-      }
-
-      function isStaff() {
-        // Pour lire les documents, nous devons interroger Firestore pour obtenir le rôle.
-        // La fonction `get` permet de lire un document d'une autre service (Firestore) dans les règles.
-        // La ressource de l'utilisateur est dans /clients/{request.auth.uid}
-        return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in ['admin', 'accountant', 'secretary'];
-      }
-
-      // La lecture est autorisée si l'utilisateur est le propriétaire OU un membre du personnel.
-      allow read: if request.auth != null && (isOwner() || isStaff());
-
-      // L'écriture (création, mise à jour, suppression) est autorisée uniquement pour le propriétaire du dossier.
-      allow write: if request.auth != null && isOwner();
+      // PERMISSION DE LISTAGE (LIST)
+      // Qui peut voir la liste des fichiers dans un dossier ?
+      // - Uniquement les membres du personnel. Les clients n'ont pas besoin de lister les fichiers.
+      allow list: if request.auth != null && isStaff();
+      
+      // PERMISSIONS D'ÉCRITURE (CREATE, UPDATE, DELETE)
+      // Qui peut téléverser, modifier ou supprimer un fichier ?
+      // - Uniquement l'utilisateur propriétaire du dossier.
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
