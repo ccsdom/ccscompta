@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { firebaseConfig } from './config';
+import { firebaseConfig } from '@/firebase/config';
 
 // Initialize Firebase Admin SDK
 // This is for server-side operations, like in API routes or server-side rendering.
