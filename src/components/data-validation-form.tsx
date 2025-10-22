@@ -20,7 +20,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { sendDocumentToCegid } from '@/ai/flows/document-actions';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection } from 'firebase/firestore';
 import { db, useCollection, useMemoFirebase } from '@/firebase';
 
 interface DataValidationFormProps {
@@ -424,5 +424,3 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     </div>
   );
 }
-
-    
