@@ -19,7 +19,7 @@ import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { addDoc, collection, doc, updateDoc, deleteDoc, increment, getDoc, query, where, writeBatch } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
@@ -118,9 +118,10 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = useCallback(async (file: File, clientId: string) => {
+    const storagePath = `${clientId}/${Date.now()}-${file.name}`;
+    const storageRef = ref(storage, storagePath);
+
     try {
-        const storagePath = `${clientId}/${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, file);
 
         const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
@@ -133,19 +134,35 @@ export default function MyDocumentsPage() {
             auditTrail: addAuditEvent([], 'Document téléversé'),
         };
         
-        await addDoc(collection(db, 'documents'), newDocData);
-        await updateDoc(doc(db, "clients", clientId), { newDocuments: increment(1) });
-        
-        toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
+        const documentsCollection = collection(db, 'documents');
+
+        addDoc(documentsCollection, newDocData)
+          .then(() => {
+              updateDoc(doc(db, "clients", clientId), { newDocuments: increment(1) });
+              toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
+          })
+          .catch((error) => {
+              console.error(`Error adding document ${file.name}:`, error);
+              const permissionError = new FirestorePermissionError({
+                  path: documentsCollection.path,
+                  operation: 'create',
+                  requestResourceData: newDocData,
+              });
+              errorEmitter.emit('permission-error', permissionError);
+              throw permissionError; // Rethrow to be caught by outer try/catch
+          });
+
         return { success: true };
 
     } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        toast({
-            variant: 'destructive',
-            title: `Échec du téléversement pour ${file.name}`,
-            description: "La sauvegarde des informations du document a échoué. Veuillez réessayer."
-        });
+        if (!(error instanceof FirestorePermissionError)) {
+             toast({
+                variant: 'destructive',
+                title: `Échec du téléversement pour ${file.name}`,
+                description: "Une erreur est survenue lors de l'envoi ou de la sauvegarde. Veuillez réessayer."
+            });
+        }
         return { success: false };
     }
 }, [storage, toast]);
