@@ -361,7 +361,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                             {document.status === 'error' && "Erreur de traitement"}
                         </h3>
                         <p>
-                            {document.status === 'pending' && "Cliquez sur 'Traiter' pour lancer l'extraction des données."}
+                            {document.status === 'pending' && "Le traitement automatique va bientôt démarrer."}
                             {document.status === 'error' && "Impossible d'extraire les données de ce document."}
                         </p>
                     </div>
