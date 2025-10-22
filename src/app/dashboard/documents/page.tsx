@@ -4,7 +4,6 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { DataValidationForm } from '@/components/data-validation-form';
-import { recognizeDocumentType } from '@/ai/flows/recognize-document-type';
 import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
@@ -144,101 +143,15 @@ export default function DocumentsPage() {
       }
   }
 
-
+  // This function is no longer needed on the client-side as processing is triggered automatically on the backend.
   const handleProcessDocument = async (docId: string) => {
-    const docToProcess = documents?.find(d => d.id === docId);
-    if (!docToProcess || docToProcess.status === 'processing' || !docToProcess.clientId) return;
-
-    setIsProcessing(true);
-    let trail = await addAuditEvent(docId, 'Traitement IA initié');
-    await updateDoc(doc(db, 'documents', docId), { status: 'processing', auditTrail: trail });
-    
-    try {
-      let docWithDataUrl = { ...docToProcess };
-      
-      const storageRef = ref(storage, docToProcess.storagePath);
-      const downloadUrl = await getDownloadURL(storageRef);
-      
-      let tempFile;
-      let dataUrl: string | undefined;
-      try {
-          const response = await fetch(downloadUrl);
-          const blob = await response.blob();
-          tempFile = new File([blob], docToProcess.name, { type: blob.type });
-          dataUrl = await fileToDataUri(tempFile);
-      } catch(fetchError) {
-          console.error("CORS error fetching file for AI processing:", fetchError);
-          toast({
-            variant: "destructive",
-            title: "Erreur de CORS",
-            description: "Impossible de lire le fichier pour l'IA. Veuillez suivre les instructions du README pour configurer les permissions CORS de votre bucket Storage."
-          });
-          throw fetchError;
-      }
-      docWithDataUrl.dataUrl = dataUrl;
-
-      const recognition = await recognizeDocumentType({ documentDataUri: docWithDataUrl.dataUrl! });
-      trail = await addAuditEvent(docId, `Type reconnu: ${recognition.documentType} (Confiance: ${Math.round(recognition.confidence * 100)}%)`);
-      
-      const extracted = await extractData({
-        documentDataUri: docWithDataUrl.dataUrl!,
-        documentType: recognition.documentType,
-        clientId: docWithDataUrl.clientId
-      });
-
-      trail = await addAuditEvent(docId, 'Données extraites par IA');
-
-      let finalUpdates: Partial<Document> = {
-          status: 'reviewing',
-          extractedData: extracted,
-          type: recognition.documentType,
-          confidence: recognition.confidence,
-          auditTrail: trail
-      };
-
-      if (automationSettings.isEnabled && recognition.documentType !== 'bank statement') {
-          trail = await addAuditEvent(docId, 'Validation automatique initiée');
-          const validation = await validateExtraction({ documentDataUri: docWithDataUrl.dataUrl!, extractedData: extracted });
-          
-          if (validation.isConfident && validation.confidenceScore >= automationSettings.confidenceThreshold) {
-              trail = await addAuditEvent(docId, `Validation IA réussie (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Document auto-approuvé.`);
-              finalUpdates.status = 'approved';
-              toast({ title: "Document auto-approuvé", description: `${docToProcess.name} a été traité et approuvé automatiquement.` });
-              createNotification({ ...docToProcess, ...finalUpdates }, 'a été approuvé automatiquement.');
-              
-              const client = clients?.find(c => c.id === docToProcess.clientId);
-              if (client) {
-                  await createInvoiceForDocument(client, docId);
-                   await updateDoc(doc(db, 'clients', client.id), { newDocuments: increment(-1) });
-              }
-
-              if (automationSettings.autoSend) {
-                await sendDocumentToCegid(docId, 'Système (Auto-envoi)');
-              }
-
-          } else {
-              trail = await addAuditEvent(docId, `Validation IA requiert une revue (Confiance: ${Math.round(validation.confidenceScore * 100)}%). Raison: ${validation.mismatchReason || 'N/A'}`);
-              toast({ title: "Traitement terminé", description: `Données extraites de ${docToProcess.name}. Prêt pour examen.` });
-              createNotification({ ...docToProcess, ...finalUpdates }, 'est prêt pour examen.');
-          }
-      } else {
-         toast({ title: "Traitement terminé", description: `Données extraites de ${docToProcess.name}. Prêt pour examen.` });
-         createNotification({ ...docToProcess, ...finalUpdates }, 'est prêt pour examen.');
-      }
-      
-      await updateDoc(doc(db, 'documents', docId), finalUpdates as any);
-
-    } catch (error) {
-      console.error("Error processing document:", error);
-      trail = await addAuditEvent(docId, 'Erreur de traitement IA');
-      await updateDoc(doc(db, 'documents', docId), { status: 'error', auditTrail: trail });
-      if (!(error as Error).message.includes('CORS')) {
-          toast({ variant: "destructive", title: "Le traitement a échoué", description: `Impossible de traiter ${docToProcess.name}.` });
-      }
-      createNotification({ ...docToProcess, status: 'error' }, 'a échoué lors du traitement.');
-    } finally {
-      setIsProcessing(false);
-    }
+    toast({
+        title: "Retraitement demandé",
+        description: "Une demande de retraitement a été envoyée au serveur."
+    });
+    // In a real scenario, you might update a field on the document to trigger a re-processing flow on the backend.
+    // For example: await updateDoc(doc(db, 'documents', docId), { status: 'pending', reprocess: true });
+    await updateDoc(doc(db, 'documents', docId), { status: 'pending' });
   };
   
   const handleUpdateDocumentData = async (docId: string, updatedData: ExtractDataOutput) => {
@@ -652,7 +565,7 @@ export default function DocumentsPage() {
                                             <Play className="h-4 w-4" />
                                           </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent><p>Lancer le traitement</p></TooltipContent>
+                                        <TooltipContent><p>Relancer le traitement</p></TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
                                   ) : (

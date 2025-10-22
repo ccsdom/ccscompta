@@ -1,17 +1,11 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
-    // Les fichiers sont stockés dans des dossiers nommés d'après l'UID du client.
-    // e.g., gs://<votre-bucket>/<userId>/document.pdf
-
     match /{userId}/{allPaths=**} {
-      // N'importe quel utilisateur authentifié peut lire les fichiers.
+      // Any authenticated user can read any file.
       allow read: if request.auth != null;
-      
-      // Seul le propriétaire du dossier (l'utilisateur dont l'UID correspond au nom du dossier)
-      // peut écrire, mettre à jour ou supprimer des fichiers dans son dossier.
-      allow write, delete: if request.auth != null && request.auth.uid == userId;
+      // Only the file owner can write (create, update, delete).
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
