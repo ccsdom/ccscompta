@@ -11,7 +11,7 @@ import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flo
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound } from "lucide-react";
-import { useAuth } from "@/firebase";
+import { useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
 
@@ -50,7 +50,22 @@ export default function NewClientPage() {
             
             const functions = getFunctions(getApp());
             const createUserFunc = httpsCallable(functions, 'createUserWithRole');
-            const result = await createUserFunc(data);
+            const result = await createUserFunc(data)
+                .catch((error) => {
+                    // This is where we catch potential permission errors from the callable function
+                    // even though the rules check is on the client. It's a good fallback.
+                    if (error.code === 'permission-denied' || error.message.includes('permission-denied')) {
+                        const permissionError = new FirestorePermissionError({
+                            path: 'clients/{newUserId}',
+                            operation: 'create',
+                            requestResourceData: data,
+                        });
+                        errorEmitter.emit('permission-error', permissionError);
+                    }
+                    // re-throw other errors
+                    throw error;
+                });
+
             const resultData = result.data as { success: boolean; message: string; };
 
              if (!resultData.success) {
