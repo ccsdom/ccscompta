@@ -57,6 +57,9 @@ const https_1 = require("firebase-functions/v2/https");
 const firestore_2 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
 const storage_1 = require("firebase-admin/storage");
+const v2_1 = require("firebase-functions/v2");
+// Set the region for all functions in this file
+(0, v2_1.setGlobalOptions)({ region: 'europe-west9' });
 // Initialize the Firebase Admin SDK.
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();

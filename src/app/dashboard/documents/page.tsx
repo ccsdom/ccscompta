@@ -143,14 +143,13 @@ export default function DocumentsPage() {
       }
   }
 
-  // This function is no longer needed on the client-side as processing is triggered automatically on the backend.
-  const handleProcessDocument = async (docId: string) => {
+  const handleReprocessDocument = async (docId: string) => {
     toast({
         title: "Retraitement demandé",
         description: "Une demande de retraitement a été envoyée au serveur."
     });
-    // In a real scenario, you might update a field on the document to trigger a re-processing flow on the backend.
-    // For example: await updateDoc(doc(db, 'documents', docId), { status: 'pending', reprocess: true });
+    // This triggers the `onDocumentCreated` function in the backend again by changing the status to 'pending'.
+    // A more robust solution might be a specific 'reprocess' field and a dedicated `onDocumentUpdated` function.
     await updateDoc(doc(db, 'documents', docId), { status: 'pending' });
   };
   
@@ -474,7 +473,16 @@ export default function DocumentsPage() {
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom avant</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
             <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Pivoter</p></TooltipContent></Tooltip>
-            {activeDocument?.id && <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(activeDocument.id)} disabled={isProcessing}><RefreshCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Relancer le traitement</p></TooltipContent></Tooltip>}
+            {activeDocument?.id && (activeDocument.status === 'pending' || activeDocument.status === 'error') && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleReprocessDocument(activeDocument.id)} disabled={isProcessing}>
+                    <RefreshCw className="h-4 w-4"/>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Relancer le traitement</p></TooltipContent>
+              </Tooltip>
+            )}
         </TooltipProvider>
     </div>
   );
@@ -557,20 +565,16 @@ export default function DocumentsPage() {
                               </div>
 
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                {doc.status === 'pending' || doc.status === 'error' ? (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleProcessDocument(doc.id)}>
-                                            <Play className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent><p>Relancer le traitement</p></TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  ) : (
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                  )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSetActiveDocument(doc)}>
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Voir le détail</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </div>
                             </div>
                           ))}
@@ -646,7 +650,7 @@ export default function DocumentsPage() {
                     key={activeDocument.id}
                     document={activeDocument}
                     onUpdate={handleUpdateDocumentData}
-                    isLoading={isProcessing}
+                    isLoading={isProcessing || activeDocument.status === 'processing'}
                     onAddComment={handleAddComment}
                     onUpdateDocumentInList={updateLocalDocument}
                 />
@@ -722,4 +726,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
