@@ -11,8 +11,7 @@
  * @returns {Promise<{success: boolean, rules: string}>} An object containing the success status and the recommended Firestore rules.
  */
 export async function configureFirestoreSecurityRules(): Promise<{success: boolean, rules: string}> {
-  const rules = `
-rules_version = '2';
+  const rules = `rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -80,8 +79,7 @@ service cloud.firestore {
         allow read, list, create, update, delete: if isStaff();
     }
   }
-}
-  `.trim();
+}`;
 
   return {
     success: true,
@@ -96,8 +94,7 @@ service cloud.firestore {
  * @returns {Promise<{success: boolean, rules: string}>} An object containing the success status and the recommended Storage rules.
  */
 export async function configureStorageSecurityRules(): Promise<{success: boolean, rules: string}> {
-  const rules = `
-rules_version = '2';
+  const rules = `rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -109,8 +106,7 @@ service firebase.storage {
       allow read, write, delete: if request.auth != null && request.auth.uid == clientId;
     }
   }
-}
-  `.trim();
+}`;
 
   return {
     success: true,
