@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCabinetById } from '@/ai/flows/cabinet-actions';
-import { getClients } from '@/ai/flows/client-actions';
+import { getClientsForServer } from '@/ai/flows/client-actions';
 import type { Cabinet, Client } from '@/lib/types';
 import { PlusCircle, Users, Briefcase, Building } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,7 +66,7 @@ export default function ManageCabinetPage() {
                 try {
                     const [cabinetData, usersData] = await Promise.all([
                         getCabinetById(params.id),
-                        getClients(params.id),
+                        getClientsForServer(params.id),
                     ]);
                     setCabinet(cabinetData);
                     setUsers(usersData);
@@ -144,3 +144,5 @@ export default function ManageCabinetPage() {
         </div>
     )
 }
+
+    

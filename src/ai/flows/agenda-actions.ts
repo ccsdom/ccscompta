@@ -1,7 +1,8 @@
+
 'use server';
 
 import type { AgendaEvent } from '@/lib/types';
-import { getClients } from './client-actions';
+import { getClientsForServer } from './client-actions';
 import { getYear, getMonth, set, addMonths, lastDayOfMonth } from 'date-fns';
 
 const generateTvaEvents = (client: { id: string; name: string }, currentYear: number): AgendaEvent[] => {
@@ -49,7 +50,7 @@ const generateBilanEvent = (client: { id: string; name: string; fiscalYearEndDat
 
 
 export async function getAgendaEvents(year?: number, month?: number): Promise<AgendaEvent[]> {
-    const clients = await getClients();
+    const clients = await getClientsForServer();
     const allEvents: AgendaEvent[] = [];
     
     const targetDate = new Date();
@@ -83,3 +84,5 @@ export async function getAgendaEvents(year?: number, month?: number): Promise<Ag
     
     return allEvents;
 }
+
+    

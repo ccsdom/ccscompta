@@ -24,7 +24,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Invoice, Client } from '@/lib/types';
-import { getClients } from '@/ai/flows/client-actions';
 import { getInvoices, updateInvoice } from '@/ai/flows/invoice-actions';
 import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
@@ -32,13 +31,16 @@ import 'jspdf-autotable';
 import Papa from 'papaparse';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 export default function BillingPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+    const [userRole, setUserRole] = useState<string | null>(null);
 
     // Filters state
     const [clientFilter, setClientFilter] = useState('all');
@@ -46,15 +48,27 @@ export default function BillingPage() {
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
 
+    useEffect(() => {
+        const role = localStorage.getItem('userRole');
+        setUserRole(role);
+    }, []);
+
+    const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
+
+    const clientsQuery = useMemoFirebase(() => {
+        if (isStaff) {
+            return query(collection(db, 'clients'));
+        }
+        return null;
+    }, [isStaff]);
+
+    const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+
      useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [clientsData, invoicesData] = await Promise.all([
-                    getClients(),
-                    getInvoices()
-                ]);
-                setClients(clientsData);
+                const invoicesData = await getInvoices();
                 setInvoices(invoicesData);
             } catch(e) {
                  toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les données de facturation.' });
@@ -186,7 +200,7 @@ export default function BillingPage() {
 
     const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
 
-     if (loading) {
+     if (loading || isLoadingClients) {
         return (
             <div className="space-y-6">
                 <div>
@@ -217,15 +231,17 @@ export default function BillingPage() {
                             <CardDescription>Filtrez et gérez les factures de vos clients.</CardDescription>
                         </div>
                          <div className="flex flex-wrap items-center gap-4">
-                             <Select value={clientFilter} onValueChange={setClientFilter}>
-                                <SelectTrigger className="w-full sm:w-auto min-w-[160px]">
-                                    <SelectValue placeholder="Client" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les clients</SelectItem>
-                                    {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                             {isStaff && (
+                                <Select value={clientFilter} onValueChange={setClientFilter}>
+                                    <SelectTrigger className="w-full sm:w-auto min-w-[160px]">
+                                        <SelectValue placeholder="Client" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tous les clients</SelectItem>
+                                        {(clients || []).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                             )}
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
                                 <SelectTrigger className="w-full sm:w-auto min-w-[140px]">
                                     <SelectValue placeholder="Statut" />
@@ -374,3 +390,5 @@ export default function BillingPage() {
         </div>
     )
 }
+
+    
