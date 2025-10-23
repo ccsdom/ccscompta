@@ -12,7 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { db } from "@/firebase";
@@ -41,16 +41,24 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     const router = useRouter();
     const [userRole, setUserRole] = useState<string | null>(null);
 
-    const accountantsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'accountant')), []);
-    const { data: accountants } = useCollection<Client>(accountantsQuery);
-
-    const cabinetsQuery = useMemoFirebase(() => query(collection(db, 'cabinets')), []);
-    const { data: cabinets } = useCollection<Cabinet>(cabinetsQuery);
-
-
     useEffect(() => {
         setUserRole(localStorage.getItem('userRole'));
     }, []);
+
+    const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
+
+    const accountantsQuery = useMemoFirebase(() => {
+        // Only fetch accountants if the user is a staff member
+        if (!isStaff) return null;
+        return query(collection(db, 'clients'), where('role', '==', 'accountant'));
+    }, [isStaff]);
+    const { data: accountants } = useCollection<Client>(accountantsQuery);
+
+    const cabinetsQuery = useMemoFirebase(() => {
+        if (userRole !== 'admin') return null;
+        return query(collection(db, 'cabinets'));
+    }, [userRole]);
+    const { data: cabinets } = useCollection<Cabinet>(cabinetsQuery);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -90,7 +98,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                 render={({ field }) => (
                                     <FormItem>
                                     <FormLabel>Rôle de l'utilisateur</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!isStaff}>
                                         <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Sélectionner un rôle" />
@@ -132,7 +140,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                     <Input type="email" placeholder="contact@entreprise.com" {...field} />
                                 </FormControl>
                                  <FormDescription>
-                                    Cette adresse sera utilisée pour la connexion de l'utilisateur.
+                                    {!initialData?.email && "Cette adresse sera utilisée pour la connexion de l'utilisateur."}
                                 </FormDescription>
                                 <FormMessage />
                                 </FormItem>
@@ -168,7 +176,9 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                                 />
                         </div>
                         
-                        <p className="text-sm text-muted-foreground pt-2">Le mot de passe initial pour tous les nouveaux utilisateurs est "password". Ils seront invités à le changer.</p>
+                        {!initialData?.email && (
+                            <p className="text-sm text-muted-foreground pt-2">Le mot de passe initial pour tous les nouveaux utilisateurs est "password". Ils seront invités à le changer.</p>
+                        )}
 
                         {selectedRole === 'client' && (
                             <>
@@ -220,62 +230,64 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                         )}
 
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                             <FormField
-                                    control={form.control}
-                                    name="assignedAccountantId"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Comptable Attribué</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Sélectionner un comptable" />
-                                            </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="unassigned">Non attribué</SelectItem>
-                                                {(accountants || []).map((acc) => (
-                                                    <SelectItem key={acc.id} value={acc.id}>
-                                                        {acc.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                             {userRole === 'admin' && (
+                        {isStaff && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                  <FormField
                                         control={form.control}
-                                        name="cabinetId"
+                                        name="assignedAccountantId"
                                         render={({ field }) => (
                                             <FormItem>
-                                            <FormLabel>Cabinet</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormLabel>Comptable Attribué</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Sélectionner un cabinet" />
+                                                    <SelectValue placeholder="Sélectionner un comptable" />
                                                 </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {(cabinets || []).map((cab) => (
-                                                        <SelectItem key={cab.id} value={cab.id}>
-                                                            {cab.name}
+                                                    <SelectItem value="unassigned">Non attribué</SelectItem>
+                                                    {(accountants || []).map((acc) => (
+                                                        <SelectItem key={acc.id} value={acc.id}>
+                                                            {acc.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            <FormDescription>
-                                                Assigner cet utilisateur à un cabinet.
-                                            </FormDescription>
                                             <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                             )}
-                        </div>
+                                 {userRole === 'admin' && (
+                                     <FormField
+                                            control={form.control}
+                                            name="cabinetId"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Cabinet</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Sélectionner un cabinet" />
+                                                    </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {(cabinets || []).map((cab) => (
+                                                            <SelectItem key={cab.id} value={cab.id}>
+                                                                {cab.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormDescription>
+                                                    Assigner cet utilisateur à un cabinet.
+                                                </FormDescription>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                 )}
+                            </div>
+                        )}
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">
                         <Button variant="ghost" type="button" onClick={() => router.push('/dashboard/clients')}>Annuler</Button>
@@ -286,5 +298,3 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
         </Form>
     );
 }
-
-    
