@@ -138,25 +138,38 @@ export default function MyDocumentsPage() {
 
         addDoc(documentsCollection, newDocData)
           .then(() => {
-              updateDoc(doc(db, "clients", clientId), { newDocuments: increment(1) });
-              toast({ title: `Document "${file.name}" envoyé`, description: "Il sera traité par nos systèmes dans quelques instants." });
+              const clientDocRef = doc(db, "clients", clientId);
+              const updatePayload = { newDocuments: increment(1) };
+              // Non-blocking update with contextual error handling
+              updateDoc(clientDocRef, updatePayload)
+                .catch((error) => {
+                    const permissionError = new FirestorePermissionError({
+                        path: clientDocRef.path,
+                        operation: 'update',
+                        requestResourceData: updatePayload,
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                });
           })
           .catch((error) => {
-              console.error(`Error adding document ${file.name}:`, error);
+              // This is the contextual error handler for the addDoc operation
               const permissionError = new FirestorePermissionError({
                   path: documentsCollection.path,
                   operation: 'create',
                   requestResourceData: newDocData,
               });
               errorEmitter.emit('permission-error', permissionError);
-              throw permissionError; // Rethrow to be caught by outer try/catch
+              // We re-throw it so the outer catch block can inform the user.
+              throw error; 
           });
 
         return { success: true };
 
     } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        if (!(error instanceof FirestorePermissionError)) {
+        // This catch block will now mostly handle non-permission errors, 
+        // or signal that a permission error was emitted.
+         if (!(error instanceof FirestorePermissionError)) {
              toast({
                 variant: 'destructive',
                 title: `Échec du téléversement pour ${file.name}`,
@@ -422,5 +435,3 @@ export default function MyDocumentsPage() {
     </div>
   );
 }
-
-    
