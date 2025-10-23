@@ -124,11 +124,13 @@ export function Sidebar({ currentRole }: { currentRole: Role }) {
   const { theme, setTheme } = useTheme();
 
   const getDashboardHomeLink = () => {
-    if (currentRole === 'client') return '/dashboard/my-documents';
-    if (currentRole === 'accountant') return '/dashboard/accountant';
-    if (currentRole === 'secretary') return '/dashboard/secretary';
-    if (currentRole === 'admin') return '/dashboard/admin';
-    return '/dashboard';
+    switch (currentRole) {
+        case 'admin': return '/dashboard/admin';
+        case 'accountant': return '/dashboard/accountant';
+        case 'secretary': return '/dashboard/secretary';
+        case 'client': return '/dashboard/my-documents';
+        default: return '/dashboard';
+    }
   }
 
   useEffect(() => {
