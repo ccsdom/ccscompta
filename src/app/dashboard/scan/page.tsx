@@ -8,9 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { addDocument } from '@/ai/flows/document-actions';
-import type { Document, AuditEvent, Notification } from '@/lib/types';
+import type { Document, AuditEvent, Notification, Client } from '@/lib/types';
 import { ref, uploadBytes } from "firebase/storage";
-import { useFirebase } from '@/firebase';
+import { useFirebase, db, useCollection, useMemoFirebase } from '@/firebase';
+import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
+import { getDoc, doc as getDocRef, collection } from 'firebase/firestore';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -24,6 +26,9 @@ export default function ScanPage() {
     const { toast } = useToast();
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const { storage } = useFirebase();
+
+    const clientsQuery = useMemoFirebase(() => collection(db, 'clients'), []);
+    const { data: clients } = useCollection<Client>(clientsQuery);
 
     useEffect(() => {
         const clientId = localStorage.getItem('selectedClientId');
@@ -82,8 +87,16 @@ export default function ScanPage() {
                 comments: [],
             };
             
-            await addDocument(docForDb);
+            const newDocId = await addDocument(docForDb);
             
+            // Now create an invoice for this new document
+            const client = clients?.find(c => c.id === clientId);
+            if (client) {
+                await createInvoiceForDocument(client, newDocId);
+            } else {
+                console.warn(`Could not find client with ID ${clientId} to create invoice.`);
+            }
+
             window.dispatchEvent(new Event('storage')); // Refresh lists
 
         } catch (error) {
@@ -91,7 +104,7 @@ export default function ScanPage() {
             // We re-throw the error to let the caller handle the UI feedback
             throw error;
         }
-    }, [storage, toast]);
+    }, [storage, toast, clients]);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {

@@ -7,7 +7,6 @@ import { DataValidationForm } from '@/components/data-validation-form';
 import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { validateExtraction } from '@/ai/flows/validate-extraction';
 import { useToast } from "@/hooks/use-toast";
-import { fileToDataUri } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
