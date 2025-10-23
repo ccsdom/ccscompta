@@ -48,7 +48,7 @@ export default function AdminDashboardPage() {
         const activityByClient = clients.map(client => {
             const clientDocsCount = documents.filter(d => d.clientId === client.id).length;
             return { name: client.name, docs: clientDocsCount };
-        }).filter(c => c.docs > 0).sort((a,b) => b.total - a.total).slice(0, 5);
+        }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
 
         return {
             totalFirms: 1, // Mock data for multi-firm view

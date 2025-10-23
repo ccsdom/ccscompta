@@ -290,7 +290,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
                         )}
                     </CardContent>
                     <CardFooter className="border-t p-6 flex justify-end gap-2">
-                        <Button variant="ghost" type="button" onClick={() => router.push('/dashboard/clients')}>Annuler</Button>
+                        <Button variant="ghost" type="button" onClick={() => router.back()}>Annuler</Button>
                         <Button type="submit" disabled={isSubmitting}>Enregistrer</Button>
                     </CardFooter>
                 </Card>
