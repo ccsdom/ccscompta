@@ -1,4 +1,3 @@
-
 'use server';
 
 import { db } from '@/lib/firebase-server';
@@ -28,5 +27,3 @@ export async function getClientsForServer(cabinetId?: string): Promise<Client[]>
         return [];
     }
 }
-
-    

@@ -18,11 +18,12 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/firebase';
-import { updateClient } from "@/ai/flows/client-actions";
 import { useRouter } from "next/navigation";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
 import { STORAGE_BUCKET } from "@/firebase/config";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/firebase";
 
 
 export default function SettingsPage() {
@@ -77,17 +78,28 @@ export default function SettingsPage() {
         return () => unsubscribe();
     }, [clientAuth]);
 
-    const handleProfileSave = (e: React.FormEvent) => {
+    const handleProfileSave = async (e: React.FormEvent) => {
         e.preventDefault();
         localStorage.setItem('userName', userName);
         localStorage.setItem('userEmail', userEmail);
         if (userUid) {
-            updateClient({ id: userUid, updates: { name: userName, email: userEmail } });
+            try {
+                await updateDoc(doc(db, "clients", userUid), {
+                    name: userName,
+                    email: userEmail,
+                });
+                toast({
+                    title: "Profil enregistré",
+                    description: "Vos informations ont été mises à jour.",
+                });
+            } catch (error) {
+                 toast({
+                    title: "Erreur",
+                    description: "Impossible de mettre à jour le profil.",
+                    variant: 'destructive'
+                });
+            }
         }
-        toast({
-            title: "Profil enregistré",
-            description: "Vos informations ont été mises à jour.",
-        });
         window.dispatchEvent(new Event('storage'));
     }
 
