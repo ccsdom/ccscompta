@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
-import type { Document } from '@/lib/types';
+import type { Document, Client } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as ShadcnTableFooter } from '@/components/ui/table';
-import { getDocuments } from '@/ai/flows/document-actions';
-import { getClients } from '@/ai/flows/client-actions';
-import type { Client } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -56,14 +56,25 @@ const defaultVisibleComponents = {
 }
 
 export default function AnalyticsPage() {
-    const [documents, setDocuments] = useState<Document[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
     const [visibleComponents, setVisibleComponents] = useState(defaultVisibleComponents);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const [clientName, setClientName] = useState('Vue d\'ensemble');
+
+    const documentsQuery = useMemoFirebase(() => {
+        if (!selectedClientId) return null;
+        return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
+    }, [selectedClientId]);
+    const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
+    
+    const clientQuery = useMemoFirebase(() => {
+        if (!selectedClientId) return null;
+        return query(collection(db, 'clients'), where('id', '==', selectedClientId));
+    }, [selectedClientId]);
+    const { data: clientData, isLoading: isLoadingClient } = useCollection<Client>(clientQuery);
+
 
     useEffect(() => {
         const loadState = async () => {
@@ -72,16 +83,10 @@ export default function AnalyticsPage() {
                 const storedClientId = localStorage.getItem('selectedClientId');
                 setSelectedClientId(storedClientId);
                 
-                 const allClients = await getClients();
-                 setClients(allClients);
-
                 if (storedClientId) {
-                    const docs = await getDocuments(storedClientId);
-                    setDocuments(docs);
-                    const client = allClients.find(c => c.id === storedClientId);
+                    const client = clientData?.find(c => c.id === storedClientId);
                     setClientName(client ? `Analyse pour ${client.name}` : 'Vue d\'ensemble');
                 } else {
-                    setDocuments([]);
                     setClientName('Veuillez sélectionner un client');
                 }
 
@@ -94,15 +99,14 @@ export default function AnalyticsPage() {
 
             } catch (e) {
                 console.error("Failed to load documents", e);
-                setDocuments([]);
             } finally {
-                setIsLoading(false);
+                setIsLoading(isLoadingClient || isLoadingDocuments);
             }
         }
         loadState();
         window.addEventListener('storage', loadState);
         return () => window.removeEventListener('storage', loadState);
-    }, [])
+    }, [clientData, isLoadingClient, isLoadingDocuments]);
 
      useEffect(() => {
         try {
@@ -113,6 +117,7 @@ export default function AnalyticsPage() {
     }, [visibleComponents]);
     
     const filteredDocuments = useMemo(() => {
+        if (!documents) return [];
         let docs = [...documents];
         
         if (searchCriteria) {
