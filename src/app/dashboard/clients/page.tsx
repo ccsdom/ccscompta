@@ -48,19 +48,43 @@ import { db } from '@/firebase';
 export default function ClientsPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const [userRole, setUserRole] = useState<string | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const role = localStorage.getItem('userRole');
+        const id = localStorage.getItem('selectedClientId');
+        setUserRole(role);
+        setUserId(id);
+    }, []);
+
+    const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
 
     // Queries to Firestore
-    const usersQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const usersQuery = useMemoFirebase(() => {
+        if (!userRole) return null; // Wait for role
+        if (isStaff) {
+             return query(collection(db, 'clients'));
+        }
+        if (userId) {
+            return query(collection(db, 'clients'), where('id', '==', userId));
+        }
+        return null;
+    }, [isStaff, userRole, userId]);
+
     const { data: allUsers, isLoading: isLoadingUsers } = useCollection<Client>(usersQuery);
 
-    const accountantsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'accountant')), []);
+    const accountantsQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'clients'), where('role', '==', 'accountant'));
+    }, [isStaff]);
     const { data: accountants, isLoading: isLoadingAccountants } = useCollection<Client>(accountantsQuery);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [userToDelete, setUserToDelete] = useState<Client | null>(null);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     
-    const loading = isLoadingUsers || isLoadingAccountants;
+    const loading = isLoadingUsers || (isStaff && isLoadingAccountants);
 
     const { filteredClients, filteredTeam } = useMemo(() => {
         const users = allUsers || [];
@@ -261,6 +285,32 @@ export default function ClientsPage() {
             </Button>
         </div>
     )
+    
+    if (!isStaff && allUsers?.length === 1) {
+        const client = allUsers[0];
+        return (
+             <div>
+                <h1 className="text-3xl font-bold tracking-tight mb-6">Mon Profil</h1>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>{client.name}</CardTitle>
+                        <CardDescription>Vos informations personnelles.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p><strong>Email:</strong> {client.email}</p>
+                        <p><strong>SIRET:</strong> {client.siret || 'Non renseigné'}</p>
+                        <p><strong>Représentant légal:</strong> {client.legalRepresentative || 'Non renseigné'}</p>
+                        <p><strong>Statut:</strong> {getStatusBadge(client.status)}</p>
+                    </CardContent>
+                    <CardFooter>
+                         <Button onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>
+                            <Edit className="mr-2 h-4 w-4" /> Modifier mes informations
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
