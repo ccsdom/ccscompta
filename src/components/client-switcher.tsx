@@ -34,35 +34,37 @@ export function ClientSwitcher() {
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
     setUserRole(role);
+    setIsMounted(true);
   }, []);
 
+  const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
+
   const clientsQuery = useMemoFirebase(() => {
-    // Only fetch the list of clients if the user is a staff member.
-    // A 'client' role should not have permission to list all other clients.
-    if (userRole && ['admin', 'accountant', 'secretary'].includes(userRole)) {
+    // CRITICAL: Only create a query if the user is confirmed to be staff.
+    // If isStaff is false or null, this returns null, preventing any query execution.
+    if (isStaff) {
       return query(collection(db, 'clients'), where('role', '==', 'client'));
     }
-    return null; // For 'client' role, return null to prevent the query
-  }, [userRole]);
+    return null;
+  }, [isStaff]);
   
-  const { data: clientsData } = useCollection<Client>(clientsQuery);
+  const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
   const clients: PopoverClient[] = useMemo(() => (clientsData || []).map(c => ({ value: c.id, label: c.name })), [clientsData]);
 
   useEffect(() => {
     const storedClientId = localStorage.getItem('selectedClientId');
-    if (storedClientId && (clients.length === 0 || clients.some(c => c.value === storedClientId))) {
+    if (storedClientId) {
       setSelectedValue(storedClientId);
-    } else if (clients.length > 0 && !storedClientId) {
-      setSelectedValue(null);
     } else {
-       setSelectedValue(null);
+      setSelectedValue(null);
     }
-  }, [clientsData, clients]);
+  }, [clientsData]);
 
 
   useEffect(() => {
@@ -91,6 +93,30 @@ export function ClientSwitcher() {
 
   const selectedClient = clients.find(c => c.value === selectedValue);
 
+  // Do not render anything until the role is determined on the client-side
+  if (!isMounted) {
+    return <Button variant="outline" className="w-full justify-between" disabled />;
+  }
+  
+  // If the user is a client, disable the switcher completely.
+  if (userRole === 'client') {
+      const clientName = localStorage.getItem('userName');
+      return (
+        <Button variant="outline" role="combobox" className="w-full justify-between" disabled>
+            <div className="flex items-center gap-2 overflow-hidden">
+                <Avatar className="h-6 w-6">
+                    <AvatarFallback>
+                        {clientName ? clientName.charAt(0) : <Building className="h-4 w-4"/>}
+                    </AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-sm truncate">
+                    {clientName || "Mon Espace"}
+                </span>
+            </div>
+        </Button>
+      );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -99,7 +125,7 @@ export function ClientSwitcher() {
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
-          disabled={userRole === 'client'}
+          disabled={isLoadingClients}
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-6 w-6">
@@ -114,7 +140,7 @@ export function ClientSwitcher() {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[224px] p-0">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
           <CommandInput placeholder="Rechercher un client..." />
           <CommandList>

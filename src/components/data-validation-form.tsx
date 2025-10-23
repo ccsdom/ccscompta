@@ -20,7 +20,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { sendDocumentToCegid } from '@/ai/flows/document-actions';
-import { doc, getDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where } from 'firebase/firestore';
 import { db, useCollection, useMemoFirebase } from '@/firebase';
 
 interface DataValidationFormProps {
@@ -272,7 +272,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
 
   const documentsQuery = useMemoFirebase(() => {
     if (!document?.clientId) return null;
-    return db ? collection(db, 'documents') : null;
+    return query(collection(db, 'documents'), where('clientId', '==', document.clientId));
   }, [document?.clientId]);
   const { data: allDocs } = useCollection<Document>(documentsQuery);
 
