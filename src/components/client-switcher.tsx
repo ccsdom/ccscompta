@@ -35,20 +35,29 @@ export function ClientSwitcher() {
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients'), where('role', '==', 'client')), []);
-  const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+  }, []);
+
+  const clientsQuery = useMemoFirebase(() => {
+    // Only fetch the list of clients if the user is a staff member.
+    // A 'client' role should not have permission to list all other clients.
+    if (userRole && ['admin', 'accountant', 'secretary'].includes(userRole)) {
+      return query(collection(db, 'clients'), where('role', '==', 'client'));
+    }
+    return null; // For 'client' role, return null to prevent the query
+  }, [userRole]);
+  
+  const { data: clientsData } = useCollection<Client>(clientsQuery);
   
   const clients: PopoverClient[] = useMemo(() => (clientsData || []).map(c => ({ value: c.id, label: c.name })), [clientsData]);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    setUserRole(role);
     const storedClientId = localStorage.getItem('selectedClientId');
     if (storedClientId && (clients.length === 0 || clients.some(c => c.value === storedClientId))) {
       setSelectedValue(storedClientId);
     } else if (clients.length > 0 && !storedClientId) {
-      // If no client is selected but we have clients, maybe default to the first one?
-      // For now, let's just ensure it's null if not valid.
       setSelectedValue(null);
     } else {
        setSelectedValue(null);
