@@ -2,8 +2,15 @@
 'use server';
 
 import type { AgendaEvent } from '@/lib/types';
-import { getClientsForServer } from './client-actions';
+import { db } from '@/lib/firebase-server';
+import { collection, getDocs } from 'firebase/firestore';
+import type { Client } from '@/lib/types';
 import { getYear, getMonth, set, addMonths, lastDayOfMonth } from 'date-fns';
+
+async function getClientsForServer(): Promise<Client[]> {
+    const snapshot = await getDocs(collection(db, 'clients'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+}
 
 const generateTvaEvents = (client: { id: string; name: string }, currentYear: number): AgendaEvent[] => {
     const events: AgendaEvent[] = [];
@@ -22,7 +29,7 @@ const generateTvaEvents = (client: { id: string; name: string }, currentYear: nu
     return events;
 }
 
-const generateBilanEvent = (client: { id: string; name: string; fiscalYearEndDate: string }, currentYear: number): AgendaEvent | null => {
+const generateBilanEvent = (client: { id: string; name: string; fiscalYearEndDate?: string }, currentYear: number): AgendaEvent | null => {
     if (!client.fiscalYearEndDate) return null;
     
     try {
@@ -84,5 +91,3 @@ export async function getAgendaEvents(year?: number, month?: number): Promise<Ag
     
     return allEvents;
 }
-
-    

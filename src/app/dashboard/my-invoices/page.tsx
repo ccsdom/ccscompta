@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,32 +20,27 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
 import type { Invoice } from '@/lib/types';
-import { getInvoices, updateInvoice } from '@/ai/flows/invoice-actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 
 export default function MyInvoicesPage() {
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [clientId, setClientId] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
-        const fetchClientInvoices = async () => {
-            setIsLoading(true);
-            const clientId = localStorage.getItem('selectedClientId');
-            if (clientId) {
-                try {
-                    const allInvoices = await getInvoices();
-                    const clientInvoices = allInvoices.filter(inv => inv.clientId === clientId);
-                    setInvoices(clientInvoices);
-                } catch(e) {
-                    toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger vos factures.' });
-                }
-            }
-            setIsLoading(false);
-        }
-        fetchClientInvoices();
-    }, [toast])
+        const id = localStorage.getItem('selectedClientId');
+        setClientId(id);
+    }, []);
+
+    const invoicesQuery = useMemoFirebase(() => {
+        if (!clientId) return null;
+        return query(collection(db, 'invoices'), where('clientId', '==', clientId));
+    }, [clientId]);
+
+    const { data: invoices, isLoading } = useCollection<Invoice>(invoicesQuery);
 
     const getStatusBadge = (status: Invoice['status']) => {
         switch(status) {
@@ -57,14 +52,11 @@ export default function MyInvoicesPage() {
     }
     
     const handlePayment = async (invoiceId: string) => {
-        const updated = await updateInvoice(invoiceId, { status: 'paid' });
-        if(updated) {
-            setInvoices(prev => prev.map(inv => inv.id === invoiceId ? updated : inv));
-             toast({
-                title: "Paiement réussi !",
-                description: "Votre facture a été marquée comme payée. Merci.",
-            });
-        }
+        await updateDoc(doc(db, 'invoices', invoiceId), { status: 'paid' });
+        toast({
+            title: "Paiement réussi !",
+            description: "Votre facture a été marquée comme payée. Merci.",
+        });
     }
 
      if (isLoading) {
@@ -109,7 +101,7 @@ export default function MyInvoicesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {invoices.length > 0 ? invoices.map(invoice => (
+                            {invoices && invoices.length > 0 ? invoices.map(invoice => (
                                 <TableRow key={invoice.id}>
                                     <TableCell className="font-medium">{invoice.number}</TableCell>
                                     <TableCell>{new Date(invoice.date).toLocaleDateString('fr-FR')}</TableCell>
@@ -164,5 +156,3 @@ export default function MyInvoicesPage() {
 
     
 }
-
-    
