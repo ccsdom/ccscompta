@@ -24,7 +24,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Invoice, Client } from '@/lib/types';
-import { getInvoices, updateInvoice } from '@/ai/flows/invoice-actions';
 import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -32,13 +31,11 @@ import Papa from 'papaparse';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 export default function BillingPage() {
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
     const { toast } = useToast();
     const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -61,25 +58,16 @@ export default function BillingPage() {
         }
         return null;
     }, [isStaff]);
-
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+    
+    const invoicesQuery = useMemoFirebase(() => query(collection(db, 'invoices')), []);
+    const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
 
-     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const invoicesData = await getInvoices();
-                setInvoices(invoicesData);
-            } catch(e) {
-                 toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de charger les données de facturation.' });
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchData();
-    }, [toast]);
+    const loading = isLoadingClients || isLoadingInvoices;
+
 
     const filteredInvoices = useMemo(() => {
+        if (!invoices) return [];
         return invoices.filter(invoice => {
             const invoiceDate = new Date(invoice.date);
             const start = startDateFilter ? new Date(startDateFilter) : null;
@@ -132,13 +120,9 @@ export default function BillingPage() {
 
     const handleBulkMarkAsPaid = async () => {
         const updates = selectedInvoiceIds.map(id => 
-            updateInvoice(id, { status: 'paid' })
+            updateDoc(doc(db, 'invoices', id), { status: 'paid' })
         );
         await Promise.all(updates);
-
-        setInvoices(prev => prev.map(inv => 
-            selectedInvoiceIds.includes(inv.id) ? { ...inv, status: 'paid' } : inv
-        ));
 
         toast({
             title: "Factures mises à jour",
@@ -148,13 +132,14 @@ export default function BillingPage() {
     }
 
     const handleBulkDownloadPDF = () => {
-        const doc = new jsPDF();
-        doc.text("Factures sélectionnées", 14, 16);
-        (doc as any).autoTable({
+        const docToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id)) || [];
+        if (docToExport.length === 0) return;
+        
+        const pdf = new jsPDF();
+        pdf.text("Factures sélectionnées", 14, 16);
+        (pdf as any).autoTable({
             head: [['Client', 'Numéro', 'Montant', 'Statut']],
-            body: invoices
-                .filter(inv => selectedInvoiceIds.includes(inv.id))
-                .map(inv => [
+            body: docToExport.map(inv => [
                     inv.clientName,
                     inv.number,
                     inv.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }),
@@ -162,13 +147,12 @@ export default function BillingPage() {
                 ]),
             startY: 20,
         });
-        doc.save(`export-factures-${new Date().toISOString().slice(0, 10)}.pdf`);
+        pdf.save(`export-factures-${new Date().toISOString().slice(0, 10)}.pdf`);
         toast({ title: 'Téléchargement lancé', description: 'Le PDF avec les factures sélectionnées est en cours de génération.' });
     };
 
     const handleBulkExportCSV = () => {
-        const dataToExport = invoices
-            .filter(inv => selectedInvoiceIds.includes(inv.id))
+        const dataToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id))
             .map(({ clientName, number, amount, status, date, dueDate }) => ({
                 Client: clientName,
                 Numero: number,
@@ -176,7 +160,10 @@ export default function BillingPage() {
                 Statut: status,
                 Date: date,
                 Echeance: dueDate,
-            }));
+            })) || [];
+        
+        if(dataToExport.length === 0) return;
+
         const csv = Papa.unparse(dataToExport);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
@@ -200,7 +187,7 @@ export default function BillingPage() {
 
     const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
 
-     if (loading || isLoadingClients) {
+     if (loading) {
         return (
             <div className="space-y-6">
                 <div>
@@ -390,5 +377,3 @@ export default function BillingPage() {
         </div>
     )
 }
-
-    

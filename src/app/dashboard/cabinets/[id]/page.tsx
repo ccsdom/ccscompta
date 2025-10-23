@@ -6,13 +6,15 @@ import { useParams, useRouter, notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getCabinetById } from '@/ai/flows/cabinet-actions';
-import { getClientsForServer } from '@/ai/flows/client-actions';
+import { getCabinetById, getCabinetUserCount } from '@/ai/flows/cabinet-actions';
 import type { Cabinet, Client } from '@/lib/types';
 import { PlusCircle, Users, Briefcase, Building } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 
 const getStatusBadge = (status: string) => {
@@ -56,36 +58,32 @@ export default function ManageCabinetPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
     const [cabinet, setCabinet] = useState<Cabinet | null>(null);
-    const [users, setUsers] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loadingCabinet, setLoadingCabinet] = useState(true);
+
+    const usersQuery = useMemoFirebase(() => {
+        if (!params.id) return null;
+        return query(collection(db, 'clients'), where('cabinetId', '==', params.id));
+    }, [params.id]);
+    const { data: users, isLoading: isLoadingUsers } = useCollection<Client>(usersQuery);
 
     useEffect(() => {
         if (params.id) {
-            const fetchData = async () => {
-                setLoading(true);
-                try {
-                    const [cabinetData, usersData] = await Promise.all([
-                        getCabinetById(params.id),
-                        getClientsForServer(params.id),
-                    ]);
-                    setCabinet(cabinetData);
-                    setUsers(usersData);
-                } catch(e) {
-                    console.error("Failed to fetch cabinet data", e);
-                } finally {
-                    setLoading(false);
-                }
+            const fetchCabinet = async () => {
+                setLoadingCabinet(true);
+                const cabinetData = await getCabinetById(params.id);
+                setCabinet(cabinetData);
+                setLoadingCabinet(false);
             };
-            fetchData();
+            fetchCabinet();
         }
     }, [params.id]);
 
     const { clients, team } = useMemo(() => ({
-        clients: users.filter(u => u.role === 'client'),
-        team: users.filter(u => u.role !== 'client'),
+        clients: users?.filter(u => u.role === 'client') || [],
+        team: users?.filter(u => u.role !== 'client') || [],
     }), [users]);
 
-    if (loading) {
+    if (loadingCabinet || isLoadingUsers) {
         return (
             <div className="space-y-6">
                 <Skeleton className="h-9 w-2/3" />
@@ -144,5 +142,3 @@ export default function ManageCabinetPage() {
         </div>
     )
 }
-
-    
