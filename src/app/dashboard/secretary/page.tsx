@@ -6,38 +6,24 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Users, FileUp, FileClock, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { Document } from '@/lib/types';
-import type { Client } from '@/lib/types';
-import { getClients } from '@/ai/flows/client-actions';
-import { getDocuments } from '@/ai/flows/document-actions';
+import type { Document, Client } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 export default function SecretaryDashboard() {
-    const [documents, setDocuments] = useState<Document[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-    useEffect(() => {
-        const loadState = async () => {
-            setLoading(true);
-            try {
-                const clientsData = await getClients();
-                setClients(clientsData);
-                // Fetch documents for all clients for the dashboard overview
-                const allDocsPromises = clientsData.map(c => getDocuments(c.id));
-                const allDocsArrays = await Promise.all(allDocsPromises);
-                const allDocs = allDocsArrays.flat();
-                setDocuments(allDocs);
-            } catch (error) {
-                console.error("Failed to load data", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadState();
-    }, []);
+    const documentsQuery = useMemoFirebase(() => query(collection(db, 'documents')), []);
+    const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
+
+    const loading = isLoadingClients || isLoadingDocuments;
 
     const dashboardData = useMemo(() => {
+        if (!documents || !clients) return null;
+
         const today = new Date();
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
@@ -68,7 +54,7 @@ export default function SecretaryDashboard() {
         };
     }, [documents, clients]);
 
-    if (loading) {
+    if (loading || !dashboardData) {
         return (
             <div className="space-y-6">
                 <div>
@@ -178,3 +164,5 @@ export default function SecretaryDashboard() {
         </div>
     );
 }
+
+    

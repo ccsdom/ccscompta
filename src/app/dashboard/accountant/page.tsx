@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,10 +8,10 @@ import { BarChart, Bar, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { Document, AuditEvent, Client } from '@/lib/types';
+import type { Document, Client } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 export default function AccountantDashboard() {
@@ -213,3 +214,5 @@ export default function AccountantDashboard() {
         </div>
     );
 }
+
+    

@@ -8,56 +8,31 @@ import { BarChart, Bar, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { Document } from '@/lib/types';
-import type { Client } from '@/lib/types';
-// Consider replacing these direct calls with a unified data fetching hook or service
-import { getClients } from '@/ai/flows/client-actions';
-import { getDocuments } from '@/ai/flows/document-actions';
+import type { Document, Client } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { db } from '@/firebase';
+
 
 export default function AdminDashboardPage() {
-    const [documents, setDocuments] = useState<Document[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const documentsQuery = useMemoFirebase(() => query(collection(db, 'documents')), []);
+    const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    // Use a single async function for data loading
-    useEffect(() => {
-        const loadGlobalState = async () => {
-            setLoading(true);
-            try {
-                // Potential performance improvement: Fetch clients and documents concurrently if possible
-                // This assumes getClients doesn't depend on the result of getDocuments for all clients.
-                // If the API supports fetching all documents across all clients in one call, that would be even better.
+    const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
+    
+    const loading = isLoadingDocuments || isLoadingClients;
 
-                // Example of concurrent fetching (if applicable):
-                // const [clientsData, allDocs] = await Promise.all([
-                //     getClients(),
-                //     getAllDocumentsAcrossClients() // Assuming such an API exists
-                // ]);
-
-                const clientsData = await getClients();
-                setClients(clientsData);
-                const allDocsPromises = clientsData.map(c => getDocuments(c.id));
-                // Use Promise.allSettled if individual client document fetches might fail without stopping the others
-                const allDocsArrays = await Promise.all(allDocsPromises);
-                const allDocs = allDocsArrays.flat();
-                setDocuments(allDocs);
-            } catch (error) {
-                console.error("Failed to load global data", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadGlobalState();
-    }, []);
 
     const dashboardData = useMemo(() => {
+        if (!documents || !clients) return null;
+
         const totalDocs = documents.length;
         const totalApprovedDocs = documents.filter(d => d.status === 'approved').length;
         
-        // Optimize client activity calculation by creating a document count map first
         const activityByClient = clients.map(client => {
- const clientDocsCount = documents.filter(d => d.clientId === client.id).length;
+            const clientDocsCount = documents.filter(d => d.clientId === client.id).length;
             return { name: client.name, docs: clientDocsCount };
         }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
 
@@ -70,7 +45,7 @@ export default function AdminDashboardPage() {
         };
     }, [documents, clients]);
 
-    if (loading) {
+    if (loading || !dashboardData) {
         return (
             <div className="space-y-6">
                 <div>
@@ -189,3 +164,5 @@ export default function AdminDashboardPage() {
         </div>
     );
 }
+
+    
