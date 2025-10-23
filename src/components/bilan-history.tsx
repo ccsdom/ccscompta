@@ -1,15 +1,17 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from "@/components/ui/button";
 import { Download, FileWarning, CheckCircle, Clock } from 'lucide-react';
-import { getBilansByClientId } from '@/ai/flows/document-actions';
 import type { Bilan } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 interface BilanHistoryProps {
   clientId: string;
@@ -29,20 +31,12 @@ const getStatusBadge = (status: Bilan['status']) => {
 };
 
 export function BilanHistory({ clientId }: BilanHistoryProps) {
-  const [bilans, setBilans] = useState<Bilan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBilans = async () => {
-      setIsLoading(true);
-      const data = await getBilansByClientId(clientId);
-      setBilans(data);
-      setIsLoading(false);
-    };
-    if (clientId) {
-        fetchBilans();
-    }
+  const bilansQuery = useMemoFirebase(() => {
+    if (!clientId) return null;
+    return query(collection(db, 'bilans'), where('clientId', '==', clientId));
   }, [clientId]);
+  const { data: bilans, isLoading } = useCollection<Bilan>(bilansQuery);
+
 
   return (
     <Card>
@@ -72,7 +66,7 @@ export function BilanHistory({ clientId }: BilanHistoryProps) {
                         <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                     </TableRow>
                 ))
-            ) : bilans.length > 0 ? (
+            ) : bilans && bilans.length > 0 ? (
               bilans.map((bilan) => (
                 <TableRow key={bilan.id}>
                   <TableCell className="font-medium">{bilan.year}</TableCell>
@@ -102,3 +96,5 @@ export function BilanHistory({ clientId }: BilanHistoryProps) {
     </Card>
   );
 }
+
+    

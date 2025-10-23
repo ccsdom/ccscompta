@@ -8,8 +8,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
 import type { Document } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
-import { getDocuments } from '@/ai/flows/document-actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { db } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
 const chartConfig = {
   total: {
@@ -32,7 +34,6 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export default function MyAnalyticsPage() {
-    const [documents, setDocuments] = useState<Document[]>([]);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -43,11 +44,9 @@ export default function MyAnalyticsPage() {
                 const storedClientId = localStorage.getItem('selectedClientId');
                 if (storedClientId) {
                     setSelectedClientId(storedClientId);
-                    const docs = await getDocuments(storedClientId);
-                    setDocuments(docs);
                 }
             } catch (e) {
-                console.error("Failed to load documents from local storage", e)
+                console.error("Failed to load client ID from local storage", e)
             } finally {
                 setIsLoading(false);
             }
@@ -55,28 +54,31 @@ export default function MyAnalyticsPage() {
         loadState();
         window.addEventListener('storage', loadState);
         return () => window.removeEventListener('storage', loadState);
-    }, [])
+    }, []);
 
-    const clientDocuments = useMemo(() => {
-        if (!selectedClientId) return [];
-        return documents.filter(d => d.clientId === selectedClientId);
-    }, [documents, selectedClientId]);
+    const documentsQuery = useMemoFirebase(() => {
+      if (!selectedClientId) return null;
+      return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
+    }, [selectedClientId]);
 
+    const { data: clientDocuments, isLoading: isLoadingDocs } = useCollection<Document>(documentsQuery);
 
     const analyticsData = useMemo(() => {
+        if (!clientDocuments) return null;
+
         const approvedDocs = clientDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
 
         if (approvedDocs.length === 0) {
             return null;
         }
 
-        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => a! + b!, 0) ?? 0), 0);
+        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
-            const date = new Date(doc.extractedData!.dates[0]!);
+            const date = new Date(doc.extractedData!.dates![0]!);
             const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
             if (!acc[month]) {
                 acc[month] = 0;
             }
@@ -100,7 +102,7 @@ export default function MyAnalyticsPage() {
              if (!acc[category]) {
                 acc[category] = 0;
             }
-            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
             return acc;
         }, {} as Record<string, number>);
 
@@ -112,7 +114,7 @@ export default function MyAnalyticsPage() {
 
         const expensesByVendor = approvedDocs.reduce((acc, doc) => {
             const vendor = doc.extractedData!.vendorNames![0]! || 'Inconnu';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
              if (!acc[vendor]) {
                 acc[vendor] = 0;
             }
@@ -126,7 +128,7 @@ export default function MyAnalyticsPage() {
 
         const spendByType = approvedDocs.reduce((acc, doc) => {
             const type = doc.type || 'other';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => a! + b!, 0);
+            const amount = doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
             if (!acc[type]) {
                 acc[type] = { total: 0, count: 0 };
             }
@@ -154,7 +156,7 @@ export default function MyAnalyticsPage() {
         };
     }, [clientDocuments]);
     
-  if (isLoading) {
+  if (isLoading || isLoadingDocs) {
       return (
           <div className="space-y-6">
               <div>
@@ -345,3 +347,5 @@ export default function MyAnalyticsPage() {
     </div>
   );
 }
+
+    

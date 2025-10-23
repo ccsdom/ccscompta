@@ -13,10 +13,24 @@ import { collection, query } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 export default function SecretaryDashboard() {
-    const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const [userRole, setUserRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        setUserRole(localStorage.getItem('userRole'));
+    }, []);
+
+    const isStaff = useMemo(() => userRole === 'secretary' || userRole === 'admin', [userRole]);
+
+    const clientsQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'clients'));
+    }, [isStaff]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
-    const documentsQuery = useMemoFirebase(() => query(collection(db, 'documents')), []);
+    const documentsQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'documents'));
+    }, [isStaff]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
     const loading = isLoadingClients || isLoadingDocuments;
@@ -53,6 +67,22 @@ export default function SecretaryDashboard() {
             recentActivities
         };
     }, [documents, clients]);
+
+    if (!isStaff) {
+         return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à ce tableau de bord.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
 
     if (loading || !dashboardData) {
         return (

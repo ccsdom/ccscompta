@@ -16,10 +16,24 @@ import { db } from '@/firebase';
 
 
 export default function AdminDashboardPage() {
-    const documentsQuery = useMemoFirebase(() => query(collection(db, 'documents')), []);
+    const [userRole, setUserRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        setUserRole(localStorage.getItem('userRole'));
+    }, []);
+    
+    const isStaff = useMemo(() => userRole === 'admin', [userRole]);
+
+    const documentsQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'documents'));
+    }, [isStaff]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+    const clientsQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'clients'));
+    }, [isStaff]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
     const loading = isLoadingDocuments || isLoadingClients;
@@ -34,7 +48,7 @@ export default function AdminDashboardPage() {
         const activityByClient = clients.map(client => {
             const clientDocsCount = documents.filter(d => d.clientId === client.id).length;
             return { name: client.name, docs: clientDocsCount };
-        }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
+        }).filter(c => c.docs > 0).sort((a,b) => b.total - a.total).slice(0, 5);
 
         return {
             totalFirms: 1, // Mock data for multi-firm view
@@ -44,6 +58,22 @@ export default function AdminDashboardPage() {
             activityByClient,
         };
     }, [documents, clients]);
+
+    if (!isStaff) {
+        return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <Network className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à ce tableau de bord.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
 
     if (loading || !dashboardData) {
         return (
