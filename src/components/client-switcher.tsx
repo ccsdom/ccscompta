@@ -37,6 +37,7 @@ export function ClientSwitcher() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    // This effect runs on the client-side to safely access localStorage
     const role = localStorage.getItem('userRole');
     setUserRole(role);
     setIsMounted(true);

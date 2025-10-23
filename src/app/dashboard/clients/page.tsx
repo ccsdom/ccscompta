@@ -41,7 +41,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { AiClientDialog } from '@/components/ai-client-dialog';
-import { useCollection, useMemoFirebase } from '@/firebase';
+import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, writeBatch, where } from 'firebase/firestore';
 import { db } from '@/firebase';
 
@@ -53,7 +53,7 @@ export default function ClientsPage() {
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
-        const id = localStorage.getItem('selectedClientId');
+        const id = localStorage.getItem('userUid'); // Use the UID for self-fetching
         setUserRole(role);
         setUserId(id);
     }, []);
@@ -61,18 +61,24 @@ export default function ClientsPage() {
     const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
 
     // Queries to Firestore
-    const usersQuery = useMemoFirebase(() => {
-        if (!userRole) return null; // Wait for role
-        if (isStaff) {
-             return query(collection(db, 'clients'));
-        }
-        if (userId) {
-            return query(collection(db, 'clients'), where('id', '==', userId));
-        }
-        return null;
-    }, [isStaff, userRole, userId]);
+    const staffUsersQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'clients'));
+    }, [isStaff]);
 
-    const { data: allUsers, isLoading: isLoadingUsers } = useCollection<Client>(usersQuery);
+    const clientUserQuery = useMemoFirebase(() => {
+        if (isStaff || !userId) return null;
+        return doc(db, 'clients', userId);
+    }, [isStaff, userId]);
+
+    const { data: allUsersData, isLoading: isLoadingStaffUsers } = useCollection<Client>(staffUsersQuery);
+    const { data: clientUserData, isLoading: isLoadingClientUser } = useDoc<Client>(clientUserQuery);
+
+    const allUsers = useMemo(() => {
+        if (isStaff) return allUsersData;
+        if (clientUserData) return [clientUserData];
+        return [];
+    }, [isStaff, allUsersData, clientUserData]);
 
     const accountantsQuery = useMemoFirebase(() => {
         if (!isStaff) return null;
@@ -84,7 +90,7 @@ export default function ClientsPage() {
     const [userToDelete, setUserToDelete] = useState<Client | null>(null);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     
-    const loading = isLoadingUsers || (isStaff && isLoadingAccountants);
+    const loading = isLoadingStaffUsers || isLoadingClientUser || (isStaff && isLoadingAccountants);
 
     const { filteredClients, filteredTeam } = useMemo(() => {
         const users = allUsers || [];
