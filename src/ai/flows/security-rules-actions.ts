@@ -36,7 +36,10 @@ service cloud.firestore {
 
     // --- User collection ('clients') ---
     match /clients/{userId} {
-      allow read, list: if isStaff() || isOwner(userId);
+      // Staff can list the entire collection.
+      allow list: if isStaff();
+      // Staff OR the specific user can read a single document.
+      allow read: if isStaff() || isOwner(userId);
       // Staff can create any user. A new user can create their own profile during signup.
       allow create: if isStaff() || request.auth.uid == userId;
       // Only an admin can delete a user.
