@@ -70,7 +70,7 @@ const groupDocumentsByMonth = (documents: Document[]) => {
 
 export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds, isLoading }: DocumentHistoryProps) {
 
-    const monthlyGroups = groupDocumentsByMonth(documents);
+    const monthlyGroups = groupDocumentsByMonth(documents || []);
     const sortedMonths = Object.keys(monthlyGroups).sort((a,b) => new Date(monthlyGroups[b][0].uploadDate).getTime() - new Date(monthlyGroups[a][0].uploadDate).getTime());
 
     if (isLoading) {
@@ -83,7 +83,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
         )
     }
 
-    if (documents.length === 0) {
+    if (!documents || documents.length === 0) {
         return (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 border rounded-lg border-dashed">
                 <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

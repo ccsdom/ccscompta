@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -71,9 +72,12 @@ export default function AnalyticsPage() {
     
     const clientQuery = useMemoFirebase(() => {
         if (!selectedClientId) return null;
-        return query(collection(db, 'clients'), where('id', '==', selectedClientId));
+        // This query will fetch a single document, but useCollection is for collections.
+        // It's better to fetch all clients once or use useDoc.
+        // For now, let's keep it simple and assume we have the clients data elsewhere or it's small.
+        return query(collection(db, 'clients'));
     }, [selectedClientId]);
-    const { data: clientData, isLoading: isLoadingClient } = useCollection<Client>(clientQuery);
+    const { data: allClients, isLoading: isLoadingAllClients } = useCollection<Client>(clientQuery);
 
 
     useEffect(() => {
@@ -83,10 +87,10 @@ export default function AnalyticsPage() {
                 const storedClientId = localStorage.getItem('selectedClientId');
                 setSelectedClientId(storedClientId);
                 
-                if (storedClientId) {
-                    const client = clientData?.find(c => c.id === storedClientId);
+                if (storedClientId && allClients) {
+                    const client = allClients.find(c => c.id === storedClientId);
                     setClientName(client ? `Analyse pour ${client.name}` : 'Vue d\'ensemble');
-                } else {
+                } else if (!storedClientId) {
                     setClientName('Veuillez sélectionner un client');
                 }
 
@@ -100,13 +104,13 @@ export default function AnalyticsPage() {
             } catch (e) {
                 console.error("Failed to load documents", e);
             } finally {
-                setIsLoading(isLoadingClient || isLoadingDocuments);
+                setIsLoading(isLoadingAllClients || isLoadingDocuments);
             }
         }
         loadState();
         window.addEventListener('storage', loadState);
         return () => window.removeEventListener('storage', loadState);
-    }, [clientData, isLoadingClient, isLoadingDocuments]);
+    }, [allClients, isLoadingAllClients, isLoadingDocuments]);
 
      useEffect(() => {
         try {
@@ -167,6 +171,7 @@ export default function AnalyticsPage() {
     }, [documents, searchQuery, searchCriteria]);
 
     const analyticsData = useMemo(() => {
+        if (!filteredDocuments) return null;
         const approvedDocs = filteredDocuments.filter(d => d.status === 'approved' && d.extractedData?.amounts?.[0] && d.extractedData?.dates?.[0]);
 
         if (approvedDocs.length === 0) {
@@ -302,6 +307,22 @@ export default function AnalyticsPage() {
                     <Skeleton className="h-80" />
                     <Skeleton className="h-80" />
                  </div>
+            </div>
+        )
+    }
+
+    if (!selectedClientId) {
+         return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <BarChartIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Aucun client sélectionné</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Veuillez sélectionner un client dans la barre de navigation pour afficher ses analyses.</p>
+                    </CardContent>
+                </Card>
             </div>
         )
     }
