@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from "react";
@@ -37,10 +36,24 @@ export function ClientSwitcher() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // This effect runs on the client-side to safely access localStorage
     const role = localStorage.getItem('userRole');
+    const storedClientId = localStorage.getItem('selectedClientId');
     setUserRole(role);
+    setSelectedValue(storedClientId);
     setIsMounted(true);
+
+    const handleStorageChange = () => {
+       const newRole = localStorage.getItem('userRole');
+       const newClientId = localStorage.getItem('selectedClientId');
+       setUserRole(newRole);
+       setSelectedValue(newClientId);
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
@@ -57,33 +70,6 @@ export function ClientSwitcher() {
   const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
   const clients: PopoverClient[] = useMemo(() => (clientsData || []).map(c => ({ value: c.id, label: c.name })), [clientsData]);
-
-  useEffect(() => {
-    const storedClientId = localStorage.getItem('selectedClientId');
-    if (storedClientId) {
-      setSelectedValue(storedClientId);
-    } else {
-      setSelectedValue(null);
-    }
-  }, [clientsData]);
-
-
-  useEffect(() => {
-    // This listener handles updates from other components
-    const handleStorageChange = () => {
-       const role = localStorage.getItem('userRole');
-       setUserRole(role);
-       const storedClientId = localStorage.getItem('selectedClientId');
-       setSelectedValue(storedClientId);
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-
-  }, []);
 
   const handleClientChange = (value: string) => {
       setSelectedValue(value);

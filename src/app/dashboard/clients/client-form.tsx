@@ -1,4 +1,3 @@
-
 'use client'
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -45,18 +44,22 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
         setUserRole(localStorage.getItem('userRole'));
     }, []);
 
-    const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
+    const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
 
     const accountantsQuery = useMemoFirebase(() => {
-        // Only fetch accountants if the user is a staff member
-        if (!isStaff) return null;
-        return query(collection(db, 'clients'), where('role', '==', 'accountant'));
+        // Only fetch accountants if the user is a staff member.
+        if (isStaff) {
+            return query(collection(db, 'clients'), where('role', '==', 'accountant'));
+        }
+        return null;
     }, [isStaff]);
     const { data: accountants } = useCollection<Client>(accountantsQuery);
 
     const cabinetsQuery = useMemoFirebase(() => {
-        if (userRole !== 'admin') return null;
-        return query(collection(db, 'cabinets'));
+        if (userRole === 'admin') {
+            return query(collection(db, 'cabinets'));
+        }
+        return null;
     }, [userRole]);
     const { data: cabinets } = useCollection<Cabinet>(cabinetsQuery);
 
