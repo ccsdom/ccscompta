@@ -12,6 +12,11 @@ import { ScrollArea } from './ui/scroll-area';
 import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { db } from '@/firebase';
+import type { Client } from '@/lib/types';
+
 
 type NavItem = {
     href: string;
@@ -23,7 +28,6 @@ const accountantNavItems: NavItem[] = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Tableau de bord' },
   { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
-  { href: '/dashboard/agenda', icon: CalendarDays, label: 'Agenda' },
   { href: '/dashboard/analytics', icon: BarChart, label: 'Analyse Détaillée' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Facturation' },
 ];
@@ -32,7 +36,6 @@ const secretaryNavItems: NavItem[] = [
     { href: '/dashboard/secretary', icon: LayoutDashboard, label: 'Tableau de bord' },
     { href: '/dashboard/clients', icon: Users, label: 'Gestion des clients' },
     { href: '/dashboard/documents', icon: FileText, label: 'Documents du client' },
-    { href: '/dashboard/agenda', icon: CalendarDays, label: 'Agenda' },
 ];
 
 const clientNavItems: NavItem[] = [
