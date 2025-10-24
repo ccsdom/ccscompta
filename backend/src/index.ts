@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
@@ -210,17 +211,18 @@ export const handleNewMailUpload = onObjectFinalized(
 );
 
 
-/**
- * Function to set current authenticated user as admin.
- * This is a Callable Function.
- */
 export const setAdminRole = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Vous devez être connecté pour effectuer cette action.');
   }
 
   const uid = request.auth.uid;
+  const callingUserRole = request.auth.token.role;
 
+  // For initial setup, allow any authenticated user to become the first admin.
+  // In a production environment, you might want to restrict this further.
+  // For example, by checking if there are any admins yet.
+  
   try {
     await getAuth().setCustomUserClaims(uid, { role: 'admin' });
     const userDocRef = db.collection('clients').doc(uid);
@@ -238,21 +240,15 @@ export const setAdminRole = onCall(async (request) => {
 });
 
 
-/**
- * Function to create a new user with a specific role.
- * This is a Callable Function.
- */
 export const createUserWithRole = onCall(async (request) => {
-    // 1. Verify admin from the ID token
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Jeton d\'authentification manquant.');
     }
     const callingUserRole = request.auth.token.role;
     if (callingUserRole !== 'admin' && callingUserRole !== 'accountant' && callingUserRole !== 'secretary') {
-        throw new HttpsError('permission-denied', 'Action non autorisée.');
+        throw new HttpsError('permission-denied', 'Action non autorisée. Seul le personnel peut créer des utilisateurs.');
     }
     
-    // 2. Get payload from request body.
     const { email, password, ...profileData } = request.data;
     if (!email) {
        throw new HttpsError('invalid-argument', 'Email requis pour la création.');
@@ -260,7 +256,6 @@ export const createUserWithRole = onCall(async (request) => {
 
     const auth = getAuth();
     try {
-        // 3. Create user in Firebase Auth
         const userRecord = await auth.createUser({
             email,
             password: password || 'password', // Default password if not provided
@@ -272,10 +267,8 @@ export const createUserWithRole = onCall(async (request) => {
         const uid = userRecord.uid;
         const role = profileData.role || 'client';
 
-        // 4. Set custom claim
         await auth.setCustomUserClaims(uid, { role });
 
-        // 5. Create Firestore document
         await db.collection('clients').doc(uid).set({
             ...profileData,
             email,

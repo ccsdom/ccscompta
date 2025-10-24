@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { fr } from 'date-fns/locale';
 import { Skeleton } from "./ui/skeleton";
 
@@ -59,11 +59,14 @@ const getStatusBadge = (status: Document['status']) => {
 
 const groupDocumentsByMonth = (documents: Document[]) => {
     return documents.reduce((acc, doc) => {
-        const monthKey = format(new Date(doc.uploadDate), 'LLLL yyyy', { locale: fr });
-        if (!acc[monthKey]) {
-            acc[monthKey] = [];
+        const date = new Date(doc.uploadDate);
+        if (isValid(date)) {
+            const monthKey = format(date, 'LLLL yyyy', { locale: fr });
+            if (!acc[monthKey]) {
+                acc[monthKey] = [];
+            }
+            acc[monthKey].push(doc);
         }
-        acc[monthKey].push(doc);
         return acc;
     }, {} as Record<string, Document[]>);
 }
