@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -264,11 +265,10 @@ const ChartLegendContent = React.forwardRef<
     Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
       hideIcon?: boolean
       nameKey?: string
-      formatter?: RechartsPrimitive.LegendProps['formatter']
     }
 >(
   (
-    { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey, formatter },
+    { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
     ref
   ) => {
     const { config } = useChart()
@@ -286,14 +286,13 @@ const ChartLegendContent = React.forwardRef<
           className
         )}
       >
-        {payload.map((item, index) => {
+        {payload.map((item) => {
           const key = `${nameKey || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
-          const finalItemValue = item.value as string;
 
           return (
             <div
-              key={finalItemValue}
+              key={item.value}
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -308,7 +307,7 @@ const ChartLegendContent = React.forwardRef<
                   }}
                 />
               )}
-              {formatter ? formatter(finalItemValue, item, index) : itemConfig?.label || finalItemValue}
+              {itemConfig?.label}
             </div>
           )
         })}
@@ -365,3 +364,5 @@ export {
   ChartLegendContent,
   ChartStyle,
 }
+
+    

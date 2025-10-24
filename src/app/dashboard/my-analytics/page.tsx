@@ -57,7 +57,7 @@ export default function MyAnalyticsPage() {
     }, []);
 
     const documentsQuery = useMemoFirebase(() => {
-      if (!selectedClientId) return null;
+      if (!selectedClientId) return null; // Ne pas exécuter de requête si aucun client n'est sélectionné
       return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
     }, [selectedClientId]);
 
@@ -241,7 +241,7 @@ export default function MyAnalyticsPage() {
                             <ReBarChart data={analyticsData.monthlyChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${'€'}${value}`} />
                                 <ChartTooltip
                                     cursor={false}
                                     content={<ChartTooltipContent 
@@ -300,7 +300,7 @@ export default function MyAnalyticsPage() {
                             <ReBarChart layout="vertical" data={analyticsData.vendorChartData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
                                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
-                                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
+                                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${'€'}${value}`} />
                                 <ChartTooltip
                                     cursor={false}
                                     content={<ChartTooltipContent 
@@ -327,7 +327,7 @@ export default function MyAnalyticsPage() {
                             <ReBarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                 <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}€`} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${'€'}${value}`} />
                                 <ChartTooltip
                                     cursor={false}
                                     content={<ChartTooltipContent 
