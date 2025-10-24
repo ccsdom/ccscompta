@@ -5,10 +5,7 @@
  * Backend logic for assigning user roles, creating users and processing documents.
  */
 
-import { initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+
 import * as logger from 'firebase-functions/logger';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
@@ -153,10 +150,12 @@ export const handleNewMailUpload = onObjectFinalized(
       // --- Image ou fallback PDF ---
       if (!extractedText) {
         const documentUri = `data:${contentType};base64,${fileBuffer.toString("base64")}`;
-        const { output } = await ai.generate({
-          model: googleAI.model("gemini-1.5-flash"), // Utilisation du bon modèle
-          prompt: `Extrais tout le texte visible dans l'image ou le document fourni. Ne fournis que le texte brut.`,
-          input: { documentUri },
+        const { output } = await ai.generate({ 
+          model: googleAI.model("gemini-1.5-flash"), 
+          prompt: [
+            { text: `Extrais tout le texte visible dans l'image ou le document fourni. Ne fournis que le texte brut.` },
+            { media: { url: documentUri, contentType } }
+          ],
         });
         extractedText = output ?? "";
       }
@@ -171,10 +170,11 @@ export const handleNewMailUpload = onObjectFinalized(
       logger.log("Étape 2 : Analyse du texte via Gemini.");
       const { output } = await ai.generate({
         model: googleAI.model("gemini-1.5-flash"), // Utilisation du bon modèle
-        prompt: `Tu es un expert en traitement de documents administratifs français. Analyse le texte suivant et extrais les informations clés. Respecte strictement le format JSON. Texte : --- {{{documentText}}} ---`,
-        input: { documentText: extractedText },
+        prompt: `Tu es un expert en traitement de documents administratifs français. Analyse le texte suivant et extrais les informations clés. Respecte strictement le format JSON. Texte : --- ${extractedText} ---`,
         output: { schema: analyzeMailOutputSchema },
-        config: { temperature: 0.2, responseMimeType: "application/json" },
+        config: {
+          temperature: 0.2, responseMimeType: "application/json"
+        },
       });
       
       if (!output) throw new Error("L'analyse IA a retourné une sortie vide.");
