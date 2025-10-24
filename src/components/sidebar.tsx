@@ -7,13 +7,13 @@ import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeB
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollArea } from './ui/scroll-area';
 import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { Client } from '@/lib/types';
 
