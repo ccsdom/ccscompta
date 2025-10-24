@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown, FilterX } from "lucide-react";
+import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown, FilterX, Users } from "lucide-react";
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -55,17 +55,15 @@ export default function BillingPage() {
     const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (isStaff) {
-            return query(collection(db, 'clients'));
-        }
-        return null;
+        if (!isStaff) return null; // CRITICAL: Do not query if not staff
+        return query(collection(db, 'clients'));
     }, [isStaff]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
     const invoicesQuery = useMemoFirebase(() => query(collection(db, 'invoices')), []);
     const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
 
-    const loading = isLoadingClients || isLoadingInvoices;
+    const loading = !isMounted || (isStaff && isLoadingClients) || isLoadingInvoices;
 
 
     const filteredInvoices = useMemo(() => {
@@ -200,6 +198,22 @@ export default function BillingPage() {
                     <CardHeader><Skeleton className="h-10 w-full" /></CardHeader>
                     <CardContent>
                         <Skeleton className="h-64 w-full" />
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+    
+    if (!isStaff) {
+         return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à cette page.</p>
                     </CardContent>
                 </Card>
             </div>
@@ -379,5 +393,3 @@ export default function BillingPage() {
         </div>
     )
 }
-
-    

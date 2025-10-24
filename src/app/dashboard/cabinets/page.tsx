@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Network, PlusCircle, Users } from "lucide-react";
@@ -14,22 +14,65 @@ import Link from 'next/link';
 export default function CabinetsPage() {
     const [cabinets, setCabinets] = useState<Cabinet[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
-        const fetchCabinets = async () => {
-            setLoading(true);
-            try {
-                const fetchedCabinets = await getCabinets();
-                setCabinets(fetchedCabinets);
-            } catch (e) {
-                console.error("Failed to fetch cabinets", e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCabinets();
+        const role = localStorage.getItem('userRole');
+        setUserRole(role);
+        setIsMounted(true);
+
+        if (role === 'admin') {
+            const fetchCabinets = async () => {
+                setLoading(true);
+                try {
+                    const fetchedCabinets = await getCabinets();
+                    setCabinets(fetchedCabinets);
+                } catch (e) {
+                    console.error("Failed to fetch cabinets", e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchCabinets();
+        } else {
+            setLoading(false);
+        }
     }, []);
+
+    const isAuthorized = useMemo(() => isMounted && userRole === 'admin', [isMounted, userRole]);
+
+    if (!isMounted || loading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <Skeleton className="h-9 w-2/3" />
+                    <Skeleton className="h-10 w-40" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <Skeleton className="h-48" />
+                    <Skeleton className="h-48" />
+                </div>
+            </div>
+        )
+    }
+
+    if (!isAuthorized) {
+         return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Seuls les administrateurs peuvent accéder à cette page.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -44,12 +87,7 @@ export default function CabinetsPage() {
                 </Button>
             </div>
 
-             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Skeleton className="h-48" />
-                    <Skeleton className="h-48" />
-                </div>
-            ) : cabinets.length > 0 ? (
+            {cabinets.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {cabinets.map(cabinet => (
                         <Card key={cabinet.id}>

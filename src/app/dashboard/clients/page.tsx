@@ -50,19 +50,20 @@ export default function ClientsPage() {
     const { toast } = useToast();
     const [userRole, setUserRole] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
-        const id = localStorage.getItem('userUid'); // Use the UID for self-fetching
+        const id = localStorage.getItem('userUid');
         setUserRole(role);
         setUserId(id);
+        setIsMounted(true);
     }, []);
 
-    const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
+    const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
-    // Queries to Firestore
     const staffUsersQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff) return null; // CRITICAL: Do not query if not staff
         return query(collection(db, 'clients'));
     }, [isStaff]);
 
@@ -81,7 +82,7 @@ export default function ClientsPage() {
     }, [isStaff, allUsersData, clientUserData]);
 
     const accountantsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff) return null; // CRITICAL: Do not query if not staff
         return query(collection(db, 'clients'), where('role', '==', 'accountant'));
     }, [isStaff]);
     const { data: accountants, isLoading: isLoadingAccountants } = useCollection<Client>(accountantsQuery);
@@ -90,7 +91,7 @@ export default function ClientsPage() {
     const [userToDelete, setUserToDelete] = useState<Client | null>(null);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     
-    const loading = isLoadingStaffUsers || isLoadingClientUser || (isStaff && isLoadingAccountants);
+    const loading = !isMounted || isLoadingStaffUsers || isLoadingClientUser || (isStaff && isLoadingAccountants);
 
     const { filteredClients, filteredTeam } = useMemo(() => {
         const users = allUsers || [];
@@ -292,27 +293,18 @@ export default function ClientsPage() {
         </div>
     )
     
-    if (!isStaff && allUsers?.length === 1) {
-        const client = allUsers[0];
+    if (!isStaff) {
+        // This is a failsafe for clients ending up here.
         return (
-             <div>
-                <h1 className="text-3xl font-bold tracking-tight mb-6">Mon Profil</h1>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>{client.name}</CardTitle>
-                        <CardDescription>Vos informations personnelles.</CardDescription>
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
+                <Card className="w-full max-w-md text-center">
+                     <CardHeader>
+                        <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p><strong>Email:</strong> {client.email}</p>
-                        <p><strong>SIRET:</strong> {client.siret || 'Non renseigné'}</p>
-                        <p><strong>Représentant légal:</strong> {client.legalRepresentative || 'Non renseigné'}</p>
-                        <p><strong>Statut:</strong> {getStatusBadge(client.status)}</p>
+                    <CardContent>
+                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à cette page.</p>
                     </CardContent>
-                    <CardFooter>
-                         <Button onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>
-                            <Edit className="mr-2 h-4 w-4" /> Modifier mes informations
-                        </Button>
-                    </CardFooter>
                 </Card>
             </div>
         )
