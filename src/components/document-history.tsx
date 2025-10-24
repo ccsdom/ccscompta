@@ -1,4 +1,5 @@
 
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { fr } from 'date-fns/locale';
+import { Skeleton } from "./ui/skeleton";
 
 interface DocumentHistoryProps {
   documents: Document[];
@@ -70,6 +72,16 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
 
     const monthlyGroups = groupDocumentsByMonth(documents);
     const sortedMonths = Object.keys(monthlyGroups).sort((a,b) => new Date(monthlyGroups[b][0].uploadDate).getTime() - new Date(monthlyGroups[a][0].uploadDate).getTime());
+
+    if (isLoading) {
+        return (
+            <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+        )
+    }
 
     if (documents.length === 0) {
         return (
@@ -166,5 +178,3 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
         </div>
     );
 }
-
-    
