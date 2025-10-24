@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark, Link2 } from 'lucide-react';
+import { Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark } from 'lucide-react';
 import { type Document, type AuditEvent, type Comment } from "@/lib/types";
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from '@/hooks/use-toast';
@@ -18,10 +18,9 @@ import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { sendDocumentToCegid } from '@/ai/flows/document-actions';
-import { doc, getDoc, collection, query, where } from 'firebase/firestore';
-import { db, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -205,76 +204,12 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
     )
 }
 
-const BankStatementView = ({ formData, setFormData, isReadOnly, allDocs }: { formData: ExtractDataOutput, setFormData: React.Dispatch<React.SetStateAction<ExtractDataOutput>>, isReadOnly: boolean, allDocs: Document[] }) => {
-
-    const handleTransactionChange = (index: number, field: string, value: string | number) => {
-        const updatedTransactions = [...(formData.transactions || [])];
-        (updatedTransactions[index] as any)[field] = value;
-        setFormData(prev => ({ ...prev, transactions: updatedTransactions }));
-    }
-
-    const getMatchedDocName = (docId: string): string | undefined => {
-        return allDocs.find(d => d.id === docId)?.name;
-    }
-
-    return (
-        <div className="space-y-2">
-            <Label>Transactions Extraites</Label>
-             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="h-10 px-2">Date</TableHead>
-                        <TableHead className="h-10 px-2">Description</TableHead>
-                        <TableHead className="h-10 px-2">Fournisseur</TableHead>
-                        <TableHead className="h-10 px-2">Catégorie</TableHead>
-                        <TableHead className="h-10 px-2 text-right">Montant</TableHead>
-                        <TableHead className="h-10 w-10 p-1"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {(formData.transactions || []).map((tx, index) => (
-                        <TableRow key={index}>
-                            <TableCell className="p-1"><Input value={tx.date} onChange={(e) => handleTransactionChange(index, 'date', e.target.value)} readOnly={isReadOnly} className="h-8"/></TableCell>
-                            <TableCell className="p-1"><Input value={tx.description} onChange={(e) => handleTransactionChange(index, 'description', e.target.value)} readOnly={isReadOnly} className="h-8"/></TableCell>
-                            <TableCell className="p-1"><Input value={tx.vendor || ''} onChange={(e) => handleTransactionChange(index, 'vendor', e.target.value)} readOnly={isReadOnly} className="h-8"/></TableCell>
-                            <TableCell className="p-1"><Input value={tx.category || ''} onChange={(e) => handleTransactionChange(index, 'category', e.target.value)} readOnly={isReadOnly} className="h-8"/></TableCell>
-                            <TableCell className="p-1"><Input type="number" value={tx.amount} onChange={(e) => handleTransactionChange(index, 'amount', parseFloat(e.target.value))} readOnly={isReadOnly} className="h-8 text-right"/></TableCell>
-                            <TableCell className="p-1 text-center">
-                                {tx.matchingDocumentId && (
-                                     <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Link2 className="h-4 w-4 text-primary" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Rapproché avec :</p>
-                                                <p className="font-medium">{getMatchedDocName(tx.matchingDocumentId)}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    )
-}
-
-
 export function DataValidationForm({ document, onUpdate, isLoading, onAddComment, onUpdateDocumentInList }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSending, setIsSending] = useState(false);
   
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState('Comptable');
-
-  const documentsQuery = useMemoFirebase(() => {
-    if (!document?.clientId) return null;
-    return query(collection(db, 'documents'), where('clientId', '==', document.clientId));
-  }, [document?.clientId]);
-  const { data: allDocs } = useCollection<Document>(documentsQuery);
 
   useEffect(() => {
     setCurrentUser(localStorage.getItem('userName') || 'Comptable');
@@ -350,7 +285,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                 )}
                 
                 {hasExtractedData ? (
-                    isBankStatement ? <BankStatementView formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} allDocs={allDocs || []} /> : <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
+                   <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
                 ) : (
                     <div className="text-center text-sm text-muted-foreground py-10">
                         {document.status === 'pending' && <Info className="h-8 w-8 mx-auto mb-2" />}

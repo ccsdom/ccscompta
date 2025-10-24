@@ -9,22 +9,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { findMatchingDocumentTool } from '../tools/find-matching-document';
-import type { Document } from '@/lib/types';
-import { db } from '@/lib/firebase-server';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-
-
-const DocumentSchemaForTool = z.object({
-    id: z.string(),
-    name: z.string(),
-    type: z.string().optional(),
-    extractedData: z.object({
-        amounts: z.array(z.number()).optional(),
-        vendorNames: z.array(z.string()).optional(),
-        dates: z.array(z.string()).optional(),
-    }).optional(),
-});
 
 
 const TransactionSchema = z.object({
@@ -78,11 +62,7 @@ For each transaction, you must extract:
 - The amount (use negative numbers for debits, positive for credits).
 - A clean, simple vendor name (e.g., "Prlv Free Mobile" -> "Free Mobile").
 - A suggested accounting category based on the vendor/description.
-
-Your secondary goal is to act as a reconciliation agent. For each debit transaction, you MUST use the 'findMatchingDocument' tool to search for a corresponding invoice or receipt in the client's other documents.
-- Pass the transaction amount, cleaned-up vendor name, date, and the full list of available documents ('allClientDocuments') to the tool.
-- If the tool returns a document ID, you MUST populate the 'matchingDocumentId' field for that transaction. Otherwise, leave it empty.
-
+The 'matchingDocumentId' field should be left empty.
 The top-level fields (dates, amounts, vendorNames, category, vatAmount, vatRate) should be null.
 `;
 
@@ -112,11 +92,9 @@ const prompt = ai.definePrompt({
   input: {schema: z.object({
       documentDataUri: z.string(),
       documentType: z.string(),
-      allClientDocuments: z.array(DocumentSchemaForTool).optional(),
       isBankStatement: z.boolean(),
   })},
   output: {schema: ExtractDataOutputSchema},
-  tools: [findMatchingDocumentTool],
   prompt: `You are an expert and vigilant accounting data extraction specialist. Your behavior depends on the documentType.
 
 {{#if isBankStatement}}
@@ -142,22 +120,10 @@ const extractDataFlow = ai.defineFlow(
   },
   async (input) => {
     
-    let allClientDocsForAI: Document[] = [];
-    if (input.documentType === 'bank statement') {
-        const q = query(collection(db, 'documents'), where('clientId', '==', input.clientId));
-        const snapshot = await getDocs(q);
-        const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
-        
-        allClientDocsForAI = allDocs.filter(
-            doc => doc.type === 'purchase invoice' || doc.type === 'receipt'
-        );
-    }
-    
     const {output} = await prompt({
         documentDataUri: input.documentDataUri,
         documentType: input.documentType,
         isBankStatement: input.documentType === 'bank statement',
-        allClientDocuments: allClientDocsForAI.length > 0 ? allClientDocsForAI.map(({ id, name, type, extractedData }) => ({ id, name, type, extractedData })) : undefined
     });
 
     return output!;
