@@ -37,11 +37,12 @@ export function ClientSwitcher() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    // This effect runs on the client to safely access localStorage
     const role = localStorage.getItem('userRole');
     const storedClientId = localStorage.getItem('selectedClientId');
     setUserRole(role);
     setSelectedValue(storedClientId);
-    setIsMounted(true);
+    setIsMounted(true); // Mark as mounted after initial state is set
 
     const handleStorageChange = () => {
        const newRole = localStorage.getItem('userRole');
@@ -56,15 +57,17 @@ export function ClientSwitcher() {
         window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-
+  
+  // CRITICAL: Memoize the role check to ensure it's stable for use in useMemoFirebase
   const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
+  // CRITICAL: The query is now dependent on `isStaff`, which is a memoized value.
+  // The query will only be created when `isStaff` is true.
   const clientsQuery = useMemoFirebase(() => {
-    // CRITICAL: Only create a query if the user is confirmed to be staff.
     if (isStaff) {
       return query(collection(db, 'clients'), where('role', '==', 'client'));
     }
-    return null;
+    return null; // If not staff, the query is null, and useCollection will not run.
   }, [isStaff]);
   
   const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
@@ -80,12 +83,11 @@ export function ClientSwitcher() {
 
   const selectedClient = clients.find(c => c.value === selectedValue);
 
-  // Do not render anything until the component is mounted and role is determined
   if (!isMounted) {
+    // Render a disabled button or a skeleton loader while waiting for client-side mount
     return <Button variant="outline" className="w-full justify-between" disabled />;
   }
   
-  // If the user is a client, disable the switcher completely.
   if (userRole === 'client') {
       const clientName = localStorage.getItem('userName');
       return (

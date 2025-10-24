@@ -43,10 +43,12 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        // This effect runs only on the client side
         setUserRole(localStorage.getItem('userRole'));
         setIsMounted(true);
     }, []);
 
+    // CRITICAL: Memoize the role check to ensure it's stable for use in useMemoFirebase
     const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
     const accountantsQuery = useMemoFirebase(() => {
@@ -59,6 +61,7 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     const { data: accountants } = useCollection<Client>(accountantsQuery);
 
     const cabinetsQuery = useMemoFirebase(() => {
+        // Only fetch cabinets if the user is an admin.
         if (isMounted && userRole === 'admin') {
             return query(collection(db, 'cabinets'));
         }
