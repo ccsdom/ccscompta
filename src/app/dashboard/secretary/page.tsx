@@ -16,7 +16,8 @@ export default function SecretaryDashboard() {
     const [userRole, setUserRole] = useState<string | null>(null);
 
     useEffect(() => {
-        setUserRole(localStorage.getItem('userRole'));
+        const role = localStorage.getItem('userRole');
+        setUserRole(role);
     }, []);
 
     const isStaff = useMemo(() => userRole === 'secretary' || userRole === 'admin', [userRole]);

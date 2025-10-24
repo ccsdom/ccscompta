@@ -18,7 +18,8 @@ export default function AccountantDashboard() {
     const [userRole, setUserRole] = useState<string | null>(null);
 
     useEffect(() => {
-        setUserRole(localStorage.getItem('userRole'));
+        const role = localStorage.getItem('userRole');
+        setUserRole(role);
     }, []);
 
     const isStaff = useMemo(() => userRole === 'accountant' || userRole === 'admin', [userRole]);
