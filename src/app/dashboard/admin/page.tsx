@@ -17,30 +17,33 @@ import { db } from '@/firebase';
 
 export default function AdminDashboardPage() {
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        setUserRole(localStorage.getItem('userRole'));
+        const role = localStorage.getItem('userRole');
+        setUserRole(role);
+        setIsMounted(true);
     }, []);
     
-    const isStaff = useMemo(() => userRole === 'admin', [userRole]);
+    const isAuthorized = useMemo(() => isMounted && userRole === 'admin', [isMounted, userRole]);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isAuthorized) return null; // CRITICAL: Only query if authorized
         return query(collection(db, 'documents'));
-    }, [isStaff]);
+    }, [isAuthorized]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isAuthorized) return null; // CRITICAL: Only query if authorized
         return query(collection(db, 'clients'));
-    }, [isStaff]);
+    }, [isAuthorized]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
-    const loading = isLoadingDocuments || isLoadingClients;
+    const loading = !isMounted || (isAuthorized && (isLoadingDocuments || isLoadingClients));
 
 
     const dashboardData = useMemo(() => {
-        if (!documents || !clients) return null;
+        if (!isAuthorized || !documents || !clients) return null;
 
         const totalDocs = documents.length;
         const totalApprovedDocs = documents.filter(d => d.status === 'approved').length;
@@ -57,9 +60,30 @@ export default function AdminDashboardPage() {
             totalApprovedDocs,
             activityByClient,
         };
-    }, [documents, clients]);
+    }, [isAuthorized, documents, clients]);
 
-    if (!isStaff) {
+    if (!isMounted) {
+         return (
+            <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Skeleton className="lg:col-span-1 h-80" />
+                    <Skeleton className="h-80" />
+                </div>
+            </div>
+        )
+    }
+
+    if (!isAuthorized) {
         return (
              <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
                 <Card className="w-full max-w-md text-center">
@@ -68,7 +92,7 @@ export default function AdminDashboardPage() {
                         <CardTitle className="mt-4">Accès non autorisé</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à ce tableau de bord.</p>
+                        <p className="text-muted-foreground">Seuls les administrateurs peuvent accéder à cette page.</p>
                     </CardContent>
                 </Card>
             </div>
@@ -194,5 +218,6 @@ export default function AdminDashboardPage() {
         </div>
     );
 }
+    
 
     
