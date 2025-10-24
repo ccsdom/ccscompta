@@ -41,7 +41,7 @@ export default function AccountantDashboard() {
     const loading = !isMounted || isLoadingClients || isLoadingDocuments;
 
     const dashboardData = useMemo(() => {
-        if (!documents || !clients) return null;
+        if (loading || !documents || !clients) return null;
 
         const today = new Date();
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -61,7 +61,6 @@ export default function AccountantDashboard() {
         const activityByClient = clients.map(client => {
             const clientDocsToday = documents.filter(d => 
                 d.clientId === client.id && 
-                d.auditTrail.length > 0 && 
                 d.uploadDate && new Date(d.uploadDate) >= twentyFourHoursAgo
             ).length;
             return { name: client.name, docs: clientDocsToday };
@@ -87,7 +86,7 @@ export default function AccountantDashboard() {
             activityByClient,
             recentActivities
         };
-    }, [documents, clients]);
+    }, [documents, clients, loading]);
     
     if (!isMounted) {
         return (

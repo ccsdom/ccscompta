@@ -28,13 +28,13 @@ export default function AdminDashboardPage() {
     const isAuthorized = useMemo(() => isMounted && userRole === 'admin', [isMounted, userRole]);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!isAuthorized) return null; // CRITICAL: Only query if authorized
+        if (!isAuthorized) return null;
         return query(collection(db, 'documents'));
     }, [isAuthorized]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isAuthorized) return null; // CRITICAL: Only query if authorized
+        if (!isAuthorized) return null;
         return query(collection(db, 'clients'));
     }, [isAuthorized]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
@@ -43,7 +43,7 @@ export default function AdminDashboardPage() {
 
 
     const dashboardData = useMemo(() => {
-        if (!isAuthorized || !documents || !clients) return null;
+        if (loading || !isAuthorized || !documents || !clients) return null;
 
         const totalDocs = documents.length;
         const totalApprovedDocs = documents.filter(d => d.status === 'approved').length;
@@ -60,7 +60,7 @@ export default function AdminDashboardPage() {
             totalApprovedDocs,
             activityByClient,
         };
-    }, [isAuthorized, documents, clients]);
+    }, [isAuthorized, documents, clients, loading]);
 
     if (!isMounted) {
          return (

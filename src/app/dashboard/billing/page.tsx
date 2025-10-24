@@ -55,15 +55,18 @@ export default function BillingPage() {
     const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null; // CRITICAL: Do not query if not staff
+        if (!isStaff) return null;
         return query(collection(db, 'clients'));
     }, [isStaff]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
-    const invoicesQuery = useMemoFirebase(() => query(collection(db, 'invoices')), []);
+    const invoicesQuery = useMemoFirebase(() => {
+        if (!isStaff) return null;
+        return query(collection(db, 'invoices'));
+    }, [isStaff]);
     const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
 
-    const loading = !isMounted || (isStaff && isLoadingClients) || isLoadingInvoices;
+    const loading = !isMounted || (isStaff && (isLoadingClients || isLoadingInvoices));
 
 
     const filteredInvoices = useMemo(() => {

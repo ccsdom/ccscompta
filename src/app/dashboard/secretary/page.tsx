@@ -39,7 +39,7 @@ export default function SecretaryDashboard() {
     const loading = !isMounted || isLoadingClients || isLoadingDocuments;
 
     const dashboardData = useMemo(() => {
-        if (!documents || !clients) return null;
+        if (loading || !documents || !clients) return null;
 
         const today = new Date();
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -69,7 +69,7 @@ export default function SecretaryDashboard() {
             docsPendingReview,
             recentActivities
         };
-    }, [documents, clients]);
+    }, [documents, clients, loading]);
 
     if (!isMounted) {
          return (

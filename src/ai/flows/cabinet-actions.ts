@@ -1,3 +1,4 @@
+
 'use server';
 
 import { db } from '@/lib/firebase-server';
@@ -56,8 +57,6 @@ export async function getCabinets(): Promise<Cabinet[]> {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cabinet));
     } catch (error) {
         console.error("Error fetching cabinets:", error);
-        // In case of permission errors (e.g., a client trying to call this), return an empty array.
-        // The UI should handle the case where no cabinets are returned.
         return [];
     }
 }
