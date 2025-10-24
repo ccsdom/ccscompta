@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from "react";
@@ -56,11 +57,10 @@ export function ClientSwitcher() {
     };
   }, []);
 
-  const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
+  const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
   const clientsQuery = useMemoFirebase(() => {
     // CRITICAL: Only create a query if the user is confirmed to be staff.
-    // If isStaff is false or null, this returns null, preventing any query execution.
     if (isStaff) {
       return query(collection(db, 'clients'), where('role', '==', 'client'));
     }
@@ -80,7 +80,7 @@ export function ClientSwitcher() {
 
   const selectedClient = clients.find(c => c.value === selectedValue);
 
-  // Do not render anything until the role is determined on the client-side
+  // Do not render anything until the component is mounted and role is determined
   if (!isMounted) {
     return <Button variant="outline" className="w-full justify-between" disabled />;
   }
@@ -112,7 +112,7 @@ export function ClientSwitcher() {
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
-          disabled={isLoadingClients}
+          disabled={isLoadingClients || !isStaff}
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-6 w-6">

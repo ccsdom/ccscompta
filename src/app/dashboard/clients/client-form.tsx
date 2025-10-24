@@ -1,3 +1,4 @@
+
 'use client'
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -39,12 +40,14 @@ interface ClientFormProps {
 export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProps) {
     const router = useRouter();
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setUserRole(localStorage.getItem('userRole'));
+        setIsMounted(true);
     }, []);
 
-    const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
+    const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
     const accountantsQuery = useMemoFirebase(() => {
         // Only fetch accountants if the user is a staff member.
@@ -56,11 +59,11 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
     const { data: accountants } = useCollection<Client>(accountantsQuery);
 
     const cabinetsQuery = useMemoFirebase(() => {
-        if (userRole === 'admin') {
+        if (isMounted && userRole === 'admin') {
             return query(collection(db, 'cabinets'));
         }
         return null;
-    }, [userRole]);
+    }, [isMounted, userRole]);
     const { data: cabinets } = useCollection<Cabinet>(cabinetsQuery);
 
     const form = useForm<z.infer<typeof formSchema>>({
