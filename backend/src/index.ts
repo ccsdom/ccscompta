@@ -7,7 +7,6 @@
 
 
 import * as logger from 'firebase-functions/logger';
-import { setGlobalOptions } from 'firebase-functions/v2';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import * as admin from 'firebase-admin';
 import { genkit, z } from 'genkit';
@@ -45,12 +44,7 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   }
 }
 
-// --- Configuration globale ---
-setGlobalOptions({
-  region: "europe-west9",
-  maxInstances: 5,
-});
-
+// --- Configuration ---
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -82,7 +76,12 @@ type AnalyzeMailOutput = z.infer<typeof analyzeMailOutputSchema>;
 
 // --- Fonction Cloud ---
 export const handleNewMailUpload = onObjectFinalized(
-  { cpu: 2, memory: "1GiB", bucket: "ccs-compta.appspot.com" },
+  { 
+    cpu: 2, 
+    memory: "1GiB", 
+    bucket: "ccs-compta.appspot.com",
+    region: "europe-west9" // Specify region directly
+  },
   async (event) => {
     const filePath = event.data.name ?? "";
     const contentType = event.data.contentType ?? "";
