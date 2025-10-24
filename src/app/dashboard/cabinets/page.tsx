@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,8 +21,12 @@ export default function CabinetsPage() {
         const role = localStorage.getItem('userRole');
         setUserRole(role);
         setIsMounted(true);
+    }, []);
+    
+    const isAuthorized = useMemo(() => isMounted && userRole === 'admin', [isMounted, userRole]);
 
-        if (role === 'admin') {
+    useEffect(() => {
+        if (isAuthorized) {
             const fetchCabinets = async () => {
                 setLoading(true);
                 try {
@@ -36,12 +39,10 @@ export default function CabinetsPage() {
                 }
             };
             fetchCabinets();
-        } else {
+        } else if (isMounted) {
             setLoading(false);
         }
-    }, []);
-
-    const isAuthorized = useMemo(() => isMounted && userRole === 'admin', [isMounted, userRole]);
+    }, [isAuthorized, isMounted]);
 
     if (!isMounted || loading) {
         return (
@@ -124,3 +125,5 @@ export default function CabinetsPage() {
         </div>
     );
 }
+
+    

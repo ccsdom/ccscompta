@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -28,13 +27,13 @@ export default function AdminDashboardPage() {
     const isAuthorized = useMemo(() => isMounted && userRole === 'admin', [isMounted, userRole]);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!isAuthorized) return null;
+        if (!isAuthorized) return null; // Guard: Do not query if not authorized
         return query(collection(db, 'documents'));
     }, [isAuthorized]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isAuthorized) return null;
+        if (!isAuthorized) return null; // Guard: Do not query if not authorized
         return query(collection(db, 'clients'));
     }, [isAuthorized]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
@@ -55,7 +54,7 @@ export default function AdminDashboardPage() {
 
         return {
             totalFirms: 1, // Mock data for multi-firm view
-            totalClients: clients.length,
+            totalClients: clients.filter(c => c.role === 'client').length,
             totalDocs,
             totalApprovedDocs,
             activityByClient,
@@ -218,6 +217,5 @@ export default function AdminDashboardPage() {
         </div>
     );
 }
-    
 
     

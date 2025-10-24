@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -55,13 +54,13 @@ export default function BillingPage() {
     const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff) return null; // Guard: Do not query if not staff
         return query(collection(db, 'clients'));
     }, [isStaff]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
     const invoicesQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff) return null; // Guard: Do not query if not staff
         return query(collection(db, 'invoices'));
     }, [isStaff]);
     const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
@@ -190,7 +189,7 @@ export default function BillingPage() {
 
     const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
 
-     if (loading) {
+     if (!isMounted) {
         return (
             <div className="space-y-6">
                 <div>
@@ -222,6 +221,24 @@ export default function BillingPage() {
             </div>
         )
     }
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <Card>
+                    <CardHeader><Skeleton className="h-10 w-full" /></CardHeader>
+                    <CardContent>
+                        <Skeleton className="h-64 w-full" />
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
 
     return (
         <div className="space-y-6">
@@ -396,3 +413,5 @@ export default function BillingPage() {
         </div>
     )
 }
+
+    

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -27,18 +26,18 @@ export default function AccountantDashboard() {
     const isStaff = useMemo(() => isMounted && userRole && ['accountant', 'admin'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff) return null; // Guard: Do not query if not staff
         return query(collection(db, 'clients'));
     }, [isStaff]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff) return null; // Guard: Do not query if not staff
         return query(collection(db, 'documents'));
     }, [isStaff]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    const loading = !isMounted || isLoadingClients || isLoadingDocuments;
+    const loading = !isMounted || (isStaff && (isLoadingClients || isLoadingDocuments));
 
     const dashboardData = useMemo(() => {
         if (loading || !documents || !clients) return null;
@@ -79,7 +78,7 @@ export default function AccountantDashboard() {
             .slice(0, 5);
 
         return {
-            totalClients: clients.filter(c => c.status === 'active').length,
+            totalClients: clients.filter(c => c.status === 'active' && c.role === 'client').length,
             docsUploadedToday,
             docsPendingReview,
             docsApprovedToday,
@@ -267,3 +266,5 @@ export default function AccountantDashboard() {
         </div>
     );
 }
+
+    
