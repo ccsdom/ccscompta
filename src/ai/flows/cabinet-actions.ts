@@ -49,31 +49,15 @@ export async function addCabinet(
   }
 }
 
-const MOCK_CABINETS: Cabinet[] = [
-    { id: 'cab-01', name: 'Cabinet Principal (CCS)' },
-];
-
-
 export async function getCabinets(): Promise<Cabinet[]> {
     console.log("[Firestore] Fetching all cabinets.");
     try {
         const snapshot = await getDocs(collection(db, 'cabinets'));
-        if (snapshot.empty) {
-             console.log("No cabinets found, seeding with mock data...");
-             for (const cabinet of MOCK_CABINETS) {
-                // Check if mock cabinet already exists by name before adding
-                const q = query(collection(db, "cabinets"), where("name", "==", cabinet.name));
-                const existing = await getDocs(q);
-                if (existing.empty) {
-                    await addDoc(collection(db, "cabinets"), { name: cabinet.name });
-                }
-             }
-             const seededSnapshot = await getDocs(collection(db, 'cabinets'));
-             return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cabinet));
-        }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cabinet));
     } catch (error) {
         console.error("Error fetching cabinets:", error);
+        // In case of permission errors (e.g., a client trying to call this), return an empty array.
+        // The UI should handle the case where no cabinets are returned.
         return [];
     }
 }
