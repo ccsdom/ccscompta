@@ -8,9 +8,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import { getStorage } from 'firebase-admin/storage';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import * as admin from 'firebase-admin';
@@ -63,7 +61,7 @@ setGlobalOptions({
 if (!admin.apps.length) {
   admin.initializeApp();
 }
-const dbAdmin = admin.firestore();
+const db = admin.firestore();
 
 
 // --- Schéma Zod ---
@@ -110,7 +108,7 @@ export const handleNewMailUpload = onObjectFinalized(
 
     const clientUid = pathParts[1];
     const mailId = pathParts[2];
-    const mailDocRef = dbAdmin.collection("mails").doc(mailId);
+    const mailDocRef = db.collection("mails").doc(mailId);
 
     logger.log(`🟢 Début du traitement : mailId=${mailId}, clientUid=${clientUid}, filePath=${filePath}`);
 
@@ -119,33 +117,7 @@ export const handleNewMailUpload = onObjectFinalized(
       const ai = genkit({
         plugins: [googleAI({ apiKey: GEMINI_API_KEY.value() })],
       });
-
-      // --- Prompts ---
-      const extractTextPrompt = ai.definePrompt({
-        name: "extractTextFromDocumentPrompt",
-        input: { schema: z.object({ documentUri: z.string() }) },
-        output: { schema: z.string() },
-        prompt: `Extrais tout le texte visible dans l'image ou le document fourni. 
-Ne fournis que le texte brut, sans aucun commentaire ou formatage.
-Document: {{{media url=documentUri}}}`,
-      });
-
-      const analyzeDocumentPrompt = ai.definePrompt({
-        name: "analyzeScannedDocumentPrompt",
-        input: { schema: z.object({ documentText: z.string() }) },
-        output: { schema: analyzeMailOutputSchema },
-        prompt: `Tu es un expert en traitement de documents administratifs français. 
-Analyse le texte suivant et extrais les informations clés. 
-Respecte strictement le format JSON correspondant au schéma.
-Texte :
----
-{{{documentText}}}
----`,
-        config: {
-            temperature: 0.2, // Lower temperature for more deterministic JSON output
-        },
-      });
-
+      
       // --- Lecture du fichier ---
       const bucket = admin.storage().bucket(fileBucket);
       const file = bucket.file(filePath);
@@ -324,75 +296,5 @@ export const createUserWithRole = onCall(async (request) => {
             throw new HttpsError('invalid-argument', "Le mot de passe doit comporter au moins 6 caractères.");
         }
         throw new HttpsError('internal', "Une erreur est survenue lors de la création de l'utilisateur.", error.message);
-    }
-});
-
-
-/**
- * Triggered when a new document is created. This function runs the AI processing.
- */
-export const processDocument = onDocumentCreated("documents/{docId}", async (event) => {
-    const snapshot = event.data;
-    if (!snapshot) {
-        logger.log("No data associated with the event");
-        return;
-    }
-    const docData = snapshot.data();
-    const docId = event.params.docId;
-
-    logger.log(`Processing document: ${docId}`);
-
-    const docRef = db.collection('documents').doc(docId);
-
-    try {
-        await docRef.update({ 
-            status: 'processing',
-            auditTrail: FieldValue.arrayUnion({ action: 'Traitement IA initié', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
-        });
-        
-        // Generate a signed URL to read the file for AI processing
-        const bucket = getStorage().bucket();
-        const file = bucket.file(docData.storagePath);
-        const [signedUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-        });
-        
-        const response = await fetch(signedUrl);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch file with signed URL: ${response.statusText}`);
-        }
-        
-        const buffer = await response.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const mimeType = response.headers.get('content-type') || 'application/octet-stream';
-        const dataUrl = `data:${mimeType};base64,${base64}`;
-
-
-        const recognition = await recognizeDocumentType({ documentDataUri: dataUrl });
-        await docRef.update({ 
-            auditTrail: FieldValue.arrayUnion({ action: `Type reconnu: ${recognition.documentType}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
-        });
-        
-        const extracted = await extractData({ documentDataUri: dataUrl, documentType: recognition.documentType, clientId: docData.clientId });
-        
-        const finalUpdates = {
-            status: 'reviewing',
-            extractedData: extracted,
-            type: recognition.documentType,
-            confidence: recognition.confidence,
-            auditTrail: FieldValue.arrayUnion({ action: 'Données extraites par IA', date: Timestamp.now().toDate().toISOString(), user: 'Système' })
-        };
-
-        await docRef.update(finalUpdates);
-
-        logger.log(`Document ${docId} processed successfully.`);
-
-    } catch (error) {
-        logger.error(`Error processing document ${docId}:`, error);
-        await docRef.update({ 
-            status: 'error',
-            auditTrail: FieldValue.arrayUnion({ action: `Erreur de traitement IA: ${error instanceof Error ? error.message : 'Inconnue'}`, date: Timestamp.now().toDate().toISOString(), user: 'Système' })
-        });
     }
 });
