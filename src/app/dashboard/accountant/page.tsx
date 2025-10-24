@@ -16,13 +16,15 @@ import { db } from '@/firebase';
 
 export default function AccountantDashboard() {
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
         setUserRole(role);
+        setIsMounted(true);
     }, []);
 
-    const isStaff = useMemo(() => userRole === 'accountant' || userRole === 'admin', [userRole]);
+    const isStaff = useMemo(() => isMounted && userRole && ['accountant', 'admin'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
         if (!isStaff) return null;
@@ -36,7 +38,7 @@ export default function AccountantDashboard() {
     }, [isStaff]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    const loading = isLoadingClients || isLoadingDocuments;
+    const loading = !isMounted || isLoadingClients || isLoadingDocuments;
 
     const dashboardData = useMemo(() => {
         if (!documents || !clients) return null;
@@ -60,7 +62,7 @@ export default function AccountantDashboard() {
             const clientDocsToday = documents.filter(d => 
                 d.clientId === client.id && 
                 d.auditTrail.length > 0 && 
-                new Date(d.auditTrail[0].date) >= twentyFourHoursAgo
+                d.uploadDate && new Date(d.uploadDate) >= twentyFourHoursAgo
             ).length;
             return { name: client.name, docs: clientDocsToday };
         }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
@@ -86,6 +88,27 @@ export default function AccountantDashboard() {
             recentActivities
         };
     }, [documents, clients]);
+    
+    if (!isMounted) {
+        return (
+             <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Skeleton className="lg:col-span-2 h-80" />
+                    <Skeleton className="h-80" />
+                </div>
+            </div>
+        )
+    }
 
     if (!isStaff) {
          return (
@@ -245,5 +268,3 @@ export default function AccountantDashboard() {
         </div>
     );
 }
-
-    

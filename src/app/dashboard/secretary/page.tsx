@@ -14,13 +14,15 @@ import { db } from '@/firebase';
 
 export default function SecretaryDashboard() {
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         const role = localStorage.getItem('userRole');
         setUserRole(role);
+        setIsMounted(true);
     }, []);
 
-    const isStaff = useMemo(() => userRole === 'secretary' || userRole === 'admin', [userRole]);
+    const isStaff = useMemo(() => isMounted && userRole && ['secretary', 'admin'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
         if (!isStaff) return null;
@@ -34,7 +36,7 @@ export default function SecretaryDashboard() {
     }, [isStaff]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    const loading = isLoadingClients || isLoadingDocuments;
+    const loading = !isMounted || isLoadingClients || isLoadingDocuments;
 
     const dashboardData = useMemo(() => {
         if (!documents || !clients) return null;
@@ -68,6 +70,26 @@ export default function SecretaryDashboard() {
             recentActivities
         };
     }, [documents, clients]);
+
+    if (!isMounted) {
+         return (
+             <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-9 w-1/3" />
+                    <Skeleton className="h-5 w-2/3 mt-2" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Skeleton className="lg:col-span-1 h-80" />
+                    <Skeleton className="h-80" />
+                </div>
+            </div>
+        )
+    }
 
     if (!isStaff) {
          return (
@@ -195,5 +217,3 @@ export default function SecretaryDashboard() {
         </div>
     );
 }
-
-    
