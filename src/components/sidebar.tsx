@@ -7,8 +7,7 @@ import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeB
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
-import { useState, useEffect } from 'react';
-import { Skeleton } from './ui/skeleton';
+import { useEffect } from 'react';
 import { ScrollArea } from './ui/scroll-area';
 import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useTheme } from 'next-themes';
