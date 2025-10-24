@@ -32,7 +32,7 @@ const getStatusBadge = (status: Bilan['status']) => {
 
 export function BilanHistory({ clientId }: BilanHistoryProps) {
   const bilansQuery = useMemoFirebase(() => {
-    if (!clientId) return null;
+    if (!clientId) return null; // CRITICAL: Do not create a query if clientId is not available.
     return query(collection(db, 'bilans'), where('clientId', '==', clientId));
   }, [clientId]);
   const { data: bilans, isLoading } = useCollection<Bilan>(bilansQuery);
@@ -96,5 +96,3 @@ export function BilanHistory({ clientId }: BilanHistoryProps) {
     </Card>
   );
 }
-
-    
