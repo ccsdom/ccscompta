@@ -21,8 +21,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as ShadcnTableFooter } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -64,36 +64,25 @@ export default function AnalyticsPage() {
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const [clientName, setClientName] = useState('Vue d\'ensemble');
 
+    const clientRef = useMemoFirebase(() => {
+        if (!selectedClientId) return null;
+        return doc(db, 'clients', selectedClientId);
+    }, [selectedClientId]);
+    const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
+
     const documentsQuery = useMemoFirebase(() => {
         if (!selectedClientId) return null;
         return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
     }, [selectedClientId]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
-    
-    const clientQuery = useMemoFirebase(() => {
-        if (!selectedClientId) return null;
-        // This query will fetch a single document, but useCollection is for collections.
-        // It's better to fetch all clients once or use useDoc.
-        // For now, let's keep it simple and assume we have the clients data elsewhere or it's small.
-        return query(collection(db, 'clients'));
-    }, [selectedClientId]);
-    const { data: allClients, isLoading: isLoadingAllClients } = useCollection<Client>(clientQuery);
-
 
     useEffect(() => {
-        const loadState = async () => {
+        const loadState = () => {
             setIsLoading(true);
             try {
                 const storedClientId = localStorage.getItem('selectedClientId');
                 setSelectedClientId(storedClientId);
                 
-                if (storedClientId && allClients) {
-                    const client = allClients.find(c => c.id === storedClientId);
-                    setClientName(client ? `Analyse pour ${client.name}` : 'Vue d\'ensemble');
-                } else if (!storedClientId) {
-                    setClientName('Veuillez sélectionner un client');
-                }
-
                 const storedQuery = localStorage.getItem('searchQuery');
                 if (storedQuery) setSearchQuery(storedQuery);
                 const storedCriteria = localStorage.getItem('searchCriteria');
@@ -104,13 +93,22 @@ export default function AnalyticsPage() {
             } catch (e) {
                 console.error("Failed to load documents", e);
             } finally {
-                setIsLoading(isLoadingAllClients || isLoadingDocuments);
+                setIsLoading(false);
             }
         }
         loadState();
         window.addEventListener('storage', loadState);
         return () => window.removeEventListener('storage', loadState);
-    }, [allClients, isLoadingAllClients, isLoadingDocuments]);
+    }, []);
+
+    useEffect(() => {
+        if (client) {
+            setClientName(`Analyse pour ${client.name}`);
+        } else if (!selectedClientId && !isLoadingClient) {
+            setClientName('Veuillez sélectionner un client');
+        }
+    }, [client, selectedClientId, isLoadingClient]);
+
 
      useEffect(() => {
         try {
@@ -290,7 +288,7 @@ export default function AnalyticsPage() {
         );
     };
 
-    if (isLoading) {
+    if (isLoading || isLoadingClient || isLoadingDocuments) {
         return (
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
@@ -594,4 +592,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+    
     
