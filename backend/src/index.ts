@@ -12,7 +12,6 @@ import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import * as admin from 'firebase-admin';
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { defineSecret } from 'firebase-functions/params';
 
 // --- pdf-parse import compatible ---
 let pdfExtractor: ((buffer: Buffer) => Promise<PdfParseResult>) | null = null;

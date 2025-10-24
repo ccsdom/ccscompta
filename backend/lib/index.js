@@ -45,7 +45,6 @@ const storage_1 = require("firebase-functions/v2/storage");
 const admin = __importStar(require("firebase-admin"));
 const genkit_1 = require("genkit");
 const google_genai_1 = require("@genkit-ai/google-genai");
-const params_1 = require("firebase-functions/params");
 // --- pdf-parse import compatible ---
 let pdfExtractor = null;
 // --- Wrapper PDF ---
@@ -71,12 +70,9 @@ async function parsePdfBuffer(buffer) {
         throw new Error(`Échec de l'extraction PDF: ${msg}`);
     }
 }
-// --- Secret Firebase ---
-const GEMINI_API_KEY = (0, params_1.defineSecret)("GEMINI_API_KEY");
 // --- Configuration globale ---
 (0, v2_1.setGlobalOptions)({
     region: "europe-west9",
-    secrets: [GEMINI_API_KEY],
     maxInstances: 5,
 });
 if (!admin.apps.length) {
@@ -125,7 +121,7 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({ cpu: 2, memory:
     try {
         // --- Initialisation Genkit au runtime ---
         const ai = (0, genkit_1.genkit)({
-            plugins: [(0, google_genai_1.googleAI)({ apiKey: GEMINI_API_KEY.value() })],
+            plugins: [(0, google_genai_1.googleAI)({ apiKey: process.env.GEMINI_API_KEY })],
         });
         // --- Lecture du fichier ---
         const bucket = admin.storage().bucket(fileBucket);
