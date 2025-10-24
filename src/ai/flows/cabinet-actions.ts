@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/firebase-server';
-import { collection, getDocs, addDoc, query, where, getCountFromServer, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, doc, getDoc } from 'firebase/firestore';
 import type { Cabinet } from '@/lib/types';
 import { z } from 'zod';
 
@@ -90,16 +90,5 @@ export async function getCabinetById(id: string): Promise<Cabinet | null> {
     } catch(error) {
         console.error(`Error fetching cabinet ${id}:`, error);
         return null;
-    }
-}
-
-export async function getCabinetUserCount(cabinetId: string): Promise<number> {
-    try {
-        const q = query(collection(db, 'clients'), where('cabinetId', '==', cabinetId));
-        const snapshot = await getCountFromServer(q);
-        return snapshot.data().count;
-    } catch (error) {
-        console.error(`Error counting users for cabinet ${cabinetId}:`, error);
-        return 0;
     }
 }

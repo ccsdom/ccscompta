@@ -4,15 +4,15 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Network, PlusCircle, Users, Briefcase } from "lucide-react";
-import { getCabinets, getCabinetUserCount } from '@/ai/flows/cabinet-actions';
+import { Network, PlusCircle, Users } from "lucide-react";
+import { getCabinets } from '@/ai/flows/cabinet-actions';
 import type { Cabinet } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 
 export default function CabinetsPage() {
-    const [cabinets, setCabinets] = useState<(Cabinet & { userCount: number })[]>([]);
+    const [cabinets, setCabinets] = useState<Cabinet[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
@@ -21,13 +21,7 @@ export default function CabinetsPage() {
             setLoading(true);
             try {
                 const fetchedCabinets = await getCabinets();
-                const cabinetsWithCounts = await Promise.all(
-                    fetchedCabinets.map(async (cabinet) => {
-                        const userCount = await getCabinetUserCount(cabinet.id);
-                        return { ...cabinet, userCount };
-                    })
-                );
-                setCabinets(cabinetsWithCounts);
+                setCabinets(fetchedCabinets);
             } catch (e) {
                 console.error("Failed to fetch cabinets", e);
             } finally {
@@ -66,10 +60,6 @@ export default function CabinetsPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/>Utilisateurs:</span>
-                                    <span className="font-semibold">{cabinet.userCount}</span>
-                                </div>
                                 <Button className="w-full mt-2" asChild>
                                   <Link href={`/dashboard/cabinets/${cabinet.id}`}>Gérer le cabinet</Link>
                                 </Button>
