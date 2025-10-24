@@ -38,6 +38,7 @@ export default function BillingPage() {
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
     const { toast } = useToast();
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     // Filters state
     const [clientFilter, setClientFilter] = useState('all');
@@ -48,9 +49,10 @@ export default function BillingPage() {
     useEffect(() => {
         const role = localStorage.getItem('userRole');
         setUserRole(role);
+        setIsMounted(true);
     }, []);
 
-    const isStaff = useMemo(() => userRole === 'admin' || userRole === 'accountant' || userRole === 'secretary', [userRole]);
+    const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
 
     const clientsQuery = useMemoFirebase(() => {
         if (isStaff) {
@@ -377,3 +379,5 @@ export default function BillingPage() {
         </div>
     )
 }
+
+    
