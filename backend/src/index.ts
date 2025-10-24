@@ -46,13 +46,9 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   }
 }
 
-// --- Secret Firebase ---
-const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-
 // --- Configuration globale ---
 setGlobalOptions({
   region: "europe-west9",
-  secrets: [GEMINI_API_KEY],
   maxInstances: 5,
 });
 
@@ -113,7 +109,7 @@ export const handleNewMailUpload = onObjectFinalized(
     try {
       // --- Initialisation Genkit au runtime ---
       const ai = genkit({
-        plugins: [googleAI({ apiKey: GEMINI_API_KEY.value() })],
+        plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
       });
       
       // --- Lecture du fichier ---
