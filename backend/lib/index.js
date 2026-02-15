@@ -40,7 +40,6 @@ exports.handleNewMailUpload = void 0;
  * Backend logic for assigning user roles, creating users and processing documents.
  */
 const logger = __importStar(require("firebase-functions/logger"));
-const v2_1 = require("firebase-functions/v2");
 const storage_1 = require("firebase-functions/v2/storage");
 const admin = __importStar(require("firebase-admin"));
 const genkit_1 = require("genkit");
@@ -70,11 +69,7 @@ async function parsePdfBuffer(buffer) {
         throw new Error(`Échec de l'extraction PDF: ${msg}`);
     }
 }
-// --- Configuration globale ---
-(0, v2_1.setGlobalOptions)({
-    region: "europe-west9",
-    maxInstances: 5,
-});
+// --- Configuration ---
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -100,7 +95,12 @@ const analyzeMailOutputSchema = genkit_1.z.object({
         .optional(),
 });
 // --- Fonction Cloud ---
-exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({ cpu: 2, memory: "1GiB", bucket: "ccs-compta.appspot.com" }, async (event) => {
+exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
+    cpu: 2,
+    memory: "1GiB",
+    bucket: "ccs-compta.appspot.com",
+    region: "europe-west9" // Specify region directly
+}, async (event) => {
     var _a, _b;
     const filePath = (_a = event.data.name) !== null && _a !== void 0 ? _a : "";
     const contentType = (_b = event.data.contentType) !== null && _b !== void 0 ? _b : "";

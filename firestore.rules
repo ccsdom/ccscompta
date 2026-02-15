@@ -1,89 +1,69 @@
-/**
- * @file Firebase Security Rules for Firestore.
- *
- * @core_philosophy This ruleset enforces a strict user-ownership model for client profiles
- * and document-level access control based on the `clientId` field in the document.
- * Unauthenticated access is forbidden. Data validation is relaxed for prototyping, focusing on
- * authorization and relational integrity checks.
- *
- * @data_structure
- * - /clients/{clientId}: Stores user profiles. The `clientId` MUST match the Firebase Auth UID.
- * - /documents/{documentId}: Stores accounting documents. Each document contains a `clientId`
- *   field indicating the owner.
- *
- * @key_security_decisions
- * - Clients can only read and write their own profile data.
- * - Clients can only access documents where the `clientId` field matches their UID.
- * - Listing of all clients is forbidden to prevent information disclosure.
- * - Write operations on documents are restricted to authenticated users only.
- *
- * @denormalization_for_authorization
- * - The `clientId` field in the `AccountingDocument` entity acts as denormalized data,
- *   allowing direct authorization checks without additional `get()` calls.
- *   This prevents the need to query a separate `/clients/{clientId}` document to determine
- *   ownership.
- */
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * @description Rules for the /clients/{clientId} collection.
-     * @path /clients/{clientId}
-     * @allow (create) Authenticated user can create their own client profile if the UID matches the document ID.
-     * @allow (get, update, delete) Authenticated user can get, update or delete their client profile if the UID matches the document ID.
-     * @deny (create) Authenticated user cannot create a client profile with an ID that doesn't match their UID.
-     * @deny (list) Listing all clients is forbidden.
-     * @deny (update, delete) Authenticated user cannot update or delete a client profile with an ID that doesn't match their UID or if the document doesn't exist.
-     * @principle Enforces document ownership for reads and writes.
-     */
-    match /clients/{clientId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(clientId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(clientId);
-      allow update: if isExistingOwner(clientId);
-      allow delete: if isExistingOwner(clientId);
+    
+    // --- Helper functions ---
+    function isStaff() {
+      // Reads role from the user's custom auth token, which is set by a backend function.
+      return request.auth.token.role in ['admin', 'accountant', 'secretary'];
+    }
+    
+    function isAdmin() {
+      return request.auth.token.role == 'admin';
     }
 
-    /**
-     * @description Rules for the /documents/{documentId} collection.
-     * @path /documents/{documentId}
-     * @allow (get, list) Any authenticated user can read any document.
-     * @allow (create) Authenticated user can create a document if the 'clientId' matches their UID.
-     * @allow (update, delete) Authenticated user can update or delete a document if the 'clientId' matches their UID and document exists.
-     * @deny (create) Authenticated user cannot create a document if the 'clientId' does not match their UID.
-     * @deny (update, delete) Authenticated user cannot update or delete a document if the 'clientId' does not match their UID or the document doesn't exist.
-     * @principle Enforces document ownership based on the 'clientId' field.
-     */
-    match /documents/{documentId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+    // --- User collection ('clients') ---
+    match /clients/{userId} {
+      // Staff can list all clients.
+      allow list: if isStaff();
+      // Staff can read any client profile. A user can only read their own.
+      allow get: if isStaff() || request.auth.uid == userId;
+      // Staff can create any user. A new user can create their own profile during signup.
+      allow create: if isStaff() || request.auth.uid == userId;
+      // Only an admin can delete a user.
+      allow delete: if isAdmin();
+      // An admin can update any field. A user can update their own profile, but cannot change their own role.
+      allow update: if isAdmin() || (request.auth.uid == userId && !("role" in request.resource.data));
+    }
 
-      function isOwner(clientId) {
-        return request.auth.uid == clientId;
-      }
-      
-      function isExistingOwner(clientId) {
-        return isOwner(clientId) && resource != null;
-      }
+    // --- Documents collection ---
+    match /documents/{docId} {
+        // Staff can get any document. A user can only get their own document.
+        allow get: if isStaff() || request.auth.uid == resource.data.clientId;
+        // Staff can list all documents. A client can list ONLY their own, by using a 'where' clause.
+        allow list: if isStaff() || (request.query.where.clientId == request.auth.uid);
+        // A user can create a document for themselves.
+        allow create: if request.auth.uid == request.resource.data.clientId;
+        // Staff can update any document. A user can update their own.
+        allow update, delete: if isStaff() || request.auth.uid == resource.data.clientId;
+    }
+    
+    // --- Invoices collection ---
+    match /invoices/{invoiceId} {
+        // Staff can get any invoice. A user can get their own.
+        allow get: if isStaff() || request.auth.uid == resource.data.clientId;
+        // Staff can list all invoices. A client can list only their own.
+        allow list: if isStaff() || (request.query.where.clientId == request.auth.uid);
+        // Only staff can create, update, or delete invoices.
+        allow create, update, delete: if isStaff();
+    }
+    
+     // --- Bilans collection ---
+     match /bilans/{bilanId} {
+        // Staff can get any bilan. A user can get their own.
+        allow get: if isStaff() || request.auth.uid == resource.data.clientId;
+        // Staff can list all bilans. A client can list only their own.
+        allow list: if isStaff() || (request.query.where.clientId == request.auth.uid);
+        // Only staff can create, update, or delete bilans.
+        allow create, update, delete: if isStaff();
+    }
 
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.clientId);
-      allow delete: if isExistingOwner(resource.data.clientId);
+    // --- Cabinets collection ---
+    match /cabinets/{cabinetId} {
+        // Only staff can interact with cabinets.
+        allow read, list, create, update, delete: if isStaff();
     }
   }
 }

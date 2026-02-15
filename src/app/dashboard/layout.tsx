@@ -9,10 +9,12 @@ import { SupportChatbot } from "@/components/support-chatbot";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, UserCheck, UserCog, User } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, UserCheck, UserCog, User, Briefcase } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useFirebase } from "@/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const clientBottomNav = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Documents' },
@@ -69,6 +71,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [currentRole, setCurrentRole] = useState<keyof typeof roleConfig | null>(null);
+  const { isUserLoading } = useFirebase();
 
   // This effect runs on the client to safely access localStorage
   useEffect(() => {
@@ -114,16 +117,44 @@ export default function DashboardLayout({
       )
   }
 
-  // Render a loading state or null until the role is determined
-  if (!currentRole) {
+  // Render a full-page loading skeleton until Firebase has confirmed the auth state.
+  // This is the CRITICAL fix to prevent race conditions.
+  if (isUserLoading) {
     return (
-        <div className="flex h-screen bg-background">
-             <div className="flex-1 flex flex-col overflow-hidden">
-                 <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6 pb-24 md:pb-6" />
+      <div className="flex h-screen bg-background">
+        <aside className="hidden w-64 flex-shrink-0 border-r bg-background md:flex md:flex-col">
+          <div className="flex items-center justify-center h-16 border-b">
+            <Skeleton className="h-8 w-32" />
+          </div>
+          <div className="flex-1 px-4 py-4 space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </aside>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
+                <div className="md:hidden">
+                  <Skeleton className="h-10 w-10" />
+                </div>
+                <Skeleton className="h-10 md:w-2/3 lg:w-1/2" />
+                <div className="flex items-center space-x-1 md:space-x-2">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                </div>
             </div>
+          </header>
+          <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6 pb-24 md:pb-6">
+             <Skeleton className="h-96 w-full" />
+          </main>
         </div>
+      </div>
     );
   }
+
+  // Once loading is complete, render the actual layout, but still guard against a missing role.
+  if (!currentRole) return null; 
 
   return (
     <div className="flex h-screen bg-background">
