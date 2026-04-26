@@ -4,24 +4,22 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { DataValidationForm } from '@/components/data-validation-form';
-import { extractData, type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
-import { validateExtraction } from '@/ai/flows/validate-extraction';
+import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import type { Comment, AuditEvent, Notification, Document, Client } from '@/lib/types';
+import type { Comment, AuditEvent, Notification, Document, Client, UserProfile } from '@/lib/types';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useCollection, useMemoFirebase } from '@/firebase';
+import { useCollection, useMemoFirebase, useUser, useDoc, db, useFirebase } from '@/firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { collection, doc, query, where, writeBatch, increment, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db, useFirebase } from '@/firebase';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClientSwitcher } from '@/components/client-switcher';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
-import { sendDocumentToCegid } from '@/ai/flows/document-actions';
+import { ExportModal } from '@/components/export-modal';
+
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
@@ -43,6 +42,7 @@ const getStatusInfo = (status: Document['status']): { icon: React.ElementType, l
     case 'reviewing': return { icon: FileWarning, label: "Prêt pour examen", color: "text-yellow-500" };
     case 'approved': return { icon: CheckCircle, label: "Approuvé", color: "text-green-500" };
     case 'error': return { icon: FileWarning, label: "Erreur", color: "text-red-500" };
+    case 'duplicate': return { icon: FileWarning, label: "Doublon", color: "text-amber-500" };
     default: return { icon: FileClock, label: "Inconnu", color: "text-gray-500" };
   }
 };
@@ -60,10 +60,15 @@ export default function DocumentsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
   const [isSheetOpen, setIsSheetOpen] = useState(false); // For mobile view
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { storage } = useFirebase();
+
+  const { user } = useUser();
+  const userProfileQuery = useMemo(() => user ? doc(db, 'users', user.uid) : null, [user]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileQuery);
 
   // Firestore hooks for real-time data
   const documentsQuery = useMemoFirebase(() => {
@@ -72,7 +77,22 @@ export default function DocumentsPage() {
   }, [selectedClientId]);
   const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-  const clientsQuery = useMemoFirebase(() => query(collection(db, 'clients')), []);
+  const clientsQuery = useMemoFirebase(() => {
+    if (!userProfile) return null;
+    const role = userProfile.role;
+    if (role === 'admin') {
+      return query(collection(db, 'clients'), where('role', '==', 'client'));
+    }
+    if (userProfile.cabinetId) {
+       return query(
+         collection(db, 'clients'), 
+         where('role', '==', 'client'),
+         where('cabinetId', '==', userProfile.cabinetId)
+       );
+    }
+    return null;
+  }, [userProfile]);
+
   const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
   const isLoading = isLoadingDocuments || isLoadingClients;
@@ -260,24 +280,6 @@ export default function DocumentsPage() {
     setSelectedDocumentIds([]);
   }
 
-  const handleBulkSend = async () => {
-    let sentCount = 0;
-    const docsToSend = documents?.filter(doc => selectedDocumentIds.includes(doc.id) && doc.status === 'approved') || [];
-
-    for (const doc of docsToSend) {
-        const result = await sendDocumentToCegid(doc.id, getCurrentUser());
-        if (result.success) {
-            sentCount++;
-        } else {
-             toast({ title: "Erreur d'envoi", description: `Échec de l'envoi de ${doc.name}: ${result.error}`, variant: "destructive" });
-        }
-    }
-    
-    if (sentCount > 0) {
-        toast({ title: "Données envoyées", description: `${sentCount} documents ont été envoyés à CEGID.` });
-    }
-    setSelectedDocumentIds([]);
-  }
 
   const handleDeleteSingle = async (docId: string) => {
      await deleteDoc(doc(db, 'documents', docId));
@@ -301,24 +303,7 @@ export default function DocumentsPage() {
       toast({ title: "Aucun document à exporter", description: "Veuillez sélectionner des documents approuvés.", variant: "destructive" });
       return;
     }
-    const dataToUnparse = docsToExport.map(doc => ({
-      'ID Document': doc.id,
-      'Nom Fichier': doc.name,
-      'Date Document': doc.extractedData?.dates?.[0],
-      'Fournisseur': doc.extractedData?.vendorNames?.[0],
-      'Montant TTC': doc.extractedData?.amounts?.[0],
-      'Montant TVA': doc.extractedData?.vatAmount,
-      'Taux TVA': doc.extractedData?.vatRate,
-      'Categorie': doc.extractedData?.category,
-     }));
-    const csvContent = "data:text/csv;charset=utf-8," + Papa.unparse(dataToUnparse);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `export-comptable-${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Exportation réussie", description: `${docsToExport.length} documents ont été exportés.` });
+    setIsExportModalOpen(true);
   }
   
   const filteredDocuments = useMemo(() => {
@@ -396,6 +381,7 @@ export default function DocumentsPage() {
       'pending': [],
       'approved': [],
       'error': [],
+      'duplicate': [],
       'processing': [],
     };
     filteredDocuments.forEach(doc => {
@@ -452,7 +438,6 @@ export default function DocumentsPage() {
         <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
         <div className="flex-grow" />
         <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
-        <Button variant="outline" size="sm" onClick={handleBulkSend}><Send className="h-4 w-4 mr-2" />Envoyer à Cegid</Button>
         <Button variant="outline" size="sm" onClick={handleBulkExport}><Download className="h-4 w-4 mr-2" />Export Comptable</Button>
         <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -492,6 +477,7 @@ export default function DocumentsPage() {
       { status: 'pending', label: 'En attente de traitement' },
       { status: 'processing', label: 'En cours de traitement' },
       { status: 'approved', label: 'Approuvé' },
+      { status: 'duplicate', label: 'Doublons Potentiels' },
       { status: 'error', label: 'Erreur' },
     ];
 
@@ -560,6 +546,15 @@ export default function DocumentsPage() {
 
                               <div className="flex-1 overflow-hidden">
                                 <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
+                                <div className="flex items-center gap-2">
+                                    <p className={cn("text-xs font-medium truncate", getStatusInfo(doc.status).color)}>{getStatusInfo(doc.status).label}</p>
+                                    {doc.isExported && (
+                                        <Badge variant="outline" className="h-4 px-1 bg-blue-500/10 text-blue-500 border-none text-[8px] font-black uppercase">Exporté</Badge>
+                                    )}
+                                    {doc.status === 'duplicate' && (
+                                        <Badge variant="outline" className="h-4 px-1 bg-amber-500/10 text-amber-500 border-none text-[8px] font-black uppercase">Doublon</Badge>
+                                    )}
+                                </div>
                                 <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(doc.uploadDate), { addSuffix: true, locale: fr })}</p>
                               </div>
 
@@ -722,6 +717,15 @@ export default function DocumentsPage() {
             <MobileView />
             <DesktopView />
         </div>
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onClose={() => setIsExportModalOpen(false)} 
+        selectedDocIds={selectedDocumentIds}
+        onSuccess={() => {
+            setSelectedDocumentIds([]);
+            setIsExportModalOpen(false);
+        }}
+      />
     </div>
   );
 }

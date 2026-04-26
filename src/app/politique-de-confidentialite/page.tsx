@@ -40,11 +40,11 @@ ListItem.displayName = "ListItem";
 export default function PolitiqueConfidentialitePage() {
   const pathname = usePathname();
     const navLinks = [
-    { href: "/features", text: "Fonctionnalités" },
-    { href: "/pricing", text: "Tarifs" },
-    { href: "/about", text: "À Propos" },
+    { href: "/fonctionnalites", text: "Fonctionnalités" },
+    { href: "/tarifs", text: "Tarifs" },
+    { href: "/a-propos", text: "À Propos" },
     { href: "/blog", text: "Blog" },
-    { href: "/support", text: "Support" }
+    { href: "/assistance", text: "Support" }
   ];
 
 
@@ -79,16 +79,16 @@ export default function PolitiqueConfidentialitePage() {
                         </Link>
                       </NavigationMenuLink>
                     </li>
-                    <ListItem href="/features" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
-                    <ListItem href="/pricing" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
-                    <ListItem href="/security" title="Sécurité">Votre confiance, notre priorité.</ListItem>
+                    <ListItem href="/fonctionnalites" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
+                    <ListItem href="/tarifs" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
+                    <ListItem href="/securite" title="Sécurité">Votre confiance, notre priorité.</ListItem>
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
 
               <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
-                  <Link href="/about">À Propos</Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/a-propos'}>
+                  <Link href="/a-propos">À Propos</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -97,8 +97,8 @@ export default function PolitiqueConfidentialitePage() {
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
-                  <Link href="/support">Support</Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/assistance'}>
+                  <Link href="/assistance">Support</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
@@ -106,7 +106,7 @@ export default function PolitiqueConfidentialitePage() {
 
            <div className="flex items-center gap-2">
              <Button asChild className="hidden md:inline-flex">
-              <Link href="/login">Se connecter</Link>
+              <Link href="/connexion">Se connecter</Link>
             </Button>
             <div className="md:hidden">
                 <Sheet>
@@ -134,7 +134,7 @@ export default function PolitiqueConfidentialitePage() {
                          </SheetClose>
                        ))}
                         <SheetClose asChild>
-                          <Link href="/login" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
+                          <Link href="/connexion" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
                         </SheetClose>
                      </nav>
                   </SheetContent>
@@ -202,17 +202,17 @@ export default function PolitiqueConfidentialitePage() {
               <div>
                 <p className="font-semibold text-foreground">Produit</p>
                 <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/features" className="text-sm text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
-                  <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
-                  <Link href="/security" className="text-sm text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
+                  <Link href="/fonctionnalites" className="text-sm text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
+                  <Link href="/tarifs" className="text-sm text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
+                  <Link href="/securite" className="text-sm text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
                 </nav>
               </div>
               <div>
                 <p className="font-semibold text-foreground">Entreprise</p>
                 <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/about" className="text-sm text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
+                  <Link href="/a-propos" className="text-sm text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
                   <Link href="/blog" className="text-sm text-muted-foreground transition-colors hover:text-primary">Blog</Link>
-                  <Link href="/support" className="text-sm text-muted-foreground transition-colors hover:text-primary">Contact</Link>
+                  <Link href="/assistance" className="text-sm text-muted-foreground transition-colors hover:text-primary">Contact</Link>
                 </nav>
               </div>
               <div>

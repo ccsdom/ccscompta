@@ -8,7 +8,7 @@ import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 import { ref, uploadBytes } from 'firebase/storage';
 import { useFirebase, db } from '@/firebase';
-import { addDoc, collection, doc, increment, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, increment, updateDoc, getDoc } from 'firebase/firestore';
 import type { Document, AuditEvent } from '@/lib/types';
 import { PlusCircle, CheckCircle, Loader2 } from 'lucide-react';
 
@@ -53,16 +53,25 @@ export function QuickUpload() {
 
     const processSingleFile = useCallback(async (file: File, clientId: string) => {
         try {
+            // Fetch client to get cabinetId for strict isolation
+            const clientSnap = await getDoc(doc(db, 'clients', clientId));
+            if (!clientSnap.exists()) {
+                throw new Error("Client non trouvé");
+            }
+            const clientData = clientSnap.data();
+            const cabinetId = clientData.cabinetId;
+
             const storagePath = `${clientId}/${Date.now()}-${file.name}`;
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
 
-            const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
+            const newDocData: any = {
                 name: file.name,
                 uploadDate: new Date().toISOString(),
                 status: 'pending' as const,
                 storagePath,
                 clientId: clientId,
+                cabinetId: cabinetId || null,
                 comments: [],
                 auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
             };

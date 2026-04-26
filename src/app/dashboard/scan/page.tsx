@@ -10,9 +10,9 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { addDocument } from '@/ai/flows/document-actions';
 import type { Document, AuditEvent, Notification, Client } from '@/lib/types';
 import { ref, uploadBytes } from "firebase/storage";
-import { useFirebase, db, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirebase, db } from '@/firebase';
 import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
-import { getDoc, doc as getDocRef, collection } from 'firebase/firestore';
+import { getDoc, doc as getDocRef } from 'firebase/firestore';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -25,14 +25,18 @@ export default function ScanPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { toast } = useToast();
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+    const [currentClient, setCurrentClient] = useState<Client | null>(null);
     const { storage } = useFirebase();
-
-    const clientsQuery = useMemoFirebase(() => collection(db, 'clients'), []);
-    const { data: clients } = useCollection<Client>(clientsQuery);
 
     useEffect(() => {
         const clientId = localStorage.getItem('selectedClientId');
         setSelectedClientId(clientId);
+        // Load client profile via targeted get (not list) to avoid permission errors for non-staff
+        if (clientId) {
+            getDoc(getDocRef(db, 'clients', clientId))
+                .then(snap => { if (snap.exists()) setCurrentClient({ ...snap.data() as Client, id: snap.id }); })
+                .catch(err => console.warn('Could not load client profile:', err));
+        }
 
         const getCameraPermission = async () => {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -90,11 +94,10 @@ export default function ScanPage() {
             const newDocId = await addDocument(docForDb);
             
             // Now create an invoice for this new document
-            const client = clients?.find(c => c.id === clientId);
-            if (client) {
-                await createInvoiceForDocument(client, newDocId);
+            if (currentClient) {
+                await createInvoiceForDocument(currentClient, newDocId);
             } else {
-                console.warn(`Could not find client with ID ${clientId} to create invoice.`);
+                console.warn(`Could not find client profile for ID ${clientId} to create invoice.`);
             }
 
             window.dispatchEvent(new Event('storage')); // Refresh lists
@@ -104,7 +107,7 @@ export default function ScanPage() {
             // We re-throw the error to let the caller handle the UI feedback
             throw error;
         }
-    }, [storage, toast, clients]);
+    }, [storage, toast, currentClient]);
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
@@ -146,64 +149,73 @@ export default function ScanPage() {
 
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Scanner un document</h1>
-                <p className="text-muted-foreground mt-1">Utilisez votre caméra pour numériser et envoyer une pièce comptable.</p>
+                <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Scanner un document</h1>
+                <p className="text-muted-foreground mt-2 text-lg max-w-2xl">Pointez votre caméra vers la pièce comptable pour la numériser et la transmettre instantanément.</p>
             </div>
 
-            <Card>
-                <CardContent className="p-4 md:p-6">
+            <Card className="glass-panel overflow-hidden border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 premium-shadow">
+                <CardContent className="p-4 md:p-8">
                     {hasCameraPermission === false && (
-                         <Alert variant="destructive">
+                         <Alert variant="destructive" className="glass-panel border-destructive/30 mb-6 bg-destructive/10">
                             <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>Accès à la caméra refusé</AlertTitle>
+                            <AlertTitle className="font-display">Accès à la caméra refusé</AlertTitle>
                             <AlertDescription>
-                                Veuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur pour utiliser cette fonctionnalité.
+                                Veuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur pour utiliser la capture intelligente.
                             </AlertDescription>
                         </Alert>
                     )}
 
-                    <div className="aspect-video w-full max-w-3xl mx-auto bg-muted rounded-lg overflow-hidden relative flex items-center justify-center">
+                    <div className="aspect-video w-full max-w-4xl mx-auto bg-black/5 dark:bg-white/5 rounded-3xl overflow-hidden relative flex items-center justify-center ring-1 ring-border/50 premium-shadow-sm group">
+                        {/* Frame indicators */}
+                        <div className="absolute inset-8 border-2 border-primary/30 border-dashed rounded-2xl pointer-events-none z-10 opacity-50 group-hover:opacity-100 transition-opacity"></div>
                         <canvas ref={canvasRef} className="hidden" />
 
                         {capturedImage ? (
-                            <img src={capturedImage} alt="Document capturé" className="w-full h-full object-contain" />
+                            <img src={capturedImage} alt="Document capturé" className="w-full h-full object-contain bg-black/10 backdrop-blur-sm z-0 relative" />
                         ) : (
-                            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                            <video ref={videoRef} className="w-full h-full object-cover z-0 relative" autoPlay muted playsInline />
                         )}
 
                         {hasCameraPermission === null && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80">
-                                <Loader2 className="h-8 w-8 animate-spin" />
-                                <p className="mt-2 text-muted-foreground">Demande d'accès à la caméra...</p>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md z-20">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                <p className="mt-4 text-muted-foreground font-medium">Initialisation de la lentille intelligente...</p>
                             </div>
                         )}
                          {!capturedImage && hasCameraPermission === false && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 text-destructive">
-                                <VideoOff className="h-12 w-12" />
-                                <p className="mt-2 font-semibold">Caméra non disponible</p>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md text-destructive z-20">
+                                <div className="p-4 bg-destructive/10 rounded-full mb-4">
+                                    <VideoOff className="h-10 w-10 text-destructive" />
+                                </div>
+                                <p className="font-semibold text-lg font-display">Capteur optique indisponible</p>
                             </div>
                         )}
 
                     </div>
 
-                    <div className="flex justify-center items-center gap-4 mt-6">
+                    <div className="flex justify-center items-center gap-4 mt-8">
                         {capturedImage ? (
                             <>
-                                <Button variant="outline" size="lg" onClick={handleRetake} disabled={isProcessing}>
+                                <Button variant="outline" size="lg" onClick={handleRetake} disabled={isProcessing} className="h-12 px-6 rounded-full glass-panel hover:bg-background">
                                     <RefreshCcw className="mr-2 h-5 w-5" /> Reprendre
                                 </Button>
-                                <Button size="lg" onClick={handleSend} disabled={isProcessing}>
+                                <Button size="lg" onClick={handleSend} disabled={isProcessing} className="h-12 px-8 rounded-full premium-shadow-sm group">
                                     {isProcessing ? (
-                                        <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Envoi...</>
+                                        <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Analyse...</>
                                     ) : (
-                                        <><Send className="mr-2 h-5 w-5" /> Envoyer</>
+                                        <><Send className="mr-2 h-5 w-5 transition-transform group-hover:translate-x-1" /> Transmettre</>
                                     )}
                                 </Button>
                             </>
                         ) : (
-                            <Button size="lg" onClick={handleCapture} disabled={!hasCameraPermission} className="h-16 w-16 rounded-full">
+                            <Button 
+                                size="lg" 
+                                onClick={handleCapture} 
+                                disabled={!hasCameraPermission} 
+                                className="h-20 w-20 rounded-full premium-shadow border-4 border-background hover:scale-105 transition-all duration-300"
+                            >
                                 <Camera className="h-8 w-8" />
                                 <span className="sr-only">Capturer</span>
                             </Button>

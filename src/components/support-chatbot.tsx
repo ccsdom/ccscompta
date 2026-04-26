@@ -17,7 +17,7 @@ import type { Message } from 'genkit';
 
 export function SupportChatbot() {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [documentation, setDocumentation] = useState<string | null>(null);
@@ -62,8 +62,8 @@ export function SupportChatbot() {
         e.preventDefault();
         if (!input.trim() || isLoading || documentation === null) return;
 
-        const userMessage: Message = { role: 'user', content: [{ text: input }] };
-        const newMessages: Message[] = [...messages, userMessage];
+        const userMessage = { role: 'user', content: [{ text: input }] };
+        const newMessages: any[] = [...messages, userMessage];
         setMessages(newMessages);
         setInput('');
         setIsLoading(true);
@@ -79,7 +79,7 @@ export function SupportChatbot() {
             setMessages([...newMessages, { role: 'model', content: [{ text: response }] }]);
         } catch (error) {
             console.error("Chatbot error:", error);
-            const errorMessage: Message = { role: 'model', content: [{ text: "Désolé, une erreur est survenue. Veuillez réessayer plus tard." }] };
+            const errorMessage = { role: 'model', content: [{ text: "Désolé, une erreur est survenue. Veuillez réessayer plus tard." }] };
             setMessages([...newMessages, errorMessage]);
         } finally {
             setIsLoading(false);

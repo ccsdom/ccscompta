@@ -1,69 +1,103 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
     // --- Helper functions ---
-    function isStaff() {
-      // Reads role from the user's custom auth token, which is set by a backend function.
-      return request.auth.token.role in ['admin', 'accountant', 'secretary'];
+    function isAuthenticated() {
+      return request.auth != null;
     }
-    
+
     function isAdmin() {
-      return request.auth.token.role == 'admin';
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (request.auth.token.role in ['admin', 'accountant', 'secretary']);
+    }
+
+    function getProfile() {
+      return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data;
+    }
+
+    function hasValidProfile() {
+       return isAuthenticated() && exists(/databases/$(database)/documents/clients/$(request.auth.uid));
+    }
+
+    function isCabinetStaff(cabinetId) {
+      return isStaff() && (isAdmin() || (hasValidProfile() && getProfile().cabinetId == cabinetId));
+    }
+
+    // --- GLOBAL ADMIN OVERRIDE ---
+    // Les administrateurs peuvent tout faire
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- Legacy / User collection ---
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
     }
 
     // --- User collection ('clients') ---
     match /clients/{userId} {
-      // Staff can list all clients.
-      allow list: if isStaff();
-      // Staff can read any client profile. A user can only read their own.
+      allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId);
       allow get: if isStaff() || request.auth.uid == userId;
-      // Staff can create any user. A new user can create their own profile during signup.
       allow create: if isStaff() || request.auth.uid == userId;
-      // Only an admin can delete a user.
       allow delete: if isAdmin();
-      // An admin can update any field. A user can update their own profile, but cannot change their own role.
-      allow update: if isAdmin() || (request.auth.uid == userId && !("role" in request.resource.data));
+      allow update: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == userId && !("role" in request.resource.data));
     }
 
     // --- Documents collection ---
     match /documents/{docId} {
-        // Staff can get any document. A user can only get their own document.
-        allow get: if isStaff() || request.auth.uid == resource.data.clientId;
-        // Staff can list all documents. A client can list ONLY their own, by using a 'where' clause.
-        allow list: if isStaff() || (request.query.where.clientId == request.auth.uid);
-        // A user can create a document for themselves.
-        allow create: if request.auth.uid == request.resource.data.clientId;
-        // Staff can update any document. A user can update their own.
-        allow update, delete: if isStaff() || request.auth.uid == resource.data.clientId;
+        allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
+        allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.query.filters.clientId == request.auth.uid);
+        allow create: if isAuthenticated() && (isStaff() || request.auth.uid == request.resource.data.clientId);
+        allow update, delete: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
     }
     
-    // --- Invoices collection ---
+    // --- Invoices & Bilans collection ---
     match /invoices/{invoiceId} {
-        // Staff can get any invoice. A user can get their own.
-        allow get: if isStaff() || request.auth.uid == resource.data.clientId;
-        // Staff can list all invoices. A client can list only their own.
-        allow list: if isStaff() || (request.query.where.clientId == request.auth.uid);
-        // Only staff can create, update, or delete invoices.
-        allow create, update, delete: if isStaff();
+        allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
+        allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.query.filters.clientId == request.auth.uid);
+        allow create, update, delete: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
     }
     
-     // --- Bilans collection ---
-     match /bilans/{bilanId} {
-        // Staff can get any bilan. A user can get their own.
-        allow get: if isStaff() || request.auth.uid == resource.data.clientId;
-        // Staff can list all bilans. A client can list only their own.
-        allow list: if isStaff() || (request.query.where.clientId == request.auth.uid);
-        // Only staff can create, update, or delete bilans.
-        allow create, update, delete: if isStaff();
+    match /bilans/{bilanId} {
+        allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
+        allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.query.filters.clientId == request.auth.uid);
+        allow create, update, delete: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
+    }
+
+    // --- Bank Reconciliations ---
+    match /reconciliations/{reconcId} {
+        allow read, write: if isCabinetStaff(resource.data.cabinetId || request.resource.data.cabinetId);
+    }
+
+    // --- Notifications collection ---
+    match /notifications/{notifId} {
+        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
+        allow list: if isAuthenticated() && (isStaff() || request.query.limit <= 50 && request.auth.uid == request.query.filters.clientId);
+        allow create: if isStaff(); 
+        allow update: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId); 
+        allow delete: if isAdmin();
+    }
+
+    // --- Mails collection (Ingestion IA) ---
+    match /mails/{mailId} {
+        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
+        allow list: if isStaff();
+        allow create: if isAdmin(); // Autoriser admin pour tests
+        allow update, delete: if isStaff();
     }
 
     // --- Cabinets collection ---
     match /cabinets/{cabinetId} {
-        // Only staff can interact with cabinets.
-        allow read, list, create, update, delete: if isStaff();
+        allow get: if isAuthenticated() && (isStaff() || (hasValidProfile() && getProfile().cabinetId == cabinetId));
+        allow list: if isAdmin();
+        allow create: if isAdmin();
+        allow update: if isCabinetStaff(cabinetId);
+        allow delete: if isAdmin();
     }
   }
 }

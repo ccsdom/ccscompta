@@ -1,18 +1,17 @@
-
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect } from 'react';
+import { useBranding } from '@/components/branding-provider';
+import { Loader2 } from 'lucide-react';
 
 export default function DashboardRedirect() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const { role, isLoading } = useBranding();
 
   useEffect(() => {
-    // This effect runs only on the client side
-    const role = localStorage.getItem('userRole');
-    
+    if (isLoading) return;
+
     let targetPath: string;
     switch (role) {
       case 'admin':
@@ -28,27 +27,18 @@ export default function DashboardRedirect() {
         targetPath = '/dashboard/my-documents';
         break;
       default:
-        // If no role, or unknown role, redirect to login
-        targetPath = '/login';
+        targetPath = '/connexion';
         break;
     }
     
     router.replace(targetPath);
-    // No need to setLoading(false) as the component will unmount on redirect.
+  }, [role, isLoading, router]);
 
-  }, [router]);
-
-  // Display a full-page loader to avoid flashing content or showing a blank page during redirection.
   return (
-    <div className="w-full h-full p-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-            <Skeleton className="h-32" />
-        </div>
-        <div className="grid grid-cols-1 gap-6">
-             <Skeleton className="h-96" />
+    <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium">Redirection vers votre espace...</p>
         </div>
     </div>
   );

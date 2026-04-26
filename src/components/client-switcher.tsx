@@ -20,10 +20,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from 'firebase/firestore';
+import { useCollection, useMemoFirebase, useUser, useDoc } from "@/firebase";
+import { collection, query, where, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import type { Client } from "@/lib/types";
+import type { Client, UserProfile } from "@/lib/types";
 
 type PopoverClient = {
   value: string;
@@ -33,42 +33,50 @@ type PopoverClient = {
 export function ClientSwitcher() {
   const [open, setOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+
+  const { user } = useUser();
+  const userProfileQuery = useMemo(() => user ? doc(db, 'clients', user.uid) : null, [user]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileQuery);
 
   useEffect(() => {
     // This effect runs on the client to safely access localStorage
-    const role = localStorage.getItem('userRole');
     const storedClientId = localStorage.getItem('selectedClientId');
-    setUserRole(role);
     setSelectedValue(storedClientId);
-    setIsMounted(true); // Mark as mounted after initial state is set
+    setIsMounted(true);
 
     const handleStorageChange = () => {
-       const newRole = localStorage.getItem('userRole');
        const newClientId = localStorage.getItem('selectedClientId');
-       setUserRole(newRole);
        setSelectedValue(newClientId);
     };
     
     window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
   
-  // CRITICAL: Memoize the role check to ensure it's stable for use in useMemoFirebase
-  const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
+  const userRole = userProfile?.role || 'client';
+  const isStaff = isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole);
+  const isAdmin = userRole === 'admin';
 
-  // CRITICAL: The query is now dependent on `isStaff`, which is a memoized value.
-  // The query will only be created when `isStaff` is true.
   const clientsQuery = useMemoFirebase(() => {
-    if (isStaff) {
+    if (!isStaff || !userProfile) return null;
+
+    if (isAdmin) {
+      // SaaS Admin sees all clients
       return query(collection(db, 'clients'), where('role', '==', 'client'));
     }
-    return null; // If not staff, the query is null, and useCollection will not run.
-  }, [isStaff]);
+
+    if (userProfile.cabinetId) {
+      // Staff (Accountant/Secretary) only see clients from their cabinet
+      return query(
+        collection(db, 'clients'), 
+        where('role', '==', 'client'),
+        where('cabinetId', '==', userProfile.cabinetId)
+      );
+    }
+
+    return null;
+  }, [isStaff, isAdmin, userProfile?.cabinetId]);
   
   const { data: clientsData, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
   
@@ -84,12 +92,11 @@ export function ClientSwitcher() {
   const selectedClient = clients.find(c => c.value === selectedValue);
 
   if (!isMounted) {
-    // Render a disabled button or a skeleton loader while waiting for client-side mount
     return <Button variant="outline" className="w-full justify-between" disabled />;
   }
   
   if (userRole === 'client') {
-      const clientName = localStorage.getItem('userName');
+      const clientName = userProfile?.name || localStorage.getItem('userName');
       return (
         <Button variant="outline" role="combobox" className="w-full justify-between" disabled>
             <div className="flex items-center gap-2 overflow-hidden">
@@ -138,7 +145,7 @@ export function ClientSwitcher() {
               {clients.map((client) => (
                 <CommandItem
                   key={client.value}
-                  value={client.label} // Use label for filtering
+                  value={client.label}
                   onSelect={() => handleClientChange(client.value)}
                 >
                   <Check

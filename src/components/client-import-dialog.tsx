@@ -191,7 +191,15 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
             if (!open) resetState();
         }}>
             <DialogTrigger asChild>
-                <TriggerComponent {...triggerProps} />
+                {isMenuItem ? (
+                    <div className={(triggerProps as any).className}>
+                        {(triggerProps as any).children}
+                    </div>
+                ) : (
+                    <Button variant={(triggerProps as any).variant || "outline"}>
+                        {(triggerProps as any).children}
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
                 <DialogHeader>

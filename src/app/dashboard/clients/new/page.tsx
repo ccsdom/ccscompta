@@ -10,10 +10,12 @@ import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { KeyRound } from "lucide-react";
+import { KeyRound, UserPlus, ChevronLeft, Search, Sparkles } from "lucide-react";
 import { useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 export default function NewClientPage() {
     const router = useRouter();
@@ -34,7 +36,7 @@ export default function NewClientPage() {
         }
         searchParams.forEach((value, key) => {
             if (key in formSchema.shape) {
-                data[key as keyof typeof data] = value;
+                (data as any)[key] = value;
             }
         });
         setInitialData(data);
@@ -52,8 +54,6 @@ export default function NewClientPage() {
             const createUserFunc = httpsCallable(functions, 'createUserWithRole');
             const result = await createUserFunc(data)
                 .catch((error) => {
-                    // This is where we catch potential permission errors from the callable function
-                    // even though the rules check is on the client. It's a good fallback.
                     if (error.code === 'permission-denied' || error.message.includes('permission-denied')) {
                         const permissionError = new FirestorePermissionError({
                             path: 'clients/{newUserId}',
@@ -62,7 +62,6 @@ export default function NewClientPage() {
                         });
                         errorEmitter.emit('permission-error', permissionError);
                     }
-                    // re-throw other errors
                     throw error;
                 });
 
@@ -78,11 +77,11 @@ export default function NewClientPage() {
                 description: (
                     <div className="space-y-2">
                         <p>Le compte pour <strong>{data.name}</strong> a été créé.</p>
-                         <Alert variant="default">
+                         <Alert variant="default" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
                             <KeyRound className="h-4 w-4" />
-                            <AlertTitle>Mot de passe initial</AlertTitle>
-                            <AlertDescription>
-                                Le mot de passe initial de l'utilisateur est : <strong>password</strong>
+                            <AlertTitle className="font-space font-black uppercase text-[10px] tracking-widest">Mot de passe envoyé</AlertTitle>
+                            <AlertDescription className="text-xs">
+                                L'utilisateur recevra ses accès sous peu. Mot de passe initial : <strong>password</strong>
                             </AlertDescription>
                         </Alert>
                     </div>
@@ -116,21 +115,58 @@ export default function NewClientPage() {
     }
 
     return (
-        <div>
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold tracking-tight">Nouvel Utilisateur</h1>
-                <p className="text-muted-foreground mt-1">Créez un profil pour un client, un comptable ou un administrateur.</p>
-            </div>
-             <div className="mb-6 max-w-lg">
-                <p className="text-sm font-medium mb-2">Recherche rapide d'entreprise (pour les clients)</p>
-                <CompanySearchCombobox onCompanySelect={handleCompanySelect} />
-            </div>
-            <ClientForm 
-                key={initialData?.siret || initialData?.cabinetId || 'new'}
-                onSave={handleSave} 
-                isSubmitting={isSubmitting} 
-                initialData={initialData}
-            />
+        <div className="space-y-10 p-4 md:p-8 max-w-5xl mx-auto pb-24">
+            {/* Header section */}
+            <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+            >
+                <Button 
+                    variant="ghost" 
+                    onClick={() => router.back()}
+                    className="group h-10 px-0 hover:bg-transparent text-muted-foreground hover:text-foreground font-space font-black uppercase text-[10px] tracking-widest transition-all"
+                >
+                    <ChevronLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                    Retour
+                </Button>
+                <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <UserPlus className="h-5 w-5 text-primary" />
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-black font-space tracking-tight">Nouvel Utilisateur</h1>
+                    </div>
+                    <p className="text-muted-foreground font-medium max-w-2xl">Configurez un nouvel accès pour un membre de votre équipe ou pour un client externe.</p>
+                </div>
+            </motion.div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 gap-10"
+            >
+                {/* Search Assist */}
+                <div className="glass-panel p-8 rounded-[2rem] border-none premium-shadow-sm space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Search className="h-4 w-4 text-primary" />
+                        <h2 className="font-space font-black uppercase text-[10px] tracking-widest opacity-60">Assistant Creation Rapide</h2>
+                    </div>
+                    <p className="text-sm font-medium">Recherchez une entreprise pour pré-remplir les données (Siren/Siret, adresse...).</p>
+                    <div className="max-w-md">
+                        <CompanySearchCombobox onCompanySelect={handleCompanySelect} />
+                    </div>
+                </div>
+
+                {/* Main Form */}
+                <ClientForm 
+                    key={initialData?.siret || initialData?.cabinetId || 'new'}
+                    onSave={handleSave} 
+                    isSubmitting={isSubmitting} 
+                    initialData={initialData}
+                />
+            </motion.div>
         </div>
     )
 }

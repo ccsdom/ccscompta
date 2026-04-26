@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, ShieldAlert } from 'lucide-react';
+import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, ShieldAlert, UploadCloud } from 'lucide-react';
 import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -367,6 +367,29 @@ export default function MyDocumentsPage() {
   )
 
 
+  const anomalies = useMemo(() => {
+    const list: { docId: string, docName: string, date: string, description: string, amount: number, transactionIndex: number }[] = [];
+    if (!documents) return list;
+    
+    documents.forEach(doc => {
+        if (doc.extractedData?.transactions) {
+            doc.extractedData.transactions.forEach((t: any, i) => {
+                if (t.isAnomaly && !t.matchingDocumentId) {
+                    list.push({ 
+                        docId: doc.id, 
+                        docName: doc.name,
+                        date: t.date || '',
+                        description: t.description || t.vendor || '',
+                        amount: t.amount || 0,
+                        transactionIndex: i
+                    });
+                }
+            });
+        }
+    });
+    return list;
+  }, [documents]);
+
   return (
     <div className="space-y-6">
        {showPasswordAlert && (
@@ -388,44 +411,81 @@ export default function MyDocumentsPage() {
       )}
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mes Documents</h1>
-        <p className="text-muted-foreground mt-1">Téléversez et suivez le statut de vos pièces comptables.</p>
+        <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Mon Dépôt Magique</h1>
+        <p className="text-muted-foreground mt-2 text-lg">Dépôt simplifié, suivi et actions requises en un clin d'œil.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Nouveau document</CardTitle>
-            <CardDescription>Déposez vos fichiers ici. Ils seront automatiquement envoyés à votre comptable pour traitement.</CardDescription>
+      {anomalies.length > 0 && (
+          <div className="glass-panel border-l-4 border-l-destructive bg-destructive/5 dark:bg-destructive/10 p-5 sm:p-7 rounded-r-2xl mb-8 animate-in slide-in-from-top-4 fade-in duration-700 ease-out premium-shadow">
+             <div className="flex items-center gap-3 mb-5">
+                 <ShieldAlert className="h-7 w-7 text-destructive animate-pulse" />
+                 <h2 className="text-2xl font-bold text-destructive font-display tracking-tight">Actions Requises ({anomalies.length})</h2>
+             </div>
+             <p className="text-base text-destructive/80 dark:text-destructive/70 mb-5 font-medium leading-relaxed">
+                 Votre expert-comptable a identifié des <strong>anomalies bancaires</strong>. Des justificatifs sont manquants pour valider votre TVA. 
+             </p>
+             <div className="space-y-4">
+                 {anomalies.slice(0, 3).map((anomaly, idx) => (
+                     <div key={`${anomaly.docId}-${idx}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/50 dark:bg-black/20 p-4 rounded-xl shadow-sm border border-destructive/10 backdrop-blur-md gap-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                         <div>
+                             <p className="font-semibold text-sm">{anomaly.description} <span className="font-bold text-red-600 block sm:inline mt-1 sm:mt-0 sm:ml-2">{anomaly.amount.toFixed(2)} €</span></p>
+                             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><FileClock className="h-3 w-3" /> Extrait le {anomaly.date} depuis {anomaly.docName}</p>
+                         </div>
+                         <Button size="sm" variant="outline" className="shrink-0 border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors" onClick={() => {
+                             toast({title: "Dépôt contextuel", description: "Glissez le reçu relatif à cette dépense dans le Dépôt Magique ci-dessous."});
+                         }}>
+                             <UploadCloud className="h-4 w-4 mr-2" />
+                             Fournir le reçu
+                         </Button>
+                     </div>
+                 ))}
+                 {anomalies.length > 3 && (
+                     <div className="text-center pt-2">
+                         <span className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Voir les {anomalies.length - 3} autres relances...</span>
+                     </div>
+                 )}
+             </div>
+          </div>
+      )}
+
+      <Card className="glass-panel overflow-hidden border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 premium-shadow">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-8">
+            <CardTitle className="text-3xl font-display text-primary">Nouveau document</CardTitle>
+            <CardDescription className="text-base text-foreground/70">Déposez vos fichiers ici. Ils seront automatiquement envoyés à votre comptable pour traitement.</CardDescription>
         </CardHeader>
         <CardContent>
              <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} />
         </CardContent>
       </Card>
       
-      <div>
-          <h2 className="text-2xl font-semibold tracking-tight mb-4">Historique des documents</h2>
+      <div className="pt-8 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
+          <h2 className="text-3xl font-bold tracking-tight mb-6 font-display">Historique des documents</h2>
            {isLoading ? (
-               <div className="space-y-4">
-                  <Skeleton className="h-40 w-full" />
-                  <Skeleton className="h-40 w-full" />
+               <div className="space-y-4 glass-panel p-6 rounded-2xl">
+                  <Skeleton className="h-20 w-full opacity-50" />
+                  <Skeleton className="h-20 w-full opacity-50" />
                </div>
            ) : filteredDocuments.length > 0 ? (
-                <DocumentHistory 
-                    documents={filteredDocuments}
-                    onProcess={() => {}}
-                    onDelete={handleDelete}
-                    activeDocumentId={activeDocument?.id}
-                    setActiveDocument={handleSetActive}
-                    selectedDocumentIds={[]}
-                    setSelectedDocumentIds={() => {}}
-                    isLoading={false}
-                />
+                <div className="glass-panel rounded-2xl p-1 sm:p-6 premium-shadow bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 overflow-hidden">
+                    <DocumentHistory 
+                        documents={filteredDocuments}
+                        onProcess={() => {}}
+                        onDelete={handleDelete}
+                        activeDocumentId={activeDocument?.id}
+                        setActiveDocument={handleSetActive}
+                        selectedDocumentIds={[]}
+                        setSelectedDocumentIds={() => {}}
+                        isLoading={false}
+                    />
+                </div>
             ) : (
-                <Card>
-                  <CardContent className="h-48 flex flex-col items-center justify-center text-center">
-                      <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold">Aucun document pour l'instant</h3>
-                      <p className="text-sm text-muted-foreground mt-1">Téléversez votre premier document pour commencer.</p>
+                <Card className="glass-panel border-dashed border-2 border-border/50 bg-background/50 premium-shadow-sm hover:border-primary/50 transition-colors duration-500">
+                  <CardContent className="h-64 flex flex-col items-center justify-center text-center">
+                      <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 ring-1 ring-primary/20 premium-shadow">
+                        <FileUp className="h-10 w-10 text-primary" />
+                      </div>
+                      <h3 className="text-xl font-bold font-display tracking-tight">Aucun document historique</h3>
+                      <p className="text-base text-muted-foreground mt-2 max-w-md">Déposez votre premier justificatif dans la zone ci-dessus pour qu'il soit analysé par votre comptable.</p>
                   </CardContent>
               </Card>
             )}

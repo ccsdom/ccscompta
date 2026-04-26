@@ -4,81 +4,81 @@
 
 @layer base {
   :root {
-    --background: 222 84% 98%;
-    --foreground: 224 71.4% 4.1%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 262 83% 58%; /* New primary color: vibrant purple */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 160 50% 92%; /* New secondary color: mint green accent */
-    --secondary-foreground: 260 60% 10%;
-    --muted: 220 13% 91%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 262 83% 96%; /* Lighter purple for accents */
-    --accent-foreground: 262 60% 30%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%; /* Professional Blue 600 */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 214.3 31.8% 91.4%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 214.3 31.8% 91.4%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 214.3 31.8% 91.4%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 85%;
-    --input: 220 13% 85%;
-    --ring: 262 83% 58%;
-    --chart-1: 262 83% 58%;
-    --chart-2: 160 70% 45%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 212 92% 43%;
+    --chart-3: 200 98% 39%;
+    --chart-4: 190 90% 40%;
+    --chart-5: 180 90% 40%;
     --radius: 0.5rem;
   }
   .dark {
-    --background: 224 71% 10%;
-    --foreground: 210 20% 98%;
-    --card: 224 71% 12%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 262 90% 68%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 160 50% 20%;
-    --secondary-foreground: 160 90% 90%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 262 50% 25%;
-    --accent-foreground: 262 90% 85%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%; /* Professional Blue 500 */
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 28% 20%;
-    --input: 215 28% 17%;
-    --ring: 262 91% 60%;
-    --chart-1: 262 90% 68%;
-    --chart-2: 160 70% 55%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+    --chart-1: 217.2 91.2% 59.8%;
+    --chart-2: 212 92% 53%;
+    --chart-3: 200 98% 49%;
+    --chart-4: 190 90% 50%;
+    --chart-5: 180 90% 50%;
   }
 
   .accountant-theme {
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 142.1 76.2% 96.3%;
-    --ring: 142.1 76.2% 36.3%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 221.2 83.2% 53.3%;
   }
 
   .dark .accountant-theme {
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 142.1 76.2% 96.3%;
-    --ring: 142.1 76.2% 36.3%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --ring: 217.2 91.2% 59.8%;
   }
 
   .admin-theme {
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 262.1 83.3% 97.8%;
-    --ring: 262.1 83.3% 57.8%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 221.2 83.2% 53.3%;
   }
 
   .dark .admin-theme {
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 262.1 83.3% 97.8%;
-    --ring: 262.1 83.3% 57.8%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -89,5 +89,34 @@
   body {
     @apply bg-background text-foreground;
     font-size: clamp(14px, 1.5vw, 16px);
+    /* Very subtle elegant gradient background */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(var(--primary)/0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(var(--primary)/0.02) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight text-foreground;
+  }
+  h1 { @apply text-4xl font-extrabold lg:text-5xl; }
+  h2 { @apply text-3xl font-semibold; }
+  h3 { @apply text-2xl font-semibold; }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)];
+  }
+  
+  .glass-panel-hover {
+    @apply hover:bg-white/60 dark:hover:bg-black/60 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_12px_40px_rgb(0,0,0,0.3)] transition-all duration-300 ease-in-out;
+  }
+
+  .premium-shadow {
+    @apply shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)];
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/80 dark:from-primary dark:to-primary/60;
   }
 }

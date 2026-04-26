@@ -17,12 +17,14 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import { useBranding } from "@/components/branding-provider";
+
 export default function SettingsPage() {
     const { toast } = useToast();
     const { theme, setTheme } = useTheme();
+    const { role: userRole, profile, isLoading } = useBranding();
 
-    const [userRole, setUserRole] = useState<string | null>(null);
-    const [userName, setUserName] = useState("Utilisateur");
+    const [userName, setUserName] = useState("");
     const [userEmail, setUserEmail] = useState("");
 
     const [automationSettings, setAutomationSettings] = useState({
@@ -30,26 +32,31 @@ export default function SettingsPage() {
         confidenceThreshold: 0.95,
         autoSend: false,
     });
+    
     const [storageRules, setStorageRules] = useState<string | null>(null);
     const [firestoreRules, setFirestoreRules] = useState<string | null>(null);
     const [isLoadingStorageRules, setIsLoadingStorageRules] = useState(false);
     const [isLoadingFirestoreRules, setIsLoadingFirestoreRules] = useState(false);
 
     useEffect(() => {
-        const role = localStorage.getItem('userRole');
-        setUserRole(role);
+        if (profile) {
+            setUserName(profile.name);
+            setUserEmail(profile.email);
+        }
         
-        const name = localStorage.getItem('userName');
-        if (name) setUserName(name);
-
-        const email = localStorage.getItem('userEmail');
-        if (email) setUserEmail(email);
-
         const storedAutomation = localStorage.getItem('automationSettings');
         if (storedAutomation) {
             setAutomationSettings(JSON.parse(storedAutomation));
         }
-    }, []);
+    }, [profile]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     const handleProfileSave = (e: React.FormEvent) => {
         e.preventDefault();

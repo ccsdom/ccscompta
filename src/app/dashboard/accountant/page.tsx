@@ -1,43 +1,75 @@
 'use client';
-
+ 
 import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Users, FileUp, FileCheck, FileClock, Building } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis } from "recharts";
+import { Users, FileUp, FileCheck, FileClock, Building, History as HistoryIcon, FileSpreadsheet, TrendingUp, ArrowUpRight, Search } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import type { Document, Client } from '@/lib/types';
+import type { Document, Client, AuditEvent, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { db } from '@/firebase';
+import { collection, query, orderBy, limit, where, doc } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
 
 export default function AccountantDashboard() {
-    const [userRole, setUserRole] = useState<string | null>(null);
     const [isMounted, setIsMounted] = useState(false);
+    const { user } = useUser();
+    
+    // Fetch user profile for cabinet isolation
+    const userProfileQuery = useMemo(() => user ? doc(db, 'users', user.uid) : null, [user]);
+    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileQuery);
 
     useEffect(() => {
-        const role = localStorage.getItem('userRole');
-        setUserRole(role);
         setIsMounted(true);
     }, []);
 
-    const isStaff = useMemo(() => isMounted && userRole && ['accountant', 'admin'].includes(userRole), [isMounted, userRole]);
+    const userRole = userProfile?.role || null;
+    const isStaff = isMounted && userRole && ['accountant', 'admin'].includes(userRole);
+    const isAdmin = userRole === 'admin';
+    const cabinetId = userProfile?.cabinetId;
 
+    // Secured Queries
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null; // Guard: Do not query if not staff
-        return query(collection(db, 'clients'));
-    }, [isStaff]);
+        if (!isStaff || !userProfile) return null;
+        if (isAdmin) return query(collection(db, 'clients'), where('role', '==', 'client'));
+        return query(
+            collection(db, 'clients'), 
+            where('role', '==', 'client'),
+            where('cabinetId', '==', cabinetId)
+        );
+    }, [isStaff, isAdmin, cabinetId, userProfile]);
+    
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null; // Guard: Do not query if not staff
-        return query(collection(db, 'documents'));
-    }, [isStaff]);
+        if (!isStaff || !userProfile) return null;
+        if (isAdmin) return query(collection(db, 'documents'));
+        return query(
+            collection(db, 'documents'), 
+            where('cabinetId', '==', cabinetId)
+        );
+    }, [isStaff, isAdmin, cabinetId, userProfile]);
+    
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    const loading = !isMounted || (isStaff && (isLoadingClients || isLoadingDocuments));
+    const reconciliationsQuery = useMemoFirebase(() => {
+        if (!isStaff || !userProfile) return null;
+        if (isAdmin) return query(collection(db, 'reconciliations'), orderBy('createdAt', 'desc'), limit(5));
+        return query(
+            collection(db, 'reconciliations'), 
+            where('cabinetId', '==', cabinetId),
+            orderBy('createdAt', 'desc'), 
+            limit(5)
+        );
+    }, [isStaff, isAdmin, cabinetId, userProfile]);
+    
+    const { data: recentReconciliations, isLoading: isLoadingReconciliations } = useCollection<any>(reconciliationsQuery);
+
+    const loading = !isMounted || isLoadingProfile || (isStaff && (isLoadingClients || isLoadingDocuments || isLoadingReconciliations));
 
     const dashboardData = useMemo(() => {
         if (loading || !documents || !clients) return null;
@@ -45,15 +77,15 @@ export default function AccountantDashboard() {
         const today = new Date();
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
-        const docsUploadedToday = documents.filter(d => {
-            const uploadEvent = d.auditTrail.find(e => e.action.includes('téléversé'));
+        const docsUploadedToday = documents.filter((d: Document) => {
+            const uploadEvent = (d.auditTrail || []).find((e: AuditEvent) => e.action.includes('téléversé'));
             return uploadEvent && new Date(uploadEvent.date) >= twentyFourHoursAgo;
         }).length;
         
         const docsPendingReview = documents.filter(d => ['pending', 'reviewing', 'error'].includes(d.status)).length;
         
-        const docsApprovedToday = documents.filter(doc => {
-            const approvalEvent = doc.auditTrail.find(e => e.action.includes('approuvé'));
+        const docsApprovedToday = documents.filter((doc: Document) => {
+            const approvalEvent = (doc.auditTrail || []).find((e: AuditEvent) => e.action.includes('approuvé'));
             return approvalEvent && new Date(approvalEvent.date) >= twentyFourHoursAgo;
         }).length;
         
@@ -65,44 +97,28 @@ export default function AccountantDashboard() {
             return { name: client.name, docs: clientDocsToday };
         }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
 
-        const recentActivities = documents
-            .flatMap(doc => {
-                const client = clients.find(c => c.id === doc.clientId);
-                return (doc.auditTrail || []).map(event => ({
-                    ...event,
-                    clientName: client?.name || 'Inconnu',
-                    documentName: doc.name,
-                }));
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 5);
-
         return {
             totalClients: clients.filter(c => c.status === 'active' && c.role === 'client').length,
             docsUploadedToday,
             docsPendingReview,
             docsApprovedToday,
             activityByClient,
-            recentActivities
         };
     }, [documents, clients, loading]);
     
-    if (!isMounted) {
+    if (!isMounted || loading) {
         return (
-             <div className="space-y-6">
-                <div>
-                    <Skeleton className="h-9 w-1/3" />
-                    <Skeleton className="h-5 w-2/3 mt-2" />
+             <div className="space-y-8 p-6 lg:p-10">
+                <div className="space-y-2">
+                    <Skeleton className="h-12 w-1/3 bg-primary/5" />
+                    <Skeleton className="h-6 w-1/2 opacity-50" />
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 rounded-3xl" />)}
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Skeleton className="lg:col-span-2 h-80" />
-                    <Skeleton className="h-80" />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <Skeleton className="lg:col-span-2 h-[450px] rounded-3xl" />
+                    <Skeleton className="h-[450px] rounded-3xl" />
                 </div>
             </div>
         )
@@ -110,161 +126,246 @@ export default function AccountantDashboard() {
 
     if (!isStaff) {
          return (
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
-                <Card className="w-full max-w-md text-center">
-                     <CardHeader>
-                        <Users className="h-12 w-12 mx-auto text-muted-foreground" />
-                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à ce tableau de bord.</p>
-                    </CardContent>
-                </Card>
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full max-w-md"
+                >
+                    <Card className="glass-panel text-center p-8 border-destructive/20">
+                         <CardHeader>
+                            <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                                <Users className="h-8 w-8 text-destructive" />
+                            </div>
+                            <CardTitle className="text-2xl font-bold tracking-tight">Accès restreint</CardTitle>
+                            <CardDescription className="text-lg">
+                                Vous n'avez pas les permissions nécessaires pour accéder à ce tableau de bord opérationnel.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <Button variant="outline" className="w-full" asChild>
+                                <Link href="/dashboard">Retour au menu principal</Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
             </div>
         )
     }
 
-    if (loading || !dashboardData) {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <Skeleton className="h-9 w-1/3" />
-                    <Skeleton className="h-5 w-2/3 mt-2" />
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Skeleton className="lg:col-span-2 h-80" />
-                    <Skeleton className="h-80" />
-                </div>
-            </div>
-        )
-    }
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        show: { opacity: 1, y: 0 }
+    };
 
     return (
-        <div className="space-y-6">
-            <div>
-               <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
-               <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activité de tous vos clients.</p>
-           </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Clients Actifs</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{dashboardData.totalClients}</div>
-                        <p className="text-xs text-muted-foreground">Total des dossiers gérés</p>
-                    </CardContent>
-                </Card>
-              
-                <Link href="/dashboard/documents?filter=today">
-                  <Card className="hover:bg-muted/50 transition-colors">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Documents du jour</CardTitle>
-                      <FileUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">+{dashboardData.docsUploadedToday}</div>
-                      <p className="text-xs text-muted-foreground">Téléversés dans les dernières 24h</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <Link href="/dashboard/documents?filter=pending_review">
-                  <Card className="hover:bg-muted/50 transition-colors">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Documents à traiter</CardTitle>
-                      <FileClock className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{dashboardData.docsPendingReview}</div>
-                      <p className="text-xs text-muted-foreground">En attente de validation</p>
-                    </CardContent>
-                  </Card>
-                </Link>
+        <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="space-y-8 p-6 lg:p-10 max-w-[1600px] mx-auto"
+        >
+            {/* Header Section */}
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                <div className="space-y-1">
+                  <motion.h1 
+                    className="text-5xl font-black tracking-tighter font-display gradient-text"
+                    variants={itemVariants}
+                  >
+                    Command Center
+                  </motion.h1>
+                  <motion.p 
+                    className="text-muted-foreground text-xl font-medium"
+                    variants={itemVariants}
+                  >
+                    {isAdmin ? "Monitoring Global" : `Cabinet ${userProfile?.cabinetName || 'Opérationnel'}`} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </motion.p>
+                </div>
                 
-                <Link href="/dashboard/documents?filter=approved_today">
-                  <Card className="hover:bg-muted/50 transition-colors">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Validations du jour</CardTitle>
-                      <FileCheck className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{dashboardData.docsApprovedToday}</div>
-                      <p className="text-xs text-muted-foreground">Approuvés dans les dernières 24h</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Activité par client (24h)</CardTitle>
-                        <CardDescription>Nombre de documents téléversés par les clients les plus actifs.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {dashboardData.activityByClient.length > 0 ? (
-                            <ChartContainer config={{ docs: { label: "Documents", color: "hsl(var(--chart-1))" }}} className="h-[250px] w-full">
-                                <BarChart data={dashboardData.activityByClient} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} layout="vertical">
-                                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={120} />
-                                    <XAxis dataKey="docs" type="number" hide />
-                                     <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent 
-                                            formatter={(value) => `${value} docs`}
-                                            indicator="dot" 
-                                        />}
-                                    />
-                                    <Bar dataKey="docs" fill="var(--color-docs)" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
-                        ) : (
-                             <div className="h-[250px] w-full flex flex-col items-center justify-center text-center p-4">
-                                <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
-                                <h3 className="font-semibold text-foreground">Peu d'activité aujourd'hui</h3>
-                                <p className="text-sm text-muted-foreground mt-1">Aucun document n'a été téléversé par vos clients dans les dernières 24 heures.</p>
-                             </div>
-                        )}
-                    </CardContent>
-                </Card>
-                <Card>
-                     <CardHeader>
-                        <CardTitle>Activités récentes</CardTitle>
-                        <CardDescription>Derniers événements sur les dossiers clients.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {dashboardData.recentActivities.length > 0 ? dashboardData.recentActivities.map((activity, index) => (
-                                <div key={index} className="flex items-start gap-3">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted mt-1 shrink-0">
-                                        <Building className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-sm">{activity.clientName}</p>
-                                        <p className="text-sm text-muted-foreground">{activity.action}</p>
-                                        <p className="text-xs text-muted-foreground">{new Date(activity.date).toLocaleString('fr-FR')}</p>
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="text-center text-sm text-muted-foreground py-10">
-                                    Aucune activité récente.
-                                </div>
-                            )}
-                        </div>
-                        <Button variant="outline" className="w-full mt-4" asChild>
-                            <Link href="/dashboard/clients">Voir tous les clients</Link>
+                <motion.div variants={itemVariants} className="flex flex-wrap gap-4">
+                    <Link href="/dashboard/accountant/export">
+                        <Button variant="outline" className="glass-panel border-emerald-500/30 hover:bg-emerald-50/10 text-emerald-600 dark:text-emerald-400 gap-2 h-12 px-6 rounded-2xl font-bold transition-all hover:scale-105 active:scale-95">
+                            <FileSpreadsheet className="h-5 w-5" />
+                            Export Cegid
                         </Button>
-                    </CardContent>
-                </Card>
+                    </Link>
+                    <Link href="/dashboard/accountant/validation">
+                        <Button className="h-12 px-8 rounded-2xl font-black shadow-xl shadow-primary/30 gap-2 transition-all hover:scale-105 active:scale-95 bg-primary hover:bg-primary/90">
+                            <ArrowUpRight className="h-5 w-5" />
+                            Validation IA "Swipe"
+                        </Button>
+                    </Link>
+                </motion.div>
             </div>
-        </div>
+
+            {/* Stats Cards */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {[
+                    { label: "Dossiers Actifs", value: dashboardData?.totalClients, sub: "Clients sous gestion", icon: Users, color: "text-blue-500", bg: "bg-blue-500/10", link: "/dashboard/clients" },
+                    { label: "Flux Entrant", value: `+${dashboardData?.docsUploadedToday}`, sub: "Dernières 24 heures", icon: FileUp, color: "text-primary", bg: "bg-primary/10", link: "/dashboard/documents?filter=today" },
+                    { label: "Backlog Traitement", value: dashboardData?.docsPendingReview, sub: "En attente validation", icon: FileClock, color: "text-amber-500", bg: "bg-amber-500/10", link: "/dashboard/documents?filter=pending_review" },
+                    { label: "Performance IA", value: dashboardData?.docsApprovedToday, sub: "Validations du jour", icon: FileCheck, color: "text-emerald-500", bg: "bg-emerald-500/10", link: "/dashboard/documents?filter=approved_today" }
+                ].map((stat, i) => (
+                    <Link key={i} href={stat.link}>
+                        <motion.div variants={itemVariants}>
+                            <Card className="glass-panel-hover overflow-hidden group border-border/40 hover:border-primary/50 transition-all duration-300">
+                                <CardContent className="p-6">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={cn("p-3 rounded-2xl transition-colors duration-300", stat.bg)}>
+                                            <stat.icon className={cn("h-6 w-6", stat.color)} />
+                                        </div>
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-bold text-muted-foreground tracking-wide uppercase px-0.5">{stat.label}</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <h2 className="text-4xl font-black tracking-tight tracking-tighter">
+                                                {stat.value}
+                                            </h2>
+                                        </div>
+                                        <p className="text-xs font-semibold text-muted-foreground pt-1">{stat.sub}</p>
+                                    </div>
+                                </CardContent>
+                                <div className="h-1.5 w-full bg-muted mt-auto overflow-hidden">
+                                     <motion.div 
+                                        className={cn("h-full", stat.color.replace('text', 'bg'))}
+                                        initial={{ x: '-100%' }}
+                                        animate={{ x: '0%' }}
+                                        transition={{ delay: 0.5 + (i * 0.1), duration: 1 }}
+                                     />
+                                </div>
+                            </Card>
+                        </motion.div>
+                    </Link>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Main Activity Chart */}
+                <motion.div variants={itemVariants} className="lg:col-span-2">
+                    <Card className="glass-panel border-border/40 h-full overflow-hidden">
+                        <CardHeader className="p-8 border-b border-border/10 bg-muted/20">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle className="text-2xl font-black tracking-tight">Activité Clients (24h)</CardTitle>
+                                    <CardDescription className="text-base font-medium">Répartition des flux par dossier prioritaire</CardDescription>
+                                </div>
+                                <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                    <TrendingUp className="h-5 w-5 text-primary" />
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-8">
+                            {dashboardData?.activityByClient.length && dashboardData.activityByClient.length > 0 ? (
+                                <div className="h-[350px] w-full pt-4">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={dashboardData.activityByClient} layout="vertical" margin={{ left: 40, right: 40 }}>
+                                            <XAxis type="number" hide />
+                                            <YAxis 
+                                                dataKey="name" 
+                                                type="category" 
+                                                tickLine={false} 
+                                                axisLine={false} 
+                                                width={150}
+                                                tick={{ fill: 'currentColor', fontSize: 13, fontWeight: 700 }}
+                                            />
+                                            <Tooltip 
+                                                cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
+                                                content={({ active, payload }) => {
+                                                    if (active && payload && payload.length) {
+                                                        return (
+                                                            <div className="glass-panel p-4 border-primary/20 shadow-2xl">
+                                                                <p className="font-bold text-sm text-primary">{payload[0].payload.name}</p>
+                                                                <p className="text-xl font-black">{payload[0].value} <span className="text-xs font-bold text-muted-foreground uppercase">documents</span></p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                }}
+                                            />
+                                            <Bar dataKey="docs" radius={[0, 8, 8, 0]} barSize={32}>
+                                                {dashboardData.activityByClient.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.6)'} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                 <div className="h-[350px] w-full flex flex-col items-center justify-center text-center p-10 bg-muted/10 rounded-3xl border-2 border-dashed border-border/20">
+                                    <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-6">
+                                        <FileUp className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-foreground">Calme plat sur vos dossiers</h3>
+                                    <p className="text-muted-foreground text-lg max-w-sm mx-auto mt-2">Aucun mouvement détecté sur les dernières 24 heures via l'application mobile.</p>
+                                 </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                {/* Recent Reconciliation Archive */}
+                <motion.div variants={itemVariants}>
+                    <Card className="glass-panel border-border/40 h-full">
+                        <CardHeader className="p-8 border-b border-border/10">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                                    <HistoryIcon className="h-5 w-5 text-amber-500" />
+                                </div>
+                                <CardTitle className="text-xl font-bold tracking-tight">Derniers exports</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-8">
+                            <div className="space-y-6">
+                                {recentReconciliations && recentReconciliations.length > 0 ? recentReconciliations.map((report: any, index: number) => (
+                                    <motion.div 
+                                        key={index} 
+                                        className="group flex items-start gap-4 p-4 rounded-2xl hover:bg-muted/30 transition-all cursor-pointer border border-transparent hover:border-border/40"
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.8 + (index * 0.1) }}
+                                    >
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background border shadow-sm group-hover:scale-110 transition-transform flex-shrink-0">
+                                            <HistoryIcon className="h-6 w-6 text-primary" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-black text-sm text-foreground truncate">{report.clientName}</p>
+                                            <p className="text-xs font-semibold text-muted-foreground/80 line-clamp-1 mt-0.5">{report.summary || 'Rapport de rapprochement généré'}</p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                <p className="text-[10px] font-bold text-muted-foreground tracking-tighter uppercase">{new Date(report.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )) : (
+                                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-muted/5 rounded-3xl border border-dashed">
+                                        <HistoryIcon className="h-10 w-10 text-muted-foreground/40" />
+                                        <p className="text-sm font-bold text-muted-foreground px-10">Aucun export archivé dans le système.</p>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <Button variant="outline" className="w-full mt-8 h-12 rounded-2xl font-bold border-primary/20 hover:bg-primary/5 transition-all active:scale-95" asChild>
+                                <Link href="/dashboard/accountant/reconciliation/history">
+                                    Voir tout l'historique
+                                </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </div>
+        </motion.div>
     );
 }
-
-    

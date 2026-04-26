@@ -33,42 +33,36 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleNewMailUpload = void 0;
+exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.createPortalSession = exports.onDocumentPending = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
  * Backend logic for assigning user roles, creating users and processing documents.
  */
 const logger = __importStar(require("firebase-functions/logger"));
 const storage_1 = require("firebase-functions/v2/storage");
+const https_1 = require("firebase-functions/v2/https");
+const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = __importStar(require("firebase-admin"));
 const genkit_1 = require("genkit");
 const google_genai_1 = require("@genkit-ai/google-genai");
-// --- pdf-parse import compatible ---
-let pdfExtractor = null;
-// --- Wrapper PDF ---
-async function parsePdfBuffer(buffer) {
-    if (!pdfExtractor) {
-        try {
-            // Use dynamic import for ESM/CJS compatibility
-            const pdfParseModule = await import('pdf-parse');
-            pdfExtractor = pdfParseModule.default || pdfParseModule;
-        }
-        catch (error) {
-            logger.error("pdf-parse n'a pas pu être chargé dynamiquement:", error);
-            throw new Error("Le module d'extraction PDF n'est pas disponible.");
-        }
-    }
-    try {
-        const data = await pdfExtractor(buffer);
-        return data.text || "";
-    }
-    catch (error) {
-        const msg = error instanceof Error ? error.message : "Erreur inconnue";
-        logger.error("Erreur lors de l'analyse PDF:", msg);
-        throw new Error(`Échec de l'extraction PDF: ${msg}`);
-    }
-}
+const document_processor_1 = require("./document-processor");
+const stripe_1 = require("./stripe");
+const export_factory_1 = require("./export-factory");
+const date_fns_1 = require("date-fns");
+const proactive_ai_1 = require("./proactive-ai");
+// La dépendance pdf-parse a été retirée au profit de l'API native multimodale de Gemini.
 // --- Configuration ---
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -89,17 +83,23 @@ const analyzeMailOutputSchema = genkit_1.z.object({
     actionRequired: genkit_1.z.boolean().describe("True si le document semble nécessiter une action (paiement, réponse, etc.), sinon False."),
     extractedData: genkit_1.z
         .object({
-        amountDue: genkit_1.z.number().optional().describe("Le montant total à payer s'il est clairement indiqué."),
+        amountDue: genkit_1.z.number().optional().describe("Le montant total TTC à payer s'il est clairement indiqué."),
+        taxAmount: genkit_1.z.number().optional().describe("Le montant total de la TVA s'il est clairement indiqué."),
         dueDate: genkit_1.z.string().optional().describe("La date d'échéance du paiement au format AAAA-MM-JJ, si elle est clairement indiquée."),
     })
         .optional(),
+    accountingEntry: genkit_1.z.object({
+        debitAccount: genkit_1.z.string().optional().describe("Le compte de classe 6 (ex: 606100, 626000, 606400)."),
+        creditAccount: genkit_1.z.string().optional().describe("Le compte de classe 4 (ex: 401000 Fournisseurs)."),
+        vatAccount: genkit_1.z.string().optional().describe("Le compte de TVA (ex: 445660 TVA déductible)."),
+        confidenceScore: genkit_1.z.number().min(1).max(100).describe("Niveau de certitude de l'attribution (1 à 100).")
+    }).optional().describe("Proposition d'imputation comptable automatique basée sur le PCG Français.")
 });
 // --- Fonction Cloud ---
 exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
     cpu: 2,
     memory: "1GiB",
-    bucket: "ccs-compta.appspot.com",
-    region: "europe-west9" // Specify region directly
+    region: "europe-west9"
 }, async (event) => {
     var _a, _b;
     const filePath = (_a = event.data.name) !== null && _a !== void 0 ? _a : "";
@@ -132,50 +132,35 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
         if (sizeInMB > 10)
             throw new Error(`Fichier trop volumineux (${sizeInMB.toFixed(2)} Mo).`);
         const [fileBuffer] = await file.download();
-        let extractedText = null;
-        logger.log(`Étape 1 : Extraction du texte (${contentType})`);
-        // --- PDF ---
-        if (contentType === "application/pdf") {
-            try {
-                extractedText = await parsePdfBuffer(fileBuffer);
-                if (!extractedText || !extractedText.trim()) {
-                    logger.log("⚠️ PDF sans texte détecté, fallback vers OCR Gemini.");
-                    extractedText = null;
-                }
-                else {
-                    logger.log(`✅ Texte extrait via pdf-parse (${extractedText.length} caractères).`);
-                }
-            }
-            catch (pdfError) {
-                const msg = pdfError instanceof Error ? pdfError.message : "Erreur PDF inconnue";
-                logger.log("Fallback OCR Gemini pour PDF:", msg);
-                extractedText = null;
-            }
-        }
-        // --- Image ou fallback PDF ---
-        if (!extractedText) {
-            const documentUri = `data:${contentType};base64,${fileBuffer.toString("base64")}`;
-            const { output } = await ai.generate({
-                model: google_genai_1.googleAI.model("gemini-1.5-flash"),
-                prompt: [
-                    { text: `Extrais tout le texte visible dans l'image ou le document fourni. Ne fournis que le texte brut.` },
-                    { media: { url: documentUri, contentType } }
-                ],
-            });
-            extractedText = output !== null && output !== void 0 ? output : "";
-        }
-        if (!extractedText || extractedText.trim().length < 5) {
-            throw new Error("Extraction de texte vide ou incomplète.");
-        }
-        logger.log(`✅ Texte extrait (${extractedText.length} caractères)`);
-        // --- Analyse IA ---
-        logger.log("Étape 2 : Analyse du texte via Gemini.");
+        logger.log(`Étape 1 : Analyse multimodale structurée (One-Shot) via Gemini (${contentType})`);
+        const documentUri = `data:${contentType};base64,${fileBuffer.toString("base64")}`;
         const { output } = await ai.generate({
-            model: google_genai_1.googleAI.model("gemini-1.5-flash"), // Utilisation du bon modèle
-            prompt: `Tu es un expert en traitement de documents administratifs français. Analyse le texte suivant et extrais les informations clés. Respecte strictement le format JSON. Texte : --- ${extractedText} ---`,
+            model: google_genai_1.googleAI.model("gemini-1.5-flash"),
+            prompt: [
+                { text: `Tu es un Expert-Comptable Français implacable. Analyse la facture ou le reçu en pièce jointe.
+1. Extraie les informations clés : Expéditeur, résumé, montants TTC et montants de TVA.
+2. Effectue une auto-imputation comptable en te basant stricto-sensu sur le Plan Comptable Général (PCG) :
+   - Au CRÉDIT : 401000 (Fournisseurs).
+   - Au DÉBIT (TVA) : 445660 (TVA Déductible sur autres biens et services).
+   - Au DÉBIT (Charge) : Choisis le compte le plus approprié parmi la liste suivante selon la nature de l'achat :
+     * 606100 : Fournitures non stockables (Eau, Énergie, EDF, Engie...)
+     * 606400 : Fournitures de bureau (Papeterie, Cartouches d'encre...)
+     * 613200 : Locations immobilières (Loyer)
+     * 615000 : Entretien et réparations
+     * 616000 : Primes d'assurances
+     * 622600 : Honoraires (Avocat, Expert-comptable, Conseil, Freelance...)
+     * 623000 : Publicité, publications, relations publiques (Google Ads, Facebook Ads)
+     * 625100 : Voyages et déplacements (SNCF, Billet d'avion, Uber...)
+     * 625600 : Missions et réceptions (Restaurant, Repas d'affaires...)
+     * 626000 : Frais postaux et télécommunications (Orange, Free, SFR, Bouygues, La Poste...)
+     * 627800 : Frais bancaires (Abonnements, Commissions...)
+     (Si aucun ne correspond parfaitement, choisis le plus proche et baisse ton Score de Confiance).
+Respecte rigoureusement le format JSON de sortie et ne renvoie aucune phrase autre que le JSON.` },
+                { media: { url: documentUri, contentType } }
+            ],
             output: { schema: analyzeMailOutputSchema },
             config: {
-                temperature: 0.2, responseMimeType: "application/json"
+                temperature: 0.1, responseMimeType: "application/json"
             },
         });
         if (!output)
@@ -189,11 +174,32 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
         logger.log("✅ Analyse IA réussie :", analysisResult);
         // --- Firestore ---
         await mailDocRef.set({
-            analysis: analysisResult,
             status: analysisResult.actionRequired ? "Urgent" : "Nouveau",
+            analysis: analysisResult,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            clientId: clientUid,
         }, { merge: true });
-        logger.log(`📄 Firestore mis à jour : mailId=${mailId}`);
+        // --- New : Unified Workflow ---
+        // Si c'est une facture, on l'ajoute automatiquement à la file d'attente comptable
+        if (analysisResult.category === "Facture") {
+            const docId = db.collection("documents").doc().id;
+            await db.collection("documents").doc(docId).set({
+                clientId: clientUid,
+                name: `Mail: ${analysisResult.sender}`,
+                status: "pending",
+                storagePath: filePath, // Réutilisation du fichier uploadé
+                uploadDate: new Date().toISOString(),
+                source: "email",
+                mailRef: mailId,
+                auditTrail: [{
+                        action: "Import automatique depuis la boîte mail (Mail-to-Box)",
+                        date: new Date().toISOString(),
+                        user: "Système Mail"
+                    }]
+            });
+            logger.log(`🚀 [Unified Workflow] Document créé pour la comptabilité : docId=${docId}`);
+        }
+        logger.log(`📄 Firestore mis à jour (Mails) : mailId=${mailId}`);
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Erreur inconnue pendant le traitement.";
@@ -204,5 +210,404 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     }
+});
+// --- 🎯 PHASE 2.2 : WEBHOOK MAIL-TO-BOX (Ingestion via E-mail) --- //
+// Service d'ingestion recommandé : Postmark Inbound Webhook (JSON pur, pas de mutipart/form-data complexe)
+const postmarkInboundSchema = genkit_1.z.object({
+    From: genkit_1.z.string(),
+    To: genkit_1.z.string(),
+    Subject: genkit_1.z.string().optional(),
+    Attachments: genkit_1.z.array(genkit_1.z.object({
+        Name: genkit_1.z.string(),
+        Content: genkit_1.z.string(), // Base64 encodé
+        ContentType: genkit_1.z.string()
+    })).optional()
+}).passthrough(); // Tolérer les autres champs envoyés par Postmark
+exports.inboundEmailWebhook = (0, https_1.onRequest)({ region: "europe-west9", memory: "256MiB", maxInstances: 10 }, async (req, res) => {
+    // 1. Authentification très stricte du Webhook
+    // (Dans la vraie vie, ce secret est sauvé dans Firebase Secret Manager)
+    const token = req.headers['x-ccscompta-token'];
+    if (token !== "SECURE_MAIL_TOKEN_123") {
+        logger.warn(`Tentative de webhook non autorisée depuis ${req.ip}`);
+        res.status(401).send("Unauthorized");
+        return;
+    }
+    try {
+        const payload = postmarkInboundSchema.parse(req.body);
+        logger.log(`📥 [Mail-to-Box] E-mail reçu de: ${payload.From} à ${payload.To}`);
+        if (!payload.Attachments || payload.Attachments.length === 0) {
+            logger.log("Aucune pièce jointe trouvée. E-mail ignoré.");
+            res.status(200).send("No attachments, skipped.");
+            return;
+        }
+        // 2. Extraction du Client ID via l'adresse destinataire
+        // Format attendu (Routing Subaddressing) : upload+UID@ccscompta.inbound.postmarkapp.com
+        const toMatch = payload.To.match(/upload\+(.+)@/i);
+        if (!toMatch) {
+            logger.error("Destination introuvable ou mauvais format: " + payload.To);
+            res.status(400).send("Invalid recipient format. Must contain client UID.");
+            return;
+        }
+        const clientUid = toMatch[1];
+        const bucket = admin.storage().bucket("ccs-compta.appspot.com");
+        const mailId = admin.firestore().collection("mails").doc().id;
+        logger.log(`UID Client identifié : ${clientUid}. Traitement de ${payload.Attachments.length} pièce(s) jointe(s).`);
+        // 3. Boucle sur les pièces jointes et auto-upload vers le Cloud Storage
+        let uploadedCount = 0;
+        for (const attachment of payload.Attachments) {
+            // Sécurité & Filtrage : On n'accepte que les PDFs et les Images factures
+            if (!attachment.ContentType.includes("pdf") && !attachment.ContentType.includes("image")) {
+                logger.log(`Type ignoré : ${attachment.ContentType} (${attachment.Name})`);
+                continue;
+            }
+            const buffer = Buffer.from(attachment.Content, "base64");
+            // Sécurisation du nom de fichier
+            const sanitizedName = attachment.Name.replace(/[^a-zA-Z0-9_\-\.]/g, '');
+            // Ce chemin exact déclenchera la fonction handleNewMailUpload instantanément !
+            const filePath = `mails/${clientUid}/${mailId}/${sanitizedName}`;
+            const file = bucket.file(filePath);
+            await file.save(buffer, {
+                metadata: {
+                    contentType: attachment.ContentType,
+                    metadata: {
+                        source: 'inbound-email',
+                        sender: payload.From,
+                        subject: payload.Subject || 'Sans Sujet'
+                    }
+                }
+            });
+            logger.log(`✅ [Mail-to-Box] Injection réussie : ${filePath}`);
+            uploadedCount++;
+        }
+        res.status(200).send(`Success: uploaded ${uploadedCount} documents.`);
+    }
+    catch (err) {
+        logger.error("Erreur Webhook Mail-to-Box : " + err);
+        res.status(500).send("Internal Webhook Error");
+    }
+});
+// --- 🎯 ADMINISTRATION : Gestion des Rôles & Utilisateurs (v2) --- //
+/**
+ * Définit l'utilisateur actuel comme administrateur (setup initial).
+ * Version robuste : crée le profil s'il n'existe pas et vérifie l'email.
+ */
+exports.syncAdminRole = (0, https_1.onCall)({ region: "europe-west9", memory: "256MiB" }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
+    }
+    const { uid, token } = request.auth;
+    const email = token.email;
+    const ADMIN_EMAILS = ['app.ccs94@gmail.com'];
+    if (!ADMIN_EMAILS.includes(email)) {
+        throw new https_1.HttpsError('permission-denied', 'Email non autorisé.');
+    }
+    try {
+        console.log(`Phase 1: Custom Claims pour ${email}...`);
+        await admin.auth().setCustomUserClaims(uid, { role: 'admin' });
+        console.log(`Phase 2: Firestore pour ${uid}...`);
+        await admin.firestore().collection('clients').doc(uid).set({
+            role: 'admin',
+            lastSync: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        console.log(`✅ Succès total pour ${email}`);
+        return { success: true, message: "Super Admin activé." };
+    }
+    catch (error) {
+        console.error("❌ Erreur de synchro:", error);
+        throw new https_1.HttpsError('internal', error.message);
+    }
+});
+/**
+ * Crée un nouvel utilisateur avec un rôle spécifique.
+ * Utilisé par les administrateurs et comptables pour le onboarding.
+ */
+exports.createUserWithRole = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
+    }
+    const callingUserRole = request.auth.token.role;
+    if (!['admin', 'accountant', 'secretary'].includes(callingUserRole)) {
+        throw new https_1.HttpsError('permission-denied', 'Action non autorisée pour votre rôle.');
+    }
+    const _a = request.data, { email, password } = _a, profileData = __rest(_a, ["email", "password"]);
+    if (!email) {
+        throw new https_1.HttpsError('invalid-argument', 'Email requis.');
+    }
+    try {
+        const userRecord = await admin.auth().createUser({
+            email,
+            password: password || 'password',
+            displayName: profileData.name,
+            emailVerified: true
+        });
+        const uid = userRecord.uid;
+        const role = profileData.role || 'client';
+        await admin.auth().setCustomUserClaims(uid, { role });
+        await db.collection('clients').doc(uid).set(Object.assign(Object.assign({}, profileData), { email,
+            role, newDocuments: 0, lastActivity: new Date().toISOString(), status: 'onboarding', createdAt: admin.firestore.FieldValue.serverTimestamp() }));
+        logger.info(`Utilisateur ${uid} créé avec le rôle : ${role}`);
+        return { success: true, uid, message: 'Utilisateur créé avec succès.' };
+    }
+    catch (error) {
+        logger.error('Erreur lors de la création de l\'utilisateur:', error);
+        throw new https_1.HttpsError('internal', "Erreur lors de la création du compte.", error.message);
+    }
+});
+/**
+ * Trigger centralisé pour le traitement IA des documents.
+ * Se déclenche dès qu'un document est créé ou mis à jour avec le statut 'pending'.
+ */
+exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
+    document: "documents/{docId}",
+    region: "europe-west9",
+    memory: "1GiB",
+    timeoutSeconds: 300
+}, async (event) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after.data();
+    const previousData = (_b = event.data) === null || _b === void 0 ? void 0 : _b.before.data();
+    // On ne traite que si le statut est 'pending' et qu'il ne l'était pas déjà (ou si c'est une création)
+    if (!data || data.status !== 'pending' || (previousData && previousData.status === 'pending')) {
+        return;
+    }
+    const docId = event.params.docId;
+    const storagePath = data.storagePath;
+    const documentType = data.type || 'invoice'; // Par défaut invoice si non spécifié
+    logger.log(`🤖 [Processor] Début du traitement IA pour le document : ${docId} (Type: ${documentType})`);
+    try {
+        // 1. Marquer comme en cours de traitement pour éviter les doubles déclenchements
+        await ((_c = event.data) === null || _c === void 0 ? void 0 : _c.after.ref.update({ status: 'processing' }));
+        // 2. Télécharger le contenu depuis Storage
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(storagePath);
+        const [metadata] = await file.getMetadata();
+        const contentType = metadata.contentType || 'application/pdf';
+        const [buffer] = await file.download();
+        // 3. Appel du processeur IA (Gemini multimodal)
+        const extractedData = await (0, document_processor_1.processDocumentContent)(buffer, contentType, documentType);
+        // 4. Détection intelligente de doublons (Vendor + Date + Amount)
+        let isDuplicate = false;
+        let existingId = null;
+        const vendor = (_d = extractedData.vendorNames) === null || _d === void 0 ? void 0 : _d[0];
+        const date = (_e = extractedData.dates) === null || _e === void 0 ? void 0 : _e[0];
+        const amount = (_f = extractedData.amounts) === null || _f === void 0 ? void 0 : _f[0];
+        if (vendor && date && amount) {
+            // Un seul array-contains autorisé par requête Firestore
+            const duplicates = await db.collection("documents")
+                .where("clientId", "==", data.clientId)
+                .where("extractedData.amounts", "array-contains", amount) // Le montant est souvent plus discriminant
+                .where("status", "in", ["approved", "reviewing", "exported"])
+                .get();
+            for (const otherDoc of duplicates.docs) {
+                const otherData = otherDoc.data().extractedData;
+                if (otherDoc.id !== docId &&
+                    ((_g = otherData === null || otherData === void 0 ? void 0 : otherData.vendorNames) === null || _g === void 0 ? void 0 : _g.includes(vendor)) &&
+                    ((_h = otherData === null || otherData === void 0 ? void 0 : otherData.dates) === null || _h === void 0 ? void 0 : _h.includes(date))) {
+                    isDuplicate = true;
+                    existingId = otherDoc.id;
+                    break;
+                }
+            }
+        }
+        // 5. Calcul de la monétisation (billable lines)
+        const billableLines = (0, document_processor_1.calculateBillableLines)(extractedData, documentType);
+        // 6. Mise à jour finale du document
+        const updateData = {
+            extractedData,
+            billableLines,
+            type: extractedData.documentType || documentType,
+            status: isDuplicate ? 'duplicate' : 'reviewing',
+            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+            'auditTrail': admin.firestore.FieldValue.arrayUnion({
+                action: isDuplicate ? `Doublon détecté (ID: ${existingId})` : 'Analyse IA automatique terminée',
+                date: new Date().toISOString(),
+                user: 'Système AI'
+            })
+        };
+        if (isDuplicate) {
+            updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel détecté : une facture identique existe déjà.");
+        }
+        await ((_j = event.data) === null || _j === void 0 ? void 0 : _j.after.ref.update(updateData));
+        logger.log(`✅ [Processor] Succès pour ${docId} : ${billableLines} lignes détectées. ${isDuplicate ? '(DOUBLON)' : ''}`);
+        // 7. Report usage to Stripe if subscription exists and NOT a duplicate
+        if (!isDuplicate) {
+            try {
+                const clientDoc = await db.collection("clients").doc(data.clientId).get();
+                const clientData = clientDoc.data();
+                if (clientData === null || clientData === void 0 ? void 0 : clientData.stripeSubscriptionItemId) {
+                    logger.log(`💳 [Stripe] Reporting usage for ${data.clientId} : ${billableLines} lines`);
+                    await stripe_1.StripeService.reportUsage(clientData.stripeSubscriptionItemId, billableLines);
+                }
+            }
+            catch (stripeError) {
+                logger.error(`⚠️ [Stripe] Erreur lors du report de consommation pour ${docId}:`, stripeError);
+            }
+        }
+    }
+    catch (error) {
+        logger.error(`❌ [Processor] Échec pour ${docId} :`, error);
+        await ((_k = event.data) === null || _k === void 0 ? void 0 : _k.after.ref.update({
+            status: 'error',
+            'auditTrail': admin.firestore.FieldValue.arrayUnion({
+                action: `Erreur d'analyse IA : ${error.message}`,
+                date: new Date().toISOString(),
+                user: 'Système AI'
+            })
+        }));
+    }
+});
+/**
+ * Génère un lien vers le Portail Client Stripe.
+ */
+exports.createPortalSession = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Vous devez être connecté.');
+    }
+    const uid = request.auth.uid;
+    const clientDoc = await db.collection("clients").doc(uid).get();
+    const clientData = clientDoc.data();
+    if (!(clientData === null || clientData === void 0 ? void 0 : clientData.stripeCustomerId)) {
+        throw new https_1.HttpsError('failed-precondition', "Aucun compte client Stripe n'est configuré.");
+    }
+    try {
+        const returnUrl = request.data.returnUrl || 'https://ccscompta.web.app/dashboard/settings';
+        const session = await stripe_1.StripeService.createPortalSession(clientData.stripeCustomerId, returnUrl);
+        return { url: session.url };
+    }
+    catch (error) {
+        logger.error('Erreur Portail Stripe:', error);
+        throw new https_1.HttpsError('internal', error.message);
+    }
+});
+/**
+ * Exporte une sélection de documents au format comptable (FEC ou CSV).
+ */
+exports.exportDocuments = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Vous devez être connecté.');
+    }
+    const { documentIds, format: exportFormat } = request.data;
+    if (!documentIds || !Array.isArray(documentIds)) {
+        throw new https_1.HttpsError('invalid-argument', 'Les documentIds doivent être fournis sous forme de tableau.');
+    }
+    try {
+        // 1. Récupérer les documents
+        const docsToExport = [];
+        for (const id of documentIds) {
+            const doc = await db.collection("documents").doc(id).get();
+            if (doc.exists) {
+                docsToExport.push(Object.assign(Object.assign({}, doc.data()), { id: doc.id }));
+            }
+        }
+        if (docsToExport.length === 0) {
+            throw new https_1.HttpsError('not-found', 'Aucun document trouvé pour l\'export.');
+        }
+        // 2. Générer le fichier
+        let fileContent = '';
+        let fileName = '';
+        const timestamp = (0, date_fns_1.format)(new Date(), 'yyyyMMdd_HHmm');
+        if (exportFormat === 'FEC') {
+            fileContent = export_factory_1.ExportFactory.generateFEC(docsToExport);
+            fileName = `export_compta_FEC_${timestamp}.txt`;
+        }
+        else {
+            fileContent = export_factory_1.ExportFactory.generateCSV(docsToExport);
+            fileName = `export_compta_${timestamp}.csv`;
+        }
+        // 3. Marquer comme exportés
+        const batch = db.batch();
+        const exportId = `export_${timestamp}`;
+        for (const doc of docsToExport) {
+            const ref = db.collection("documents").doc(doc.id);
+            batch.update(ref, {
+                isExported: true,
+                exportDate: new Date().toISOString(),
+                exportId
+            });
+        }
+        await batch.commit();
+        return {
+            fileContent,
+            fileName,
+            count: docsToExport.length
+        };
+    }
+    catch (error) {
+        logger.error('Erreur Export:', error);
+        throw new https_1.HttpsError('internal', error.message);
+    }
+});
+/**
+ * Trigger de notification pour les nouveaux commentaires.
+ * Informe le client quand le cabinet commente, et inversement.
+ */
+exports.onCommentAdded = (0, firestore_1.onDocumentWritten)({
+    document: "documents/{docId}",
+    region: "europe-west9"
+}, async (event) => {
+    var _a, _b;
+    const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after.data();
+    const previousData = (_b = event.data) === null || _b === void 0 ? void 0 : _b.before.data();
+    if (!data || !previousData)
+        return;
+    const comments = data.comments || [];
+    const prevComments = previousData.comments || [];
+    // Si la taille du tableau de commentaires a augmenté
+    if (comments.length > prevComments.length) {
+        const newComment = comments[comments.length - 1];
+        const clientId = data.clientId;
+        const docName = data.name || "Document sans nom";
+        logger.log(`💬 Nouveau commentaire sur ${docName} par ${newComment.user}`);
+        // Création de la notification dans Firestore
+        const notificationId = db.collection("notifications").doc().id;
+        await db.collection("notifications").doc(notificationId).set({
+            id: notificationId,
+            documentId: event.params.docId,
+            documentName: docName,
+            message: `${newComment.user} a ajouté un commentaire : "${newComment.text.substring(0, 50)}${newComment.text.length > 50 ? '...' : ''}"`,
+            date: new Date().toISOString(),
+            isRead: false,
+            clientId: clientId, // Pour filtrer les notifications par client
+            type: 'comment'
+        });
+        // Incrémenter le compteur de nouveaux documents/notifications pour le badge UI
+        await db.collection('clients').doc(clientId).update({
+            newDocuments: admin.firestore.FieldValue.increment(1)
+        });
+    }
+});
+/**
+ * Génère manuellement (ou via scheduler) le briefing hebdomadaire.
+ */
+exports.requestWeeklySummary = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Non autorisé');
+    const clientId = request.data.clientId || request.auth.uid;
+    // 1. Récupérer les 7 derniers jours de documents
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const docsSnapshot = await db.collection("documents")
+        .where("clientId", "==", clientId)
+        .where("uploadDate", ">=", sevenDaysAgo.toISOString())
+        .get();
+    const docs = docsSnapshot.docs.map(d => d.data());
+    if (docs.length === 0) {
+        return { message: "Pas assez de données pour cette semaine." };
+    }
+    // 2. Générer via IA
+    const briefing = await (0, proactive_ai_1.generateWeeklyBriefing)({ clientId, docs });
+    // 3. Sauvegarder comme notification spéciale
+    const notifId = db.collection("notifications").doc().id;
+    await db.collection("notifications").doc(notifId).set({
+        id: notifId,
+        clientId,
+        type: 'weekly_briefing',
+        message: briefing.summary,
+        date: new Date().toISOString(),
+        isRead: false,
+        documentName: "Briefing Hebdomadaire",
+        extraData: briefing
+    });
+    return { success: true, briefing };
 });
 //# sourceMappingURL=index.js.map

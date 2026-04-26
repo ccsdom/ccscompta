@@ -1,6 +1,7 @@
-
 {
   "projects": {
     "default": "ccs-compta"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

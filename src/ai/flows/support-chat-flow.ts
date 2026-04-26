@@ -13,7 +13,7 @@ import {Message} from 'genkit';
 
 // Define the input schema for the chat flow
 const SupportChatInputSchema = z.object({
-  history: z.array(Message).describe("The conversation history."),
+  history: z.array(z.any()).describe("The conversation history."),
   documentation: z.string().describe('The content of the documentation file.'),
 });
 export type SupportChatInput = z.infer<typeof SupportChatInputSchema>;
@@ -37,7 +37,7 @@ const supportChatFlow = ai.defineFlow(
   },
   async (input) => {
     
-    const systemMessage: Message = {
+    const systemMessage: any = {
       role: 'system',
       content: [{ text: `You are an expert support agent for the "CCS Compta" software. Your name is 'ComptaBot'.
 Your ONLY source of information is the official documentation provided.
@@ -54,13 +54,13 @@ ${input.documentation}`
     const messages: Message[] = [systemMessage, ...input.history];
 
     const { text } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash',
+        model: 'googleai/gemini-2.0-flash',
         messages: messages,
         config: {
-            temperature: 0.2, // Lower temperature for more factual, less creative answers
+            temperature: 0.2, 
         },
     });
 
-    return text;
+    return text || "Une erreur est survenue lors de la génération de la réponse.";
   }
 );

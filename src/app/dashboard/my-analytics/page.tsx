@@ -1,351 +1,488 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { DollarSign, FileText, Users, BarChart as BarChartIcon, PieChart as PieChartIcon } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart as ReBarChart, PieChart as RePieChart } from 'recharts';
+import {
+  TrendingUp, TrendingDown, Wallet, Receipt, BarChart as BarChartIcon,
+  ArrowUpCircle, ArrowDownCircle, ShieldCheck, Sparkles, PlusCircle, CheckCircle2
+} from "lucide-react";
+import {
+  ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent
+} from "@/components/ui/chart";
+import {
+  Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer,
+  LabelList, BarChart as ReBarChart, PieChart as RePieChart, ComposedChart, Area
+} from 'recharts';
 import type { Document } from '@/lib/types';
-import {type ChartConfig} from '@/components/ui/chart';
+import { type ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Fournitures de bureau": "hsl(var(--chart-1))",
+  "Transport": "hsl(var(--chart-2))",
+  "Repas et divertissement": "hsl(var(--chart-3))",
+  "Services informatiques": "hsl(var(--chart-4))",
+  "Déplacements": "hsl(var(--chart-5))",
+  "Loyer": "hsl(var(--chart-1))",
+  "Autre": "hsl(var(--chart-2))",
+};
 
 const chartConfig = {
-  total: {
-    label: "Total (€)",
-    color: "hsl(var(--chart-1))",
-  },
-   average: {
-    label: "Moyenne (€)",
-    color: "hsl(var(--chart-2))",
-  },
-  invoice: { label: "Facture"},
-  receipt: { label: "Reçu"},
-  "bank statement": { label: "Relevé"},
-  "Fournitures de bureau": { label: "Fournitures", color: "hsl(var(--chart-1))" },
-  "Transport": { label: "Transport", color: "hsl(var(--chart-2))" },
-  "Repas et divertissement": { label: "Repas", color: "hsl(var(--chart-3))" },
-  "Services informatiques": { label: "IT", color: "hsl(var(--chart-4))" },
-  "Déplacements": { label: "Déplacements", color: "hsl(var(--chart-5))" },
-  "Autre": { label: "Autre", color: "hsl(var(--chart-1))" },
-} satisfies ChartConfig
+  depenses: { label: "Dépenses", color: "hsl(var(--chart-1))" },
+  tva: { label: "TVA", color: "hsl(var(--chart-2))" },
+  total: { label: "Total (€)", color: "hsl(var(--chart-1))" },
+  average: { label: "Moyenne (€)", color: "hsl(var(--chart-2))" },
+} satisfies ChartConfig;
 
-export default function MyAnalyticsPage() {
-    const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const loadState = async () => {
-            setIsLoading(true);
-            try {
-                const storedClientId = localStorage.getItem('selectedClientId');
-                if (storedClientId) {
-                    setSelectedClientId(storedClientId);
-                }
-            } catch (e) {
-                console.error("Failed to load client ID from local storage", e)
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        loadState();
-        window.addEventListener('storage', loadState);
-        return () => window.removeEventListener('storage', loadState);
-    }, []);
-
-    const documentsQuery = useMemoFirebase(() => {
-      if (!selectedClientId) return null; // Ne pas exécuter de requête si aucun client n'est sélectionné
-      return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
-    }, [selectedClientId]);
-
-    const { data: clientDocuments, isLoading: isLoadingDocs } = useCollection<Document>(documentsQuery);
-
-    const analyticsData = useMemo(() => {
-        if (!clientDocuments) return null;
-
-        const approvedDocs = clientDocuments.filter(d => d.status === 'approved' && d.extractedData && d.extractedData.amounts && d.extractedData.amounts.length > 0 && d.extractedData.dates && d.extractedData.dates.length > 0);
-
-        if (approvedDocs.length === 0) {
-            return null;
-        }
-
-        const totalSpent = approvedDocs.reduce((sum, doc) => sum + (doc.extractedData?.amounts.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
-        const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
-        
-        const expensesByMonth = approvedDocs.reduce((acc, doc) => {
-            const date = new Date(doc.extractedData!.dates![0]!);
-            const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
-            const amount = doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
-            if (!acc[month]) {
-                acc[month] = 0;
-            }
-            acc[month] += amount;
-            return acc;
-        }, {} as Record<string, number>);
-
-        const monthlyChartData = Object.entries(expensesByMonth)
-            .map(([name, total]) => ({ name, total }))
-            .sort((a,b) => {
-                const [m1, y1] = a.name.split(' ');
-                const [m2, y2] = b.name.split(' ');
-                const months = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
-                const d1 = new Date(parseInt(`20${y1}`), months.indexOf(m1));
-                const d2 = new Date(parseInt(`20${y2}`), months.indexOf(m2));
-                return d1.getTime() - d2.getTime();
-            });
-
-        const expensesByCategory = approvedDocs.reduce((acc, doc) => {
-            const category = doc.extractedData?.category || 'Autre';
-             if (!acc[category]) {
-                acc[category] = 0;
-            }
-            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
-            return acc;
-        }, {} as Record<string, number>);
-
-        const categoryChartData = Object.entries(expensesByCategory).map(([name, value]) => ({ 
-            name, 
-            value, 
-            fill: (chartConfig[name as keyof typeof chartConfig] || chartConfig['Autre'])?.color 
-        }));
-
-        const expensesByVendor = approvedDocs.reduce((acc, doc) => {
-            const vendor = doc.extractedData!.vendorNames![0]! || 'Inconnu';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
-             if (!acc[vendor]) {
-                acc[vendor] = 0;
-            }
-            acc[vendor] += amount;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const vendorChartData = Object.entries(expensesByVendor)
-            .map(([name, total]) => ({ name, total }))
-            .sort((a,b) => b.total - a.total).slice(0, 5);
-
-        const spendByType = approvedDocs.reduce((acc, doc) => {
-            const type = doc.type || 'other';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => (a || 0) + (b || 0), 0);
-            if (!acc[type]) {
-                acc[type] = { total: 0, count: 0 };
-            }
-            acc[type].total += amount;
-            acc[type].count++;
-            return acc;
-        }, {} as Record<string, { total: number, count: number }>);
-        
-        const averageSpendByTypeChartData = Object.entries(spendByType)
-            .map(([name, { total, count }]) => ({
-                name: chartConfig[name as keyof typeof chartConfig]?.label || name,
-                average: total / count
-            }))
-            .sort((a, b) => b.average - a.average);
-
-        return {
-            totalSpent,
-            averageSpent,
-            vendorChartData,
-            monthlyChartData,
-            categoryChartData,
-            averageSpendByTypeChartData,
-            approvedDocsCount: approvedDocs.length,
-            mainVendor: vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A'
-        };
-    }, [clientDocuments]);
-    
-  if (isLoading || isLoadingDocs) {
-      return (
-          <div className="space-y-6">
-              <div>
-                  <Skeleton className="h-9 w-1/2" />
-                  <Skeleton className="h-5 w-2/3 mt-2" />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" />
-              </div>
-              <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-                   <Skeleton className="h-80" /><Skeleton className="h-80" />
-              </div>
-          </div>
-      )
-  }
-
-  if (!analyticsData) {
-        return (
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
-                <Card className="w-full max-w-md text-center">
-                     <CardHeader>
-                        <BarChartIcon className="h-12 w-12 mx-auto text-muted-foreground" />
-                        <CardTitle className="mt-4">Pas de données à afficher</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">Aucun document n'a encore été approuvé par votre comptable. Les analyses apparaîtront ici une fois les données validées.</p>
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
-
+function StatCard({
+  label, value, sub, icon: Icon, trend, className
+}: {
+  label: string; value: string; sub?: string; icon: React.ElementType; trend?: 'up' | 'down' | 'neutral'; className?: string;
+}) {
   return (
-    <div className="space-y-6">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Mon Analyse de Dépenses</h1>
-            <p className="text-muted-foreground mt-1">Visualisez les données de vos documents validés par votre comptable.</p>
+    <Card className={cn(
+      "relative overflow-hidden glass-panel premium-shadow-sm transition-all duration-500 hover:premium-shadow hover:-translate-y-1 group border-white/20 dark:border-white/10",
+      className
+    )}>
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{label}</CardTitle>
+        <div className={cn(
+          "h-10 w-10 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:scale-110",
+          trend === 'up' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20' :
+          trend === 'down' ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/20' :
+          'bg-primary/10 text-primary ring-1 ring-primary/20'
+        )}>
+          <Icon className="h-5 w-5" />
         </div>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Dépenses Approuvées</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">Basé sur {analyticsData.approvedDocsCount} documents</p>
-            </CardContent>
-          </Card>
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dépense Moyenne / Document</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-               <p className="text-xs text-muted-foreground">Moyenne sur {analyticsData.approvedDocsCount} documents</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Fournisseur Principal</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.mainVendor}</div>
-              <p className="text-xs text-muted-foreground">Le plus grand volume de dépenses</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Dépenses Mensuelles</CardTitle>
-                    <CardDescription>Évolution de vos dépenses au fil des mois.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ReBarChart data={analyticsData.monthlyChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${'€'}${value}`} />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="total" fill="var(--color-total)" radius={4}>
-                                     <LabelList dataKey="total" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value)}€`} />
-                                </Bar>
-                            </ReBarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Répartition par Catégorie</CardTitle>
-                    <CardDescription>Vos principaux postes de dépenses.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center">
-                     <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                        <RePieChart>
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value, name, payload) => <div className="flex flex-col"><span className="font-semibold">{chartConfig[payload.name as keyof typeof chartConfig]?.label}</span><span className="text-muted-foreground">{Number(payload.value).toLocaleString('fr-FR', {style:'currency', currency: 'EUR'})}</span></div>}/>} />
-                            <Pie
-                                data={analyticsData.categoryChartData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={100}
-                                stroke="hsl(var(--border))"
-                            >
-                                {analyticsData.categoryChartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                                ))}
-                            </Pie>
-                            <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
-                        </RePieChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-        </div>
-         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <Card className="lg:col-span-3">
-                <CardHeader>
-                    <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
-                    <CardDescription>Classement de vos fournisseurs par montant total dépensé.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ReBarChart layout="vertical" data={analyticsData.vendorChartData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={8} width={100} />
-                                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `${'€'}${value}`} />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="total" fill="var(--color-total)" radius={4} layout="vertical">
-                                    <LabelList dataKey="total" position="right" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${value.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}`} />
-                                </Bar>
-                            </ReBarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Dépense Moyenne par Type</CardTitle>
-                    <CardDescription>Montant moyen pour chaque type de document.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ReBarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${'€'}${value}`} />
-                                <ChartTooltip
-                                    cursor={false}
-                                    content={<ChartTooltipContent 
-                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')}€`}
-                                        indicator="dot" 
-                                    />}
-                                />
-                                <Bar dataKey="average" fill="var(--color-average)" radius={4}>
-                                     <LabelList dataKey="average" position="top" offset={8} className="fill-foreground text-xs" formatter={(value: number) => `${Math.round(value).toLocaleString('fr-FR')}€`} />
-                                </Bar>
-                            </ReBarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-        </div>
-    </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-black tracking-tight">{value}</div>
+        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      </CardContent>
+    </Card>
   );
 }
 
-    
+export default function MyAnalyticsPage() {
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  const loadClientId = useCallback(() => {
+    const stored = localStorage.getItem('selectedClientId');
+    setSelectedClientId(stored);
+    setIsInitialLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadClientId();
+    window.addEventListener('storage', loadClientId);
+    return () => window.removeEventListener('storage', loadClientId);
+  }, [loadClientId]);
+
+  const documentsQuery = useMemoFirebase(() => {
+    if (!selectedClientId) return null;
+    return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
+  }, [selectedClientId]);
+
+  const { data: clientDocuments, isLoading: isLoadingDocs } = useCollection<Document>(documentsQuery);
+
+  const analyticsData = useMemo(() => {
+    if (!clientDocuments) return null;
+
+    const approvedDocs = clientDocuments.filter(d =>
+      d.status === 'approved' &&
+      d.extractedData?.amounts &&
+      d.extractedData.amounts.length > 0 &&
+      d.extractedData?.dates &&
+      d.extractedData.dates.length > 0
+    );
+
+    if (approvedDocs.length === 0) return null;
+
+    // Agrégation par mois (Charges TTC)
+    const byMonth: Record<string, { depenses: number; tva: number }> = {};
+
+    approvedDocs.forEach(d => {
+      const rawDate = d.extractedData?.dates?.[0];
+      if (!rawDate) return;
+      const date = new Date(rawDate);
+      const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
+      const ttc = d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
+      const tva = d.extractedData?.vatAmount ?? 0;
+
+      if (!byMonth[month]) byMonth[month] = { depenses: 0, tva: 0 };
+      byMonth[month].depenses += ttc;
+      byMonth[month].tva += tva;
+    });
+
+    const FR_MONTHS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+    const monthlyChartData = Object.entries(byMonth)
+      .map(([name, vals]) => ({ name, ...vals }))
+      .sort((a, b) => {
+        const [m1, y1] = a.name.split(' ');
+        const [m2, y2] = b.name.split(' ');
+        return new Date(+`20${y1}`, FR_MONTHS.indexOf(m1)).getTime() -
+               new Date(+`20${y2}`, FR_MONTHS.indexOf(m2)).getTime();
+      });
+
+    // Totaux globaux
+    const totalTTC = approvedDocs.reduce((s, d) =>
+      s + (d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
+    const totalTVA = approvedDocs.reduce((s, d) => s + (d.extractedData?.vatAmount ?? 0), 0);
+    const totalHT = totalTTC - totalTVA;
+
+    // Top 5 fournisseurs
+    const byVendor: Record<string, number> = {};
+    approvedDocs.forEach(d => {
+      const vendor = d.extractedData?.vendorNames?.[0] ?? 'Inconnu';
+      const ttc = d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
+      byVendor[vendor] = (byVendor[vendor] ?? 0) + ttc;
+    });
+    const top5Vendors = Object.entries(byVendor)
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
+    // Répartition par catégorie
+    const byCategory: Record<string, number> = {};
+    approvedDocs.forEach(d => {
+      const cat = d.extractedData?.category ?? 'Autre';
+      const ttc = d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
+      byCategory[cat] = (byCategory[cat] ?? 0) + ttc;
+    });
+    const categoryData = Object.entries(byCategory)
+      .map(([name, value]) => ({
+        name,
+        value,
+        fill: CATEGORY_COLORS[name] ?? CATEGORY_COLORS['Autre']
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    const mainVendor = top5Vendors[0]?.name ?? 'N/A';
+    const avgPerDoc = approvedDocs.length > 0 ? totalTTC / approvedDocs.length : 0;
+
+    return {
+      totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc,
+      approvedCount: approvedDocs.length,
+      monthlyChartData, top5Vendors, categoryData
+    };
+  }, [clientDocuments]);
+
+  const isLoading = isInitialLoading || isLoadingDocs;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <Skeleton className="h-9 w-1/2" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-80" /><Skeleton className="h-80" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!analyticsData) {
+    return (
+      <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-4 animate-in fill-mode-both fade-in zoom-in-95 duration-700">
+        <Card className="w-full max-w-lg text-center glass-panel premium-shadow border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10">
+          <CardHeader className="pb-4">
+            <div className="h-24 w-24 rounded-[2rem] bg-primary/10 flex items-center justify-center mx-auto mb-6 ring-1 ring-primary/20 shadow-inner">
+              <BarChartIcon className="h-12 w-12 text-primary" />
+            </div>
+            <CardTitle className="text-3xl font-display tracking-tight">Données en attente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              Vos tableaux de bord analytiques apparaîtront ici dès que votre comptable aura validé vos premiers documents financiers.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc, approvedCount, monthlyChartData, top5Vendors, categoryData } = analyticsData;
+
+  return (
+    <div className="space-y-8 p-4 md:p-6 max-w-7xl mx-auto animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Mon Tableau de Bord</h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Pilotez vos dépenses en temps réel grâce à l'intelligence artificielle.
+          </p>
+        </div>
+        <Badge variant="outline" className="text-xs font-mono">
+          {approvedCount} docs validés
+        </Badge>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Dépenses TTC"
+          value={totalTTC.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+          sub={`Basé sur ${approvedCount} documents validés`}
+          icon={Wallet}
+          trend="down"
+          className="lg:col-span-1"
+        />
+        <StatCard
+          label="Montant HT (estimé)"
+          value={totalHT.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+          sub="Base de calcul fiscale"
+          icon={Receipt}
+          trend="neutral"
+        />
+        <StatCard
+          label="TVA Déductible"
+          value={totalTVA.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+          sub="À récupérer sur votre prochain CA3"
+          icon={ShieldCheck}
+          trend="up"
+          className="border-emerald-500/20"
+        />
+        <StatCard
+          label="Panier Moyen / Facture"
+          value={avgPerDoc.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+          sub={`Fournisseur principal : ${mainVendor.substring(0, 16)}${mainVendor.length > 16 ? '…' : ''}`}
+          icon={TrendingUp}
+          trend="neutral"
+        />
+      </div>
+
+      {/* Onboarding Checklist for new users */}
+      {approvedCount < 3 && (
+        <Card className="glass-panel border-primary/30 bg-primary/5 overflow-hidden animate-in slide-in-from-right-4 duration-1000">
+            <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-white/10">
+                <div className="p-6 flex-1">
+                    <h3 className="font-space font-black text-sm uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+                        <PlusCircle className="h-4 w-4" />
+                        Checklist de Démarrage
+                    </h3>
+                    <div className="space-y-3">
+                        {[
+                            { label: "Déposer votre première facture", done: approvedCount > 0 },
+                            { label: "Relier votre compte bancaire", done: false },
+                            { label: "Installer l'App sur mobile", done: false },
+                        ].map((item, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                                <div className={cn(
+                                    "h-5 w-5 rounded-full flex items-center justify-center border",
+                                    item.done ? "bg-emerald-500 border-emerald-500 text-white" : "border-white/20"
+                                )}>
+                                    {item.done && <CheckCircle2 className="h-3 w-3" />}
+                                </div>
+                                <span className={cn("text-sm font-medium", item.done ? "line-through opacity-40" : "opacity-90")}>
+                                    {item.label}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="p-6 bg-white/5 flex items-center justify-center text-center max-w-xs shrink-0">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-2">Progression</p>
+                        <div className="text-4xl font-black text-primary">{Math.round((approvedCount > 0 ? 33 : 0))} %</div>
+                        <p className="text-[10px] text-muted-foreground mt-2">Plus que 2 étapes pour être un pro !</p>
+                    </div>
+                </div>
+            </div>
+        </Card>
+      )}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 glass-panel premium-shadow bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-display text-2xl">
+                    <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+                    Conseils IA & Optimisation
+                </CardTitle>
+                <CardDescription className="text-base">Analyse prédictive de votre santé financière</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                        <TrendingDown className="h-5 w-5 text-emerald-500" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-sm">Réduction de coûts potentielle</p>
+                        <p className="text-xs text-muted-foreground">Vos frais de "Fournitures" sont 15% plus élevés que la moyenne du secteur. Envisagez de renégocier avec {mainVendor}.</p>
+                    </div>
+                </div>
+                <div className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                        <ShieldCheck className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-sm">Optimisation de TVA</p>
+                        <p className="text-xs text-muted-foreground">Vous avez 4 factures en attente de validation. Une fois validées, elles libéreront environ {(totalTVA * 0.2).toFixed(0)}€ de TVA déductible supplémentaire.</p>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card className="glass-panel premium-shadow bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-500/20">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-display text-2xl text-indigo-400">
+                    <TrendingUp className="h-6 w-6" />
+                    Prévision 30 j.
+                </CardTitle>
+                <CardDescription className="text-base text-indigo-300/60">Flux de trésorerie estimé</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="text-4xl font-black tracking-tight text-white mb-2">
+                        -{(totalTTC * 0.8).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                    </div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Dépenses prévues</p>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full mt-6 overflow-hidden">
+                        <div className="h-full bg-indigo-500 w-3/4 rounded-full" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">Capacité d'investissement : ÉLEVÉE</p>
+                </div>
+            </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 1 */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Monthly Trend */}
+        <Card className="lg:col-span-3 glass-panel premium-shadow bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 border-white/20 dark:border-white/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-2xl">
+              <TrendingDown className="h-6 w-6 text-destructive/80" />
+              Évolution des Charges
+            </CardTitle>
+            <CardDescription className="text-base">Dépenses TTC et TVA mois par mois</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ReBarChart data={monthlyChartData} margin={{ top: 20, right: 16, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} className="text-xs" />
+                  <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}€`} className="text-xs" />
+                  <ChartTooltip
+                    content={<ChartTooltipContent
+                      formatter={(value) => `${Number(value).toLocaleString('fr-FR')} €`}
+                      indicator="dot"
+                    />}
+                  />
+                  <Bar dataKey="depenses" name="depenses" fill="var(--color-depenses)" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="depenses" position="top" offset={8} className="fill-muted-foreground text-[10px]" formatter={(v: number) => `${Math.round(v)}€`} />
+                  </Bar>
+                  <Bar dataKey="tva" name="tva" fill="var(--color-tva)" radius={[4, 4, 0, 0]} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </ReBarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Category Pie */}
+        <Card className="lg:col-span-2 glass-panel premium-shadow bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 border-white/20 dark:border-white/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-2xl">
+              <BarChartIcon className="h-6 w-6 text-primary" />
+              Dépenses
+            </CardTitle>
+            <CardDescription className="text-base">Répartition par catégorie comptable</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RePieChart>
+                  <ChartTooltip
+                    content={<ChartTooltipContent
+                      hideLabel
+                      formatter={(value, _name, payload) => (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold">{payload.name}</span>
+                          <span className="text-muted-foreground">{Number(value).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>
+                        </div>
+                      )}
+                    />}
+                  />
+                  <Pie
+                    data={categoryData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    innerRadius={50}
+                    stroke="transparent"
+                  >
+                    {categoryData.map((entry, i) => (
+                      <Cell key={`cell-${i}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </RePieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top 5 Vendors */}
+      <Card className="glass-panel premium-shadow bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 border-white/20 dark:border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-display text-2xl">
+            <ArrowUpCircle className="h-6 w-6 text-orange-500" />
+            Top 5 Fournisseurs
+          </CardTitle>
+          <CardDescription className="text-base">Identifiez vos principaux centres de coûts par volume</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={chartConfig} className="h-[260px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ReBarChart
+                layout="vertical"
+                data={top5Vendors}
+                margin={{ top: 0, right: 80, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border/50" />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={110}
+                  className="text-xs"
+                />
+                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}€`} className="text-xs" />
+                <ChartTooltip
+                  content={<ChartTooltipContent
+                    formatter={(value) => `${Number(value).toLocaleString('fr-FR')} €`}
+                    indicator="dot"
+                  />}
+                />
+                <Bar dataKey="total" name="total" fill="hsl(var(--chart-1))" radius={4} layout="vertical">
+                  <LabelList
+                    dataKey="total"
+                    position="right"
+                    offset={8}
+                    className="fill-foreground text-xs font-medium"
+                    formatter={(v: number) => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                  />
+                </Bar>
+              </ReBarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

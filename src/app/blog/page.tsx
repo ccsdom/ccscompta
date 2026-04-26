@@ -76,11 +76,11 @@ export default function BlogPage() {
   ];
   
   const navLinks = [
-    { href: "/features", text: "Fonctionnalités" },
-    { href: "/pricing", text: "Tarifs" },
-    { href: "/about", text: "À Propos" },
+    { href: "/fonctionnalites", text: "Fonctionnalités" },
+    { href: "/tarifs", text: "Tarifs" },
+    { href: "/a-propos", text: "À Propos" },
     { href: "/blog", text: "Blog" },
-    { href: "/support", text: "Support" }
+    { href: "/assistance", text: "Support" }
   ];
 
 
@@ -114,16 +114,16 @@ export default function BlogPage() {
                         </Link>
                       </NavigationMenuLink>
                     </li>
-                    <ListItem href="/features" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
-                    <ListItem href="/pricing" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
-                    <ListItem href="/security" title="Sécurité">Votre confiance, notre priorité.</ListItem>
+                    <ListItem href="/fonctionnalites" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
+                    <ListItem href="/tarifs" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
+                    <ListItem href="/securite" title="Sécurité">Votre confiance, notre priorité.</ListItem>
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
 
              <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
-                  <Link href="/about">À Propos</Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/a-propos'}>
+                  <Link href="/a-propos">À Propos</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -132,8 +132,8 @@ export default function BlogPage() {
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
-                  <Link href="/support">Support</Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/assistance'}>
+                  <Link href="/assistance">Support</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
@@ -141,7 +141,7 @@ export default function BlogPage() {
 
           <div className="flex items-center gap-2">
              <Button asChild className="hidden md:inline-flex">
-              <Link href="/login">Se connecter</Link>
+              <Link href="/connexion">Se connecter</Link>
             </Button>
             <div className="md:hidden">
               <Sheet>
@@ -169,7 +169,7 @@ export default function BlogPage() {
                        </SheetClose>
                      ))}
                       <SheetClose asChild>
-                        <Link href="/login" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
+                        <Link href="/connexion" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
                       </SheetClose>
                    </nav>
                 </SheetContent>

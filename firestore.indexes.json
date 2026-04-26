@@ -1,4 +1,22 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+        "collectionGroup": "documents",
+        "queryScope": "COLLECTION",
+        "fields": [
+          { "fieldPath": "clientId", "order": "ASCENDING" },
+          { "fieldPath": "status", "order": "ASCENDING" },
+          { "fieldPath": "extractedData.amounts", "arrayConfig": "CONTAINS" }
+        ]
+      }
+  ],
   "fieldOverrides": []
 }

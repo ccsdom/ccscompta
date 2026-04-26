@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import Link from "next/link"
@@ -17,7 +16,7 @@ import {
   LogIn,
   LogOut as LogOutIcon,
   AlertTriangle,
-  Menu, // Import Menu icon
+  Menu,
   LifeBuoy,
   Users,
 } from "lucide-react"
@@ -45,8 +44,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { MobileNav } from './sidebar'; 
+import { useBranding } from './branding-provider';
+import { useAuth, db } from '@/firebase';
+import { collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 
 
 export function Header({children}: {children?: React.ReactNode}) {
@@ -55,71 +55,70 @@ export function Header({children}: {children?: React.ReactNode}) {
   const [hasUnread, setHasUnread] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAiSearching, setIsAiSearching] = useState(false);
-  const [userName, setUserName] = useState("Utilisateur");
-  const [userEmail, setUserEmail] = useState("");
-  const [userRole, setUserRole] = useState("client");
-  const [isImpersonating, setIsImpersonating] = useState(false);
-  const [originalUserName, setOriginalUserName] = useState('');
-  const [impersonatedClientName, setImpersonatedClientName] = useState('');
-
+  
+  const { profile, cabinet, isLoading: isBrandingLoading } = useBranding();
+  const auth = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+
+  // Impersonation state (still from localStorage for now to avoid breaking existing flows)
+  const [impersonationState, setImpersonationState] = useState<{
+      isImpersonating: boolean;
+      originalName: string;
+      targetName: string;
+  }>({ isImpersonating: false, originalName: '', targetName: '' });
   
   useEffect(() => {
-    // This effect runs only on the client side
     setMounted(true);
     
-    const loadStateFromLocalStorage = () => {
-        try {
-          const storedNotifications = localStorage.getItem('notifications');
-          if (storedNotifications) {
-            const parsed = JSON.parse(storedNotifications) as Notification[];
-            setNotifications(parsed);
-            setHasUnread(parsed.some(n => !n.isRead));
-          }
+    // 1. Real-time Notifications from Firestore
+    if (profile?.id) {
+        const q = query(
+            collection(db, 'notifications'),
+            where('clientId', '==', profile.id),
+            orderBy('date', 'desc'),
+            limit(20)
+        );
 
-          const storedQuery = localStorage.getItem('searchQuery');
-          const storedCriteria = localStorage.getItem('searchCriteria');
-          if (storedCriteria) {
-            setSearchQuery(JSON.parse(storedCriteria).originalQuery);
-          } else if (storedQuery) {
-            setSearchQuery(storedQuery);
-          }
-          
-          setUserName(localStorage.getItem('userName') || "Utilisateur");
-          setUserEmail(localStorage.getItem('userEmail') || "");
-          setUserRole(localStorage.getItem('userRole') || "client");
-          
-          const originalRole = localStorage.getItem('originalUserRole');
-          if (originalRole) {
-              setIsImpersonating(true);
-              setOriginalUserName(localStorage.getItem('originalUserName') || '');
-              setImpersonatedClientName(localStorage.getItem('userName') || '');
-          } else {
-              setIsImpersonating(false);
-              setOriginalUserName('');
-              setImpersonatedClientName('');
-          }
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const notifs = snapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id
+            })) as Notification[];
+            setNotifications(notifs);
+            setHasUnread(notifs.some(n => !n.isRead));
+        });
 
-        } catch (e) {
-          console.error("Failed to load state from localStorage", e);
+        const loadImpersonation = () => {
+            const originalRole = localStorage.getItem('originalUserRole');
+            if (originalRole) {
+                setImpersonationState({
+                    isImpersonating: true,
+                    originalName: localStorage.getItem('originalUserName') || '',
+                    targetName: profile?.name || 'Client',
+                });
+            } else {
+                setImpersonationState({ isImpersonating: false, originalName: '', targetName: '' });
+            }
+        };
+
+        loadImpersonation();
+        window.addEventListener('storage', loadImpersonation);
+        
+        return () => {
+            unsubscribe();
+            window.removeEventListener('storage', loadImpersonation);
         }
-    };
-    
-    loadStateFromLocalStorage();
-
-    const handleStorageChange = () => {
-        loadStateFromLocalStorage();
     }
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [profile]);
 
-  const handleMarkAsRead = () => {
-    const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
-    localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
-    setNotifications(updatedNotifications);
+  const handleMarkAsRead = async () => {
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length === 0) return;
+
+    for (const notif of unread) {
+        await updateDoc(doc(db, 'notifications', notif.id), { isRead: true });
+    }
     setHasUnread(false);
   }
   
@@ -142,7 +141,8 @@ export function Header({children}: {children?: React.ReactNode}) {
     }
   }
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await auth.signOut();
     localStorage.clear();
     router.push('/login');
   };
@@ -207,9 +207,9 @@ export function Header({children}: {children?: React.ReactNode}) {
   }
 
   const ImpersonationBanner = () => (
-     <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg">
+     <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg animate-in slide-in-from-top duration-300">
         <AlertTriangle className="h-4 w-4 mr-2"/>
-        Vous naviguez en tant que <span className="font-bold mx-1">{impersonatedClientName}</span>.
+        Vous naviguez en tant que <span className="font-bold mx-1">{impersonationState.targetName}</span>.
         <Button variant="link" size="sm" className="text-yellow-900 hover:text-black font-bold h-auto p-0 ml-2" onClick={handleStopImpersonating}>
             Revenir à mon compte
         </Button>
@@ -217,14 +217,14 @@ export function Header({children}: {children?: React.ReactNode}) {
   );
 
 
-  if (!mounted) {
+  if (!mounted || isBrandingLoading) {
     return (
-        <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4">
-                <Skeleton className="h-10 md:w-2/3 lg:w-1/2" />
-                <div className="flex items-center space-x-1 md:space-x-2">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
+        <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
+            <div className="container flex h-20 max-w-full items-center justify-between px-4 md:px-6 gap-4">
+                <Skeleton className="h-10 md:w-2/3 lg:w-1/2 opacity-50" />
+                <div className="flex items-center space-x-2 md:space-x-4">
+                    <Skeleton className="h-10 w-10 rounded-full opacity-50" />
+                    <Skeleton className="h-10 w-10 rounded-full opacity-50" />
                 </div>
             </div>
         </header>
@@ -232,9 +232,9 @@ export function Header({children}: {children?: React.ReactNode}) {
   }
 
   return (
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          {isImpersonating && <ImpersonationBanner />}
-          <div className={cn("container flex h-16 max-w-full items-center justify-between px-4 md:px-6 gap-4", isImpersonating && "pt-10")}>
+      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
+          {impersonationState.isImpersonating && <ImpersonationBanner />}
+          <div className={cn("container flex h-20 max-w-full items-center justify-between px-4 md:px-6 gap-4", impersonationState.isImpersonating && "pt-10")}>
             {children}
             
             <div className="flex-1">
@@ -264,7 +264,7 @@ export function Header({children}: {children?: React.ReactNode}) {
             </div>
             
             <div className="flex items-center space-x-1 md:space-x-2">
-                {userRole === 'client' && <QuickUpload />}
+                {profile?.role === 'client' && <QuickUpload />}
 
                  <DropdownMenu onOpenChange={(open) => { if (!open) handleMarkAsRead() }}>
                   <DropdownMenuTrigger asChild>
@@ -305,8 +305,8 @@ export function Header({children}: {children?: React.ReactNode}) {
                     <DropdownMenuTrigger asChild>
                          <Button variant="ghost" size="icon" className="relative rounded-full">
                             <Avatar className="h-8 w-8">
-                                <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${userEmail}`} alt="Utilisateur" />
-                                <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+                                <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${profile?.email}`} alt="Utilisateur" />
+                                <AvatarFallback>{profile?.name?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                          </Button>
                     </DropdownMenuTrigger>
@@ -314,18 +314,18 @@ export function Header({children}: {children?: React.ReactNode}) {
                         <DropdownMenuGroup>
                             <DropdownMenuLabel className="font-normal">
                                  <div className="flex flex-col space-y-1">
-                                    {isImpersonating && (
+                                    {impersonationState.isImpersonating && (
                                       <div className="text-xs text-muted-foreground">Connecté en tant que:</div>
                                     )}
-                                    <p className="text-sm font-medium leading-none">{isImpersonating ? originalUserName : userName}</p>
+                                    <p className="text-sm font-medium leading-none">{impersonationState.isImpersonating ? impersonationState.originalName : profile?.name}</p>
                                     <p className="text-xs leading-none text-muted-foreground">
-                                    {userEmail}
+                                    {profile?.email}
                                     </p>
                                 </div>
                             </DropdownMenuLabel>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
-                        {isImpersonating && (
+                        {impersonationState.isImpersonating && (
                            <>
                             <DropdownMenuItem onClick={handleStopImpersonating} className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer">
                               <LogOutIcon className="mr-2 h-4 w-4" />
@@ -337,11 +337,11 @@ export function Header({children}: {children?: React.ReactNode}) {
                         <DropdownMenuItem asChild>
                              <Link href={"/dashboard/settings"}>
                                   <User className="mr-2 h-4 w-4" /> Profil
-                            </Link>
+                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                              <Link
-                                 href={(userRole === 'accountant' || userRole === 'admin') ? "/dashboard/billing" : "/dashboard/my-invoices"}>
+                                 href={(profile?.role === 'accountant' || profile?.role === 'admin') ? "/dashboard/billing" : "/dashboard/my-invoices"}>
                                 <CreditCard className="mr-2 h-4 w-4" /> Facturation
                             </Link>
                         </DropdownMenuItem>

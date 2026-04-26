@@ -46,6 +46,12 @@ const ExtractDataOutputSchema = z.object({
   category: z.string().nullable().optional().describe('The suggested accounting category for the expense (e.g., "Fournitures", "Transport", "Repas"). Not used for bank statements.'),
   otherInformation: z.string().optional().describe('Other relevant information extracted from the document.'),
   anomalies: z.array(z.string()).optional().describe('Potential anomalies or red flags detected in the document (e.g., "Unusually high amount", "Suspicious date").'),
+  accountingEntry: z.object({
+    debitAccount: z.string().optional(),
+    creditAccount: z.string().optional(),
+    vatAccount: z.string().optional(),
+    confidenceScore: z.number().optional()
+  }).optional().describe("Proposition d'imputation comptable automatique basée sur le PCG.")
 });
 export type ExtractDataOutput = z.infer<typeof ExtractDataOutputSchema>;
 
@@ -76,6 +82,19 @@ Your goal is to extract the following fields and populate them at the top level:
 - Category: Based on the document content, suggest an accounting category. Examples: "Fournitures de bureau", "Transport", "Repas et divertissement", "Services informatiques", "Loyer", "Autre".
 - Other Information: Extract any other relevant information.
 - The 'transactions' field must be empty.
+
+**Accounting Intelligence (PCG Français)**:
+You MUST suggest a technical accounting entry in the 'accountingEntry' field following these rules:
+1. 'debitAccount': A 6-digit account for the expense (starts with 6). Examples:
+   - fournitures: 606400
+   - transport/carburant: 606100
+   - repas/voyage: 625100
+   - services extérieurs: 622600
+   - loyer: 613000
+   - informatique/logiciel: 623000
+2. 'creditAccount': Usually '401000' for the vendor.
+3. 'vatAccount': Usually '445660' for deductible VAT.
+4. 'confidenceScore': A value from 0 to 100 representing your certainty.
 `;
 
 const controllerPrompt = `
@@ -108,7 +127,7 @@ ${controllerPrompt}
 Document Type: {{{documentType}}}
 Document: {{media url=documentDataUri}}
 
-Return the extracted information in JSON format according to the rules above.
+Return the extracted information in JSON format according to the rules above. Ensure 'accountingEntry' is populated for invoices and receipts.
 `,  
 });
 

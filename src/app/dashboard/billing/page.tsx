@@ -32,12 +32,13 @@ import { Label } from '@/components/ui/label';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { useBranding } from '@/components/branding-provider';
+import { where } from 'firebase/firestore';
 
 export default function BillingPage() {
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
     const { toast } = useToast();
-    const [userRole, setUserRole] = useState<string | null>(null);
-    const [isMounted, setIsMounted] = useState(false);
+    const { role, profile, isLoading: isBrandingLoading } = useBranding();
 
     // Filters state
     const [clientFilter, setClientFilter] = useState('all');
@@ -45,27 +46,26 @@ export default function BillingPage() {
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
 
-    useEffect(() => {
-        const role = localStorage.getItem('userRole');
-        setUserRole(role);
-        setIsMounted(true);
-    }, []);
-
-    const isStaff = useMemo(() => isMounted && userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [isMounted, userRole]);
+    const isStaff = useMemo(() => role && ['admin', 'accountant', 'secretary'].includes(role), [role]);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null; // Guard: Do not query if not staff
+        if (!isStaff) return null;
+        if (role !== 'admin' && profile?.cabinetId) {
+            return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
+        }
         return query(collection(db, 'clients'));
-    }, [isStaff]);
+    }, [isStaff, role, profile?.cabinetId]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
     const invoicesQuery = useMemoFirebase(() => {
-        if (!isStaff) return null; // Guard: Do not query if not staff
+        if (!isStaff) return null;
+         // Note: For now invoices are global or filtered by clientId in useMemo. 
+         // In a real multi-tenant setup, they should also be filtered by cabinetId in the query.
         return query(collection(db, 'invoices'));
     }, [isStaff]);
     const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
 
-    const loading = !isMounted || (isStaff && (isLoadingClients || isLoadingInvoices));
+    const loading = isBrandingLoading || (isStaff && (isLoadingClients || isLoadingInvoices));
 
 
     const filteredInvoices = useMemo(() => {
@@ -189,22 +189,6 @@ export default function BillingPage() {
 
     const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
 
-     if (!isMounted) {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <Skeleton className="h-9 w-1/3" />
-                    <Skeleton className="h-5 w-2/3 mt-2" />
-                </div>
-                <Card>
-                    <CardHeader><Skeleton className="h-10 w-full" /></CardHeader>
-                    <CardContent>
-                        <Skeleton className="h-64 w-full" />
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
     
     if (!isStaff) {
          return (

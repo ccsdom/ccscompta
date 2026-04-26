@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle } from "lucide-react";
+import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle, TrendingUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document, Client } from '@/lib/types';
@@ -181,12 +181,12 @@ export default function AnalyticsPage() {
         const averageSpent = approvedDocs.length > 0 ? totalSpent / approvedDocs.length : 0;
         
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
-            const date = new Date(doc.extractedData!.dates[0]!);
+            const rawDate = doc.extractedData?.dates?.[0];
+            if (!rawDate) return acc;
+            const date = new Date(rawDate);
             const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
-            const amount = doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
-            if (!acc[month]) {
-                acc[month] = 0;
-            }
+            const amount = doc.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
+            if (!acc[month]) acc[month] = 0;
             acc[month] += amount;
             return acc;
         }, {} as Record<string, number>);
@@ -203,11 +203,9 @@ export default function AnalyticsPage() {
             });
 
         const expensesByVendor = approvedDocs.reduce((acc, doc) => {
-            const vendor = doc.extractedData!.vendorNames![0]! || 'Inconnu';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
-             if (!acc[vendor]) {
-                acc[vendor] = 0;
-            }
+            const vendor = doc.extractedData?.vendorNames?.[0] ?? 'Inconnu';
+            const amount = doc.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
+            if (!acc[vendor]) acc[vendor] = 0;
             acc[vendor] += amount;
             return acc;
         }, {} as Record<string, number>);
@@ -219,26 +217,32 @@ export default function AnalyticsPage() {
         const mainVendor = vendorChartData.length > 0 ? vendorChartData[0].name : 'N/A';
 
         const expensesByCategory = approvedDocs.reduce((acc, doc) => {
-            const category = doc.extractedData?.category || 'Autre';
-             if (!acc[category]) {
-                acc[category] = 0;
-            }
-            acc[category]+= doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
+            const category = doc.extractedData?.category ?? 'Autre';
+            if (!acc[category]) acc[category] = 0;
+            acc[category] += doc.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
             return acc;
         }, {} as Record<string, number>);
+
+        const CATEGORY_COLORS: Record<string, string> = {
+            "Fournitures de bureau": "hsl(var(--chart-1))",
+            "Transport": "hsl(var(--chart-2))",
+            "Repas et divertissement": "hsl(var(--chart-3))",
+            "Services informatiques": "hsl(var(--chart-4))",
+            "Déplacements": "hsl(var(--chart-5))",
+            "Loyer": "hsl(var(--chart-1))",
+            "Autre": "hsl(var(--chart-2))",
+        };
 
         const categoryChartData = Object.entries(expensesByCategory).map(([name, value]) => ({ 
             name, 
             value, 
-            fill: (chartConfig[name as keyof typeof chartConfig] || chartConfig['Autre'])?.color 
+            fill: CATEGORY_COLORS[name] ?? CATEGORY_COLORS['Autre']
         }));
         
         const spendByType = approvedDocs.reduce((acc, doc) => {
             const type = doc.type || 'other';
-            const amount = doc.extractedData!.amounts.reduce((a, b) => (a||0) + (b||0), 0);
-            if (!acc[type]) {
-                acc[type] = { total: 0, count: 0 };
-            }
+            const amount = doc.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
+            if (!acc[type]) acc[type] = { total: 0, count: 0 };
             acc[type].total += amount;
             acc[type].count++;
             return acc;
@@ -343,10 +347,10 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">{clientName}</h1>
-                <p className="text-muted-foreground mt-1">Visualisez les données extraites des documents approuvés.</p>
+                <p className="text-muted-foreground mt-1">Analyse financière avancée — documents approuvés par le cabinet.</p>
             </div>
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -355,55 +359,55 @@ export default function AnalyticsPage() {
                 <DropdownMenuContent>
                     <DropdownMenuLabel>Afficher/Masquer les composants</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuCheckboxItem checked={visibleComponents.keyStats} onCheckedChange={(checked) => handleVisibilityChange('keyStats', !!checked)}>Statistiques Clés</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleComponents.expensesByMonth} onCheckedChange={(checked) => handleVisibilityChange('expensesByMonth', !!checked)}>Dépenses par Mois</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleComponents.distributionByCategory} onCheckedChange={(checked) => handleVisibilityChange('distributionByCategory', !!checked)}>Dépenses par Catégorie</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleComponents.expensesByVendor} onCheckedChange={(checked) => handleVisibilityChange('expensesByVendor', !!checked)}>Dépenses par Fournisseur</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleComponents.averageSpendByType} onCheckedChange={(checked) => handleVisibilityChange('averageSpendByType', !!checked)}>Dépense Moyenne par Type</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.keyStats} onCheckedChange={(checked: boolean) => handleVisibilityChange('keyStats', checked)}>Statistiques Clés</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.expensesByMonth} onCheckedChange={(checked: boolean) => handleVisibilityChange('expensesByMonth', checked)}>Dépenses par Mois</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.distributionByCategory} onCheckedChange={(checked: boolean) => handleVisibilityChange('distributionByCategory', checked)}>Dépenses par Catégorie</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.expensesByVendor} onCheckedChange={(checked: boolean) => handleVisibilityChange('expensesByVendor', checked)}>Dépenses par Fournisseur</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleComponents.averageSpendByType} onCheckedChange={(checked: boolean) => handleVisibilityChange('averageSpendByType', checked)}>Dépense Moyenne par Type</DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>
 
        {visibleComponents.keyStats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm border-primary/10 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Dépenses (TTC)</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Dépenses (TTC)</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><DollarSign className="h-4 w-4 text-primary" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">Basé sur {analyticsData.approvedDocsCount} documents</p>
+              <div className="text-3xl font-black">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
+              <p className="text-xs text-muted-foreground mt-1">Basé sur {analyticsData.approvedDocsCount} documents approuvés</p>
             </CardContent>
           </Card>
-           <Card>
+           <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm border-emerald-500/10 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">TVA Déductible (Période)</CardTitle>
-              <PercentCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TVA Déductible</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><PercentCircle className="h-4 w-4 text-emerald-500" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.totalVat.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-              <p className="text-xs text-muted-foreground">Total de la TVA sur les documents approuvés</p>
+              <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{analyticsData.totalVat.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
+              <p className="text-xs text-muted-foreground mt-1">Sur les documents de la période</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Fournisseur Principal</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fournisseur Principal</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center"><Users className="h-4 w-4 text-orange-500" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.mainVendor}</div>
-              <p className="text-xs text-muted-foreground">Le plus grand volume de dépenses</p>
+              <div className="text-xl font-bold truncate">{analyticsData.mainVendor}</div>
+              <p className="text-xs text-muted-foreground mt-1">Plus grand volume de dépenses</p>
             </CardContent>
           </Card>
-           <Card>
+           <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dépense Moyenne / Doc</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Panier Moyen / Doc</CardTitle>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><TrendingUp className="h-4 w-4 text-primary" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</div>
-               <p className="text-xs text-muted-foreground">Moyenne des montants validés</p>
+              <div className="text-3xl font-black">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
+               <p className="text-xs text-muted-foreground mt-1">Moyenne des montants validés</p>
             </CardContent>
           </Card>
         </div>
@@ -472,7 +476,7 @@ export default function AnalyticsPage() {
                                             <Cell key={`cell-${index}`} fill={entry.fill} />
                                         ))}
                                     </Pie>
-                                    <ChartLegend content={<ChartLegendContent nameKey="name" formatter={(value) => chartConfig[value as keyof typeof chartConfig]?.label}/>} className="flex-wrap" />
+                                    <ChartLegend content={<ChartLegendContent nameKey="name" />} className="flex-wrap" />
                                 </PieChart>
                                 </ResponsiveContainer>
                             </ChartContainer>

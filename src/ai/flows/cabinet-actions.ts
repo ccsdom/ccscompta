@@ -1,8 +1,6 @@
 
-'use server';
-
-import { db } from '@/lib/firebase-server';
-import { collection, getDocs, addDoc, query, where, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
+import { collection, getDocs, addDoc, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Cabinet } from '@/lib/types';
 import { z } from 'zod';
 
@@ -10,19 +8,22 @@ type ServerActionResponse<T> =
   | { success: true; data: T }
   | { success: false; error: string };
 
-const AddCabinetInputSchema = z.object({
+const CabinetSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Email invalide.").optional(),
+  logoUrl: z.string().url("URL invalide.").optional().or(z.literal("")),
+  slogan: z.string().optional(),
+  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Format de couleur invalide.").optional().or(z.literal("")),
 });
 
 export async function addCabinet(
-  cabinetData: z.infer<typeof AddCabinetInputSchema>
+  cabinetData: z.infer<typeof CabinetSchema>
 ): Promise<ServerActionResponse<Cabinet>> {
   console.log("[Cabinet Action] Adding new cabinet:", cabinetData.name);
   try {
-    const validatedData = AddCabinetInputSchema.parse(cabinetData);
+    const validatedData = CabinetSchema.parse(cabinetData);
     
     // Check for duplicates
     const q = query(collection(db, 'cabinets'), where('name', '==', validatedData.name));
@@ -73,5 +74,31 @@ export async function getCabinetById(id: string): Promise<Cabinet | null> {
     } catch(error) {
         console.error(`Error fetching cabinet ${id}:`, error);
         return null;
+    }
+}
+
+export async function updateCabinet(
+    id: string,
+    cabinetData: Partial<z.infer<typeof CabinetSchema>>
+): Promise<ServerActionResponse<Cabinet>> {
+    console.log(`[Cabinet Action] Updating cabinet ${id}`);
+    try {
+        // We use Partial because we might not update everything at once (e.g. just the logo)
+        const validatedData = CabinetSchema.partial().parse(cabinetData);
+        
+        const docRef = doc(db, 'cabinets', id);
+        await updateDoc(docRef, validatedData);
+        
+        const updatedSnap = await getDoc(docRef);
+        return { 
+            success: true, 
+            data: { id: updatedSnap.id, ...updatedSnap.data() } as Cabinet 
+        };
+    } catch (error) {
+        console.error('[Cabinet Action] Error updating cabinet:', error);
+        if (error instanceof z.ZodError) {
+            return { success: false, error: `Données invalides: ${error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ')}` };
+        }
+        return { success: false, error: 'Impossible de mettre à jour le cabinet.' };
     }
 }

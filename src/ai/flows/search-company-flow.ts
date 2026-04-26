@@ -56,7 +56,7 @@ export async function searchCompany(input: CompanySearchInput): Promise<CompanyS
             address: siege.adresse,
             legalRepresentative: representative,
         };
-    }).filter((r): r is CompanySearchResult => r !== null);
+    }).filter((r: CompanySearchResult|null): r is CompanySearchResult => r !== null);
     
     return { results };
 }

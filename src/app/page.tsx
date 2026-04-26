@@ -88,17 +88,17 @@ export default function LandingPage() {
   ];
 
   const navLinks = [
-    { href: "/features", text: "Fonctionnalités" },
-    { href: "/pricing", text: "Tarifs" },
-    { href: "/about", text: "À Propos" },
+    { href: "/fonctionnalites", text: "Fonctionnalités" },
+    { href: "/tarifs", text: "Tarifs" },
+    { href: "/a-propos", text: "À Propos" },
     { href: "/blog", text: "Blog" },
-    { href: "/support", text: "Support" }
+    { href: "/assistance", text: "Support" }
   ];
 
 
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           <Link href="/">
             <div className="flex items-center gap-2 font-semibold">
@@ -127,21 +127,21 @@ export default function LandingPage() {
                         </Link>
                       </NavigationMenuLink>
                     </li>
-                    <ListItem href="/features" title="Fonctionnalités">
+                    <ListItem href="/fonctionnalites" title="Fonctionnalités">
                       Découvrez comment l'IA transforme votre productivité.
                     </ListItem>
-                    <ListItem href="/pricing" title="Tarifs">
+                    <ListItem href="/tarifs" title="Tarifs">
                       Des plans simples et transparents pour tous les besoins.
                     </ListItem>
-                    <ListItem href="/security" title="Sécurité">
+                    <ListItem href="/securite" title="Sécurité">
                       Votre confiance, notre priorité.
                     </ListItem>
                   </ul>
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/about'}>
-                  <Link href="/about">À Propos</Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/a-propos'}>
+                  <Link href="/a-propos">À Propos</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -150,8 +150,8 @@ export default function LandingPage() {
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/support'}>
-                  <Link href="/support">Support</Link>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/assistance'}>
+                  <Link href="/assistance">Support</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
@@ -159,7 +159,7 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-2">
             <Button asChild className="hidden md:inline-flex">
-              <Link href="/login">Se connecter</Link>
+              <Link href="/connexion">Se connecter</Link>
             </Button>
             <div className="md:hidden">
                 <Sheet>
@@ -187,7 +187,7 @@ export default function LandingPage() {
                          </SheetClose>
                        ))}
                        <SheetClose asChild>
-                         <Link href="/login" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
+                         <Link href="/connexion" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
                        </SheetClose>
                      </nav>
                   </SheetContent>
@@ -204,23 +204,25 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
             >
-              <Badge variant="outline" className="mb-4">
-                <Bot className="h-4 w-4 mr-2"/> La puissance de l'IA au service de votre compta
-              </Badge>
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl font-display">
-                La comptabilité, <br /> réinventée pour les <span className="text-primary">cabinets modernes</span>.
+              <div className="flex justify-center mb-8">
+                <Badge variant="outline" className="px-4 py-1.5 rounded-full border-primary/20 bg-primary/5 text-primary font-medium text-sm">
+                  <Bot className="h-4 w-4 mr-2"/> La puissance de l'IA au service de votre compta
+                </Badge>
+              </div>
+              <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl font-display leading-[1.1]">
+                La comptabilité, <br /> réinventée pour les <span className="gradient-text">cabinets modernes</span>.
               </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-                Automatisez la collecte et la saisie des documents comptables. Libérez du temps pour ce qui compte vraiment : le conseil client.
+              <p className="mx-auto mt-8 max-w-2xl text-xl text-muted-foreground leading-relaxed">
+                Automatisez la collecte et la saisie grâce à l'intelligence artificielle. Reprenez le contrôle de votre temps et concentrez-vous sur le conseil stratégique.
               </p>
               <div className="mt-8 flex justify-center gap-4">
                 <Button size="lg" asChild>
-                  <Link href="/login">
+                  <Link href="/connexion">
                     Démarrer maintenant <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
-                  <Link href="/features">Découvrir les fonctionnalités</Link>
+                  <Link href="/fonctionnalites">Découvrir les fonctionnalités</Link>
                 </Button>
               </div>
             </motion.div>
@@ -229,25 +231,25 @@ export default function LandingPage() {
 
         <section className="py-12 md:py-20">
             <div className="container mx-auto max-w-5xl px-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {features.map((feature, index) => (
-                        <div key={index}>
-                            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary mb-4">
+                        <div key={index} className="glass-panel p-8 text-center flex flex-col items-center">
+                            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-6 ring-1 ring-primary/20">
                                 {feature.icon}
                             </div>
-                            <h3 className="text-lg font-semibold">{feature.title}</h3>
-                            <p className="mt-1 text-muted-foreground text-sm">{feature.description}</p>
+                            <h3 className="text-xl font-bold mb-3 font-display">{feature.title}</h3>
+                            <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
                         </div>
                     ))}
                 </div>
             </div>
         </section>
 
-        <section className="py-12 md:py-20 bg-muted/30">
-          <div className="container mx-auto max-w-6xl px-4">
+        <section className="py-12 md:py-24 relative">
+          <div className="container mx-auto max-w-6xl px-4 relative z-10">
             <div className="grid md:grid-cols-2 gap-16 items-center">
                 <div>
-                   <h2 className="text-3xl font-bold tracking-tight font-display mb-4">Un flux de travail <span className="text-primary">sans friction</span>.</h2>
+                   <h2 className="text-4xl lg:text-5xl font-bold tracking-tight font-display mb-6 leading-tight">Un flux de travail <br/><span className="gradient-text">sans friction</span>.</h2>
                    <p className="text-muted-foreground text-lg mb-8">
                      De la réception du document à son intégration dans votre logiciel de production, chaque étape est optimisée.
                    </p>
@@ -274,11 +276,12 @@ export default function LandingPage() {
         
         <section className="py-24">
             <div className="container mx-auto px-4 max-w-5xl">
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl font-bold tracking-tight font-display">Conçu pour <span className="text-primary">tous les acteurs</span> du cabinet</h2>
+                <div className="text-center mb-16">
+                    <h2 className="text-4xl font-bold tracking-tight font-display">Conçu pour <span className="gradient-text">tous les acteurs</span> du cabinet</h2>
+                    <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">Une plateforme unique qui réunit experts, collaborateurs et clients autour d'une collaboration fluide.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <Card>
+                    <Card className="glass-panel-hover border-border/50 h-full">
                         <CardHeader>
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-2">
                                 <Building className="h-6 w-6 text-primary" />
@@ -289,7 +292,10 @@ export default function LandingPage() {
                             <p className="text-muted-foreground">Un portail simple pour déposer des documents, suivre leur statut et communiquer, réduisant ainsi les échanges d'e-mails.</p>
                         </CardContent>
                     </Card>
-                    <Card className="border-primary ring-2 ring-primary">
+                    <Card className="glass-panel-hover border-[1.5px] border-primary h-full premium-shadow relative overflow-hidden">
+                         <div className="absolute top-0 right-0 p-4">
+                            <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0">Cœur de l'outil</Badge>
+                         </div>
                          <CardHeader>
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-2">
                                 <Briefcase className="h-6 w-6 text-primary" />
@@ -300,7 +306,7 @@ export default function LandingPage() {
                             <p className="text-muted-foreground">Supervisez tous vos dossiers, accédez à des analyses et concentrez-vous sur des missions à plus forte valeur ajoutée.</p>
                         </CardContent>
                     </Card>
-                     <Card>
+                     <Card className="glass-panel-hover border-border/50 h-full">
                          <CardHeader>
                             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-2">
                                 <Users className="h-6 w-6 text-primary" />
@@ -315,15 +321,16 @@ export default function LandingPage() {
             </div>
         </section>
 
-        <section className="py-20 bg-muted/30">
-          <div className="container mx-auto max-w-4xl px-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight font-display">
+        <section className="py-20 relative">
+          <div className="absolute inset-0 bg-primary/5 clip-path-slant z-0"></div>
+          <div className="container mx-auto max-w-4xl px-4 text-center relative z-10">
+            <h2 className="text-4xl font-bold tracking-tight font-display">
               Ils nous font confiance
             </h2>
             <p className="mt-3 text-muted-foreground">Rejoignez les cabinets et entreprises qui ont choisi de travailler plus intelligemment.</p>
-            <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2">
               {testimonials.map((testimonial, index) => (
-                <Card key={index} className="text-left">
+                <Card key={index} className="glass-panel text-left h-full flex flex-col justify-between">
                   <CardContent className="p-6">
                     <p className="text-muted-foreground">"{testimonial.text}"</p>
                   </CardContent>
@@ -345,10 +352,10 @@ export default function LandingPage() {
         
         <section className="py-24">
             <div className="container mx-auto max-w-3xl text-center">
-                 <h2 className="text-3xl font-bold tracking-tight font-display mb-8">
+                 <h2 className="text-4xl font-bold tracking-tight font-display mb-12">
                     Questions fréquentes
                 </h2>
-                <Accordion type="single" collapsible className="w-full text-left">
+                <Accordion type="single" collapsible className="w-full text-left glass-panel rounded-2xl p-6">
                     {faqs.map((faq, index) => (
                          <AccordionItem value={`item-${index}`} key={index}>
                             <AccordionTrigger className="text-lg font-semibold">{faq.question}</AccordionTrigger>
@@ -361,17 +368,19 @@ export default function LandingPage() {
             </div>
         </section>
 
-        <section className="py-24 bg-primary text-primary-foreground">
-          <div className="container mx-auto max-w-4xl px-4 text-center">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+        <section className="py-32 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary to-slate-900/90 dark:to-background z-0"></div>
+          <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/grid/1000/1000')] mix-blend-overlay opacity-10 bg-repeat bg-[length:100px_100px]"></div>
+          <div className="container mx-auto max-w-4xl px-4 text-center relative z-10 text-white">
+            <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight font-display mb-6">
               Prêt à transformer votre cabinet ?
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-primary-foreground/80">
+            <p className="mx-auto mt-4 max-w-2xl text-xl text-white/80 leading-relaxed">
               Demandez une démo personnalisée ou commencez dès aujourd'hui.
             </p>
             <div className="mt-8">
               <Button size="lg" variant="secondary" asChild>
-                <Link href="/login">
+                <Link href="/connexion">
                   Commencer l'aventure <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -396,17 +405,17 @@ export default function LandingPage() {
               <div>
                 <p className="font-semibold text-foreground">Produit</p>
                 <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/features" className="text-sm text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
-                  <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
-                  <Link href="/security" className="text-sm text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
+                  <Link href="/fonctionnalites" className="text-sm text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
+                  <Link href="/tarifs" className="text-sm text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
+                  <Link href="/securite" className="text-sm text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
                 </nav>
               </div>
               <div>
                 <p className="font-semibold text-foreground">Entreprise</p>
                 <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/about" className="text-sm text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
+                  <Link href="/a-propos" className="text-sm text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
                   <Link href="/blog" className="text-sm text-muted-foreground transition-colors hover:text-primary">Blog</Link>
-                  <Link href="/support" className="text-sm text-muted-foreground transition-colors hover:text-primary">Contact</Link>
+                  <Link href="/assistance" className="text-sm text-muted-foreground transition-colors hover:text-primary">Contact</Link>
                 </nav>
               </div>
               <div>
