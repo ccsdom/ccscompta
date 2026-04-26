@@ -20,5 +20,3 @@ env:
     value: "1:641289397299:web:160436367ad4dff3e6ef46"
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
-  - variable: INSEE_API_KEY
-    secret: INSEE_API_KEY
