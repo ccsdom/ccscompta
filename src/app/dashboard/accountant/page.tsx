@@ -1,6 +1,7 @@
 'use client';
  
 import { useState, useEffect, useMemo } from 'react';
+import { useBranding } from '@/components/branding-provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Users, FileUp, FileCheck, FileClock, Building, History as HistoryIcon, FileSpreadsheet, TrendingUp, ArrowUpRight, Search } from "lucide-react";
@@ -17,18 +18,14 @@ import { cn } from '@/lib/utils';
 
 export default function AccountantDashboard() {
     const [isMounted, setIsMounted] = useState(false);
-    const { user } = useUser();
-    
-    // Fetch user profile for cabinet isolation
-    const userProfileQuery = useMemo(() => user ? doc(db, 'users', user.uid) : null, [user]);
-    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileQuery);
+    const { profile: userProfile, isLoading: isLoadingProfile } = useBranding();
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
 
     const userRole = userProfile?.role || null;
-    const isStaff = isMounted && userRole && ['accountant', 'admin'].includes(userRole);
+    const isStaff = isMounted && userRole && (['accountant', 'admin', 'secretary'].includes(userRole));
     const isAdmin = userRole === 'admin';
     const cabinetId = userProfile?.cabinetId;
 

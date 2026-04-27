@@ -1,6 +1,7 @@
 'use client';
  
 import { useState, useEffect, useMemo } from 'react';
+import { useBranding } from '@/components/branding-provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Users, FileUp, FileClock, Building, PlusCircle, Files, Search, ArrowRight, Activity, Zap } from "lucide-react";
@@ -15,11 +16,7 @@ import { cn } from '@/lib/utils';
 
 export default function SecretaryDashboard() {
     const [isMounted, setIsMounted] = useState(false);
-    const { user } = useUser();
-    
-    // Fetch user profile for cabinet isolation
-    const userProfileQuery = useMemo(() => user ? doc(db, 'users', user.uid) : null, [user]);
-    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileQuery);
+    const { profile: userProfile, isLoading: isLoadingProfile } = useBranding();
 
     useEffect(() => {
         setIsMounted(true);

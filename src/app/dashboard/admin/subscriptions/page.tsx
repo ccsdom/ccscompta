@@ -1,18 +1,33 @@
-
 'use client';
 
+import { useState } from 'react';
 import { useCollection, useMemoFirebase } from "@/firebase";
 import { db } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { collection, query, orderBy, doc, updateDoc } from "firebase/firestore";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Building, Users, FileText, HardDrive, Zap, TrendingUp, AlertCircle } from "lucide-react";
+import { 
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Building, Users, FileText, HardDrive, Zap, TrendingUp, AlertCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Cabinet } from "@/lib/types";
 
 export default function SubscriptionsTrackingPage() {
+    const { toast } = useToast();
+    const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
     const qCabinets = useMemoFirebase(() => query(collection(db, 'cabinets'), orderBy('name')), []);
     const { data: cabinets, isLoading } = useCollection<Cabinet>(qCabinets);
 
@@ -162,6 +177,15 @@ export default function SubscriptionsTrackingPage() {
                                                     <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                                     <span className="text-[9px] font-black text-emerald-500 uppercase tracking-tight">Actif</span>
                                                 </div>
+                                                
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="ghost" 
+                                                    className="h-10 w-10 p-0 hover:bg-white/5 rounded-xl"
+                                                    onClick={() => setSelectedCabinet(cabinet)}
+                                                >
+                                                    <Zap className={cn("h-4 w-4", cabinet.stripeSubscriptionItemId ? "text-primary" : "opacity-40")} />
+                                                </Button>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -171,6 +195,59 @@ export default function SubscriptionsTrackingPage() {
                     })}
                 </div>
             </div>
+
+            {/* Link Stripe Dialog */}
+            <Dialog open={!!selectedCabinet} onOpenChange={() => setSelectedCabinet(null)}>
+                <DialogContent className="glass-panel border-white/10 premium-shadow">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black font-space uppercase">Liaison Stripe</DialogTitle>
+                        <DialogDescription>
+                            Associez un identifiant d'abonnement Stripe (Subscription Item ID) pour activer le report d'usage automatique.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-6 space-y-4">
+                        <div className="space-y-2">
+                             <Label className="text-[10px] font-black uppercase opacity-60">Cabinet sélectionné</Label>
+                             <div className="p-3 rounded-xl bg-white/5 border border-white/5 font-bold">{selectedCabinet?.name}</div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase opacity-60">Stripe Subscription Item ID</Label>
+                            <Input 
+                                id="stripeId"
+                                defaultValue={selectedCabinet?.stripeSubscriptionItemId || ''} 
+                                placeholder="si_..."
+                                className="h-12 bg-white/5 border-white/10"
+                            />
+                            <p className="text-[10px] text-muted-foreground italic">Vous trouverez cet ID dans le tableau de bord Stripe sous l'onglet 'Subscriptions'.</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSelectedCabinet(null)} className="rounded-xl border-white/10">Annuler</Button>
+                        <Button 
+                            className="rounded-xl font-bold px-8" 
+                            disabled={isSaving}
+                            onClick={async () => {
+                                if (!selectedCabinet) return;
+                                setIsSaving(true);
+                                const val = (document.getElementById('stripeId') as HTMLInputElement).value;
+                                try {
+                                    await updateDoc(doc(db, 'cabinets', selectedCabinet.id), {
+                                        stripeSubscriptionItemId: val
+                                    });
+                                    toast({ title: "Configuration Stripe mise à jour" });
+                                    setSelectedCabinet(null);
+                                } catch (e) {
+                                    toast({ variant: "destructive", title: "Erreur lors de la mise à jour" });
+                                } finally {
+                                    setIsSaving(false);
+                                }
+                            }}
+                        >
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

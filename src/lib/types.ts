@@ -116,6 +116,9 @@ export interface Cabinet {
     quotas: CabinetQuotas;
     invitationSentAt?: string;
     invitationStatus?: 'pending' | 'accepted' | 'expired';
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    stripeSubscriptionItemId?: string;
     createdAt: string;
     nextBillingDate?: string;
 }

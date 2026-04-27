@@ -13,19 +13,18 @@ service cloud.firestore {
     }
 
     function isStaff() {
-      return isAuthenticated() && (request.auth.token.role in ['admin', 'accountant', 'secretary']);
+      return isAuthenticated() && (
+        request.auth.token.role in ['admin', 'accountant', 'secretary'] ||
+        get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in ['admin', 'accountant', 'secretary']
+      );
     }
 
     function getProfile() {
       return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data;
     }
 
-    function hasValidProfile() {
-       return isAuthenticated() && exists(/databases/$(database)/documents/clients/$(request.auth.uid));
-    }
-
     function isCabinetStaff(cabinetId) {
-      return isStaff() && (isAdmin() || (hasValidProfile() && getProfile().cabinetId == cabinetId));
+      return isStaff() && (isAdmin() || getProfile().cabinetId == cabinetId);
     }
 
     // --- GLOBAL ADMIN OVERRIDE ---
@@ -41,11 +40,11 @@ service cloud.firestore {
 
     // --- User collection ('clients') ---
     match /clients/{userId} {
-      allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId);
-      allow get: if isStaff() || request.auth.uid == userId;
+      allow get: if isAuthenticated() && (isStaff() || request.auth.uid == userId);
+      allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId));
       allow create: if isStaff() || request.auth.uid == userId;
-      allow delete: if isAdmin();
       allow update: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == userId && !("role" in request.resource.data));
+      allow delete: if isAdmin();
     }
 
     // --- Documents collection ---
@@ -71,7 +70,9 @@ service cloud.firestore {
 
     // --- Bank Reconciliations ---
     match /reconciliations/{reconcId} {
-        allow read, write: if isCabinetStaff(resource.data.cabinetId || request.resource.data.cabinetId);
+        allow get: if isCabinetStaff(resource.data.cabinetId);
+        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId));
+        allow write: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
     }
 
     // --- Notifications collection ---
@@ -93,7 +94,7 @@ service cloud.firestore {
 
     // --- Cabinets collection ---
     match /cabinets/{cabinetId} {
-        allow get: if isAuthenticated() && (isStaff() || (hasValidProfile() && getProfile().cabinetId == cabinetId));
+        allow get: if true; // Permettre la lecture du nom du cabinet pour l'onboarding
         allow list: if isAdmin();
         allow create: if isAdmin();
         allow update: if isCabinetStaff(cabinetId);

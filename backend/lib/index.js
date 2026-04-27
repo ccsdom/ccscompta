@@ -45,7 +45,7 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.createPortalSession = exports.onDocumentPending = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = void 0;
+exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
  * Backend logic for assigning user roles, creating users and processing documents.
@@ -317,10 +317,6 @@ exports.syncAdminRole = (0, https_1.onCall)({ region: "europe-west9", memory: "2
         throw new https_1.HttpsError('internal', error.message);
     }
 });
-/**
- * Crée un nouvel utilisateur avec un rôle spécifique.
- * Utilisé par les administrateurs et comptables pour le onboarding.
- */
 exports.createUserWithRole = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -351,6 +347,78 @@ exports.createUserWithRole = (0, https_1.onCall)({ region: "europe-west9" }, asy
     catch (error) {
         logger.error('Erreur lors de la création de l\'utilisateur:', error);
         throw new https_1.HttpsError('internal', "Erreur lors de la création du compte.", error.message);
+    }
+});
+/**
+ * Finalise l'onboarding d'un cabinet invité.
+ */
+exports.setupInvitedCabinet = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+    const { cabinetId, password, email, name } = request.data;
+    if (!cabinetId || !password || !email) {
+        throw new https_1.HttpsError('invalid-argument', 'Paramètres manquants.');
+    }
+    try {
+        // 1. Vérifier que le cabinet existe et est en attente
+        const cabinetRef = db.collection('cabinets').doc(cabinetId);
+        const cabinetSnap = await cabinetRef.get();
+        if (!cabinetSnap.exists) {
+            throw new https_1.HttpsError('not-found', 'Cabinet introuvable.');
+        }
+        const cabinetData = cabinetSnap.data();
+        if ((cabinetData === null || cabinetData === void 0 ? void 0 : cabinetData.invitationStatus) === 'accepted') {
+            throw new https_1.HttpsError('already-exists', 'Ce cabinet est déjà configuré.');
+        }
+        // 2. Créer ou récupérer l'utilisateur Auth
+        let uid;
+        try {
+            const userRecord = await admin.auth().createUser({
+                email,
+                password,
+                displayName: name,
+                emailVerified: true
+            });
+            uid = userRecord.uid;
+        }
+        catch (error) {
+            if (error.code === 'auth/email-already-exists') {
+                const existingUser = await admin.auth().getUserByEmail(email);
+                uid = existingUser.uid;
+                // On met à jour son mdp pour correspondre à celui choisi pendant l'onboarding
+                await admin.auth().updateUser(uid, { password });
+            }
+            else {
+                throw error;
+            }
+        }
+        const role = 'accountant'; // Par défaut, le créateur est le premier comptable admin
+        // 3. Custom Claims
+        await admin.auth().setCustomUserClaims(uid, { role, cabinetId });
+        // 4. Mettre à jour le cabinet
+        await cabinetRef.update({
+            invitationStatus: 'accepted',
+            acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+            adminUid: uid,
+            status: 'active'
+        });
+        // 5. Créer le profil "client" (qui sert de base utilisateur)
+        await db.collection('clients').doc(uid).set({
+            name,
+            email,
+            role,
+            cabinetId,
+            isCabinetAdmin: true,
+            status: 'active',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info(`Cabinet ${cabinetId} activé par ${uid}`);
+        return { success: true };
+    }
+    catch (error) {
+        logger.error('Setup cabinet error:', error);
+        if (error.code === 'auth/email-already-exists') {
+            throw new https_1.HttpsError('already-exists', 'Cet email possède déjà un compte.');
+        }
+        throw new https_1.HttpsError('internal', error.message);
     }
 });
 /**
@@ -429,18 +497,31 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         }
         await ((_j = event.data) === null || _j === void 0 ? void 0 : _j.after.ref.update(updateData));
         logger.log(`✅ [Processor] Succès pour ${docId} : ${billableLines} lignes détectées. ${isDuplicate ? '(DOUBLON)' : ''}`);
-        // 7. Report usage to Stripe if subscription exists and NOT a duplicate
+        // 7. Report usage to Stripe & Update Cabinet Quotas if NOT a duplicate
         if (!isDuplicate) {
             try {
+                // Récupérer le cabinet lié au client
                 const clientDoc = await db.collection("clients").doc(data.clientId).get();
                 const clientData = clientDoc.data();
-                if (clientData === null || clientData === void 0 ? void 0 : clientData.stripeSubscriptionItemId) {
-                    logger.log(`💳 [Stripe] Reporting usage for ${data.clientId} : ${billableLines} lines`);
-                    await stripe_1.StripeService.reportUsage(clientData.stripeSubscriptionItemId, billableLines);
+                const cabinetId = clientData === null || clientData === void 0 ? void 0 : clientData.cabinetId;
+                if (cabinetId) {
+                    const cabinetRef = db.collection("cabinets").doc(cabinetId);
+                    // Mise à jour du quota interne (Firestore)
+                    await cabinetRef.update({
+                        'quotas.usedDocumentsMonth': admin.firestore.FieldValue.increment(1),
+                        'quotas.totalBillableLines': admin.firestore.FieldValue.increment(billableLines)
+                    });
+                    // Report à Stripe si configuré
+                    const cabinetSnap = await cabinetRef.get();
+                    const cabinetData = cabinetSnap.data();
+                    if (cabinetData === null || cabinetData === void 0 ? void 0 : cabinetData.stripeSubscriptionItemId) {
+                        logger.log(`💳 [Stripe] Reporting usage for cabinet ${cabinetId} : ${billableLines} lines`);
+                        await stripe_1.StripeService.reportUsage(cabinetData.stripeSubscriptionItemId, billableLines);
+                    }
                 }
             }
-            catch (stripeError) {
-                logger.error(`⚠️ [Stripe] Erreur lors du report de consommation pour ${docId}:`, stripeError);
+            catch (billingError) {
+                logger.error(`⚠️ [Billing] Erreur lors du report de consommation pour ${docId}:`, billingError);
             }
         }
     }

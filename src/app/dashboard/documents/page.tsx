@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useBranding } from '@/components/branding-provider';
 import { DataValidationForm } from '@/components/data-validation-form';
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from "@/hooks/use-toast";
@@ -66,9 +67,7 @@ export default function DocumentsPage() {
   const router = useRouter();
   const { storage } = useFirebase();
 
-  const { user } = useUser();
-  const userProfileQuery = useMemo(() => user ? doc(db, 'users', user.uid) : null, [user]);
-  const { data: userProfile } = useDoc<UserProfile>(userProfileQuery);
+  const { profile: userProfile } = useBranding();
 
   // Firestore hooks for real-time data
   const documentsQuery = useMemoFirebase(() => {

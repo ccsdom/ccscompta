@@ -18,31 +18,29 @@ import type { Document } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
-interface BankTransaction {
-    id: string;
-    date: string;
-    description: string;
-    amount: number;
-    status: 'matched' | 'pending' | 'anomaly';
-    matchedDocId?: string;
-    vendor?: string;
-}
 
-const MOCK_TRANSACTIONS: BankTransaction[] = [
-    { id: 'tx-1', date: '2026-04-22', description: 'AMAZON.FR SERVICES', amount: -42.50, status: 'pending' },
-    { id: 'tx-2', date: '2026-04-21', description: 'TOTAL ENERGIES PARIS', amount: -65.00, status: 'pending' },
-    { id: 'tx-3', date: '2026-04-20', description: 'VIREMENT URSSAF', amount: -850.00, status: 'pending' },
-    { id: 'tx-4', date: '2026-04-19', description: 'ABONNEMENT ADOBE', amount: -24.99, status: 'pending' },
-    { id: 'tx-5', date: '2026-04-18', description: 'RESTAURANT LE GOURMET', amount: -38.00, status: 'pending' },
-];
+import { BankService, type BankTransaction } from '@/services/bank-service';
 
 export default function MyBankPage() {
     const [isLinked, setIsLinked] = useState(false);
     const [isLinking, setIsLinking] = useState(false);
-    const [transactions, setTransactions] = useState<BankTransaction[]>(MOCK_TRANSACTIONS);
+    const [transactions, setTransactions] = useState<BankTransaction[]>([]);
     const [isMatching, setIsMatching] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const storedClientId = typeof window !== 'undefined' ? localStorage.getItem('selectedClientId') : null;
+
+    useEffect(() => {
+        const loadTransactions = async () => {
+            if (isLinked && storedClientId) {
+                setIsLoading(true);
+                const data = await BankService.getTransactions(storedClientId);
+                setTransactions(data);
+                setIsLoading(false);
+            }
+        };
+        loadTransactions();
+    }, [isLinked, storedClientId]);
 
     const documentsQuery = useMemoFirebase(() => {
         if (!storedClientId) return null;
@@ -61,21 +59,21 @@ export default function MyBankPage() {
                 title: "Banque connectée",
                 description: "Votre flux bancaire est désormais synchronisé avec CCS Compta.",
             });
-        }, 2000);
+        }, 1500);
     };
 
     const runAutoMatch = () => {
-        if (!clientDocuments || isMatching) return;
+        if (!clientDocuments || isMatching || transactions.length === 0) return;
         setIsMatching(true);
 
         const newTxs = [...transactions];
         let matchCount = 0;
 
-        // On simule le matching IA
+        // On simule le matching IA (normalement effectué par le backend, mais on permet une synchro manuelle UI)
         setTimeout(() => {
             newTxs.forEach((tx, idx) => {
                 if (tx.status === 'pending') {
-                    // On cherche un doc qui correspond au montant
+                    // On cherche un doc qui correspond au montant (TTC)
                     const match = clientDocuments.find(doc => 
                         doc.status === 'approved' && 
                         doc.extractedData?.amounts?.some(a => Math.abs(a) === Math.abs(tx.amount))
@@ -246,7 +244,20 @@ export default function MyBankPage() {
                 <CardContent className="p-0">
                     <div className="divide-y divide-white/5">
                         <AnimatePresence mode="popLayout">
-                            {transactions.map((tx) => (
+                            {isLoading ? (
+                                <div className="p-12 text-center flex flex-col items-center gap-4">
+                                    <RefreshCw className="h-8 w-8 animate-spin text-primary opacity-20" />
+                                    <p className="text-xs text-muted-foreground animate-pulse">Récupération des données bancaires...</p>
+                                </div>
+                            ) : transactions.length === 0 ? (
+                                <div className="p-16 text-center space-y-4">
+                                    <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <ArrowRightLeft className="h-8 w-8 text-muted-foreground opacity-20" />
+                                    </div>
+                                    <p className="text-muted-foreground text-sm">Aucune transaction détectée sur vos dernières factures.</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase opacity-40">Uploadez un relevé bancaire pour commencer</p>
+                                </div>
+                            ) : transactions.map((tx) => (
                                 <motion.div 
                                     layout
                                     key={tx.id}
