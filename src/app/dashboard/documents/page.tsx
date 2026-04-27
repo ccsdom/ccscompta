@@ -71,9 +71,23 @@ export default function DocumentsPage() {
 
   // Firestore hooks for real-time data
   const documentsQuery = useMemoFirebase(() => {
-    if (!selectedClientId) return null;
-    return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
-  }, [selectedClientId]);
+    if (!selectedClientId || !userProfile) return null;
+    
+    // For staff, we MUST filter by cabinetId to align with security rules
+    if (userProfile.role === 'admin') {
+      return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
+    }
+
+    if (userProfile.cabinetId) {
+      return query(
+        collection(db, 'documents'), 
+        where('clientId', '==', selectedClientId),
+        where('cabinetId', '==', userProfile.cabinetId)
+      );
+    }
+
+    return null;
+  }, [selectedClientId, userProfile]);
   const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
   const clientsQuery = useMemoFirebase(() => {

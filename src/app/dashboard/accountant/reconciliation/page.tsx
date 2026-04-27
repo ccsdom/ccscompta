@@ -110,14 +110,19 @@ function StepClient({ onSelect }: { onSelect: (client: Client) => void }) {
   const isStaff = useMemo(() => userRole && ['accountant', 'admin'].includes(userRole), [userRole]);
 
   const clientsQuery = useMemoFirebase(() => {
-    if (!isStaff) return null;
+    if (!isStaff || !userRole) return null;
     
-    // If accountant, filter by their cabinet
-    if (userRole === 'accountant' && profile?.cabinetId) {
+    // Admin sees everything
+    if (userRole === 'admin') {
+        return query(collection(db, 'clients'), where('role', '==', 'client'));
+    }
+    
+    // Accountant MUST have a cabinetId
+    if (profile?.cabinetId) {
         return query(collection(db, 'clients'), where('role', '==', 'client'), where('cabinetId', '==', profile.cabinetId));
     }
     
-    return query(collection(db, 'clients'), where('role', '==', 'client'));
+    return null;
   }, [isStaff, userRole, profile?.cabinetId]);
 
   const { data: clients, isLoading: isCollectionLoading } = useCollection<Client>(clientsQuery);

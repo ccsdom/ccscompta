@@ -24,16 +24,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, where } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { useBranding } from '@/components/branding-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ReconciliationHistoryPage() {
     const [searchTerm, setSearchTerm] = useState('');
 
+    const { profile: userProfile } = useBranding();
+    const isAdmin = userProfile?.role === 'admin';
+    const cabinetId = userProfile?.cabinetId;
+
     const reconciliationsQuery = useMemoFirebase(() => {
-        return query(collection(db, 'reconciliations'), orderBy('createdAt', 'desc'));
-    }, []);
+        if (!userProfile) return null;
+        const baseQuery = collection(db, 'reconciliations');
+        if (isAdmin) return query(baseQuery, orderBy('createdAt', 'desc'));
+        return query(baseQuery, where('cabinetId', '==', cabinetId), orderBy('createdAt', 'desc'));
+    }, [userProfile, isAdmin, cabinetId]);
 
     const { data: reports, isLoading } = useCollection<any>(reconciliationsQuery);
 

@@ -33,6 +33,7 @@ export default function AccountantDashboard() {
     const clientsQuery = useMemoFirebase(() => {
         if (!isStaff || !userProfile) return null;
         if (isAdmin) return query(collection(db, 'clients'), where('role', '==', 'client'));
+        if (!cabinetId) return null;
         return query(
             collection(db, 'clients'), 
             where('role', '==', 'client'),
@@ -45,6 +46,7 @@ export default function AccountantDashboard() {
     const documentsQuery = useMemoFirebase(() => {
         if (!isStaff || !userProfile) return null;
         if (isAdmin) return query(collection(db, 'documents'));
+        if (!cabinetId) return null;
         return query(
             collection(db, 'documents'), 
             where('cabinetId', '==', cabinetId)
@@ -56,6 +58,7 @@ export default function AccountantDashboard() {
     const reconciliationsQuery = useMemoFirebase(() => {
         if (!isStaff || !userProfile) return null;
         if (isAdmin) return query(collection(db, 'reconciliations'), orderBy('createdAt', 'desc'), limit(5));
+        if (!cabinetId) return null;
         return query(
             collection(db, 'reconciliations'), 
             where('cabinetId', '==', cabinetId),

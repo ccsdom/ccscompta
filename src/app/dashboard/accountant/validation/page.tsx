@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/firebase';
-import { Document } from '@/lib/types';
+import { useBranding } from '@/components/branding-provider';
+import type { Document } from '@/lib/types';
 import { Loader2, Check, X, ShieldAlert, FileClock, ArrowRight, ArrowLeft, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,13 +20,18 @@ export default function ValidationExpertPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const { profile: userProfile, cabinet } = useBranding();
+  const cabinetId = userProfile?.cabinetId;
+  const isAdmin = userProfile?.role === 'admin';
 
   // 1. Fetch the queue of documents pending review
   useEffect(() => {
-    const q = query(
-      collection(db, 'documents'),
-      where('status', '==', 'reviewing')
-    );
+    if (!userProfile) return;
+
+    const baseQuery = collection(db, 'documents');
+    const q = isAdmin 
+      ? query(baseQuery, where('status', '==', 'reviewing'))
+      : query(baseQuery, where('status', '==', 'reviewing'), where('cabinetId', '==', cabinetId));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
@@ -45,7 +51,7 @@ export default function ValidationExpertPage() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [userProfile, cabinetId, isAdmin]);
 
   // 2. Compute current document
   const currentDocument = queue[currentIndex];

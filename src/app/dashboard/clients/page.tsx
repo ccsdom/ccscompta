@@ -56,15 +56,19 @@ export default function ClientsPage() {
     const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
 
     const staffUsersQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff || !userRole) return null;
         
-        // If not admin, restrict to clients of the SAME cabinet
-        if (userRole !== 'admin' && profile?.cabinetId) {
-            return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
+        // Admin sees everything
+        if (userRole === 'admin') {
+            return query(collection(db, 'clients'));
         }
         
-        // Admin sees everything (though usually they interact via cabinet details)
-        return query(collection(db, 'clients'));
+        // Non-admin MUST have a cabinetId
+        if (profile?.cabinetId) {
+            return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
+        }
+
+        return null;
     }, [isStaff, userRole, profile?.cabinetId]);
 
     const clientUserQuery = useMemoFirebase(() => {
@@ -82,17 +86,23 @@ export default function ClientsPage() {
     }, [isStaff, allUsersData, clientUserData]);
 
     const accountantsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
+        if (!isStaff || !userRole) return null;
         
-        if (userRole !== 'admin' && profile?.cabinetId) {
+        const baseQuery = collection(db, 'clients');
+        
+        if (userRole === 'admin') {
+            return query(baseQuery, where('role', '==', 'accountant'));
+        }
+        
+        if (profile?.cabinetId) {
             return query(
-                collection(db, 'clients'), 
+                baseQuery, 
                 where('role', '==', 'accountant'),
                 where('cabinetId', '==', profile.cabinetId)
             );
         }
         
-        return query(collection(db, 'clients'), where('role', '==', 'accountant'));
+        return null;
     }, [isStaff, userRole, profile?.cabinetId]);
     const { data: accountants, isLoading: isLoadingAccountants } = useCollection<Client>(accountantsQuery);
 

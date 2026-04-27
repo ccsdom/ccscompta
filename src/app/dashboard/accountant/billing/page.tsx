@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { useBranding } from '@/components/branding-provider';
 import { Document, Client } from '@/lib/types';
 import { 
   Calculator, 
@@ -36,14 +37,27 @@ export default function BillingReportPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
+  const { profile: userProfile } = useBranding();
+  const cabinetId = userProfile?.cabinetId;
+  const isAdmin = userProfile?.role === 'admin';
 
   // 1. Listen for Docs & Clients
   useEffect(() => {
-    const unsubDocs = onSnapshot(collection(db, 'documents'), (snapshot) => {
+    if (!userProfile) return;
+
+    const docsRef = collection(db, 'documents');
+    const clientsRef = collection(db, 'clients');
+
+    const qDocs = isAdmin ? query(docsRef) : query(docsRef, where('cabinetId', '==', cabinetId));
+    const qClients = isAdmin 
+      ? query(clientsRef, where('role', '==', 'client')) 
+      : query(clientsRef, where('role', '==', 'client'), where('cabinetId', '==', cabinetId));
+
+    const unsubDocs = onSnapshot(qDocs, (snapshot) => {
       setDocuments(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Document)));
     });
     
-    const unsubClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
+    const unsubClients = onSnapshot(qClients, (snapshot) => {
       setClients(snapshot.docs.map(c => ({ id: c.id, ...c.data() } as Client)));
       setLoading(false);
     });
@@ -52,7 +66,7 @@ export default function BillingReportPage() {
       unsubDocs();
       unsubClients();
     };
-  }, []);
+  }, [userProfile, cabinetId, isAdmin]);
 
   // 2. Aggregate Data per Client for the selected period
   const billingData = useMemo(() => {

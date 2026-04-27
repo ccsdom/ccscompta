@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { Document } from '@/lib/types';
+import { useBranding } from '@/components/branding-provider';
+import type { Document } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,15 +20,20 @@ export default function ExportPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<ExportFormat>('cegid');
+    const { profile: userProfile } = useBranding();
     const { toast } = useToast();
+    
+    const cabinetId = userProfile?.cabinetId;
+    const isAdmin = userProfile?.role === 'admin';
 
     const fetchApprovedDocs = async () => {
         setIsLoading(true);
         try {
-            const q = query(
-                collection(db, 'documents'),
-                where('status', '==', 'approved')
-            );
+            const baseQuery = collection(db, 'documents');
+            const q = isAdmin 
+                ? query(baseQuery, where('status', '==', 'approved'))
+                : query(baseQuery, where('status', '==', 'approved'), where('cabinetId', '==', cabinetId));
+                
             const snapshot = await getDocs(q);
             const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
             setApprovedDocs(docs);
@@ -44,8 +50,10 @@ export default function ExportPage() {
     };
 
     useEffect(() => {
-        fetchApprovedDocs();
-    }, []);
+        if (userProfile) {
+            fetchApprovedDocs();
+        }
+    }, [userProfile, cabinetId, isAdmin]);
 
     const handleExport = async () => {
         if (approvedDocs.length === 0) return;

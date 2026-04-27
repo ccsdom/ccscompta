@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { useBranding } from '@/components/branding-provider';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -71,9 +72,12 @@ export default function AnalyticsPage() {
     const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!selectedClientId) return null;
-        return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
-    }, [selectedClientId]);
+        if (!selectedClientId || !userProfile) return null;
+        const baseQuery = collection(db, 'documents');
+        return isAdmin 
+            ? query(baseQuery, where('clientId', '==', selectedClientId))
+            : query(baseQuery, where('clientId', '==', selectedClientId), where('cabinetId', '==', cabinetId));
+    }, [selectedClientId, userProfile, cabinetId, isAdmin]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
     useEffect(() => {

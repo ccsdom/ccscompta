@@ -31,6 +31,7 @@ export default function SecretaryDashboard() {
     const clientsQuery = useMemoFirebase(() => {
         if (!isStaff || !userProfile) return null;
         if (isAdmin) return query(collection(db, 'clients'), where('role', '==', 'client'));
+        if (!cabinetId) return null;
         return query(
             collection(db, 'clients'), 
             where('role', '==', 'client'),
@@ -43,6 +44,7 @@ export default function SecretaryDashboard() {
     const documentsQuery = useMemoFirebase(() => {
         if (!isStaff || !userProfile) return null;
         if (isAdmin) return query(collection(db, 'documents'));
+        if (!cabinetId) return null;
         return query(
             collection(db, 'documents'), 
             where('cabinetId', '==', cabinetId)

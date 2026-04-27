@@ -49,20 +49,33 @@ export default function BillingPage() {
     const isStaff = useMemo(() => role && ['admin', 'accountant', 'secretary'].includes(role), [role]);
 
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
-        if (role !== 'admin' && profile?.cabinetId) {
+        if (!isStaff || !role) return null;
+        
+        if (role === 'admin') {
+            return query(collection(db, 'clients'));
+        }
+        
+        if (profile?.cabinetId) {
             return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
         }
-        return query(collection(db, 'clients'));
+
+        return null;
     }, [isStaff, role, profile?.cabinetId]);
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
     
     const invoicesQuery = useMemoFirebase(() => {
-        if (!isStaff) return null;
-         // Note: For now invoices are global or filtered by clientId in useMemo. 
-         // In a real multi-tenant setup, they should also be filtered by cabinetId in the query.
-        return query(collection(db, 'invoices'));
-    }, [isStaff]);
+        if (!isStaff || !role) return null;
+        
+        if (role === 'admin') {
+            return query(collection(db, 'invoices'));
+        }
+        
+        if (profile?.cabinetId) {
+            return query(collection(db, 'invoices'), where('cabinetId', '==', profile.cabinetId));
+        }
+
+        return null;
+    }, [isStaff, role, profile?.cabinetId]);
     const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
 
     const loading = isBrandingLoading || (isStaff && (isLoadingClients || isLoadingInvoices));

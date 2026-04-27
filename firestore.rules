@@ -50,7 +50,7 @@ service cloud.firestore {
     // --- Documents collection ---
     match /documents/{docId} {
         allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-        allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.query.filters.clientId == request.auth.uid);
+        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == request.query.filters.clientId));
         allow create: if isAuthenticated() && (isStaff() || request.auth.uid == request.resource.data.clientId);
         allow update, delete: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
     }
@@ -58,13 +58,13 @@ service cloud.firestore {
     // --- Invoices & Bilans collection ---
     match /invoices/{invoiceId} {
         allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-        allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.query.filters.clientId == request.auth.uid);
+        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == request.query.filters.clientId));
         allow create, update, delete: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
     }
     
     match /bilans/{bilanId} {
         allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-        allow list: if isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.query.filters.clientId == request.auth.uid);
+        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == request.query.filters.clientId));
         allow create, update, delete: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
     }
 
