@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { Document, Client, AuditEvent, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { cn } from '@/lib/utils';
 
 export default function SecretaryDashboard() {
     const [isMounted, setIsMounted] = useState(false);
-    const { profile: userProfile, isLoading: isLoadingProfile } = useBranding();
+    const { profile: userProfile, cabinet, isLoading: isLoadingProfile } = useBranding();
 
     useEffect(() => {
         setIsMounted(true);
@@ -167,7 +167,7 @@ export default function SecretaryDashboard() {
                     className="text-muted-foreground text-xl font-medium tracking-tight"
                     variants={itemVariants}
                 >
-                    Gestion administrative du cabinet • <span className="text-foreground/80 font-bold">{userProfile?.cabinetName || 'CCS Compta'}</span>
+                    Gestion administrative du cabinet • <span className="text-foreground/80 font-bold">{cabinet?.name || 'CCS Compta'}</span>
                 </motion.p>
             </div>
 

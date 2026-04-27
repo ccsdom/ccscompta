@@ -11,14 +11,14 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type { Document, Client, AuditEvent, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, orderBy, limit, where, doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 export default function AccountantDashboard() {
     const [isMounted, setIsMounted] = useState(false);
-    const { profile: userProfile, isLoading: isLoadingProfile } = useBranding();
+    const { profile: userProfile, cabinet, isLoading: isLoadingProfile } = useBranding();
 
     useEffect(() => {
         setIsMounted(true);
@@ -185,7 +185,7 @@ export default function AccountantDashboard() {
                     className="text-muted-foreground text-xl font-medium"
                     variants={itemVariants}
                   >
-                    {isAdmin ? "Monitoring Global" : `Cabinet ${userProfile?.cabinetName || 'Opérationnel'}`} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {isAdmin ? "Monitoring Global" : `Cabinet ${cabinet?.name || 'Opérationnel'}`} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </motion.p>
                 </div>
                 

@@ -1,9 +1,7 @@
 
 export type Role = 'admin' | 'accountant' | 'secretary' | 'client';
 
-export interface UserProfile extends Client {
-    cabinetName?: string;
-}
+export interface UserProfile extends Client {}
 
 export interface AuditEvent {
     action: string;
