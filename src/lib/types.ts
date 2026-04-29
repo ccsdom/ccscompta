@@ -77,6 +77,8 @@ export interface Client {
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
     stripeSubscriptionItemId?: string; // The specific item for metered billing
+    hasBankConnected?: boolean;
+    lastBankConnectionId?: string;
 }
 
 export interface Invoice {
@@ -89,6 +91,37 @@ export interface Invoice {
     dueDate: string;
     amount: number;
     status: 'paid' | 'pending' | 'overdue';
+}
+
+export interface SalesInvoiceItem {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    vatRate: number;
+    totalHT: number;
+    totalVAT: number;
+    totalTTC: number;
+}
+
+export interface SalesInvoice {
+    id: string;
+    clientId: string; // The entrepreneur's ID
+    cabinetId: string;
+    invoiceNumber: string;
+    date: string;
+    dueDate: string;
+    customerName: string;
+    customerEmail?: string;
+    customerAddress?: string;
+    items: SalesInvoiceItem[];
+    totalHT: number;
+    totalVAT: number;
+    totalTTC: number;
+    status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface CabinetQuotas {

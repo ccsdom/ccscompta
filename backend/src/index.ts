@@ -623,6 +623,146 @@ export const createPortalSession = onCall(
 );
 
 /**
+ * Génère un lien Checkout Stripe pour l'abonnement d'un cabinet.
+ * (Réservé aux super-admins)
+ */
+export const generateCabinetCheckout = onCall(
+    { region: "europe-west9" },
+    async (request) => {
+        if (!request.auth) throw new HttpsError('unauthenticated', 'Non autorisé');
+
+        const { cabinetId, priceId } = request.data;
+        if (!cabinetId || !priceId) {
+            throw new HttpsError('invalid-argument', 'cabinetId et priceId requis.');
+        }
+
+        const callerRole = request.auth.token.role;
+        if (callerRole !== 'admin') {
+             throw new HttpsError('permission-denied', 'Seul l\'administrateur système peut générer ce lien.');
+        }
+
+        const cabinetDoc = await db.collection("cabinets").doc(cabinetId).get();
+        if (!cabinetDoc.exists) {
+            throw new HttpsError('not-found', 'Cabinet introuvable.');
+        }
+
+        const cabinetData = cabinetDoc.data();
+        const email = cabinetData?.email || request.auth.token.email;
+
+        try {
+            const successUrl = 'https://ccscompta.web.app/dashboard/admin/subscriptions?success=true';
+            const cancelUrl = 'https://ccscompta.web.app/dashboard/admin/subscriptions?canceled=true';
+            
+            const session = await StripeService.createCheckoutSession(
+                cabinetId,
+                priceId,
+                email,
+                successUrl,
+                cancelUrl
+            );
+
+            return { url: session.url };
+        } catch (error: any) {
+             logger.error('Erreur Checkout Stripe:', error);
+             throw new HttpsError('internal', error.message);
+        }
+    }
+);
+
+/**
+ * Webhook Stripe pour écouter les paiements et événements d'abonnement.
+ */
+export const stripeWebhook = onRequest(
+    { region: "europe-west9" },
+    async (req, res) => {
+        const sig = req.headers['stripe-signature'];
+        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+        if (!sig || !endpointSecret) {
+            logger.error('Webhook secret or signature missing.');
+            res.status(400).send('Webhook Error: Missing signature or secret');
+            return;
+        }
+
+        let event;
+
+        try {
+            event = StripeService.constructWebhookEvent((req as any).rawBody, sig as string, endpointSecret);
+        } catch (err: any) {
+            logger.error(`Webhook signature verification failed.`, err.message);
+            res.status(400).send(`Webhook Error: ${err.message}`);
+            return;
+        }
+
+        try {
+            switch (event.type) {
+                case 'checkout.session.completed': {
+                    const session = event.data.object as any;
+                    const cabinetId = session.metadata?.cabinetId;
+                    
+                    if (cabinetId) {
+                        logger.info(`Checkout completed for cabinet ${cabinetId}`);
+                        
+                        let stripeSubscriptionItemId = null;
+                        if (session.subscription) {
+                            try {
+                                const subscriptionDetails = await StripeService.getSubscription(session.subscription as string);
+                                // Trouver l'item avec un usage "metered" (au compteur)
+                                const meteredItem = subscriptionDetails.items.data.find(item => item.price.recurring?.usage_type === 'metered');
+                                if (meteredItem) {
+                                    stripeSubscriptionItemId = meteredItem.id;
+                                    logger.info(`Found metered subscription item: ${stripeSubscriptionItemId}`);
+                                } else if (subscriptionDetails.items.data.length > 0) {
+                                    // Fallback: prendre le premier item si la configuration n'est pas explicite
+                                    stripeSubscriptionItemId = subscriptionDetails.items.data[0].id;
+                                    logger.info(`No specific metered item found, defaulting to: ${stripeSubscriptionItemId}`);
+                                }
+                            } catch (e: any) {
+                                logger.error(`Error fetching subscription details: ${e.message}`);
+                            }
+                        }
+
+                        const updateData: any = {
+                            stripeCustomerId: session.customer,
+                            stripeSubscriptionId: session.subscription,
+                            status: 'active'
+                        };
+                        
+                        if (stripeSubscriptionItemId) {
+                            updateData.stripeSubscriptionItemId = stripeSubscriptionItemId;
+                        }
+                        
+                        await db.collection("cabinets").doc(cabinetId).update(updateData);
+                        logger.info(`Updated cabinet ${cabinetId} with Stripe details.`);
+                    }
+                    break;
+                }
+                case 'customer.subscription.deleted':
+                case 'customer.subscription.updated': {
+                    const subscription = event.data.object as any;
+                    const cabinetsQuery = await db.collection("cabinets").where("stripeSubscriptionId", "==", subscription.id).get();
+                    if (!cabinetsQuery.empty) {
+                        const cabinetDoc = cabinetsQuery.docs[0];
+                        await cabinetDoc.ref.update({
+                            status: subscription.status === 'active' ? 'active' : 'past_due'
+                        });
+                        logger.info(`Updated cabinet ${cabinetDoc.id} status to ${subscription.status}`);
+                    }
+                    break;
+                }
+                default:
+                    logger.log(`Unhandled event type ${event.type}`);
+            }
+
+            res.json({received: true});
+        } catch (error) {
+            logger.error('Error processing webhook:', error);
+            res.status(500).send('Webhook processing error');
+        }
+    }
+);
+
+/**
  * Exporte une sélection de documents au format comptable (FEC ou CSV).
  */
 export const exportDocuments = onCall(

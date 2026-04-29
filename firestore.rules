@@ -93,12 +93,28 @@ service cloud.firestore {
     }
 
     // --- Cabinets collection ---
+    // --- Cabinets collection ---
     match /cabinets/{cabinetId} {
         allow get: if true; // Permettre la lecture du nom du cabinet pour l'onboarding
         allow list: if isAdmin();
         allow create: if isAdmin();
         allow update: if isCabinetStaff(cabinetId);
         allow delete: if isAdmin();
+    }
+
+    // --- Bank Connections ---
+    match /bank_connections/{connectionId} {
+        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
+        allow list: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.auth.uid == request.query.filters.clientId);
+        allow write: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == request.resource.data.clientId);
+    }
+
+    // --- Sales Invoices ---
+    match /sales_invoices/{invoiceId} {
+        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
+        allow list: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.auth.uid == request.query.filters.clientId);
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.clientId;
+        allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.clientId;
     }
   }
 }

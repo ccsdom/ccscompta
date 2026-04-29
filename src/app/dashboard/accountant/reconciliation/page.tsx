@@ -7,7 +7,7 @@ import {
   Landmark, Upload, CheckCircle, AlertTriangle, Clock, ChevronRight,
   Loader2, FileSpreadsheet, Users, Zap, RotateCcw, ShieldCheck,
   TrendingUp, AlertCircle, Info, DownloadCloud, X, Search, Sparkles,
-  ArrowRight, FileText, BarChart3
+  ArrowRight, FileText, BarChart3, Link2, RefreshCw, Database, Cloud, CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { runBankReconciliation, saveBankReconciliation } from '@/ai/flows/reconcile-actions';
+import { getBankAuthLink, syncBankTransactions } from '@/ai/flows/bank-actions';
 import type { Client } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +39,7 @@ interface ParsedTransaction {
 }
 
 type Step = 'client' | 'import' | 'results';
+type ImportMode = 'csv' | 'bank';
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 
@@ -201,12 +203,53 @@ function StepImport({
   onTransactionsParsed: (transactions: ParsedTransaction[]) => void;
   onBack: () => void;
 }) {
+  const [mode, setMode] = useState<ImportMode>(client.hasBankConnected ? 'bank' : 'csv');
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<ParsedTransaction[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handleBankSync = async () => {
+    setIsSyncing(true);
+    try {
+        const res = await syncBankTransactions(client.id);
+        if (res.success && res.transactions) {
+            setPreview(res.transactions as any);
+            setFileName(`Synchronisation Bancaire - ${new Date().toLocaleDateString()}`);
+            toast({ title: "Synchronisation réussie", description: `${res.transactions.length} transactions récupérées.` });
+        } else {
+            throw new Error(res.error);
+        }
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erreur Synchro', description: err.message });
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
+  const handleConnectBank = async () => {
+    try {
+        const res = await getBankAuthLink(client.id, client.cabinetId || '');
+        if (res.success && res.url) {
+            // In a real app, we would redirect. Here we simulate the result.
+            window.open(res.url, '_blank');
+            toast({ 
+                title: "Redirection Bancaire", 
+                description: "Veuillez valider l'accès sur l'interface de la banque (Simulation)." 
+            });
+            // We should have a listener for completion, but for mock purposes:
+            setTimeout(() => {
+                toast({ title: "Banque Connectée", description: "Le compte est désormais lié." });
+                // Note: in a real app, the client object would be updated in DB and re-fetched.
+            }, 3000);
+        }
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erreur Connexion', description: err.message });
+    }
+  };
 
   const detectColumns = (headers: string[]): { date: number; desc: number; amount: number } | null => {
     const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -274,39 +317,110 @@ function StepImport({
             <p className="text-xs text-muted-foreground font-medium">{client.email}</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onBack} className="rounded-xl hover:bg-white/10 gap-2 font-space uppercase text-[10px] tracking-widest font-bold">
-          <RotateCcw className="h-3 w-3" /> Changer de client
-        </Button>
+        <div className="flex items-center gap-4">
+            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                <Button 
+                    variant={mode === 'csv' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    onClick={() => setMode('csv')}
+                    className="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
+                >
+                    <FileSpreadsheet className="h-3 w-3 mr-2" /> CSV
+                </Button>
+                <Button 
+                    variant={mode === 'bank' ? 'secondary' : 'ghost'} 
+                    size="sm" 
+                    onClick={() => setMode('bank')}
+                    className="rounded-lg h-8 px-4 text-[10px] font-bold uppercase tracking-widest"
+                >
+                    <Landmark className="h-3 w-3 mr-2" /> Banque
+                </Button>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onBack} className="rounded-xl hover:bg-white/10 gap-2 font-space uppercase text-[10px] tracking-widest font-bold">
+                <RotateCcw className="h-3 w-3" /> Changer
+            </Button>
+        </div>
       </motion.div>
 
       {!preview ? (
-        <motion.div
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if(f) parseFile(f); }}
-          className={cn(
-            'glass-panel border-2 border-dashed rounded-[2rem] p-20 text-center cursor-pointer transition-all duration-500',
-            isDragging ? 'border-primary bg-primary/5 scale-[1.02] shadow-2xl shadow-primary/20' : 'border-white/10 hover:border-primary/50'
-          )}
-        >
-          <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f) parseFile(f); }} />
-          <div className="relative inline-block mb-6">
-            <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-pulse" />
-            <div className="relative bg-primary/10 p-6 rounded-3xl border border-primary/20">
-              <Upload className="h-12 w-12 text-primary" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-black font-space mb-2">Importer le relevé bancaire</h3>
-          <p className="text-muted-foreground font-medium text-lg max-w-sm mx-auto">
-            Glissez-déposez le fichier CSV fourni par votre banque pour lancer l'analyse intelligente.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Badge variant="outline" className="bg-white/5 border-white/10 px-3 py-1 text-[10px] font-space font-bold uppercase tracking-widest">CSV Supporté</Badge>
-            <Badge variant="outline" className="bg-white/5 border-white/10 px-3 py-1 text-[10px] font-space font-bold uppercase tracking-widest">Format Bancaire</Badge>
-            <Badge variant="outline" className="bg-white/5 border-white/10 px-3 py-1 text-[10px] font-space font-bold uppercase tracking-widest">Max 200 lignes</Badge>
-          </div>
-        </motion.div>
+        mode === 'csv' ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if(f) parseFile(f); }}
+              className={cn(
+                'glass-panel border-2 border-dashed rounded-[2rem] p-20 text-center cursor-pointer transition-all duration-500',
+                isDragging ? 'border-primary bg-primary/5 scale-[1.02] shadow-2xl shadow-primary/20' : 'border-white/10 hover:border-primary/50'
+              )}
+            >
+              <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if(f) parseFile(f); }} />
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-pulse" />
+                <div className="relative bg-primary/10 p-6 rounded-3xl border border-primary/20">
+                  <Upload className="h-12 w-12 text-primary" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-black font-space mb-2">Importer le relevé bancaire</h3>
+              <p className="text-muted-foreground font-medium text-lg max-w-sm mx-auto">
+                Glissez-déposez le fichier CSV fourni par votre banque pour lancer l'analyse intelligente.
+              </p>
+            </motion.div>
+        ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-panel rounded-[2rem] p-12 text-center border-none premium-shadow bg-gradient-to-br from-blue-500/5 to-transparent"
+            >
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 blur-3xl bg-blue-500/20 rounded-full animate-pulse" />
+                <div className="relative bg-blue-500/10 p-8 rounded-[2rem] border border-blue-500/20">
+                  <Landmark className="h-16 w-16 text-blue-500" />
+                </div>
+              </div>
+              <h3 className="text-3xl font-black font-space mb-3">Synchronisation Directe</h3>
+              
+              {!client.hasBankConnected ? (
+                  <div className="space-y-6">
+                      <p className="text-muted-foreground font-medium text-lg max-w-md mx-auto">
+                        Automatisez la récupération des flux bancaires en connectant le compte de votre client via notre partenaire sécurisé Nordigen.
+                      </p>
+                      <Button 
+                        onClick={handleConnectBank}
+                        className="h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black font-space text-lg shadow-xl shadow-blue-500/20"
+                      >
+                        <Link2 className="mr-3 h-5 w-5" /> Connecter un compte bancaire
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter opacity-50">Accès 90 jours • Sécurité Bancaire • RGPD Compliant</p>
+                  </div>
+              ) : (
+                  <div className="space-y-8">
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-4 py-1.5 rounded-full font-space font-black uppercase text-[10px] tracking-widest">
+                            <CheckCircle2 className="h-3 w-3 mr-2" /> Banque de Démonstration Connectée
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground font-medium text-lg max-w-sm mx-auto">
+                        Le compte est prêt. Lancez la synchronisation pour récupérer les dernières transactions en temps réel.
+                      </p>
+                      <Button 
+                        onClick={handleBankSync}
+                        disabled={isSyncing}
+                        className="h-16 w-full max-w-md rounded-[1.5rem] bg-primary hover:bg-primary/90 text-primary-foreground font-black font-space text-lg shadow-2xl shadow-primary/30 group"
+                      >
+                        {isSyncing ? (
+                            <RefreshCw className="h-6 w-6 animate-spin mr-3" />
+                        ) : (
+                            <Zap className="mr-3 h-6 w-6 group-hover:scale-125 transition-transform" />
+                        )}
+                        Synchroniser & Analyser
+                      </Button>
+                  </div>
+              )}
+            </motion.div>
+        )
       ) : (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           <div className="flex items-center justify-between">

@@ -5,7 +5,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import {
   TrendingUp, TrendingDown, Wallet, Receipt, BarChart as BarChartIcon,
-  ArrowUpCircle, ArrowDownCircle, ShieldCheck, Sparkles, PlusCircle, CheckCircle2
+  ArrowUpCircle, ArrowDownCircle, ShieldCheck, Sparkles, PlusCircle, CheckCircle2,
+  RefreshCw, AlertTriangle
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent
@@ -17,11 +18,14 @@ import {
 import type { Document } from '@/lib/types';
 import { type ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection, useMemoFirebase } from '@/firebase';
+import { useCollection, useMemoFirebase, functions } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Fournitures de bureau": "hsl(var(--chart-1))",
@@ -73,6 +77,8 @@ function StatCard({
 export default function MyAnalyticsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isGeneratingBriefing, setIsGeneratingBriefing] = useState(false);
+  const { toast } = useToast();
 
   const loadClientId = useCallback(() => {
     const stored = localStorage.getItem('selectedClientId');
@@ -92,6 +98,51 @@ export default function MyAnalyticsPage() {
   }, [selectedClientId]);
 
   const { data: clientDocuments, isLoading: isLoadingDocs } = useCollection<Document>(documentsQuery);
+
+  const briefingQuery = useMemoFirebase(() => {
+    if (!selectedClientId) return null;
+    return query(
+        collection(db, 'notifications'), 
+        where('clientId', '==', selectedClientId),
+        where('type', '==', 'weekly_briefing')
+    );
+  }, [selectedClientId]);
+
+  const { data: briefings, isLoading: isLoadingBriefings } = useCollection<any>(briefingQuery);
+
+  const latestBriefing = useMemo(() => {
+    if (!briefings || briefings.length === 0) return null;
+    return [...briefings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.extraData || null;
+  }, [briefings]);
+
+  const handleRefreshBriefing = async () => {
+    if (!selectedClientId) return;
+    setIsGeneratingBriefing(true);
+    try {
+        const requestWeeklySummary = httpsCallable(functions, 'requestWeeklySummary');
+        const res = await requestWeeklySummary({ clientId: selectedClientId }) as any;
+        if (res.data?.success) {
+            toast({
+                title: "Rapport IA généré avec succès",
+                description: "Vos données ont été analysées.",
+                variant: "default",
+            });
+        } else {
+            toast({
+                title: "Information",
+                description: res.data?.message || "Action terminée.",
+            });
+        }
+    } catch (err: any) {
+        toast({
+            title: "Erreur IA",
+            description: err.message,
+            variant: "destructive",
+        });
+    } finally {
+        setIsGeneratingBriefing(false);
+    }
+  };
 
   const analyticsData = useMemo(() => {
     if (!clientDocuments) return null;
@@ -303,32 +354,65 @@ export default function MyAnalyticsPage() {
       )}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 glass-panel premium-shadow bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-display text-2xl">
-                    <Sparkles className="h-6 w-6 text-primary animate-pulse" />
-                    Conseils IA & Optimisation
-                </CardTitle>
-                <CardDescription className="text-base">Analyse prédictive de votre santé financière</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between pb-2">
+                <div>
+                    <CardTitle className="flex items-center gap-2 font-display text-2xl">
+                        <Sparkles className={cn("h-6 w-6 text-primary", isGeneratingBriefing ? "animate-spin" : "animate-pulse")} />
+                        Conseiller IA
+                    </CardTitle>
+                    <CardDescription className="text-base mt-1">Analyse prédictive de votre activité</CardDescription>
+                </div>
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 bg-white/5 border-white/10 hover:bg-white/10"
+                    onClick={handleRefreshBriefing}
+                    disabled={isGeneratingBriefing}
+                >
+                    <RefreshCw className={cn("h-4 w-4", isGeneratingBriefing && "animate-spin")} />
+                    Actualiser
+                </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="h-10 w-10 shrink-0 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                        <TrendingDown className="h-5 w-5 text-emerald-500" />
+            <CardContent className="space-y-4 pt-4">
+                {!latestBriefing ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
+                        <AlertTriangle className="h-8 w-8 text-muted-foreground mb-3 opacity-50" />
+                        <p className="text-sm font-medium">Aucun rapport généré pour l'instant.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Cliquez sur Actualiser pour analyser vos dépenses de la semaine.</p>
                     </div>
-                    <div>
-                        <p className="font-bold text-sm">Réduction de coûts potentielle</p>
-                        <p className="text-xs text-muted-foreground">Vos frais de "Fournitures" sont 15% plus élevés que la moyenne du secteur. Envisagez de renégocier avec {mainVendor}.</p>
-                    </div>
-                </div>
-                <div className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                    <div className="h-10 w-10 shrink-0 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                        <ShieldCheck className="h-5 w-5 text-orange-500" />
-                    </div>
-                    <div>
-                        <p className="font-bold text-sm">Optimisation de TVA</p>
-                        <p className="text-xs text-muted-foreground">Vous avez 4 factures en attente de validation. Une fois validées, elles libéreront environ {(totalTVA * 0.2).toFixed(0)}€ de TVA déductible supplémentaire.</p>
-                    </div>
-                </div>
+                ) : (
+                    <>
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-sm leading-relaxed font-medium">
+                            {latestBriefing.summary}
+                        </div>
+
+                        <div className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                            <div className="h-10 w-10 shrink-0 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                <TrendingDown className="h-5 w-5 text-emerald-500" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm text-emerald-400">Smart Tip</p>
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{latestBriefing.smartTip}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Documents analysés</p>
+                                <p className="text-2xl font-black">{latestBriefing.kpis?.documentsCount || 0}</p>
+                             </div>
+                             <div className={cn(
+                                "p-4 rounded-2xl border flex flex-col justify-center",
+                                latestBriefing.urgencyLevel === 'high' ? 'bg-destructive/10 border-destructive/30 text-destructive' :
+                                latestBriefing.urgencyLevel === 'medium' ? 'bg-orange-500/10 border-orange-500/30 text-orange-500' :
+                                'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                             )}>
+                                <p className="text-[10px] uppercase tracking-widest opacity-80 font-bold mb-1">Niveau d'alerte</p>
+                                <p className="text-lg font-black uppercase tracking-wider">{latestBriefing.urgencyLevel === 'high' ? 'Élevé' : latestBriefing.urgencyLevel === 'medium' ? 'Modéré' : 'Normal'}</p>
+                             </div>
+                        </div>
+                    </>
+                )}
             </CardContent>
         </Card>
 

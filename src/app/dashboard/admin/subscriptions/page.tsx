@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useCollection, useMemoFirebase } from "@/firebase";
-import { db } from "@/firebase";
+import { db, functions } from "@/firebase";
 import { collection, query, orderBy, doc, updateDoc } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -28,6 +29,8 @@ export default function SubscriptionsTrackingPage() {
     const { toast } = useToast();
     const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+    const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
     const qCabinets = useMemoFirebase(() => query(collection(db, 'cabinets'), orderBy('name')), []);
     const { data: cabinets, isLoading } = useCollection<Cabinet>(qCabinets);
 
@@ -197,19 +200,99 @@ export default function SubscriptionsTrackingPage() {
             </div>
 
             {/* Link Stripe Dialog */}
-            <Dialog open={!!selectedCabinet} onOpenChange={() => setSelectedCabinet(null)}>
+            <Dialog open={!!selectedCabinet} onOpenChange={() => {
+                setSelectedCabinet(null);
+                setCheckoutUrl(null);
+            }}>
                 <DialogContent className="glass-panel border-white/10 premium-shadow">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-black font-space uppercase">Liaison Stripe</DialogTitle>
                         <DialogDescription>
-                            Associez un identifiant d'abonnement Stripe (Subscription Item ID) pour activer le report d'usage automatique.
+                            Générez un lien de paiement pour ce cabinet ou associez manuellement un ID d'abonnement.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-6 space-y-4">
                         <div className="space-y-2">
                              <Label className="text-[10px] font-black uppercase opacity-60">Cabinet sélectionné</Label>
-                             <div className="p-3 rounded-xl bg-white/5 border border-white/5 font-bold">{selectedCabinet?.name}</div>
+                             <div className="p-3 rounded-xl bg-white/5 border border-white/5 font-bold flex items-center justify-between">
+                                {selectedCabinet?.name}
+                                {selectedCabinet?.status === 'active' && (
+                                    <Badge className="bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30">Actif</Badge>
+                                )}
+                             </div>
                         </div>
+
+                        {selectedCabinet?.stripeSubscriptionId ? (
+                             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                                <div className="flex items-center gap-2 font-bold mb-1">
+                                    <Zap className="h-4 w-4" />
+                                    Abonnement Actif
+                                </div>
+                                <p className="text-xs opacity-80 break-all">
+                                    ID: {selectedCabinet.stripeSubscriptionId}<br/>
+                                    Client Stripe: {selectedCabinet.stripeCustomerId}
+                                </p>
+                             </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase opacity-60">ID du Prix Stripe (Price ID)</Label>
+                                    <Input 
+                                        id="stripePriceId"
+                                        placeholder="price_..."
+                                        className="h-12 bg-white/5 border-white/10"
+                                    />
+                                </div>
+                                <Button 
+                                    className="w-full rounded-xl font-bold h-12 gap-2" 
+                                    onClick={async () => {
+                                        if (!selectedCabinet) return;
+                                        const priceIdInput = (document.getElementById('stripePriceId') as HTMLInputElement).value;
+                                        if (!priceIdInput) {
+                                            toast({ variant: "destructive", title: "Erreur", description: "Veuillez saisir un Price ID Stripe." });
+                                            return;
+                                        }
+                                        setIsGeneratingLink(true);
+                                        setCheckoutUrl(null);
+                                        try {
+                                            const generateLink = httpsCallable(functions, 'generateCabinetCheckout');
+                                            const result = await generateLink({ 
+                                                cabinetId: selectedCabinet.id, 
+                                                priceId: priceIdInput
+                                            });
+                                            const data = result.data as { url: string };
+                                            setCheckoutUrl(data.url);
+                                            toast({ title: "Lien généré avec succès !" });
+                                        } catch (e: any) {
+                                            console.error(e);
+                                            toast({ variant: "destructive", title: "Erreur", description: e.message || "Impossible de générer le lien" });
+                                        } finally {
+                                            setIsGeneratingLink(false);
+                                        }
+                                    }}
+                                    disabled={isGeneratingLink}
+                                >
+                                    {isGeneratingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                                    Générer le lien d'abonnement
+                                </Button>
+                                {checkoutUrl && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                        <Label className="text-[10px] font-black uppercase text-primary">Lien généré (à copier/envoyer)</Label>
+                                        <Input readOnly value={checkoutUrl} className="h-12 bg-primary/10 border-primary/20 text-primary" onClick={(e) => {
+                                            (e.target as HTMLInputElement).select();
+                                            navigator.clipboard.writeText(checkoutUrl);
+                                            toast({ title: "Copié dans le presse-papiers !" });
+                                        }} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
+                        <div className="relative py-4">
+                            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10" /></div>
+                            <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#F8FAFC] dark:bg-[#020617] px-2 text-muted-foreground">Ou saisie manuelle (Legacy)</span></div>
+                        </div>
+
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase opacity-60">Stripe Subscription Item ID</Label>
                             <Input 
@@ -222,7 +305,10 @@ export default function SubscriptionsTrackingPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedCabinet(null)} className="rounded-xl border-white/10">Annuler</Button>
+                        <Button variant="outline" onClick={() => {
+                            setSelectedCabinet(null);
+                            setCheckoutUrl(null);
+                        }} className="rounded-xl border-white/10">Fermer</Button>
                         <Button 
                             className="rounded-xl font-bold px-8" 
                             disabled={isSaving}
@@ -236,6 +322,7 @@ export default function SubscriptionsTrackingPage() {
                                     });
                                     toast({ title: "Configuration Stripe mise à jour" });
                                     setSelectedCabinet(null);
+                                    setCheckoutUrl(null);
                                 } catch (e) {
                                     toast({ variant: "destructive", title: "Erreur lors de la mise à jour" });
                                 } finally {
@@ -243,7 +330,7 @@ export default function SubscriptionsTrackingPage() {
                                 }
                             }}
                         >
-                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder"}
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sauvegarder l'ID manuel"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

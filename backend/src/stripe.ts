@@ -12,6 +12,45 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_
  */
 export class StripeService {
   /**
+   * Constructs a Stripe event from a webhook payload.
+   */
+  static constructWebhookEvent(rawBody: Buffer, signature: string, secret: string): any {
+    try {
+      return stripe.webhooks.constructEvent(rawBody, signature, secret);
+    } catch (err: any) {
+      logger.error('Error constructing Stripe event:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Creates a Stripe Checkout Session for a cabinet to subscribe to a plan.
+   */
+  static async createCheckoutSession(cabinetId: string, priceId: string, customerEmail: string, successUrl: string, cancelUrl: string) {
+    try {
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'subscription',
+        customer_email: customerEmail,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1, // Optional depending on the price type, but usually 1 for base subscription
+          },
+        ],
+        metadata: {
+          cabinetId, // Crucial for webhook matching
+        },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+      return session;
+    } catch (error) {
+      logger.error('Error creating checkout session:', error);
+      throw error;
+    }
+  }
+  /**
    * Reports usage (billable lines) to a Stripe subscription item.
    * @param subscriptionItemId The ID of the subscription item which has metered billing enabled.
    * @param quantity The number of lines to report.
@@ -72,6 +111,17 @@ export class StripeService {
       });
     } catch (error) {
       logger.error('Error creating portal session:', error);
+      throw error;
+    }
+  }
+  /**
+   * Retrieves a subscription by its ID from Stripe.
+   */
+  static async getSubscription(subscriptionId: string) {
+    try {
+      return await stripe.subscriptions.retrieve(subscriptionId);
+    } catch (error) {
+      logger.error('Error retrieving subscription:', error);
       throw error;
     }
   }

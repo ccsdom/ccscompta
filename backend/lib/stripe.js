@@ -48,6 +48,46 @@ const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY || 'sk_test_pl
  */
 class StripeService {
     /**
+     * Constructs a Stripe event from a webhook payload.
+     */
+    static constructWebhookEvent(rawBody, signature, secret) {
+        try {
+            return stripe.webhooks.constructEvent(rawBody, signature, secret);
+        }
+        catch (err) {
+            logger.error('Error constructing Stripe event:', err);
+            throw err;
+        }
+    }
+    /**
+     * Creates a Stripe Checkout Session for a cabinet to subscribe to a plan.
+     */
+    static async createCheckoutSession(cabinetId, priceId, customerEmail, successUrl, cancelUrl) {
+        try {
+            const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                mode: 'subscription',
+                customer_email: customerEmail,
+                line_items: [
+                    {
+                        price: priceId,
+                        quantity: 1, // Optional depending on the price type, but usually 1 for base subscription
+                    },
+                ],
+                metadata: {
+                    cabinetId, // Crucial for webhook matching
+                },
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+            });
+            return session;
+        }
+        catch (error) {
+            logger.error('Error creating checkout session:', error);
+            throw error;
+        }
+    }
+    /**
      * Reports usage (billable lines) to a Stripe subscription item.
      * @param subscriptionItemId The ID of the subscription item which has metered billing enabled.
      * @param quantity The number of lines to report.
@@ -107,6 +147,18 @@ class StripeService {
         }
         catch (error) {
             logger.error('Error creating portal session:', error);
+            throw error;
+        }
+    }
+    /**
+     * Retrieves a subscription by its ID from Stripe.
+     */
+    static async getSubscription(subscriptionId) {
+        try {
+            return await stripe.subscriptions.retrieve(subscriptionId);
+        }
+        catch (error) {
+            logger.error('Error retrieving subscription:', error);
             throw error;
         }
     }
