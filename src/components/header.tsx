@@ -160,14 +160,23 @@ export function Header({children}: {children?: React.ReactNode}) {
       localStorage.removeItem('originalUserName');
       localStorage.removeItem('originalUserEmail');
       localStorage.removeItem('selectedClientId');
+      localStorage.removeItem('selectedCabinetId');
 
       toast({
-          title: "Vue Client terminée",
-          description: `Vous êtes retourné à votre compte ${originalName}.`,
+          title: "Session d'impersonation terminée",
+          description: `Vous avez repris votre session en tant que ${originalName || 'Administrateur'}.`,
       });
       
       window.dispatchEvent(new Event('storage'));
-      router.push('/dashboard/clients');
+
+      // Redirection dynamique vers le bon tableau de bord
+      if (originalRole === 'admin') {
+          router.push('/dashboard/admin');
+      } else if (originalRole === 'accountant') {
+          router.push('/dashboard/accountant');
+      } else {
+          router.push('/dashboard');
+      }
   }
 
   const handleAiSearch = async () => {

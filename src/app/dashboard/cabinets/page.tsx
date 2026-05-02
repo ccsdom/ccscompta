@@ -81,9 +81,12 @@ export default function CabinetsManagementPage() {
 
     const handleImpersonate = async (cabinet: any) => {
         // Enregistrer l'état original pour pouvoir revenir
-        localStorage.setItem('originalUserRole', 'admin');
-        localStorage.setItem('originalUserName', 'Super Admin');
-        localStorage.setItem('originalUserEmail', 'app.ccs94@gmail.com');
+        // Seulement si on n'est pas déjà en train d'impersonner
+        if (!localStorage.getItem('originalUserRole')) {
+            localStorage.setItem('originalUserRole', 'admin');
+            localStorage.setItem('originalUserName', 'Super Admin');
+            localStorage.setItem('originalUserEmail', 'app.ccs94@gmail.com');
+        }
         
         // Simuler le rôle cabinet (accountant)
         localStorage.setItem('userRole', 'accountant');

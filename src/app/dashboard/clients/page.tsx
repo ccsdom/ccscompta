@@ -134,9 +134,13 @@ export default function ClientsPage() {
     }
 
     const handleImpersonate = (client: Client) => {
-        localStorage.setItem('originalUserRole', userRole || 'admin');
-        localStorage.setItem('originalUserName', profile?.name || 'Super Admin');
-        localStorage.setItem('originalUserEmail', profile?.email || '');
+        // Enregistrer l'état original pour pouvoir revenir
+        // Seulement si on n'est pas déjà en train d'impersonner
+        if (!localStorage.getItem('originalUserRole')) {
+            localStorage.setItem('originalUserRole', userRole || 'admin');
+            localStorage.setItem('originalUserName', profile?.name || 'Super Admin');
+            localStorage.setItem('originalUserEmail', profile?.email || '');
+        }
 
         localStorage.setItem('userRole', 'client');
         localStorage.setItem('userName', client.legalRepresentative || client.name);
