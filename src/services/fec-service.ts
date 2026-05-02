@@ -54,7 +54,7 @@ function formatDate(isoString?: string): string {
 /**
  * Génère les lignes FEC à partir d'une liste de documents.
  */
-export function generateFECLines(documents: Document[], journalCode: string = "HA", journalLib: string = "Achats"): FECLine[] {
+export function generateFECLines(documents: Document[]): FECLine[] {
   const lines: FECLine[] = [];
   let ecritureCounter = 1;
 
@@ -64,7 +64,7 @@ export function generateFECLines(documents: Document[], journalCode: string = "H
     const data = doc.extractedData;
     const aiEntry = data.accountingEntry;
     
-    const vendorName = data.vendorNames?.[0] || 'FOURNISSEUR INCONNU';
+    const entityName = data.vendorNames?.[0] || 'INCONNU';
     const pieceRef = doc.name || doc.id;
     const pieceDate = formatDate(data.dates?.[0] || doc.uploadDate);
     const validDate = formatDate(doc.uploadDate);
@@ -73,79 +73,104 @@ export function generateFECLines(documents: Document[], journalCode: string = "H
     const vatAmount = data.vatAmount || 0;
     const totalHT = totalTTC - vatAmount;
 
-    const creditAccount = aiEntry?.creditAccount || "401000";
-    const debitAccount = aiEntry?.debitAccount || "606400";
-    const vatAccount = aiEntry?.vatAccount || "445660";
-    
     const ecritureNum = String(ecritureCounter).padStart(5, '0');
-    const ecritureLib = `Facture ${vendorName}`;
+    let ecritureLib = `Facture ${entityName}`;
 
-    // 1. Ligne Tiers (Crédit TTC)
-    lines.push({
-      JournalCode: journalCode,
-      JournalLib: journalLib,
-      EcritureNum: ecritureNum,
-      EcritureDate: pieceDate,
-      CompteNum: creditAccount,
-      CompteLib: vendorName,
-      CompAuxNum: "", 
-      CompAuxLib: "",
-      PieceRef: pieceRef,
-      PieceDate: pieceDate,
-      EcritureLib: ecritureLib,
-      Debit: formatAmount(0),
-      Credit: formatAmount(totalTTC),
-      EcritureLet: "",
-      DateLet: "",
-      ValidDate: validDate,
-      Montantdevise: "",
-      Idevise: ""
-    });
+    if (doc.type === 'sales_invoice') {
+        const journalCode = "VE";
+        const journalLib = "Ventes";
+        
+        const debitAccount = aiEntry?.debitAccount || "411000";
+        const creditAccount = aiEntry?.creditAccount || "706000";
+        const vatAccount = aiEntry?.vatAccount || "445710";
+        
+        // 1. Ligne Tiers (Débit TTC)
+        lines.push({
+          JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+          CompteNum: debitAccount, CompteLib: entityName, CompAuxNum: "", CompAuxLib: "",
+          PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: ecritureLib,
+          Debit: formatAmount(totalTTC), Credit: formatAmount(0),
+          EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+        });
 
-    // 2. Ligne Charge (Débit HT)
-    lines.push({
-      JournalCode: journalCode,
-      JournalLib: journalLib,
-      EcritureNum: ecritureNum,
-      EcritureDate: pieceDate,
-      CompteNum: debitAccount,
-      CompteLib: "Charge achat",
-      CompAuxNum: "",
-      CompAuxLib: "",
-      PieceRef: pieceRef,
-      PieceDate: pieceDate,
-      EcritureLib: ecritureLib,
-      Debit: formatAmount(totalHT),
-      Credit: formatAmount(0),
-      EcritureLet: "",
-      DateLet: "",
-      ValidDate: validDate,
-      Montantdevise: "",
-      Idevise: ""
-    });
+        // 2. Ligne Produit (Crédit HT)
+        lines.push({
+          JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+          CompteNum: creditAccount, CompteLib: "Vente de services", CompAuxNum: "", CompAuxLib: "",
+          PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: ecritureLib,
+          Debit: formatAmount(0), Credit: formatAmount(totalHT),
+          EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+        });
 
-    // 3. Ligne TVA (Débit TVA)
-    if (vatAmount > 0) {
-      lines.push({
-        JournalCode: journalCode,
-        JournalLib: journalLib,
-        EcritureNum: ecritureNum,
-        EcritureDate: pieceDate,
-        CompteNum: vatAccount,
-        CompteLib: "TVA déductible",
-        CompAuxNum: "",
-        CompAuxLib: "",
-        PieceRef: pieceRef,
-        PieceDate: pieceDate,
-        EcritureLib: `TVA sur ${ecritureLib}`,
-        Debit: formatAmount(vatAmount),
-        Credit: formatAmount(0),
-        EcritureLet: "",
-        DateLet: "",
-        ValidDate: validDate,
-        Montantdevise: "",
-        Idevise: ""
-      });
+        // 3. Ligne TVA (Crédit TVA)
+        if (vatAmount > 0) {
+          lines.push({
+            JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+            CompteNum: vatAccount, CompteLib: "TVA collectée", CompAuxNum: "", CompAuxLib: "",
+            PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: `TVA sur ${ecritureLib}`,
+            Debit: formatAmount(0), Credit: formatAmount(vatAmount),
+            EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+          });
+        }
+    } else if (doc.type === 'bank_statement') {
+        const journalCode = "BQ";
+        const journalLib = "Banque";
+        ecritureLib = `Relevé ${entityName}`;
+        
+        const bankAccount = "512000";
+        const attenteAccount = "471000";
+        
+        lines.push({
+          JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+          CompteNum: bankAccount, CompteLib: "Banque", CompAuxNum: "", CompAuxLib: "",
+          PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: ecritureLib,
+          Debit: formatAmount(totalTTC), Credit: formatAmount(0),
+          EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+        });
+
+        lines.push({
+          JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+          CompteNum: attenteAccount, CompteLib: "Compte d'attente", CompAuxNum: "", CompAuxLib: "",
+          PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: ecritureLib,
+          Debit: formatAmount(0), Credit: formatAmount(totalTTC),
+          EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+        });
+    } else {
+        const journalCode = "HA";
+        const journalLib = "Achats";
+        
+        const creditAccount = aiEntry?.creditAccount || "401000";
+        const debitAccount = aiEntry?.debitAccount || "606400";
+        const vatAccount = aiEntry?.vatAccount || "445660";
+        
+        // 1. Ligne Tiers (Crédit TTC)
+        lines.push({
+          JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+          CompteNum: creditAccount, CompteLib: entityName, CompAuxNum: "", CompAuxLib: "",
+          PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: ecritureLib,
+          Debit: formatAmount(0), Credit: formatAmount(totalTTC),
+          EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+        });
+
+        // 2. Ligne Charge (Débit HT)
+        lines.push({
+          JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+          CompteNum: debitAccount, CompteLib: "Charge achat", CompAuxNum: "", CompAuxLib: "",
+          PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: ecritureLib,
+          Debit: formatAmount(totalHT), Credit: formatAmount(0),
+          EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+        });
+
+        // 3. Ligne TVA (Débit TVA)
+        if (vatAmount > 0) {
+          lines.push({
+            JournalCode: journalCode, JournalLib: journalLib, EcritureNum: ecritureNum, EcritureDate: pieceDate,
+            CompteNum: vatAccount, CompteLib: "TVA déductible", CompAuxNum: "", CompAuxLib: "",
+            PieceRef: pieceRef, PieceDate: pieceDate, EcritureLib: `TVA sur ${ecritureLib}`,
+            Debit: formatAmount(vatAmount), Credit: formatAmount(0),
+            EcritureLet: "", DateLet: "", ValidDate: validDate, Montantdevise: "", Idevise: ""
+          });
+        }
     }
 
     ecritureCounter++;

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
-import type { Document } from '@/lib/types';
+import type { Document, Client } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function ExportPage() {
     const [approvedDocs, setApprovedDocs] = useState<Document[]>([]);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [selectedClient, setSelectedClient] = useState<string>("all");
+    const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<ExportFormat>('cegid');
@@ -37,6 +40,14 @@ export default function ExportPage() {
             const snapshot = await getDocs(q);
             const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
             setApprovedDocs(docs);
+
+            const clientsQuery = isAdmin 
+                ? query(collection(db, 'users'), where('role', '==', 'client'))
+                : query(collection(db, 'users'), where('role', '==', 'client'), where('cabinetId', '==', cabinetId));
+            
+            const clientsSnap = await getDocs(clientsQuery);
+            const fetchedClients = clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+            setClients(fetchedClients);
         } catch (error) {
             console.error("Error fetching approved documents:", error);
             toast({
@@ -55,17 +66,48 @@ export default function ExportPage() {
         }
     }, [userProfile, cabinetId, isAdmin]);
 
+    const availablePeriods = Array.from(new Set(approvedDocs.map(doc => {
+        const dateStr = doc.extractedData?.dates?.[0] || doc.uploadDate;
+        if (!dateStr) return null;
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return null;
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        } catch {
+            return null;
+        }
+    }).filter(Boolean))) as string[];
+    availablePeriods.sort((a, b) => b.localeCompare(a));
+
+    const filteredDocs = approvedDocs.filter(doc => {
+        if (selectedClient !== 'all' && doc.clientId !== selectedClient) return false;
+        
+        if (selectedPeriod !== 'all') {
+            const dateStr = doc.extractedData?.dates?.[0] || doc.uploadDate;
+            if (!dateStr) return false;
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return false;
+                const docPeriod = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                if (docPeriod !== selectedPeriod) return false;
+            } catch {
+                return false;
+            }
+        }
+        return true;
+    });
+
     const handleExport = async () => {
-        if (approvedDocs.length === 0) return;
+        if (filteredDocs.length === 0) return;
         setIsExporting(true);
 
         try {
             // 1. Déclenche le téléchargement via le nouveau service universel
-            downloadExport(approvedDocs, exportFormat);
+            downloadExport(filteredDocs, exportFormat);
 
             // 2. Met à jour Firestore via Batch
             const batch = writeBatch(db);
-            approvedDocs.forEach(docItem => {
+            filteredDocs.forEach(docItem => {
                 const docRef = doc(db, 'documents', docItem.id);
                 batch.update(docRef, { 
                     status: 'exported', 
@@ -77,11 +119,11 @@ export default function ExportPage() {
 
             toast({
                 title: "Export Réussi",
-                description: `${approvedDocs.length} factures générées au format ${exportFormat.toUpperCase()}.`,
+                description: `${filteredDocs.length} factures générées au format ${exportFormat.toUpperCase()}.`,
             });
 
             // 3. Vide le tableau
-            setApprovedDocs([]);
+            setApprovedDocs(prev => prev.filter(d => !filteredDocs.find(fd => fd.id === d.id)));
 
         } catch (error) {
             console.error("Export error:", error);
@@ -121,7 +163,7 @@ export default function ExportPage() {
                             Comptabilité
                         </Badge>
                         <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-2 font-space">
-                            {approvedDocs.length} Prêt{approvedDocs.length > 1 ? 's' : ''} pour Export
+                            {filteredDocs.length} Prêt{filteredDocs.length > 1 ? 's' : ''} pour Export
                         </Badge>
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black tracking-tight font-space gradient-text">
@@ -132,7 +174,36 @@ export default function ExportPage() {
                     </p>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap justify-end">
+                    <div className="flex items-center gap-3 bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
+                        <Filter className="h-4 w-4 text-muted-foreground ml-2" />
+                        <Select value={selectedClient} onValueChange={setSelectedClient}>
+                            <SelectTrigger className="w-[140px] bg-transparent border-none font-bold font-space focus:ring-0">
+                                <SelectValue placeholder="Tous les clients" />
+                            </SelectTrigger>
+                            <SelectContent className="glass-panel border-white/10">
+                                <SelectItem value="all">Tous les clients</SelectItem>
+                                {clients.map(client => (
+                                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
+                        <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                            <SelectTrigger className="w-[120px] bg-transparent border-none font-bold font-space focus:ring-0">
+                                <SelectValue placeholder="Toutes périodes" />
+                            </SelectTrigger>
+                            <SelectContent className="glass-panel border-white/10">
+                                <SelectItem value="all">Toutes périodes</SelectItem>
+                                {availablePeriods.map(period => (
+                                    <SelectItem key={period} value={period}>{period}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="flex items-center gap-3 bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
                         <span className="text-xs font-bold uppercase tracking-widest opacity-40 pl-2">Format</span>
                         <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ExportFormat)}>
@@ -150,7 +221,7 @@ export default function ExportPage() {
                     </div>
 
                     <AnimatePresence>
-                        {approvedDocs.length > 0 && (
+                        {filteredDocs.length > 0 && (
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
@@ -177,7 +248,7 @@ export default function ExportPage() {
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500" />
                     <CardHeader className="pb-2">
                         <CardDescription className="font-space uppercase tracking-wider text-[10px] font-bold text-blue-600/70">Volume total</CardDescription>
-                        <CardTitle className="text-3xl font-black font-space">{approvedDocs.length}</CardTitle>
+                        <CardTitle className="text-3xl font-black font-space">{filteredDocs.length}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-xs text-muted-foreground">Pièces en attente d'exportation vers Cegid</p>
@@ -189,7 +260,7 @@ export default function ExportPage() {
                     <CardHeader className="pb-2">
                         <CardDescription className="font-space uppercase tracking-wider text-[10px] font-bold text-emerald-600/70">Valeur totale</CardDescription>
                         <CardTitle className="text-3xl font-black font-space">
-                            {approvedDocs.reduce((acc, doc) => acc + (doc.extractedData?.amounts?.[0] || 0), 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+                            {filteredDocs.reduce((acc, doc) => acc + (doc.extractedData?.amounts?.[0] || 0), 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -227,7 +298,7 @@ export default function ExportPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    {approvedDocs.length === 0 ? (
+                    {filteredDocs.length === 0 ? (
                         <div className="py-24 flex flex-col items-center justify-center text-center">
                             <div className="relative mb-6">
                                 <div className="absolute inset-0 blur-3xl bg-emerald-500/10 rounded-full scale-150 animate-pulse" />
@@ -257,7 +328,7 @@ export default function ExportPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {approvedDocs.map((docItem, idx) => {
+                                    {filteredDocs.map((docItem, idx) => {
                                         const vendor = docItem.extractedData?.vendorNames?.[0] || 'Inconnu';
                                         const amount = docItem.extractedData?.amounts?.[0] || 0;
                                         const entry = docItem.extractedData?.accountingEntry;

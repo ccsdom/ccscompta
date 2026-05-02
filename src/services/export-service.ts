@@ -45,7 +45,7 @@ function formatDate(isoString?: string): string {
 /**
  * Generates technical lines for a list of documents in a specific format.
  */
-export function generateExportLines(documents: Document[], format: ExportFormat, journalCode: string = "HA"): any[] {
+export function generateExportLines(documents: Document[], format: ExportFormat): any[] {
     const lines: any[] = [];
 
     for (const doc of documents) {
@@ -54,7 +54,7 @@ export function generateExportLines(documents: Document[], format: ExportFormat,
         const data = doc.extractedData;
         const aiEntry = data.accountingEntry;
         
-        const vendorName = data.vendorNames?.[0] || 'FOURNISSEUR INCONNU';
+        const entityName = data.vendorNames?.[0] || 'INCONNU';
         const docName = doc.name || 'PIECE';
         const dateComptable = formatDate(data.dates?.[0] || doc.uploadDate);
         
@@ -62,25 +62,55 @@ export function generateExportLines(documents: Document[], format: ExportFormat,
         const vatAmount = data.vatAmount || 0;
         const totalHT = totalTTC - vatAmount;
 
-        const creditAccount = aiEntry?.creditAccount || "401000";
-        const debitAccount = aiEntry?.debitAccount || "606400";
-        const vatAccount = aiEntry?.vatAccount || "445660";
-
-        if (format === 'cegid') {
-            // Cegid Format: Journal, Date, Piece, Compte, Libelle, Debit, Credit
-            lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: creditAccount, Libelle: `FACT ${vendorName}`, Debit: formatAmount(0), Credit: formatAmount(totalTTC) });
-            lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: debitAccount, Libelle: `FACT ${vendorName}`, Debit: formatAmount(totalHT), Credit: formatAmount(0) });
-            if (vatAmount > 0) {
-                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: vatAccount, Libelle: `TVA FACT ${vendorName}`, Debit: formatAmount(vatAmount), Credit: formatAmount(0) });
+        if (doc.type === 'sales_invoice') {
+            const journalCode = "VE";
+            const debitAccount = aiEntry?.debitAccount || "411000";
+            const creditAccount = aiEntry?.creditAccount || "706000";
+            const vatAccount = aiEntry?.vatAccount || "445710";
+            
+            if (format === 'cegid') {
+                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: debitAccount, Libelle: `FACT ${entityName}`, Debit: formatAmount(totalTTC), Credit: formatAmount(0) });
+                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: creditAccount, Libelle: `FACT ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(totalHT) });
+                if (vatAmount > 0) {
+                    lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: vatAccount, Libelle: `TVA FACT ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(vatAmount) });
+                }
+            } else if (format === 'sage') {
+                lines.push({ Journal: journalCode, Date: dateComptable, Compte: '411000', Tiers: entityName.substring(0, 10), Piece: docName, Libelle: `FACT ${entityName}`, Debit: formatAmount(totalTTC), Credit: formatAmount(0) });
+                lines.push({ Journal: journalCode, Date: dateComptable, Compte: creditAccount, Tiers: '', Piece: docName, Libelle: `FACT ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(totalHT) });
+                if (vatAmount > 0) {
+                    lines.push({ Journal: journalCode, Date: dateComptable, Compte: vatAccount, Tiers: '', Piece: docName, Libelle: `TVA FACT ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(vatAmount) });
+                }
             }
-        } 
-        else if (format === 'sage') {
-            // Sage Format (Standard CSV): Journal;Date;CompteGeneraux;CompteTiers;Piece;Libelle;Debit;Credit
-            // Note: Sage often separates 401 (Gen) and the Tier account
-            lines.push({ Journal: journalCode, Date: dateComptable, Compte: '401000', Tiers: vendorName.substring(0, 10), Piece: docName, Libelle: `FACT ${vendorName}`, Debit: formatAmount(0), Credit: formatAmount(totalTTC) });
-            lines.push({ Journal: journalCode, Date: dateComptable, Compte: debitAccount, Tiers: '', Piece: docName, Libelle: `FACT ${vendorName}`, Debit: formatAmount(totalHT), Credit: formatAmount(0) });
-            if (vatAmount > 0) {
-                lines.push({ Journal: journalCode, Date: dateComptable, Compte: vatAccount, Tiers: '', Piece: docName, Libelle: `TVA FACT ${vendorName}`, Debit: formatAmount(vatAmount), Credit: formatAmount(0) });
+        } else if (doc.type === 'bank_statement') {
+            const journalCode = "BQ";
+            const bankAccount = "512000";
+            const attenteAccount = "471000";
+            
+            if (format === 'cegid') {
+                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: bankAccount, Libelle: `REL ${entityName}`, Debit: formatAmount(totalTTC), Credit: formatAmount(0) });
+                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: attenteAccount, Libelle: `REL ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(totalTTC) });
+            } else if (format === 'sage') {
+                lines.push({ Journal: journalCode, Date: dateComptable, Compte: bankAccount, Tiers: '', Piece: docName, Libelle: `REL ${entityName}`, Debit: formatAmount(totalTTC), Credit: formatAmount(0) });
+                lines.push({ Journal: journalCode, Date: dateComptable, Compte: attenteAccount, Tiers: '', Piece: docName, Libelle: `REL ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(totalTTC) });
+            }
+        } else {
+            const journalCode = "HA";
+            const creditAccount = aiEntry?.creditAccount || "401000";
+            const debitAccount = aiEntry?.debitAccount || "606400";
+            const vatAccount = aiEntry?.vatAccount || "445660";
+            
+            if (format === 'cegid') {
+                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: creditAccount, Libelle: `FACT ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(totalTTC) });
+                lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: debitAccount, Libelle: `FACT ${entityName}`, Debit: formatAmount(totalHT), Credit: formatAmount(0) });
+                if (vatAmount > 0) {
+                    lines.push({ Journal: journalCode, Date: dateComptable, Piece: docName, Compte: vatAccount, Libelle: `TVA FACT ${entityName}`, Debit: formatAmount(vatAmount), Credit: formatAmount(0) });
+                }
+            } else if (format === 'sage') {
+                lines.push({ Journal: journalCode, Date: dateComptable, Compte: '401000', Tiers: entityName.substring(0, 10), Piece: docName, Libelle: `FACT ${entityName}`, Debit: formatAmount(0), Credit: formatAmount(totalTTC) });
+                lines.push({ Journal: journalCode, Date: dateComptable, Compte: debitAccount, Tiers: '', Piece: docName, Libelle: `FACT ${entityName}`, Debit: formatAmount(totalHT), Credit: formatAmount(0) });
+                if (vatAmount > 0) {
+                    lines.push({ Journal: journalCode, Date: dateComptable, Compte: vatAccount, Tiers: '', Piece: docName, Libelle: `TVA FACT ${entityName}`, Debit: formatAmount(vatAmount), Credit: formatAmount(0) });
+                }
             }
         }
     }

@@ -32,9 +32,11 @@ import { useBranding } from '@/components/branding-provider';
 import { salesService } from '@/services/sales-service';
 import { SalesInvoice } from '@/lib/types';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SalesDashboard() {
   const { profile: userProfile } = useBranding();
+  const { toast } = useToast();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +57,30 @@ export default function SalesDashboard() {
       setLoading(false);
     }
   };
+
+  const handleMarkAsPaid = async (invoiceId: string) => {
+    try {
+      await salesService.updateStatus(invoiceId, 'paid');
+      setInvoices(invoices.map(inv => inv.id === invoiceId ? { ...inv, status: 'paid' } : inv));
+      toast({
+        title: "Facture payée",
+        description: "Le statut de la facture a été mis à jour avec succès.",
+      });
+    } catch (error) {
+      console.error("Error updating invoice status:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de mettre à jour le statut.",
+      });
+    }
+  };
+
+  const filteredInvoices = invoices.filter(inv => 
+    inv.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (inv.customerEmail && inv.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const getStatusBadge = (status: SalesInvoice['status']) => {
     switch (status) {
@@ -162,7 +188,7 @@ export default function SalesDashboard() {
                     <td colSpan={6} className="p-6"><div className="h-12 bg-white/5 rounded-xl w-full"></div></td>
                   </tr>
                 ))
-              ) : invoices.length === 0 ? (
+              ) : filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-20 text-center">
                     <div className="flex flex-col items-center gap-4">
@@ -177,7 +203,7 @@ export default function SalesDashboard() {
                   </td>
                 </tr>
               ) : (
-                invoices.map((invoice) => (
+                filteredInvoices.map((invoice) => (
                   <tr key={invoice.id} className="group hover:bg-white/[0.02] transition-colors">
                     <td className="p-6 font-black font-space">{invoice.invoiceNumber}</td>
                     <td className="p-6">
@@ -199,7 +225,14 @@ export default function SalesDashboard() {
                         <DropdownMenuContent align="end" className="glass-panel border-white/10 p-2 min-w-[160px]">
                           <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium"><FileText className="h-4 w-4" /> Voir / Éditer</DropdownMenuItem>
                           <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium"><Download className="h-4 w-4" /> Télécharger PDF</DropdownMenuItem>
-                          <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium text-emerald-500 focus:text-emerald-500"><CreditCard className="h-4 w-4" /> Marquer payée</DropdownMenuItem>
+                          {invoice.status !== 'paid' && (
+                            <DropdownMenuItem 
+                              className="rounded-lg gap-2 cursor-pointer font-medium text-emerald-500 focus:text-emerald-500"
+                              onClick={() => handleMarkAsPaid(invoice.id!)}
+                            >
+                              <CreditCard className="h-4 w-4" /> Marquer payée
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
