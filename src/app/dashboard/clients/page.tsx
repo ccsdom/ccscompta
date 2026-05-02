@@ -53,17 +53,12 @@ export default function ClientsPage() {
     const { toast } = useToast();
     const { role: userRole, profile, isLoading: isBrandingLoading } = useBranding();
 
-    const isStaff = useMemo(() => userRole && ['admin', 'accountant', 'secretary'].includes(userRole), [userRole]);
+    const isStaff = useMemo(() => userRole && ['accountant', 'secretary'].includes(userRole), [userRole]);
 
     const staffUsersQuery = useMemoFirebase(() => {
         if (!isStaff || !userRole) return null;
         
-        // Admin sees everything
-        if (userRole === 'admin') {
-            return query(collection(db, 'clients'));
-        }
-        
-        // Non-admin MUST have a cabinetId
+        // Non-admin (or impersonating admin) MUST have a cabinetId
         if (profile?.cabinetId) {
             return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
         }
@@ -89,10 +84,6 @@ export default function ClientsPage() {
         if (!isStaff || !userRole) return null;
         
         const baseQuery = collection(db, 'clients');
-        
-        if (userRole === 'admin') {
-            return query(baseQuery, where('role', '==', 'accountant'));
-        }
         
         if (profile?.cabinetId) {
             return query(

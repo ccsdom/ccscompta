@@ -73,11 +73,7 @@ export default function DocumentsPage() {
   const documentsQuery = useMemoFirebase(() => {
     if (!selectedClientId || !userProfile) return null;
     
-    // For staff, we MUST filter by cabinetId to align with security rules
-    if (userProfile.role === 'admin') {
-      return query(collection(db, 'documents'), where('clientId', '==', selectedClientId));
-    }
-
+    // For staff (including impersonating admins), we MUST filter by cabinetId
     if (userProfile.cabinetId) {
       return query(
         collection(db, 'documents'), 
@@ -92,10 +88,7 @@ export default function DocumentsPage() {
 
   const clientsQuery = useMemoFirebase(() => {
     if (!userProfile) return null;
-    const role = userProfile.role;
-    if (role === 'admin') {
-      return query(collection(db, 'clients'), where('role', '==', 'client'));
-    }
+    
     if (userProfile.cabinetId) {
        return query(
          collection(db, 'clients'), 

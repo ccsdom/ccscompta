@@ -25,47 +25,40 @@ export default function AccountantDashboard() {
     }, []);
 
     const userRole = userProfile?.role || null;
-    const isStaff = isMounted && userRole && (['accountant', 'admin', 'secretary'].includes(userRole));
-    const isAdmin = userRole === 'admin';
+    const isStaff = isMounted && userRole && (['accountant', 'secretary'].includes(userRole));
     const cabinetId = userProfile?.cabinetId;
 
     // Secured Queries
     const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff || !userProfile) return null;
-        if (isAdmin) return query(collection(db, 'clients'), where('role', '==', 'client'));
-        if (!cabinetId) return null;
+        if (!isStaff || !userProfile || !cabinetId) return null;
         return query(
             collection(db, 'clients'), 
             where('role', '==', 'client'),
             where('cabinetId', '==', cabinetId)
         );
-    }, [isStaff, isAdmin, cabinetId, userProfile]);
+    }, [isStaff, cabinetId, userProfile]);
     
     const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
 
     const documentsQuery = useMemoFirebase(() => {
-        if (!isStaff || !userProfile) return null;
-        if (isAdmin) return query(collection(db, 'documents'));
-        if (!cabinetId) return null;
+        if (!isStaff || !userProfile || !cabinetId) return null;
         return query(
             collection(db, 'documents'), 
             where('cabinetId', '==', cabinetId)
         );
-    }, [isStaff, isAdmin, cabinetId, userProfile]);
+    }, [isStaff, cabinetId, userProfile]);
     
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
     const reconciliationsQuery = useMemoFirebase(() => {
-        if (!isStaff || !userProfile) return null;
-        if (isAdmin) return query(collection(db, 'reconciliations'), orderBy('createdAt', 'desc'), limit(5));
-        if (!cabinetId) return null;
+        if (!isStaff || !userProfile || !cabinetId) return null;
         return query(
             collection(db, 'reconciliations'), 
             where('cabinetId', '==', cabinetId),
             orderBy('createdAt', 'desc'), 
             limit(5)
         );
-    }, [isStaff, isAdmin, cabinetId, userProfile]);
+    }, [isStaff, cabinetId, userProfile]);
     
     const { data: recentReconciliations, isLoading: isLoadingReconciliations } = useCollection<any>(reconciliationsQuery);
 

@@ -46,14 +46,10 @@ export default function BillingPage() {
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
 
-    const isStaff = useMemo(() => role && ['admin', 'accountant', 'secretary'].includes(role), [role]);
+    const isStaff = useMemo(() => role && ['accountant', 'secretary'].includes(role), [role]);
 
     const clientsQuery = useMemoFirebase(() => {
         if (!isStaff || !role) return null;
-        
-        if (role === 'admin') {
-            return query(collection(db, 'clients'));
-        }
         
         if (profile?.cabinetId) {
             return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
@@ -65,10 +61,6 @@ export default function BillingPage() {
     
     const invoicesQuery = useMemoFirebase(() => {
         if (!isStaff || !role) return null;
-        
-        if (role === 'admin') {
-            return query(collection(db, 'invoices'));
-        }
         
         if (profile?.cabinetId) {
             return query(collection(db, 'invoices'), where('cabinetId', '==', profile.cabinetId));

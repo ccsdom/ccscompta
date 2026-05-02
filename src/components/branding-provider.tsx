@@ -30,13 +30,16 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     
     // Check for impersonation from localStorage (still used as bridge for now)
     const [impersonatedId, setImpersonatedId] = useState<string | null>(null);
+    const [impersonatedCabinetId, setImpersonatedCabinetId] = useState<string | null>(null);
     const [impersonatedRole, setImpersonatedRole] = useState<Role | null>(null);
 
     useEffect(() => {
         const checkImpersonation = () => {
             const sid = localStorage.getItem('selectedClientId');
+            const scid = localStorage.getItem('selectedCabinetId');
             const srole = localStorage.getItem('userRole') as Role;
             setImpersonatedId(sid);
+            setImpersonatedCabinetId(scid);
             setImpersonatedRole(srole);
         };
         
@@ -47,7 +50,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
     // 1. Fetch Effective Profile
     // SECURITY: Only allow impersonation if the real user has an admin/staff role in their profile
-    // This avoids permission errors when the custom claims are not yet synchronized.
     const [isActuallyStaff, setIsActuallyStaff] = useState(false);
     
     // First, fetch the REAL user profile to check their authorization level
@@ -79,7 +81,8 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     }, [profileError, impersonatedId]);
 
     // 2. Fetch Cabinet
-    const cabinetRef = useMemo(() => profile?.cabinetId ? doc(db, 'cabinets', profile.cabinetId) : null, [profile?.cabinetId]);
+    const effectiveCabinetId = profile?.cabinetId || (isActuallyStaff ? impersonatedCabinetId : null);
+    const cabinetRef = useMemo(() => effectiveCabinetId ? doc(db, 'cabinets', effectiveCabinetId) : null, [effectiveCabinetId]);
     const { data: cabinet, isLoading: isCabinetLoading } = useDoc<Cabinet>(cabinetRef);
 
     const [mounted, setMounted] = useState(false);
@@ -113,13 +116,21 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
     }, [cabinet?.primaryColor]);
 
-    const value = useMemo(() => ({
-        cabinet: cabinet || null,
-        profile: profile || null,
-        role: impersonatedRole || profile?.role || null,
-        isLoading: isUserLoading || isProfileLoading || isCabinetLoading,
-        isImpersonating: !!impersonatedId,
-    }), [cabinet, profile, impersonatedRole, isUserLoading, isProfileLoading, isCabinetLoading, impersonatedId]);
+    const value = useMemo(() => {
+        const baseProfile = profile || null;
+        // Patch profile cabinetId for impersonating admins
+        const effectiveProfile = (baseProfile && isActuallyStaff && impersonatedCabinetId && !baseProfile.cabinetId)
+            ? { ...baseProfile, cabinetId: impersonatedCabinetId }
+            : baseProfile;
+
+        return {
+            cabinet: cabinet || null,
+            profile: effectiveProfile,
+            role: impersonatedRole || baseProfile?.role || null,
+            isLoading: isUserLoading || isProfileLoading || isCabinetLoading,
+            isImpersonating: !!impersonatedId || !!impersonatedCabinetId,
+        };
+    }, [cabinet, profile, impersonatedRole, isUserLoading, isProfileLoading, isCabinetLoading, impersonatedId, impersonatedCabinetId, isActuallyStaff]);
 
     // Initial loading screen to prevent layout shifts
     if (!mounted || (isUserLoading && !user)) {
