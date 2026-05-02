@@ -24,6 +24,12 @@ const clientBottomNav = [
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Analyse' },
 ];
 
+const adminBottomNav = [
+  { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Admin' },
+  { href: '/dashboard/cabinets', icon: Building, label: 'Cabinets' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
+];
+
 const staffBottomNav = [
   { href: '/dashboard/accountant', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/clients', icon: Users, label: 'Clients' },
@@ -31,7 +37,7 @@ const staffBottomNav = [
 ];
 
 const roleConfig = {
-    admin: { label: 'Espace Administrateur', icon: UserCog, bottomNav: staffBottomNav },
+    admin: { label: 'Espace Administrateur', icon: UserCog, bottomNav: adminBottomNav },
     accountant: { label: 'Espace Comptable', icon: UserCheck, bottomNav: staffBottomNav },
     secretary: { label: 'Espace Secrétariat', icon: UserCheck, bottomNav: staffBottomNav },
     client: { label: 'Espace Client', icon: User, bottomNav: clientBottomNav }
