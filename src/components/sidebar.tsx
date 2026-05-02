@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun, Building, DownloadCloud, Landmark, Activity } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun, Building, DownloadCloud, Landmark, Activity, History, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -54,6 +54,7 @@ const clientNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Tableau de bord Admin' },
   { href: '/dashboard/cabinets', icon: Building, label: 'Gestion des Cabinets' },
+  { href: '/dashboard/audit', icon: History, label: "Journal d'Audit" },
   { href: '/dashboard/admin/subscriptions', icon: Activity, label: 'Abonnements & Quotas' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres Globaux' },
 ];

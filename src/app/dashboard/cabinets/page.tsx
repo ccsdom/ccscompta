@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -58,8 +57,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from "@/lib/utils";
 import { useRouter } from 'next/navigation';
+import { useBranding } from "@/components/branding-provider";
 
 export default function CabinetsManagementPage() {
+    const { profile: userProfile } = useBranding();
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const router = useRouter();
@@ -96,10 +97,13 @@ export default function CabinetsManagementPage() {
         
         await auditService.logSystem(`Impersonation activée pour le cabinet: ${cabinet.name}`, 'security');
 
-        toast({
-            title: "Mode Impersonation activé",
-            description: `Vous naviguez maintenant en tant que ${cabinet.name}.`,
-        });
+        // Log the impersonation event
+        if (userProfile) {
+            await auditService.logImpersonation('start', 
+                { name: userProfile.name, email: userProfile.email, role: userProfile.role },
+                { name: cabinet.name, id: cabinet.id, type: 'cabinet' }
+            );
+        }
 
         window.dispatchEvent(new Event('storage'));
         router.push('/dashboard/accountant');
