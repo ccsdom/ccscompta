@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, parseDate } from '@/lib/utils';
 
 export default function SecretaryDashboard() {
     const [isMounted, setIsMounted] = useState(false);
@@ -63,7 +63,8 @@ export default function SecretaryDashboard() {
 
         const docsUploadedToday = documents.filter(d => {
             const uploadEvent = (d.auditTrail || []).find(e => e.action.includes('téléversé'));
-            return uploadEvent && new Date(uploadEvent.date) >= twentyFourHoursAgo;
+            const uploadDate = uploadEvent ? parseDate(uploadEvent.date) : null;
+            return uploadDate && uploadDate >= twentyFourHoursAgo;
         }).length;
         
         const docsPendingReview = documents.filter(d => ['pending', 'reviewing', 'error'].includes(d.status)).length;
@@ -77,7 +78,11 @@ export default function SecretaryDashboard() {
                     documentName: doc.name,
                 }));
             })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .sort((a, b) => {
+                const dateA = parseDate(a.date)?.getTime() || 0;
+                const dateB = parseDate(b.date)?.getTime() || 0;
+                return dateB - dateA;
+            })
             .slice(0, 10);
 
         return {

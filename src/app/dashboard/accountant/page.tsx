@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, orderBy, limit, where, doc } from 'firebase/firestore';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, parseDate } from '@/lib/utils';
 
 export default function AccountantDashboard() {
     const [isMounted, setIsMounted] = useState(false);
@@ -92,22 +92,25 @@ export default function AccountantDashboard() {
         const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
         const docsUploadedToday = documents.filter((d: Document) => {
-            const uploadEvent = (d.auditTrail || []).find((e: AuditEvent) => e.action.includes('téléversé'));
-            return uploadEvent && new Date(uploadEvent.date) >= twentyFourHoursAgo;
+            if (!d.auditTrail || !Array.isArray(d.auditTrail)) return false;
+            const uploadEvent = d.auditTrail.find((e: AuditEvent) => e.action && e.action.includes('téléversé'));
+            const uploadDate = uploadEvent ? parseDate(uploadEvent.date) : null;
+            return uploadDate && uploadDate >= twentyFourHoursAgo;
         }).length;
         
         const docsPendingReview = documents.filter(d => ['pending', 'reviewing', 'error'].includes(d.status)).length;
         
         const docsApprovedToday = documents.filter((doc: Document) => {
             const approvalEvent = (doc.auditTrail || []).find((e: AuditEvent) => e.action.includes('approuvé'));
-            return approvalEvent && new Date(approvalEvent.date) >= twentyFourHoursAgo;
+            const approvalDate = approvalEvent ? parseDate(approvalEvent.date) : null;
+            return approvalDate && approvalDate >= twentyFourHoursAgo;
         }).length;
         
         const activityByClient = clients.map(client => {
-            const clientDocsToday = documents.filter(d => 
-                d.clientId === client.id && 
-                d.uploadDate && new Date(d.uploadDate) >= twentyFourHoursAgo
-            ).length;
+            const clientDocsToday = documents.filter(d => {
+                const uDate = parseDate(d.uploadDate);
+                return d.clientId === client.id && uDate && uDate >= twentyFourHoursAgo;
+            }).length;
             return { name: client.name, docs: clientDocsToday };
         }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
 

@@ -43,7 +43,7 @@ import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, parseDate } from '@/lib/utils';
 import { useBranding } from './branding-provider';
 import { useAuth, db } from '@/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc } from 'firebase/firestore';
@@ -215,10 +215,12 @@ export function Header({children}: {children?: React.ReactNode}) {
   }
 
   const getIconForStatus = (message: string) => {
-    if (message.includes('approuvé') || message.includes('envoyé')) {
+    if (!message) return <FileWarning className="h-8 w-8 text-red-500" />;
+    const msg = message.toLowerCase();
+    if (msg.includes('approuvé') || msg.includes('envoyé')) {
       return <CheckCircle className="h-8 w-8 text-green-500" />;
     }
-    if (message.includes('examen')) {
+    if (msg.includes('examen')) {
       return <FileWarning className="h-8 w-8 text-yellow-500" />;
     }
     return <FileWarning className="h-8 w-8 text-red-500" />;
@@ -304,7 +306,7 @@ export function Header({children}: {children?: React.ReactNode}) {
                                         <span className="font-bold">{notif.documentName}</span> {notif.message}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        {formatDistanceToNow(new Date(notif.date), { addSuffix: true, locale: fr })}
+                                            {formatDistanceToNow(parseDate(notif.date) || new Date(), { addSuffix: true, locale: fr })}
                                     </p>
                                 </div>
                             </DropdownMenuItem>
@@ -323,8 +325,8 @@ export function Header({children}: {children?: React.ReactNode}) {
                     <DropdownMenuTrigger asChild>
                          <Button variant="ghost" size="icon" className="relative rounded-full">
                             <Avatar className="h-8 w-8">
-                                <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${profile?.email}`} alt="Utilisateur" />
-                                <AvatarFallback>{profile?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${profile?.email || 'default'}`} alt="Utilisateur" />
+                                <AvatarFallback>{(profile?.name?.charAt(0) || 'U').toUpperCase()}</AvatarFallback>
                             </Avatar>
                          </Button>
                     </DropdownMenuTrigger>

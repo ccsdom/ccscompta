@@ -18,9 +18,9 @@ import {
     Info,
     ShieldAlert,
     FileText,
-    History
+    History as HistoryIcon
 } from "lucide-react";
-import { useCollection } from '@/firebase';
+import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { SystemAuditLog } from '@/lib/types';
@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useBranding } from '@/components/branding-provider';
 import { useRouter } from 'next/navigation';
+import { parseDate } from '@/lib/utils';
 
 export default function AuditPage() {
     const { role } = useBranding();
@@ -53,11 +54,11 @@ export default function AuditPage() {
         )
     }
 
-    const auditQuery = query(
+    const auditQuery = useMemoFirebase(() => query(
         collection(db, 'audit'),
-        orderBy('createdAt', 'desc'),
+        orderBy('date', 'desc'), // Consistent with other dashboards
         limit(100)
-    );
+    ), []);
 
     const { data: logs, isLoading } = useCollection<SystemAuditLog>(auditQuery);
 
@@ -94,7 +95,7 @@ export default function AuditPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-3">
                         <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-                            <History className="h-6 w-6 text-primary" />
+                            <HistoryIcon className="h-6 w-6 text-primary" />
                         </div>
                         <div>
                             <h1 className="text-4xl font-black font-space tracking-tight">Journal d'Audit</h1>
@@ -176,11 +177,11 @@ export default function AuditPage() {
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="font-bold text-foreground">
-                                                {format(new Date(log.date), 'dd MMMM yyyy', { locale: fr })}
+                                                {format(parseDate(log.date) || new Date(), 'dd MMMM yyyy', { locale: fr })}
                                             </span>
                                             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                                 <Clock className="h-3 w-3" />
-                                                {format(new Date(log.date), 'HH:mm:ss')}
+                                                {format(parseDate(log.date) || new Date(), 'HH:mm:ss')}
                                             </span>
                                         </div>
                                     </TableCell>

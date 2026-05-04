@@ -23,7 +23,7 @@ import { db } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, parseDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 
@@ -112,7 +112,7 @@ export default function MyAnalyticsPage() {
 
   const latestBriefing = useMemo(() => {
     if (!briefings || briefings.length === 0) return null;
-    return [...briefings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.extraData || null;
+    return [...briefings].sort((a, b) => (parseDate(b.date)?.getTime() || 0) - (parseDate(a.date)?.getTime() || 0))[0]?.extraData || null;
   }, [briefings]);
 
   const handleRefreshBriefing = async () => {
@@ -163,7 +163,7 @@ export default function MyAnalyticsPage() {
     approvedDocs.forEach(d => {
       const rawDate = d.extractedData?.dates?.[0];
       if (!rawDate) return;
-      const date = new Date(rawDate);
+      const date = parseDate(rawDate) || new Date();
       const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
       const ttc = d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
       const tva = d.extractedData?.vatAmount ?? 0;

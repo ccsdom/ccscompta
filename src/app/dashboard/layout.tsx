@@ -9,7 +9,11 @@ import { CommandCenter } from "@/components/command-center";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, UserCheck, UserCog, User, Briefcase, CreditCard, Building, Settings } from 'lucide-react';
+import { 
+  LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, 
+  UserCheck, UserCog, User, Briefcase, CreditCard, Building, 
+  Settings, History as HistoryIcon 
+} from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +31,7 @@ const clientBottomNav = [
 const adminBottomNav = [
   { href: '/dashboard/admin', icon: LayoutDashboard, label: 'Admin' },
   { href: '/dashboard/cabinets', icon: Building, label: 'Cabinets' },
+  { href: '/dashboard/audit', icon: HistoryIcon, label: 'Audit' },
   { href: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -52,7 +57,10 @@ function BottomNavBar() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:hidden">
-      <nav className={`grid grid-cols-${navItems.length || 1} h-16 items-center justify-items-center`}>
+      <nav 
+        className="h-16 items-center justify-items-center grid"
+        style={{ gridTemplateColumns: `repeat(${navItems.length || 1}, minmax(0, 1fr))` }}
+      >
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (

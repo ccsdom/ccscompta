@@ -46,7 +46,7 @@ const getDynamicName = (segment: string) => {
 
 
 export function Breadcrumb() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const segments = pathname.split('/').filter(Boolean);
   
   if (segments.length === 0) return null;
@@ -62,13 +62,13 @@ export function Breadcrumb() {
     <nav aria-label="fil d'ariane" className="mb-4">
       <ol className="flex items-center space-x-1.5 text-sm">
         <li>
-        <a
-  href="/dashboard"
-  className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
->
-  <Home className="h-4 w-4" />
-  <span className="sr-only">Accueil</span>
-</a>
+          <Link
+            href="/dashboard"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Home className="h-4 w-4" />
+            <span className="sr-only">Accueil</span>
+          </Link>
         </li>
         {segments.map((segment, index) => {
           const href = '/' + segments.slice(0, index + 1).join('/');
@@ -85,19 +85,19 @@ export function Breadcrumb() {
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </li>
               <li>
-              <a
-  key={href}
-  href={href}
-  className={cn(
-    'transition-colors',
-    isLast
-      ? 'text-foreground font-semibold pointer-events-none'
-      : 'text-muted-foreground hover:text-foreground'
-  )}
-  aria-current={isLast ? 'page' : undefined}
->
-  {name}
-</a>
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'transition-colors',
+                    isLast
+                      ? 'text-foreground font-semibold pointer-events-none'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  aria-current={isLast ? 'page' : undefined}
+                >
+                  {name}
+                </Link>
               </li>
             </Fragment>
           );

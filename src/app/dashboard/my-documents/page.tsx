@@ -265,10 +265,10 @@ export default function MyDocumentsPage() {
                 docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
  }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && (parseDate(date)?.getTime() || 0) >= (parseDate(startDate)?.getTime() || 0)));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && (parseDate(date)?.getTime() || 0) <= (parseDate(endDate)?.getTime() || 0)));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
@@ -319,7 +319,7 @@ export default function MyDocumentsPage() {
                             <div key={comment.id} className="flex items-start gap-3 text-sm">
                                 <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                                 <div className="flex-1 bg-muted rounded-md p-3">
-                                    <div className="flex items-center justify-between"><p className="font-semibold">{comment.user}</p><p className="text-xs text-muted-foreground">{format(new Date(comment.date), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p></div>
+                                    <div className="flex items-center justify-between"><p className="font-semibold">{comment.user}</p><p className="text-xs text-muted-foreground">{format(parseDate(comment.date) || new Date(), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p></div>
                                     <p className="mt-1 text-foreground/90">{comment.text}</p>
                                 </div>
                             </div>

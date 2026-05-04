@@ -28,7 +28,7 @@ import { DocumentSummary } from './document-summary';
 import { runBankReconciliation } from '@/ai/flows/reconcile-actions';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { cn } from '@/lib/utils';
+import { cn, parseDate } from '@/lib/utils';
 
 interface DataValidationFormProps {
   document: Document | null;
@@ -80,7 +80,7 @@ const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
                 <p className="font-bold text-sm">{event.action}</p>
                 <div className="flex items-center gap-4 text-[10px] font-space font-bold uppercase tracking-widest opacity-60">
                     <span className="flex items-center gap-1"><User className="h-3 w-3" /> {event.user}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(event.date), "PPP", { locale: fr })}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(parseDate(event.date) || new Date(), "PPP", { locale: fr })}</span>
                 </div>
             </div>
           </motion.div>
@@ -120,7 +120,7 @@ const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAd
                                 <div className="flex-1 glass-panel p-3 premium-shadow-sm border-none">
                                     <div className="flex items-center justify-between mb-1">
                                         <p className="font-black font-space text-[10px] uppercase tracking-widest text-primary">{comment.user}</p>
-                                        <p className="text-[9px] opacity-40 font-mono">{format(new Date(comment.date), "HH:mm")}</p>
+                                        <p className="text-[9px] opacity-40 font-mono">{format(parseDate(comment.date) || new Date(), "HH:mm")}</p>
                                     </div>
                                     <p className="text-sm leading-relaxed">{comment.text}</p>
                                 </div>

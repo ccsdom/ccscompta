@@ -41,7 +41,7 @@ export class EmailService {
             </div>
         `;
 
-        return addDoc(collection(db, this.collectionName), {
+        const mailPayload = {
             to: cabinet.email,
             message: {
                 subject: `🚀 [Accès SaaS] Bienvenue sur votre plateforme ${cabinet.name}`,
@@ -51,7 +51,12 @@ export class EmailService {
                 cabinetId: cabinet.id,
                 type: 'invitation'
             },
+            status: 'pending', // Explicit status for some extensions
             createdAt: new Date().toISOString()
-        });
+        };
+
+        // Try both common collection names to be safe
+        await addDoc(collection(db, "emails"), mailPayload);
+        return addDoc(collection(db, "mail"), mailPayload);
     }
 }

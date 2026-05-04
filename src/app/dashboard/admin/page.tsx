@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, parseDate } from "@/lib/utils";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { httpsCallable } from "firebase/functions";
 import { useState, useEffect, useMemo } from "react";
@@ -137,7 +137,7 @@ function OperationalFeed() {
                                             <div className="flex items-center justify-between gap-2">
                                                 <h4 className="text-xs font-black uppercase truncate tracking-tight">{log.action}</h4>
                                                 <span className="text-[10px] opacity-40 font-bold whitespace-nowrap">
-                                                    {new Date(log.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                                    {(parseDate(log.date) || new Date()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                             <p className="text-[10px] text-muted-foreground font-medium truncate">
@@ -214,6 +214,9 @@ function SyncControl() {
 }
 
 export default function SuperAdminDashboard() {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+
     const qCabinets = useMemoFirebase(() => query(collection(db, 'cabinets')), []);
     const qClients = useMemoFirebase(() => query(collection(db, 'clients')), []);
     const qDocs = useMemoFirebase(() => query(collection(db, 'documents')), []);
@@ -258,7 +261,9 @@ export default function SuperAdminDashboard() {
                     <SyncControl />
                     <div className="h-10 px-4 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
                         <Clock className="h-4 w-4 text-primary" />
-                        <span className="text-xs font-black font-space">{new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="text-xs font-black font-space">
+                            {mounted ? new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : "--:--"}
+                        </span>
                     </div>
                 </div>
             </div>

@@ -102,6 +102,13 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         const root = document.documentElement;
         const color = cabinet.primaryColor;
         
+        // Basic hex validation to prevent crashes
+        if (!/^#[0-9A-F]{6}$/i.test(color)) {
+             root.style.removeProperty('--primary');
+             root.style.removeProperty('--primary-foreground');
+             return;
+        }
+
         const isLight = (hex: string) => {
             const r = parseInt(hex.slice(1, 3), 16);
             const g = parseInt(hex.slice(3, 5), 16);

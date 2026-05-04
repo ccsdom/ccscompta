@@ -15,7 +15,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import type { Comment, AuditEvent, Notification, Document, Client, UserProfile } from '@/lib/types';
 import Papa from 'papaparse';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, parseDate } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useCollection, useMemoFirebase, useUser, useDoc, db, useFirebase } from '@/firebase';
@@ -598,7 +598,7 @@ export default function DocumentsPage() {
                                         <Badge variant="outline" className="h-4 px-1 bg-amber-500/10 text-amber-500 border-none text-[8px] font-black uppercase">Doublon</Badge>
                                     )}
                                 </div>
-                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(doc.uploadDate), { addSuffix: true, locale: fr })}</p>
+                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(parseDate(doc.uploadDate) || new Date(), { addSuffix: true, locale: fr })}</p>
                               </div>
 
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -724,7 +724,7 @@ export default function DocumentsPage() {
                     <SheetDescription asChild>
                         <div className="text-sm text-muted-foreground flex items-center gap-x-3">
                           {getSheetStatusInfo()}
-                          {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(new Date(activeDocument.uploadDate), { addSuffix: true, locale: fr })}</span>}
+                          {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(parseDate(activeDocument.uploadDate) || new Date(), { addSuffix: true, locale: fr })}</span>}
                         </div>
                     </SheetDescription>
                 </SheetHeader>

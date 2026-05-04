@@ -35,6 +35,7 @@ import { collection, query, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
 import { where } from 'firebase/firestore';
+import { parseDate } from '@/lib/utils';
 
 export default function BillingPage() {
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
@@ -96,7 +97,7 @@ export default function BillingPage() {
     const filteredInvoices = useMemo(() => {
         if (!invoices) return [];
         return invoices.filter(invoice => {
-            const invoiceDate = new Date(invoice.date);
+            const invoiceDate = parseDate(invoice.date) || new Date();
             const start = startDateFilter ? new Date(startDateFilter) : null;
             const end = endDateFilter ? new Date(endDateFilter) : null;
 
@@ -107,7 +108,7 @@ export default function BillingPage() {
                    (statusFilter === 'all' || invoice.status === statusFilter) &&
                    (!start || invoiceDate >= start) &&
                    (!end || invoiceDate <= end);
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }).sort((a, b) => (parseDate(b.date)?.getTime() || 0) - (parseDate(a.date)?.getTime() || 0));
     }, [invoices, clientFilter, statusFilter, startDateFilter, endDateFilter]);
 
     const handleSelectAll = (checked: boolean | 'indeterminate') => {
@@ -355,7 +356,7 @@ export default function BillingPage() {
                                         </TableCell>
                                         <TableCell className="font-medium">{invoice.clientName}</TableCell>
                                         <TableCell>{invoice.number}</TableCell>
-                                        <TableCell>{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</TableCell>
+                                        <TableCell>{(parseDate(invoice.dueDate) || new Date()).toLocaleDateString('fr-FR')}</TableCell>
                                         <TableCell>{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
                                         <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                                         <TableCell className="text-right">
@@ -390,7 +391,7 @@ export default function BillingPage() {
                                <CardContent className="p-4 pt-2 flex items-end justify-between">
                                     <div>
                                         <p className="text-2xl font-bold">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-                                        <p className="text-xs text-muted-foreground">Échéance : {new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</p>
+                                        <p className="text-xs text-muted-foreground">Échéance : {(parseDate(invoice.dueDate) || new Date()).toLocaleDateString('fr-FR')}</p>
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <Button variant="ghost" size="icon">

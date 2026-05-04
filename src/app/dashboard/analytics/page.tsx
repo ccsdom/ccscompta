@@ -180,14 +180,18 @@ export default function AnalyticsPage() {
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
-                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || [])].join(' ').toLowerCase();
+                    const searchableText = [
+                        d.name || '', 
+                        d.extractedData?.otherInformation || '', 
+                        ...(d.extractedData?.vendorNames || [])
+                    ].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
             if (!docs.length && originalQuery) {
                  const lowercasedQuery = originalQuery.toLowerCase();
                  docs = [...documents].filter(doc => 
-                    doc.name.toLowerCase().includes(lowercasedQuery) ||
+                    (doc.name || '').toLowerCase().includes(lowercasedQuery) ||
                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v != null && v.toLowerCase().includes(lowercasedQuery)))
                 );
             }
@@ -195,7 +199,7 @@ export default function AnalyticsPage() {
         } else if (searchQuery) {
              const lowercasedQuery = searchQuery.toLowerCase();
             docs = docs.filter(doc => 
-                doc.name.toLowerCase().includes(lowercasedQuery) ||
+                (doc.name || '').toLowerCase().includes(lowercasedQuery) ||
                 (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor != null && vendor.toLowerCase().includes(lowercasedQuery)))
             );
         }
