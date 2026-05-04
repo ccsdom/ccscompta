@@ -44,6 +44,14 @@ export default function BillingReportPage() {
   // 1. Listen for Docs & Clients
   useEffect(() => {
     if (!userProfile) return;
+    
+    const isAdmin = userProfile.role === 'admin';
+    const cabinetId = userProfile.cabinetId;
+
+    if (!isAdmin && !cabinetId) {
+        setLoading(false);
+        return;
+    }
 
     const docsRef = collection(db, 'documents');
     const clientsRef = collection(db, 'clients');

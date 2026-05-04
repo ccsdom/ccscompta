@@ -217,9 +217,12 @@ export default function SuperAdminDashboard() {
     const [mounted, setMounted] = useState(false);
     useEffect(() => { setMounted(true); }, []);
 
-    const qCabinets = useMemoFirebase(() => query(collection(db, 'cabinets')), []);
-    const qClients = useMemoFirebase(() => query(collection(db, 'clients')), []);
-    const qDocs = useMemoFirebase(() => query(collection(db, 'documents')), []);
+    const { role: userRole } = useBranding();
+    const isAuthorizedAdmin = userRole === 'admin';
+
+    const qCabinets = useMemoFirebase(() => isAuthorizedAdmin ? query(collection(db, 'cabinets')) : null, [isAuthorizedAdmin]);
+    const qClients = useMemoFirebase(() => isAuthorizedAdmin ? query(collection(db, 'clients')) : null, [isAuthorizedAdmin]);
+    const qDocs = useMemoFirebase(() => isAuthorizedAdmin ? query(collection(db, 'documents')) : null, [isAuthorizedAdmin]);
 
     const { data: cabinets } = useCollection<Cabinet>(qCabinets);
     const { data: clients } = useCollection<Client>(qClients);

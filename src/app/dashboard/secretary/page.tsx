@@ -23,7 +23,7 @@ export default function SecretaryDashboard() {
     }, []);
 
     const userRole = userProfile?.role || null;
-    const isStaff = isMounted && userRole && ['secretary', 'admin'].includes(userRole);
+    const isStaff = isMounted && userRole && ['secretary', 'accountant', 'admin'].includes(userRole);
     const isAdmin = userRole === 'admin';
     const cabinetId = userProfile?.cabinetId;
 

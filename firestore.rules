@@ -8,19 +8,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getProfile() {
+      return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'admin';
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' || 
+        getProfile().role == 'admin'
+      );
     }
 
     function isStaff() {
       return isAuthenticated() && (
         request.auth.token.role in ['admin', 'accountant', 'secretary'] ||
-        get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in ['admin', 'accountant', 'secretary']
+        getProfile().role in ['admin', 'accountant', 'secretary']
       );
-    }
-
-    function getProfile() {
-      return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data;
     }
 
     function isCabinetStaff(cabinetId) {

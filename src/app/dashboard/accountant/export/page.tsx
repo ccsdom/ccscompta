@@ -30,6 +30,16 @@ export default function ExportPage() {
     const isAdmin = userProfile?.role === 'admin';
 
     const fetchApprovedDocs = async () => {
+        if (!userProfile) return;
+        const cabinetId = userProfile.cabinetId;
+        const isAdmin = userProfile.role === 'admin';
+
+        if (!isAdmin && !cabinetId) {
+            console.warn("User is not admin and has no cabinetId, skipping fetch.");
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         try {
             const baseQuery = collection(db, 'documents');
@@ -42,8 +52,8 @@ export default function ExportPage() {
             setApprovedDocs(docs);
 
             const clientsQuery = isAdmin 
-                ? query(collection(db, 'users'), where('role', '==', 'client'))
-                : query(collection(db, 'users'), where('role', '==', 'client'), where('cabinetId', '==', cabinetId));
+                ? query(collection(db, 'clients'), where('role', '==', 'client'))
+                : query(collection(db, 'clients'), where('role', '==', 'client'), where('cabinetId', '==', cabinetId));
             
             const clientsSnap = await getDocs(clientsQuery);
             const fetchedClients = clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));

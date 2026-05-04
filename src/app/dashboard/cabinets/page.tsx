@@ -62,16 +62,35 @@ import { useRouter } from 'next/navigation';
 import { useBranding } from "@/components/branding-provider";
 
 export default function CabinetsManagementPage() {
-    const { profile: userProfile } = useBranding();
+    const { role: userRole } = useBranding();
+    const isAuthorizedAdmin = userRole === 'admin';
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const router = useRouter();
 
     const cabinetsQuery = useMemoFirebase(() => {
+        if (!isAuthorizedAdmin) return null;
         return query(collection(db, 'cabinets'), orderBy('name', 'asc'));
-    }, []);
+    }, [isAuthorizedAdmin]);
 
     const { data: cabinets, isLoading } = useCollection<any>(cabinetsQuery);
+
+    if (userRole && !isAuthorizedAdmin) {
+        return (
+            <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <ShieldCheck className="h-10 w-10 text-red-500" />
+                    </div>
+                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+                    <p className="text-muted-foreground mb-8 text-lg font-medium">Vous n'avez pas les droits nécessaires pour accéder à la gestion des cabinets.</p>
+                    <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                        Retour au Dashboard
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
 
     const filteredCabinets = cabinets?.filter(c => 
         c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||

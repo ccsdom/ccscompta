@@ -27,6 +27,13 @@ export default function ValidationExpertPage() {
   // 1. Fetch the queue of documents pending review
   useEffect(() => {
     if (!userProfile) return;
+    const cabinetId = userProfile.cabinetId;
+    const isAdmin = userProfile.role === 'admin';
+
+    if (!isAdmin && !cabinetId) {
+      setIsLoading(false);
+      return;
+    }
 
     const baseQuery = collection(db, 'documents');
     const q = isAdmin 

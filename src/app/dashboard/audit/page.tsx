@@ -31,36 +31,40 @@ import { useRouter } from 'next/navigation';
 import { parseDate } from '@/lib/utils';
 
 export default function AuditPage() {
-    const { role } = useBranding();
+    const { role: userRole } = useBranding();
+    const isAuthorizedAdmin = userRole === 'admin';
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState<string | null>(null);
 
-    // SECURITY: Only admin can see this page
-    if (role !== 'admin') {
-         return (
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
-                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
-                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                        <ShieldAlert className="h-10 w-10 text-red-500" />
-                    </div>
-                    <h2 className="text-3xl font-black font-space tracking-tight mb-4">Accès Refusé</h2>
-                    <p className="text-muted-foreground mb-8 text-lg font-medium">Vous n'avez pas les privilèges nécessaires pour consulter le journal d'audit du système.</p>
-                    <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest">
-                        Retour au Tableau de Bord
-                    </Button>
-                </Card>
-            </div>
-        )
-    }
-
-    const auditQuery = useMemoFirebase(() => query(
-        collection(db, 'audit'),
-        orderBy('date', 'desc'), // Consistent with other dashboards
-        limit(100)
-    ), []);
+    const auditQuery = useMemoFirebase(() => {
+        if (!isAuthorizedAdmin) return null;
+        return query(
+            collection(db, 'audit'),
+            orderBy('date', 'desc'),
+            limit(100)
+        );
+    }, [isAuthorizedAdmin]);
 
     const { data: logs, isLoading } = useCollection<SystemAuditLog>(auditQuery);
+
+    // SECURITY: Only admin can see this page
+    if (userRole && !isAuthorizedAdmin) {
+        return (
+            <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+               <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                   <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                       <ShieldAlert className="h-10 w-10 text-red-500" />
+                   </div>
+                   <h2 className="text-3xl font-black font-space tracking-tight mb-4">Accès Refusé</h2>
+                   <p className="text-muted-foreground mb-8 text-lg font-medium">Vous n'avez pas les privilèges nécessaires pour consulter le journal d'audit du système.</p>
+                   <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest">
+                       Retour au Tableau de Bord
+                   </Button>
+               </Card>
+           </div>
+       );
+    }
 
     const filteredLogs = logs?.filter(log => {
         const searchMatch = log.action.toLowerCase().includes(searchQuery.toLowerCase()) || 
