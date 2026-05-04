@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBranding } from '@/components/branding-provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Users, FileUp, FileCheck, FileClock, Building, History as HistoryIcon, FileSpreadsheet, TrendingUp, ArrowUpRight, Search, ShieldCheck } from "lucide-react";
+import { Users, FileUp, FileCheck, FileClock, Building, Clock as HistoryIcon, FileSpreadsheet, TrendingUp, ArrowUpRight, Search, ShieldCheck } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";

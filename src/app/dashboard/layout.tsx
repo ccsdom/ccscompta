@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, 
   UserCheck, UserCog, User, Briefcase, CreditCard, Building, 
-  Settings, History as HistoryIcon 
+  Settings, Clock as HistoryIcon 
 } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -136,7 +136,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                 {showBreadcrumb && <Breadcrumb />}
-                <RoleDisplay />
+                <div className="flex items-center gap-4">
+                    <RoleDisplay />
+                </div>
             </div>
             {children}
             </div>

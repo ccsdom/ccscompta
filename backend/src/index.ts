@@ -330,12 +330,18 @@ export const createUserWithRole = onCall(
       throw new HttpsError('unauthenticated', 'Authentification requise.');
     }
 
-    const callingUserRole = request.auth.token.role;
-    if (!['admin', 'accountant', 'secretary'].includes(callingUserRole)) {
-      throw new HttpsError('permission-denied', 'Action non autorisée pour votre rôle.');
+    const callingUserRole = request.auth.token.role || 'client';
+    const targetRole = request.data.role || 'client';
+
+    // Hiérarchie de sécurité
+    if (callingUserRole === 'secretary' && targetRole !== 'client') {
+      throw new HttpsError('permission-denied', 'Un secrétaire ne peut créer que des comptes clients.');
+    }
+    if (callingUserRole === 'accountant' && !['accountant', 'secretary', 'client'].includes(targetRole)) {
+      throw new HttpsError('permission-denied', 'Un comptable ne peut pas créer d\'administrateur système.');
     }
 
-    const { email, password, ...profileData } = request.data;
+    const { email, password, ...profileDataClean } = request.data;
     if (!email) {
       throw new HttpsError('invalid-argument', 'Email requis.');
     }
@@ -344,17 +350,17 @@ export const createUserWithRole = onCall(
       const userRecord = await admin.auth().createUser({
         email,
         password: password || 'password',
-        displayName: profileData.name,
+        displayName: profileDataClean.name,
         emailVerified: true
       });
 
       const uid = userRecord.uid;
-      const role = profileData.role || 'client';
+      const role = targetRole;
 
-      await admin.auth().setCustomUserClaims(uid, { role });
+      await admin.auth().setCustomUserClaims(uid, { role, cabinetId: profileDataClean.cabinetId });
 
       await db.collection('clients').doc(uid).set({
-        ...profileData,
+        ...profileDataClean,
         email,
         role,
         newDocuments: 0,
@@ -411,9 +417,10 @@ export const setupInvitedCabinet = onCall(
       } catch (error: any) {
         if (error.code === 'auth/email-already-exists') {
           const existingUser = await admin.auth().getUserByEmail(email);
-          uid = existingUser.uid;
-          // On met à jour son mdp pour correspondre à celui choisi pendant l'onboarding
-          await admin.auth().updateUser(uid, { password });
+        uid = existingUser.uid;
+        // SÉCURITÉ : Ne pas réinitialiser le mot de passe d'un utilisateur existant 
+        // pour éviter le détournement de compte. On lie simplement au cabinet.
+        logger.warn(`L'utilisateur ${email} existe déjà. Liaison au cabinet ${cabinetId} sans reset password.`);
         } else {
           throw error;
         }
@@ -777,13 +784,31 @@ export const exportDocuments = onCall(
             throw new HttpsError('invalid-argument', 'Les documentIds doivent être fournis sous forme de tableau.');
         }
 
+        const callerUid = request.auth.uid;
+        const callerRole = request.auth.token.role;
+        const isGlobalAdmin = callerRole === 'admin';
+
+        let callerCabinetId = "";
+        if (!isGlobalAdmin) {
+            const callerProfile = await db.collection("clients").doc(callerUid).get();
+            callerCabinetId = callerProfile.data()?.cabinetId;
+        }
+
         try {
             // 1. Récupérer les documents
             const docsToExport = [];
             for (const id of documentIds) {
-                const doc = await db.collection("documents").doc(id).get();
-                if (doc.exists) {
-                    docsToExport.push({ ...doc.data(), id: doc.id });
+                const docSnap = await db.collection("documents").doc(id).get();
+                if (docSnap.exists) {
+                    const docData = docSnap.data() as any;
+                    
+                    // SÉCURITÉ : Vérification de l'isolation du cabinet
+                    if (!isGlobalAdmin && docData.cabinetId !== callerCabinetId) {
+                        logger.warn(`Tentative d'export illégal par ${callerUid} pour le doc ${id}`);
+                        continue;
+                    }
+                    
+                    docsToExport.push({ ...docData, id: docSnap.id });
                 }
             }
 
@@ -884,14 +909,28 @@ export const requestWeeklySummary = onCall(
     async (request) => {
         if (!request.auth) throw new HttpsError('unauthenticated', 'Non autorisé');
         
-        const clientId = request.data.clientId || request.auth.uid;
+        const callerUid = request.auth.uid;
+        const callerRole = request.auth.token.role;
+        const targetClientId = request.data.clientId || callerUid;
+
+        // SÉCURITÉ : Vérification de l'accès au résumé
+        if (callerRole !== 'admin' && targetClientId !== callerUid) {
+            const callerProfile = await db.collection("clients").doc(callerUid).get();
+            const callerData = callerProfile.data();
+            const targetProfile = await db.collection("clients").doc(targetClientId).get();
+            const targetData = targetProfile.data();
+
+            if (callerData?.cabinetId !== targetData?.cabinetId || !['accountant', 'secretary'].includes(callerData?.role)) {
+                throw new HttpsError('permission-denied', 'Vous n\'avez pas accès au résumé de ce client.');
+            }
+        }
         
         // 1. Récupérer les 7 derniers jours de documents
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         
         const docsSnapshot = await db.collection("documents")
-            .where("clientId", "==", clientId)
+            .where("clientId", "==", targetClientId)
             .where("uploadDate", ">=", sevenDaysAgo.toISOString())
             .get();
         
@@ -902,13 +941,13 @@ export const requestWeeklySummary = onCall(
         }
 
         // 2. Générer via IA
-        const briefing = await generateWeeklyBriefing({ clientId, docs });
+        const briefing = await generateWeeklyBriefing({ clientId: targetClientId, docs });
 
         // 3. Sauvegarder comme notification spéciale
         const notifId = db.collection("notifications").doc().id;
         await db.collection("notifications").doc(notifId).set({
             id: notifId,
-            clientId,
+            clientId: targetClientId,
             type: 'weekly_briefing',
             message: briefing.summary,
             date: new Date().toISOString(),

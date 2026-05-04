@@ -52,7 +52,7 @@ import { auditService } from "@/services/audit-service";
 import { EmailService } from "@/services/email-service";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useCollection, useMemoFirebase } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,7 +62,7 @@ import { useRouter } from 'next/navigation';
 import { useBranding } from "@/components/branding-provider";
 
 export default function CabinetsManagementPage() {
-    const { role: userRole } = useBranding();
+    const { role: userRole, profile: userProfile } = useBranding();
     const isAuthorizedAdmin = userRole === 'admin';
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();

@@ -13,21 +13,21 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.role == 'admin' || 
-        getProfile().role == 'admin'
-      );
+      return isAuthenticated() && request.auth.token.role == 'admin';
     }
 
     function isStaff() {
       return isAuthenticated() && (
-        request.auth.token.role in ['admin', 'accountant', 'secretary'] ||
-        getProfile().role in ['admin', 'accountant', 'secretary']
+        request.auth.token.role in ['admin', 'accountant', 'secretary']
       );
     }
 
+    function getProfile() {
+      return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data;
+    }
+
     function isCabinetStaff(cabinetId) {
-      return isStaff() && (isAdmin() || getProfile().cabinetId == cabinetId);
+      return isStaff() && (isAdmin() || (getProfile().cabinetId == cabinetId));
     }
 
     // --- GLOBAL ADMIN OVERRIDE ---
@@ -45,8 +45,18 @@ service cloud.firestore {
     match /clients/{userId} {
       allow get: if isAuthenticated() && (isStaff() || request.auth.uid == userId);
       allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId));
-      allow create: if isStaff() || request.auth.uid == userId;
-      allow update: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == userId && !("role" in request.resource.data));
+      // Seul un staff peut créer un profil (via Cloud Function typiquement), 
+      // ou l'utilisateur lui-même mais sans pouvoir choisir son rôle/cabinet.
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        (request.auth.uid == userId && 
+         request.resource.data.role == 'client' && 
+         !('cabinetId' in request.resource.data))
+      );
+      allow update: if isAdmin() || (
+        isAuthenticated() && request.auth.uid == userId && 
+        !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'cabinetId', 'isCabinetAdmin']))
+      );
       allow delete: if isAdmin();
     }
 
@@ -73,9 +83,10 @@ service cloud.firestore {
 
     // --- Bank Reconciliations ---
     match /reconciliations/{reconcId} {
-        allow get: if isCabinetStaff(resource.data.cabinetId);
-        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId));
-        allow write: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
+      allow get: if isCabinetStaff(resource.data.cabinetId);
+      // Correction de la règle list : utiliser request.query.filters pour valider le cabinetId
+      allow list: if isAuthenticated() && (isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId));
+      allow write: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
     }
 
     // --- Notifications collection ---

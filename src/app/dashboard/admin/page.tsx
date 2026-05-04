@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, parseDate } from "@/lib/utils";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useBranding } from "@/components/branding-provider";
 import { httpsCallable } from "firebase/functions";
 import { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
@@ -43,6 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { auditService } from "@/services/audit-service";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { useRouter } from "next/navigation";
 
 function SystemHealth() {
     const services = [
