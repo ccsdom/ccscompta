@@ -55,46 +55,17 @@ const storage_1 = require("firebase-functions/v2/storage");
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = __importStar(require("firebase-admin"));
-const genkit_1 = require("genkit");
-const google_genai_1 = require("@genkit-ai/google-genai");
-const document_processor_1 = require("./document-processor");
-const stripe_1 = require("./stripe");
-const export_factory_1 = require("./export-factory");
-const date_fns_1 = require("date-fns");
-const proactive_ai_1 = require("./proactive-ai");
+// import { format as formatFns } from 'date-fns';
+// import { generateWeeklyBriefing } from './proactive-ai';
 // La dépendance pdf-parse a été retirée au profit de l'API native multimodale de Gemini.
 // --- Configuration ---
 if (!admin.apps.length) {
     admin.initializeApp();
 }
-const db = admin.firestore();
-// --- Schéma Zod ---
-const analyzeMailOutputSchema = genkit_1.z.object({
-    sender: genkit_1.z.string().describe("L'expéditeur du document, par exemple 'EDF', 'Orange', 'Impots.gouv.fr'."),
-    summary: genkit_1.z.string().describe("Un résumé concis en une phrase du contenu principal du document."),
-    category: genkit_1.z.enum([
-        "Facture",
-        "Publicité",
-        "Banque",
-        "Juridique",
-        "Personnel",
-        "Autre",
-    ]).describe("La catégorie la plus appropriée pour ce document."),
-    actionRequired: genkit_1.z.boolean().describe("True si le document semble nécessiter une action (paiement, réponse, etc.), sinon False."),
-    extractedData: genkit_1.z
-        .object({
-        amountDue: genkit_1.z.number().optional().describe("Le montant total TTC à payer s'il est clairement indiqué."),
-        taxAmount: genkit_1.z.number().optional().describe("Le montant total de la TVA s'il est clairement indiqué."),
-        dueDate: genkit_1.z.string().optional().describe("La date d'échéance du paiement au format AAAA-MM-JJ, si elle est clairement indiquée."),
-    })
-        .optional(),
-    accountingEntry: genkit_1.z.object({
-        debitAccount: genkit_1.z.string().optional().describe("Le compte de classe 6 (ex: 606100, 626000, 606400)."),
-        creditAccount: genkit_1.z.string().optional().describe("Le compte de classe 4 (ex: 401000 Fournisseurs)."),
-        vatAccount: genkit_1.z.string().optional().describe("Le compte de TVA (ex: 445660 TVA déductible)."),
-        confidenceScore: genkit_1.z.number().min(1).max(100).describe("Niveau de certitude de l'attribution (1 à 100).")
-    }).optional().describe("Proposition d'imputation comptable automatique basée sur le PCG Français.")
-});
+function getDb() {
+    return admin.firestore();
+}
+// type AnalyzeMailOutput = z.infer<typeof analyzeMailOutputSchema>;
 // --- Fonction Cloud ---
 exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
     cpu: 2,
@@ -116,12 +87,42 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
     }
     const clientUid = pathParts[1];
     const mailId = pathParts[2];
-    const mailDocRef = db.collection("mails").doc(mailId);
+    const mailDocRef = getDb().collection("mails").doc(mailId);
     logger.log(`🟢 Début du traitement : mailId=${mailId}, clientUid=${clientUid}, filePath=${filePath}`);
     try {
+        // --- Schéma Zod ---
+        const { z } = await import('genkit');
+        const analyzeMailOutputSchema = z.object({
+            sender: z.string().describe("L'expéditeur du document, par exemple 'EDF', 'Orange', 'Impots.gouv.fr'."),
+            summary: z.string().describe("Un résumé concis en une phrase du contenu principal du document."),
+            category: z.enum([
+                "Facture",
+                "Publicité",
+                "Banque",
+                "Juridique",
+                "Personnel",
+                "Autre",
+            ]).describe("La catégorie la plus appropriée pour ce document."),
+            actionRequired: z.boolean().describe("True si le document semble nécessiter une action (paiement, réponse, etc.), sinon False."),
+            extractedData: z
+                .object({
+                amountDue: z.number().optional().describe("Le montant total TTC à payer s'il est clairement indiqué."),
+                taxAmount: z.number().optional().describe("Le montant total de la TVA s'il est clairement indiqué."),
+                dueDate: z.string().optional().describe("La date d'échéance du paiement au format AAAA-MM-JJ, si elle est clairement indiquée."),
+            })
+                .optional(),
+            accountingEntry: z.object({
+                debitAccount: z.string().optional().describe("Le compte de classe 6 (ex: 606100, 626000, 606400)."),
+                creditAccount: z.string().optional().describe("Le compte de classe 4 (ex: 401000 Fournisseurs)."),
+                vatAccount: z.string().optional().describe("Le compte de TVA (ex: 445660 TVA déductible)."),
+                confidenceScore: z.number().min(1).max(100).describe("Niveau de certitude de l'attribution (1 à 100).")
+            }).optional().describe("Proposition d'imputation comptable automatique basée sur le PCG Français.")
+        });
         // --- Initialisation Genkit au runtime ---
-        const ai = (0, genkit_1.genkit)({
-            plugins: [(0, google_genai_1.googleAI)({ apiKey: process.env.GEMINI_API_KEY })],
+        const { genkit } = await import('genkit');
+        const { googleAI } = await import('@genkit-ai/google-genai');
+        const ai = genkit({
+            plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
         });
         // --- Lecture du fichier ---
         const bucket = admin.storage().bucket(fileBucket);
@@ -135,7 +136,7 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
         logger.log(`Étape 1 : Analyse multimodale structurée (One-Shot) via Gemini (${contentType})`);
         const documentUri = `data:${contentType};base64,${fileBuffer.toString("base64")}`;
         const { output } = await ai.generate({
-            model: google_genai_1.googleAI.model("gemini-1.5-flash"),
+            model: googleAI.model("gemini-1.5-flash"),
             prompt: [
                 { text: `Tu es un Expert-Comptable Français implacable. Analyse la facture ou le reçu en pièce jointe.
 1. Extraie les informations clés : Expéditeur, résumé, montants TTC et montants de TVA.
@@ -182,8 +183,8 @@ Respecte rigoureusement le format JSON de sortie et ne renvoie aucune phrase aut
         // --- New : Unified Workflow ---
         // Si c'est une facture, on l'ajoute automatiquement à la file d'attente comptable
         if (analysisResult.category === "Facture") {
-            const docId = db.collection("documents").doc().id;
-            await db.collection("documents").doc(docId).set({
+            const docId = getDb().collection("documents").doc().id;
+            await getDb().collection("documents").doc(docId).set({
                 clientId: clientUid,
                 name: `Mail: ${analysisResult.sender}`,
                 status: "pending",
@@ -213,19 +214,8 @@ Respecte rigoureusement le format JSON de sortie et ne renvoie aucune phrase aut
 });
 // --- 🎯 PHASE 2.2 : WEBHOOK MAIL-TO-BOX (Ingestion via E-mail) --- //
 // Service d'ingestion recommandé : Postmark Inbound Webhook (JSON pur, pas de mutipart/form-data complexe)
-const postmarkInboundSchema = genkit_1.z.object({
-    From: genkit_1.z.string(),
-    To: genkit_1.z.string(),
-    Subject: genkit_1.z.string().optional(),
-    Attachments: genkit_1.z.array(genkit_1.z.object({
-        Name: genkit_1.z.string(),
-        Content: genkit_1.z.string(), // Base64 encodé
-        ContentType: genkit_1.z.string()
-    })).optional()
-}).passthrough(); // Tolérer les autres champs envoyés par Postmark
 exports.inboundEmailWebhook = (0, https_1.onRequest)({ region: "europe-west9", memory: "256MiB", maxInstances: 10 }, async (req, res) => {
     // 1. Authentification très stricte du Webhook
-    // (Dans la vraie vie, ce secret est sauvé dans Firebase Secret Manager)
     const token = req.headers['x-ccscompta-token'];
     if (token !== "SECURE_MAIL_TOKEN_123") {
         logger.warn(`Tentative de webhook non autorisée depuis ${req.ip}`);
@@ -233,6 +223,17 @@ exports.inboundEmailWebhook = (0, https_1.onRequest)({ region: "europe-west9", m
         return;
     }
     try {
+        const { z } = await import('genkit');
+        const postmarkInboundSchema = z.object({
+            From: z.string(),
+            To: z.string(),
+            Subject: z.string().optional(),
+            Attachments: z.array(z.object({
+                Name: z.string(),
+                Content: z.string(), // Base64 encodé
+                ContentType: z.string()
+            })).optional()
+        }).passthrough();
         const payload = postmarkInboundSchema.parse(req.body);
         logger.log(`📥 [Mail-to-Box] E-mail reçu de: ${payload.From} à ${payload.To}`);
         if (!payload.Attachments || payload.Attachments.length === 0) {
@@ -321,11 +322,16 @@ exports.createUserWithRole = (0, https_1.onCall)({ region: "europe-west9" }, asy
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
     }
-    const callingUserRole = request.auth.token.role;
-    if (!['admin', 'accountant', 'secretary'].includes(callingUserRole)) {
-        throw new https_1.HttpsError('permission-denied', 'Action non autorisée pour votre rôle.');
+    const callingUserRole = request.auth.token.role || 'client';
+    const targetRole = request.data.role || 'client';
+    // Hiérarchie de sécurité
+    if (callingUserRole === 'secretary' && targetRole !== 'client') {
+        throw new https_1.HttpsError('permission-denied', 'Un secrétaire ne peut créer que des comptes clients.');
     }
-    const _a = request.data, { email, password } = _a, profileData = __rest(_a, ["email", "password"]);
+    if (callingUserRole === 'accountant' && !['accountant', 'secretary', 'client'].includes(targetRole)) {
+        throw new https_1.HttpsError('permission-denied', 'Un comptable ne peut pas créer d\'administrateur système.');
+    }
+    const _a = request.data, { email, password } = _a, profileDataClean = __rest(_a, ["email", "password"]);
     if (!email) {
         throw new https_1.HttpsError('invalid-argument', 'Email requis.');
     }
@@ -333,13 +339,13 @@ exports.createUserWithRole = (0, https_1.onCall)({ region: "europe-west9" }, asy
         const userRecord = await admin.auth().createUser({
             email,
             password: password || 'password',
-            displayName: profileData.name,
+            displayName: profileDataClean.name,
             emailVerified: true
         });
         const uid = userRecord.uid;
-        const role = profileData.role || 'client';
-        await admin.auth().setCustomUserClaims(uid, { role });
-        await db.collection('clients').doc(uid).set(Object.assign(Object.assign({}, profileData), { email,
+        const role = targetRole;
+        await admin.auth().setCustomUserClaims(uid, { role, cabinetId: profileDataClean.cabinetId });
+        await getDb().collection('clients').doc(uid).set(Object.assign(Object.assign({}, profileDataClean), { email,
             role, newDocuments: 0, lastActivity: new Date().toISOString(), status: 'onboarding', createdAt: admin.firestore.FieldValue.serverTimestamp() }));
         logger.info(`Utilisateur ${uid} créé avec le rôle : ${role}`);
         return { success: true, uid, message: 'Utilisateur créé avec succès.' };
@@ -359,7 +365,7 @@ exports.setupInvitedCabinet = (0, https_1.onCall)({ region: "europe-west9" }, as
     }
     try {
         // 1. Vérifier que le cabinet existe et est en attente
-        const cabinetRef = db.collection('cabinets').doc(cabinetId);
+        const cabinetRef = getDb().collection('cabinets').doc(cabinetId);
         const cabinetSnap = await cabinetRef.get();
         if (!cabinetSnap.exists) {
             throw new https_1.HttpsError('not-found', 'Cabinet introuvable.');
@@ -383,8 +389,9 @@ exports.setupInvitedCabinet = (0, https_1.onCall)({ region: "europe-west9" }, as
             if (error.code === 'auth/email-already-exists') {
                 const existingUser = await admin.auth().getUserByEmail(email);
                 uid = existingUser.uid;
-                // On met à jour son mdp pour correspondre à celui choisi pendant l'onboarding
-                await admin.auth().updateUser(uid, { password });
+                // SÉCURITÉ : Ne pas réinitialiser le mot de passe d'un utilisateur existant 
+                // pour éviter le détournement de compte. On lie simplement au cabinet.
+                logger.warn(`L'utilisateur ${email} existe déjà. Liaison au cabinet ${cabinetId} sans reset password.`);
             }
             else {
                 throw error;
@@ -401,7 +408,7 @@ exports.setupInvitedCabinet = (0, https_1.onCall)({ region: "europe-west9" }, as
             status: 'active'
         });
         // 5. Créer le profil "client" (qui sert de base utilisateur)
-        await db.collection('clients').doc(uid).set({
+        await getDb().collection('clients').doc(uid).set({
             name,
             email,
             role,
@@ -452,7 +459,8 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         const contentType = metadata.contentType || 'application/pdf';
         const [buffer] = await file.download();
         // 3. Appel du processeur IA (Gemini multimodal)
-        const extractedData = await (0, document_processor_1.processDocumentContent)(buffer, contentType, documentType);
+        const { processDocumentContent, calculateBillableLines } = await import('./document-processor.js');
+        const extractedData = await processDocumentContent(buffer, contentType, documentType);
         // 4. Détection intelligente de doublons (Vendor + Date + Amount)
         let isDuplicate = false;
         let existingId = null;
@@ -461,7 +469,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         const amount = (_f = extractedData.amounts) === null || _f === void 0 ? void 0 : _f[0];
         if (vendor && date && amount) {
             // Un seul array-contains autorisé par requête Firestore
-            const duplicates = await db.collection("documents")
+            const duplicates = await getDb().collection("documents")
                 .where("clientId", "==", data.clientId)
                 .where("extractedData.amounts", "array-contains", amount) // Le montant est souvent plus discriminant
                 .where("status", "in", ["approved", "reviewing", "exported"])
@@ -478,7 +486,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
             }
         }
         // 5. Calcul de la monétisation (billable lines)
-        const billableLines = (0, document_processor_1.calculateBillableLines)(extractedData, documentType);
+        const billableLines = calculateBillableLines(extractedData, documentType);
         // 6. Mise à jour finale du document
         const updateData = {
             extractedData,
@@ -501,11 +509,11 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         if (!isDuplicate) {
             try {
                 // Récupérer le cabinet lié au client
-                const clientDoc = await db.collection("clients").doc(data.clientId).get();
+                const clientDoc = await getDb().collection("clients").doc(data.clientId).get();
                 const clientData = clientDoc.data();
                 const cabinetId = clientData === null || clientData === void 0 ? void 0 : clientData.cabinetId;
                 if (cabinetId) {
-                    const cabinetRef = db.collection("cabinets").doc(cabinetId);
+                    const cabinetRef = getDb().collection("cabinets").doc(cabinetId);
                     // Mise à jour du quota interne (Firestore)
                     await cabinetRef.update({
                         'quotas.usedDocumentsMonth': admin.firestore.FieldValue.increment(1),
@@ -516,7 +524,8 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
                     const cabinetData = cabinetSnap.data();
                     if (cabinetData === null || cabinetData === void 0 ? void 0 : cabinetData.stripeSubscriptionItemId) {
                         logger.log(`💳 [Stripe] Reporting usage for cabinet ${cabinetId} : ${billableLines} lines`);
-                        await stripe_1.StripeService.reportUsage(cabinetData.stripeSubscriptionItemId, billableLines);
+                        const { StripeService } = await import('./stripe.js');
+                        await StripeService.reportUsage(cabinetData.stripeSubscriptionItemId, billableLines);
                     }
                 }
             }
@@ -545,14 +554,15 @@ exports.createPortalSession = (0, https_1.onCall)({ region: "europe-west9" }, as
         throw new https_1.HttpsError('unauthenticated', 'Vous devez être connecté.');
     }
     const uid = request.auth.uid;
-    const clientDoc = await db.collection("clients").doc(uid).get();
+    const clientDoc = await getDb().collection("clients").doc(uid).get();
     const clientData = clientDoc.data();
     if (!(clientData === null || clientData === void 0 ? void 0 : clientData.stripeCustomerId)) {
         throw new https_1.HttpsError('failed-precondition', "Aucun compte client Stripe n'est configuré.");
     }
     try {
+        const { StripeService } = await import('./stripe.js');
         const returnUrl = request.data.returnUrl || 'https://ccscompta.web.app/dashboard/settings';
-        const session = await stripe_1.StripeService.createPortalSession(clientData.stripeCustomerId, returnUrl);
+        const session = await StripeService.createPortalSession(clientData.stripeCustomerId, returnUrl);
         return { url: session.url };
     }
     catch (error) {
@@ -575,16 +585,17 @@ exports.generateCabinetCheckout = (0, https_1.onCall)({ region: "europe-west9" }
     if (callerRole !== 'admin') {
         throw new https_1.HttpsError('permission-denied', 'Seul l\'administrateur système peut générer ce lien.');
     }
-    const cabinetDoc = await db.collection("cabinets").doc(cabinetId).get();
+    const cabinetDoc = await getDb().collection("cabinets").doc(cabinetId).get();
     if (!cabinetDoc.exists) {
         throw new https_1.HttpsError('not-found', 'Cabinet introuvable.');
     }
     const cabinetData = cabinetDoc.data();
     const email = (cabinetData === null || cabinetData === void 0 ? void 0 : cabinetData.email) || request.auth.token.email;
     try {
+        const { StripeService } = await import('./stripe.js');
         const successUrl = 'https://ccscompta.web.app/dashboard/admin/subscriptions?success=true';
         const cancelUrl = 'https://ccscompta.web.app/dashboard/admin/subscriptions?canceled=true';
-        const session = await stripe_1.StripeService.createCheckoutSession(cabinetId, priceId, email, successUrl, cancelUrl);
+        const session = await StripeService.createCheckoutSession(cabinetId, priceId, email, successUrl, cancelUrl);
         return { url: session.url };
     }
     catch (error) {
@@ -606,7 +617,8 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
     }
     let event;
     try {
-        event = stripe_1.StripeService.constructWebhookEvent(req.rawBody, sig, endpointSecret);
+        const { StripeService } = await import('./stripe.js');
+        event = StripeService.constructWebhookEvent(req.rawBody, sig, endpointSecret);
     }
     catch (err) {
         logger.error(`Webhook signature verification failed.`, err.message);
@@ -623,9 +635,10 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
                     let stripeSubscriptionItemId = null;
                     if (session.subscription) {
                         try {
-                            const subscriptionDetails = await stripe_1.StripeService.getSubscription(session.subscription);
+                            const { StripeService } = await import('./stripe.js');
+                            const subscriptionDetails = await StripeService.getSubscription(session.subscription);
                             // Trouver l'item avec un usage "metered" (au compteur)
-                            const meteredItem = subscriptionDetails.items.data.find(item => { var _a; return ((_a = item.price.recurring) === null || _a === void 0 ? void 0 : _a.usage_type) === 'metered'; });
+                            const meteredItem = subscriptionDetails.items.data.find((item) => { var _a; return ((_a = item.price.recurring) === null || _a === void 0 ? void 0 : _a.usage_type) === 'metered'; });
                             if (meteredItem) {
                                 stripeSubscriptionItemId = meteredItem.id;
                                 logger.info(`Found metered subscription item: ${stripeSubscriptionItemId}`);
@@ -648,7 +661,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
                     if (stripeSubscriptionItemId) {
                         updateData.stripeSubscriptionItemId = stripeSubscriptionItemId;
                     }
-                    await db.collection("cabinets").doc(cabinetId).update(updateData);
+                    await getDb().collection("cabinets").doc(cabinetId).update(updateData);
                     logger.info(`Updated cabinet ${cabinetId} with Stripe details.`);
                 }
                 break;
@@ -656,7 +669,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
             case 'customer.subscription.deleted':
             case 'customer.subscription.updated': {
                 const subscription = event.data.object;
-                const cabinetsQuery = await db.collection("cabinets").where("stripeSubscriptionId", "==", subscription.id).get();
+                const cabinetsQuery = await getDb().collection("cabinets").where("stripeSubscriptionId", "==", subscription.id).get();
                 if (!cabinetsQuery.empty) {
                     const cabinetDoc = cabinetsQuery.docs[0];
                     await cabinetDoc.ref.update({
@@ -680,6 +693,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
  * Exporte une sélection de documents au format comptable (FEC ou CSV).
  */
 exports.exportDocuments = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+    var _a;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Vous devez être connecté.');
     }
@@ -687,35 +701,51 @@ exports.exportDocuments = (0, https_1.onCall)({ region: "europe-west9" }, async 
     if (!documentIds || !Array.isArray(documentIds)) {
         throw new https_1.HttpsError('invalid-argument', 'Les documentIds doivent être fournis sous forme de tableau.');
     }
+    const callerUid = request.auth.uid;
+    const callerRole = request.auth.token.role;
+    const isGlobalAdmin = callerRole === 'admin';
+    let callerCabinetId = "";
+    if (!isGlobalAdmin) {
+        const callerProfile = await getDb().collection("clients").doc(callerUid).get();
+        callerCabinetId = (_a = callerProfile.data()) === null || _a === void 0 ? void 0 : _a.cabinetId;
+    }
     try {
         // 1. Récupérer les documents
         const docsToExport = [];
         for (const id of documentIds) {
-            const doc = await db.collection("documents").doc(id).get();
-            if (doc.exists) {
-                docsToExport.push(Object.assign(Object.assign({}, doc.data()), { id: doc.id }));
+            const docSnap = await getDb().collection("documents").doc(id).get();
+            if (docSnap.exists) {
+                const docData = docSnap.data();
+                // SÉCURITÉ : Vérification de l'isolation du cabinet
+                if (!isGlobalAdmin && docData.cabinetId !== callerCabinetId) {
+                    logger.warn(`Tentative d'export illégal par ${callerUid} pour le doc ${id}`);
+                    continue;
+                }
+                docsToExport.push(Object.assign(Object.assign({}, docData), { id: docSnap.id }));
             }
         }
         if (docsToExport.length === 0) {
             throw new https_1.HttpsError('not-found', 'Aucun document trouvé pour l\'export.');
         }
         // 2. Générer le fichier
+        const { format: formatFns } = await import('date-fns');
+        const { ExportFactory } = await import('./export-factory.js');
         let fileContent = '';
         let fileName = '';
-        const timestamp = (0, date_fns_1.format)(new Date(), 'yyyyMMdd_HHmm');
+        const timestamp = formatFns(new Date(), 'yyyyMMdd_HHmm');
         if (exportFormat === 'FEC') {
-            fileContent = export_factory_1.ExportFactory.generateFEC(docsToExport);
+            fileContent = ExportFactory.generateFEC(docsToExport);
             fileName = `export_compta_FEC_${timestamp}.txt`;
         }
         else {
-            fileContent = export_factory_1.ExportFactory.generateCSV(docsToExport);
+            fileContent = ExportFactory.generateCSV(docsToExport);
             fileName = `export_compta_${timestamp}.csv`;
         }
         // 3. Marquer comme exportés
-        const batch = db.batch();
+        const batch = getDb().batch();
         const exportId = `export_${timestamp}`;
         for (const doc of docsToExport) {
-            const ref = db.collection("documents").doc(doc.id);
+            const ref = getDb().collection("documents").doc(doc.id);
             batch.update(ref, {
                 isExported: true,
                 exportDate: new Date().toISOString(),
@@ -756,8 +786,8 @@ exports.onCommentAdded = (0, firestore_1.onDocumentWritten)({
         const docName = data.name || "Document sans nom";
         logger.log(`💬 Nouveau commentaire sur ${docName} par ${newComment.user}`);
         // Création de la notification dans Firestore
-        const notificationId = db.collection("notifications").doc().id;
-        await db.collection("notifications").doc(notificationId).set({
+        const notificationId = getDb().collection("notifications").doc().id;
+        await getDb().collection("notifications").doc(notificationId).set({
             id: notificationId,
             documentId: event.params.docId,
             documentName: docName,
@@ -768,7 +798,7 @@ exports.onCommentAdded = (0, firestore_1.onDocumentWritten)({
             type: 'comment'
         });
         // Incrémenter le compteur de nouveaux documents/notifications pour le badge UI
-        await db.collection('clients').doc(clientId).update({
+        await getDb().collection('clients').doc(clientId).update({
             newDocuments: admin.firestore.FieldValue.increment(1)
         });
     }
@@ -779,12 +809,24 @@ exports.onCommentAdded = (0, firestore_1.onDocumentWritten)({
 exports.requestWeeklySummary = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Non autorisé');
-    const clientId = request.data.clientId || request.auth.uid;
+    const callerUid = request.auth.uid;
+    const callerRole = request.auth.token.role;
+    const targetClientId = request.data.clientId || callerUid;
+    // SÉCURITÉ : Vérification de l'accès au résumé
+    if (callerRole !== 'admin' && targetClientId !== callerUid) {
+        const callerProfile = await getDb().collection("clients").doc(callerUid).get();
+        const callerData = callerProfile.data();
+        const targetProfile = await getDb().collection("clients").doc(targetClientId).get();
+        const targetData = targetProfile.data();
+        if ((callerData === null || callerData === void 0 ? void 0 : callerData.cabinetId) !== (targetData === null || targetData === void 0 ? void 0 : targetData.cabinetId) || !['accountant', 'secretary'].includes(callerData === null || callerData === void 0 ? void 0 : callerData.role)) {
+            throw new https_1.HttpsError('permission-denied', 'Vous n\'avez pas accès au résumé de ce client.');
+        }
+    }
     // 1. Récupérer les 7 derniers jours de documents
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const docsSnapshot = await db.collection("documents")
-        .where("clientId", "==", clientId)
+    const docsSnapshot = await getDb().collection("documents")
+        .where("clientId", "==", targetClientId)
         .where("uploadDate", ">=", sevenDaysAgo.toISOString())
         .get();
     const docs = docsSnapshot.docs.map(d => d.data());
@@ -792,12 +834,13 @@ exports.requestWeeklySummary = (0, https_1.onCall)({ region: "europe-west9" }, a
         return { message: "Pas assez de données pour cette semaine." };
     }
     // 2. Générer via IA
-    const briefing = await (0, proactive_ai_1.generateWeeklyBriefing)({ clientId, docs });
+    const { generateWeeklyBriefing } = await import('./proactive-ai.js');
+    const briefing = await generateWeeklyBriefing({ clientId: targetClientId, docs });
     // 3. Sauvegarder comme notification spéciale
-    const notifId = db.collection("notifications").doc().id;
-    await db.collection("notifications").doc(notifId).set({
+    const notifId = getDb().collection("notifications").doc().id;
+    await getDb().collection("notifications").doc(notifId).set({
         id: notifId,
-        clientId,
+        clientId: targetClientId,
         type: 'weekly_briefing',
         message: briefing.summary,
         date: new Date().toISOString(),

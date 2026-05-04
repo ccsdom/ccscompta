@@ -40,9 +40,15 @@ exports.StripeService = void 0;
 const stripe_1 = __importDefault(require("stripe"));
 const logger = __importStar(require("firebase-functions/logger"));
 // Utiliser une clé factice si la vraie clé n'est pas présente pour éviter les erreurs de déploiement
-const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_deployment', {
-    apiVersion: '2025-01-27', // Fixed version for stability
-});
+let _stripe = null;
+function getStripe() {
+    if (!_stripe) {
+        _stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_deployment', {
+            apiVersion: '2025-01-27',
+        });
+    }
+    return _stripe;
+}
 /**
  * Service to handle Stripe interactions for usage-based billing.
  */
@@ -52,7 +58,7 @@ class StripeService {
      */
     static constructWebhookEvent(rawBody, signature, secret) {
         try {
-            return stripe.webhooks.constructEvent(rawBody, signature, secret);
+            return getStripe().webhooks.constructEvent(rawBody, signature, secret);
         }
         catch (err) {
             logger.error('Error constructing Stripe event:', err);
@@ -64,7 +70,7 @@ class StripeService {
      */
     static async createCheckoutSession(cabinetId, priceId, customerEmail, successUrl, cancelUrl) {
         try {
-            const session = await stripe.checkout.sessions.create({
+            const session = await getStripe().checkout.sessions.create({
                 payment_method_types: ['card'],
                 mode: 'subscription',
                 customer_email: customerEmail,
@@ -99,7 +105,7 @@ class StripeService {
         }
         try {
             logger.info(`Reporting ${quantity} lines to subscription item ${subscriptionItemId}`);
-            await stripe.subscriptionItems.createUsageRecord(subscriptionItemId, {
+            await getStripe().subscriptionItems.createUsageRecord(subscriptionItemId, {
                 quantity,
                 timestamp: Math.floor(Date.now() / 1000),
                 action: 'increment',
@@ -118,11 +124,11 @@ class StripeService {
      */
     static async getOrCreateCustomer(email, name, metadata) {
         try {
-            const customers = await stripe.customers.list({ email, limit: 1 });
+            const customers = await getStripe().customers.list({ email, limit: 1 });
             if (customers.data.length > 0) {
                 return customers.data[0];
             }
-            return await stripe.customers.create({
+            return await getStripe().customers.create({
                 email,
                 name,
                 metadata,
@@ -140,7 +146,7 @@ class StripeService {
      */
     static async createPortalSession(customerId, returnUrl) {
         try {
-            return await stripe.billingPortal.sessions.create({
+            return await getStripe().billingPortal.sessions.create({
                 customer: customerId,
                 return_url: returnUrl,
             });
@@ -155,7 +161,7 @@ class StripeService {
      */
     static async getSubscription(subscriptionId) {
         try {
-            return await stripe.subscriptions.retrieve(subscriptionId);
+            return await getStripe().subscriptions.retrieve(subscriptionId);
         }
         catch (error) {
             logger.error('Error retrieving subscription:', error);

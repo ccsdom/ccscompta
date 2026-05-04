@@ -3,9 +3,15 @@ import Stripe from 'stripe';
 import * as logger from 'firebase-functions/logger';
 
 // Utiliser une clé factice si la vraie clé n'est pas présente pour éviter les erreurs de déploiement
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_deployment', {
-  apiVersion: '2025-01-27' as any, // Fixed version for stability
-});
+let _stripe: any = null;
+function getStripe() {
+    if (!_stripe) {
+        _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_for_deployment', {
+            apiVersion: '2025-01-27' as any,
+        });
+    }
+    return _stripe;
+}
 
 /**
  * Service to handle Stripe interactions for usage-based billing.
@@ -16,7 +22,7 @@ export class StripeService {
    */
   static constructWebhookEvent(rawBody: Buffer, signature: string, secret: string): any {
     try {
-      return stripe.webhooks.constructEvent(rawBody, signature, secret);
+      return getStripe().webhooks.constructEvent(rawBody, signature, secret);
     } catch (err: any) {
       logger.error('Error constructing Stripe event:', err);
       throw err;
@@ -28,7 +34,7 @@ export class StripeService {
    */
   static async createCheckoutSession(cabinetId: string, priceId: string, customerEmail: string, successUrl: string, cancelUrl: string) {
     try {
-      const session = await stripe.checkout.sessions.create({
+      const session = await getStripe().checkout.sessions.create({
         payment_method_types: ['card'],
         mode: 'subscription',
         customer_email: customerEmail,
@@ -63,7 +69,7 @@ export class StripeService {
 
     try {
       logger.info(`Reporting ${quantity} lines to subscription item ${subscriptionItemId}`);
-      await (stripe as any).subscriptionItems.createUsageRecord(subscriptionItemId, {
+      await (getStripe() as any).subscriptionItems.createUsageRecord(subscriptionItemId, {
         quantity,
         timestamp: Math.floor(Date.now() / 1000),
         action: 'increment',
@@ -82,12 +88,12 @@ export class StripeService {
    */
   static async getOrCreateCustomer(email: string, name: string, metadata?: Record<string, string>) {
     try {
-      const customers = await stripe.customers.list({ email, limit: 1 });
+      const customers = await getStripe().customers.list({ email, limit: 1 });
       if (customers.data.length > 0) {
         return customers.data[0];
       }
 
-      return await stripe.customers.create({
+      return await getStripe().customers.create({
         email,
         name,
         metadata,
@@ -105,7 +111,7 @@ export class StripeService {
    */
   static async createPortalSession(customerId: string, returnUrl: string) {
     try {
-      return await stripe.billingPortal.sessions.create({
+      return await getStripe().billingPortal.sessions.create({
         customer: customerId,
         return_url: returnUrl,
       });
@@ -119,7 +125,7 @@ export class StripeService {
    */
   static async getSubscription(subscriptionId: string) {
     try {
-      return await stripe.subscriptions.retrieve(subscriptionId);
+      return await getStripe().subscriptions.retrieve(subscriptionId);
     } catch (error) {
       logger.error('Error retrieving subscription:', error);
       throw error;
