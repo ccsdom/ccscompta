@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { format, isValid } from "date-fns";
 import { fr } from 'date-fns/locale';
 import { Skeleton } from "./ui/skeleton";
+import { parseDate, formatDate } from "@/lib/utils";
 
 interface DocumentHistoryProps {
   documents: Document[];
@@ -59,8 +60,8 @@ const getStatusBadge = (status: Document['status']) => {
 
 const groupDocumentsByMonth = (documents: Document[]) => {
     return documents.reduce((acc, doc) => {
-        const date = new Date(doc.uploadDate);
-        if (isValid(date)) {
+        const date = parseDate(doc.uploadDate);
+        if (date && isValid(date)) {
             const monthKey = format(date, 'LLLL yyyy', { locale: fr });
             if (!acc[monthKey]) {
                 acc[monthKey] = [];
@@ -74,7 +75,11 @@ const groupDocumentsByMonth = (documents: Document[]) => {
 export function DocumentHistory({ documents, onProcess, onDelete, activeDocumentId, setActiveDocument, selectedDocumentIds, setSelectedDocumentIds, isLoading }: DocumentHistoryProps) {
 
     const monthlyGroups = groupDocumentsByMonth(documents || []);
-    const sortedMonths = Object.keys(monthlyGroups).sort((a,b) => new Date(monthlyGroups[b][0].uploadDate).getTime() - new Date(monthlyGroups[a][0].uploadDate).getTime());
+    const sortedMonths = Object.keys(monthlyGroups).sort((a,b) => {
+        const dateB = parseDate(monthlyGroups[b][0].uploadDate);
+        const dateA = parseDate(monthlyGroups[a][0].uploadDate);
+        return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+    });
 
     if (isLoading) {
         return (
@@ -125,7 +130,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                     <span className="truncate max-w-xs font-semibold" title={doc.name}>{doc.name}</span>
                                 </div>
                             </TableCell>
-                            <TableCell className="py-4 text-muted-foreground">{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell className="py-4 text-muted-foreground">{formatDate(doc.uploadDate)}</TableCell>
                             <TableCell className="py-4">{getStatusBadge(doc.status)}</TableCell>
                             <TableCell className="text-right space-x-2 py-4">
                                 <Button variant="ghost" size="icon" className="hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setActiveDocument(doc); }}><Eye className="h-4 w-4"/></Button>
@@ -172,7 +177,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </div>
-                                        <CardDescription className="ml-11 text-xs opacity-80">{new Date(doc.uploadDate).toLocaleDateString('fr-FR')}</CardDescription>
+                                        <CardDescription className="ml-11 text-xs opacity-80">{formatDate(doc.uploadDate)}</CardDescription>
                                     </CardHeader>
                                     <CardFooter className="p-4 pt-3 flex justify-between items-center bg-muted/5">
                                         {getStatusBadge(doc.status)}

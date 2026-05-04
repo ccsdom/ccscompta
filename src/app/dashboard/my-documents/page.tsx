@@ -26,6 +26,7 @@ import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { db } from '@/firebase';
+import { formatDate, parseDate } from '@/lib/utils';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -295,7 +296,11 @@ export default function MyDocumentsPage() {
             );
         }
         
-        return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
+        return docs.sort((a,b) => {
+            const dateB = parseDate(b.uploadDate);
+            const dateA = parseDate(a.uploadDate);
+            return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+        });
 
   }, [documents, searchQuery, searchCriteria]);
 
@@ -342,7 +347,7 @@ export default function MyDocumentsPage() {
                 <SheetHeader className="p-6 border-b">
                   <SheetTitle>{activeDocument.name}</SheetTitle>
                    <div className="flex items-center gap-x-3">
-                    <SheetDescription>Téléversé le {new Date(activeDocument.uploadDate).toLocaleDateString('fr-FR')}</SheetDescription>-{getStatusBadge(activeDocument.status)}
+                    <SheetDescription>Téléversé le {formatDate(activeDocument.uploadDate)}</SheetDescription>-{getStatusBadge(activeDocument.status)}
                    </div>
                 </SheetHeader>
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">

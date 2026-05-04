@@ -28,6 +28,7 @@ import { collection, query, orderBy, where } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatDate } from '@/lib/utils';
 
 export default function ReconciliationHistoryPage() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -118,10 +119,10 @@ export default function ReconciliationHistoryPage() {
                                             <div className="flex flex-col">
                                                 <span className="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
                                                     <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    {new Date(report.createdAt).toLocaleDateString('fr-FR')}
+                                                    {formatDate(report.createdAt)}
                                                 </span>
                                                 <span className="text-[10px] text-muted-foreground ml-5">
-                                                    {new Date(report.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                                    {formatDate(report.createdAt, { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                         </TableCell>

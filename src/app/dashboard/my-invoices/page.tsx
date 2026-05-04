@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { formatDate } from '@/lib/utils';
 
 
 export default function MyInvoicesPage() {
@@ -106,8 +107,8 @@ export default function MyInvoicesPage() {
                             {invoices && invoices.length > 0 ? invoices.map(invoice => (
                                 <TableRow key={invoice.id} className="transition-colors duration-300 hover:bg-primary/5 data-[state=selected]:bg-primary/10 border-b-border/20 group">
                                     <TableCell className="font-semibold py-4 pl-6 text-primary/80">{invoice.number}</TableCell>
-                                    <TableCell className="py-4 text-muted-foreground">{new Date(invoice.date).toLocaleDateString('fr-FR')}</TableCell>
-                                    <TableCell className="py-4 text-muted-foreground">{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</TableCell>
+                                    <TableCell className="py-4 text-muted-foreground">{formatDate(invoice.date)}</TableCell>
+                                    <TableCell className="py-4 text-muted-foreground">{formatDate(invoice.dueDate)}</TableCell>
                                     <TableCell className="py-4 font-bold">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
                                     <TableCell className="py-4">{getStatusBadge(invoice.status)}</TableCell>
                                     <TableCell className="text-right space-x-2 py-4 pr-6">

@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 export default function SecretaryDashboard() {
     const [isMounted, setIsMounted] = useState(false);
@@ -246,7 +246,7 @@ export default function SecretaryDashboard() {
                                                 <div className="flex items-center gap-2">
                                                     <p className="font-black text-sm text-foreground truncate">{activity.clientName}</p>
                                                     <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{new Date(activity.date).toLocaleDateString('fr-FR')}</p>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{formatDate(activity.date)}</p>
                                                 </div>
                                                 <p className="text-sm font-medium text-muted-foreground line-clamp-1 group-hover:text-foreground transition-colors">{activity.action}</p>
                                                 <p className="text-[10px] font-bold text-primary/60 truncate italic">{activity.documentName}</p>

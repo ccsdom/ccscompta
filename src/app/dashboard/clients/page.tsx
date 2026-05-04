@@ -44,7 +44,7 @@ import { AiClientDialog } from '@/components/ai-client-dialog';
 import { useCollection, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, doc, writeBatch, where } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 import { useBranding } from '@/components/branding-provider';
 
@@ -239,7 +239,7 @@ export default function ClientsPage() {
         doc.text(`Liste des Clients`, 14, 16);
         (doc as any).autoTable({
             head: [['Nom', 'Email', 'Statut', 'Dernière Activité']],
-            body: usersToExport.map(c => [c.name, c.email, c.status, new Date(c.lastActivity).toLocaleDateString('fr-FR')]),
+            body: usersToExport.map(c => [c.name, c.email, c.status, formatDate(c.lastActivity)]),
             startY: 20,
         });
 
@@ -501,7 +501,7 @@ export default function ClientsPage() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2 opacity-60">
                                                     <Activity className="h-3.5 w-3.5" />
-                                                    <span className="font-mono text-xs">{new Date(user.lastActivity).toLocaleDateString('fr-FR')}</span>
+                                                    <span className="font-mono text-xs">{formatDate(user.lastActivity)}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right pr-8">

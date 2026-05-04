@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, orderBy, limit, where, doc } from 'firebase/firestore';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 export default function AccountantDashboard() {
     const [isMounted, setIsMounted] = useState(false);
@@ -202,7 +202,7 @@ export default function AccountantDashboard() {
                     className="text-muted-foreground text-xl font-medium"
                     variants={itemVariants}
                   >
-                    {userProfile?.role === 'admin' ? "Monitoring Global" : `Cabinet ${cabinet?.name || 'Opérationnel'}`} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {userProfile?.role === 'admin' ? "Monitoring Global" : `Cabinet ${cabinet?.name || 'Opérationnel'}`} • {formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}
                   </motion.p>
                 </div>
                 
@@ -359,7 +359,7 @@ export default function AccountantDashboard() {
                                             <p className="text-xs font-semibold text-muted-foreground/80 line-clamp-1 mt-0.5">{report.summary || 'Rapport de rapprochement généré'}</p>
                                             <div className="flex items-center gap-2 mt-2">
                                                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                                <p className="text-[10px] font-bold text-muted-foreground tracking-tighter uppercase">{new Date(report.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                                <p className="text-[10px] font-bold text-muted-foreground tracking-tighter uppercase">{formatDate(report.createdAt, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                                             </div>
                                         </div>
                                     </motion.div>

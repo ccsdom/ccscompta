@@ -34,6 +34,7 @@ import { salesService } from '@/services/sales-service';
 import { SalesInvoice } from '@/lib/types';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
 
 export default function SalesDashboard() {
   const { profile: userProfile } = useBranding();
@@ -243,7 +244,7 @@ export default function SalesDashboard() {
                         <span className="text-[10px] text-muted-foreground">{invoice.customerEmail}</span>
                       </div>
                     </td>
-                    <td className="p-6 text-sm font-medium">{new Date(invoice.date).toLocaleDateString()}</td>
+                    <td className="p-6 text-sm font-medium">{formatDate(invoice.date)}</td>
                     <td className="p-6 font-black font-space">{invoice.totalTTC.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</td>
                     <td className="p-6">{getStatusBadge(invoice.status)}</td>
                     <td className="p-6 text-right">

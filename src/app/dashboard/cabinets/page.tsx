@@ -42,7 +42,9 @@ import {
     Trash2,
     Loader2,
     Mail,
-    CheckCircle2
+    CheckCircle2,
+    Copy,
+    LinkIcon
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -55,7 +57,7 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { useRouter } from 'next/navigation';
 import { useBranding } from "@/components/branding-provider";
 
@@ -107,6 +109,15 @@ export default function CabinetsManagementPage() {
 
         window.dispatchEvent(new Event('storage'));
         router.push('/dashboard/accountant');
+    };
+
+    const handleCopyLink = (cabinetId: string) => {
+        const url = `${window.location.origin}/onboarding?cabinetId=${cabinetId}`;
+        navigator.clipboard.writeText(url);
+        toast({
+            title: "Lien copié !",
+            description: "Le lien d'onboarding est dans votre presse-papier.",
+        });
     };
 
     const handleSaveCabinet = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -344,23 +355,35 @@ export default function CabinetsManagementPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            {cabinet.invitationStatus === 'pending' ? (
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <Badge variant="outline" className="text-[8px] font-black border-blue-500/30 text-blue-500 bg-blue-500/5 uppercase animate-pulse">Invité</Badge>
-                                                    <span className="text-[7px] font-bold opacity-40">{new Date(cabinet.invitationSentAt).toLocaleDateString()}</span>
-                                                </div>
-                                            ) : cabinet.invitationStatus === 'accepted' ? (
-                                                <Badge variant="outline" className="text-[8px] font-black border-emerald-500/30 text-emerald-500 bg-emerald-500/5 uppercase">Connecté</Badge>
-                                            ) : (
+                                            <div className="flex flex-col items-center gap-2">
+                                                {cabinet.invitationStatus === 'pending' ? (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <Badge variant="outline" className="text-[8px] font-black border-blue-500/30 text-blue-500 bg-blue-500/5 uppercase animate-pulse">Invité</Badge>
+                                                        <span className="text-[7px] font-bold opacity-40">{formatDate(cabinet.invitationSentAt)}</span>
+                                                    </div>
+                                                ) : cabinet.invitationStatus === 'accepted' ? (
+                                                    <Badge variant="outline" className="text-[8px] font-black border-emerald-500/30 text-emerald-500 bg-emerald-500/5 uppercase">Connecté</Badge>
+                                                ) : (
+                                                    <Button 
+                                                        size="sm"
+                                                        variant="outline" 
+                                                        className="h-8 px-3 font-black uppercase text-[9px] tracking-widest gap-2 bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary"
+                                                        onClick={() => handleSendInvitation(cabinet)}
+                                                    >
+                                                        <Mail className="h-3 w-3" /> Envoyer Accès
+                                                    </Button>
+                                                )}
+                                                
+                                                {/* Toujours proposer de copier le lien au cas où */}
                                                 <Button 
-                                                    size="icon" 
                                                     variant="ghost" 
-                                                    className="h-8 w-8 hover:bg-primary/20 text-primary border border-primary/10"
-                                                    onClick={() => handleSendInvitation(cabinet)}
+                                                    size="sm" 
+                                                    className="h-6 px-2 text-[8px] font-bold uppercase opacity-40 hover:opacity-100 gap-1"
+                                                    onClick={() => handleCopyLink(cabinet.id)}
                                                 >
-                                                    <Mail className="h-4 w-4" />
+                                                    <Copy className="h-2.5 w-2.5" /> Copier le lien
                                                 </Button>
-                                            )}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-baseline gap-1">

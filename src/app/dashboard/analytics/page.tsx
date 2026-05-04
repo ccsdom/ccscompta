@@ -26,6 +26,7 @@ import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
+import { formatDate, parseDate } from '@/lib/utils';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -162,10 +163,16 @@ export default function AnalyticsPage() {
                 docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
             }
             if (startDate) {
-                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) >= new Date(startDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => {
+                    const parsed = parseDate(date);
+                    return parsed != null && parsed >= new Date(startDate);
+                }));
             }
             if (endDate) {
-                docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && new Date(date) <= new Date(endDate)));
+                docs = docs.filter(d => d.extractedData?.dates?.some(date => {
+                    const parsed = parseDate(date);
+                    return parsed != null && parsed <= new Date(endDate);
+                }));
             }
             if (vendor) {
                 const lowerVendor = vendor.toLowerCase();
@@ -210,7 +217,8 @@ export default function AnalyticsPage() {
         const expensesByMonth = approvedDocs.reduce((acc, doc) => {
             const rawDate = doc.extractedData?.dates?.[0];
             if (!rawDate) return acc;
-            const date = new Date(rawDate);
+            const date = parseDate(rawDate);
+            if (!date) return acc;
             const month = date.toLocaleString('fr-FR', { month: 'short', year: '2-digit' }).replace('.', '');
             const amount = doc.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
             if (!acc[month]) acc[month] = 0;
@@ -598,7 +606,7 @@ export default function AnalyticsPage() {
                                     const ht = totalTTC - vatAmount;
                                     return (
                                         <TableRow key={doc.id}>
-                                            <TableCell>{new Date(doc.extractedData!.dates![0]!).toLocaleDateString('fr-FR')}</TableCell>
+                                            <TableCell>{formatDate(doc.extractedData!.dates![0])}</TableCell>
                                             <TableCell className="font-medium">{doc.name}</TableCell>
                                             <TableCell>{doc.extractedData!.vendorNames?.[0]}</TableCell>
                                             <TableCell className="text-right">{ht.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</TableCell>
