@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown, FilterX, Users } from "lucide-react";
+import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown, FilterX, Users, ShieldCheck } from "lucide-react";
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -39,6 +40,7 @@ export default function BillingPage() {
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
     const { toast } = useToast();
     const { role, profile, isLoading: isBrandingLoading } = useBranding();
+    const router = useRouter();
 
     // Filters state
     const [clientFilter, setClientFilter] = useState('all');

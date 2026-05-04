@@ -37,6 +37,17 @@ export async function addCabinet(
     const newCabinet: Cabinet = {
         id: docRef.id,
         ...validatedData,
+        status: 'active',
+        plan: 'starter',
+        quotas: {
+            maxClients: 10,
+            maxDocumentsPerMonth: 500,
+            maxCollaborators: 2,
+            storageLimitGb: 5,
+            usedDocumentsMonth: 0,
+            usedClients: 0
+        },
+        createdAt: new Date().toISOString(),
     };
     
     console.log("[Cabinet Action] Cabinet created with ID:", docRef.id);

@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBranding } from '@/components/branding-provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Users, FileUp, FileCheck, FileClock, Building, History as HistoryIcon, FileSpreadsheet, TrendingUp, ArrowUpRight, Search } from "lucide-react";
+import { Users, FileUp, FileCheck, FileClock, Building, History as HistoryIcon, FileSpreadsheet, TrendingUp, ArrowUpRight, Search, ShieldCheck } from "lucide-react";
+import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils';
 export default function AccountantDashboard() {
     const [isMounted, setIsMounted] = useState(false);
     const { profile: userProfile, cabinet, isLoading: isLoadingProfile } = useBranding();
+    const router = useRouter();
 
     useEffect(() => {
         setIsMounted(true);
@@ -200,7 +202,7 @@ export default function AccountantDashboard() {
                     className="text-muted-foreground text-xl font-medium"
                     variants={itemVariants}
                   >
-                    {isAdmin ? "Monitoring Global" : `Cabinet ${cabinet?.name || 'Opérationnel'}`} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {userProfile?.role === 'admin' ? "Monitoring Global" : `Cabinet ${cabinet?.name || 'Opérationnel'}`} • {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </motion.p>
                 </div>
                 

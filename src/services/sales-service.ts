@@ -4,6 +4,7 @@ import {
     addDoc, 
     updateDoc, 
     doc, 
+    getDoc,
     query, 
     where, 
     getDocs, 
@@ -12,8 +13,102 @@ import {
     Timestamp 
 } from 'firebase/firestore';
 import { SalesInvoice, SalesInvoiceItem } from '@/lib/types';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export const salesService = {
+    /**
+     * Generates a professional PDF for a sales invoice.
+     */
+    generateInvoicePDF(invoice: SalesInvoice, seller: any) {
+        const doc = new jsPDF();
+        const margin = 14;
+        
+        // Header: Seller Info
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text(seller.name || seller.companyName || "Mon Entreprise", margin, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const sellerInfo = [
+            seller.address,
+            seller.siret ? `SIRET: ${seller.siret}` : null,
+            seller.vatNumber ? `TVA: ${seller.vatNumber}` : null,
+            seller.email,
+            seller.phone
+        ].filter(Boolean);
+        
+        sellerInfo.forEach((line, i) => {
+            doc.text(line as string, margin, 28 + (i * 5));
+        });
+
+        // Invoice Header
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("FACTURE", 140, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`N° : ${invoice.invoiceNumber}`, 140, 28);
+        doc.text(`Date : ${new Date(invoice.date).toLocaleDateString('fr-FR')}`, 140, 33);
+        doc.text(`Échéance : ${new Date(invoice.dueDate).toLocaleDateString('fr-FR')}`, 140, 38);
+
+        // Customer Info
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Facturer à :", 110, 60);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(invoice.customerName, 110, 68);
+        if (invoice.customerAddress) {
+            const splitAddress = doc.splitTextToSize(invoice.customerAddress, 80);
+            doc.text(splitAddress, 110, 73);
+        }
+
+        // Table
+        (doc as any).autoTable({
+            startY: 95,
+            head: [['Désignation', 'Qté', 'Prix Unitaire HT', 'TVA', 'Total TTC']],
+            body: invoice.items.map(item => [
+                item.description,
+                item.quantity,
+                item.unitPrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }),
+                `${item.vatRate}%`,
+                item.totalTTC.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+            ]),
+            headStyles: { fillColor: [0, 0, 0] },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+        });
+
+        const finalY = (doc as any).lastAutoTable.cursor.y + 10;
+
+        // Totals (right aligned)
+        doc.setFont("helvetica", "bold");
+        doc.text(`Total HT :`, 140, finalY);
+        doc.text(invoice.totalHT.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 196, finalY, { align: 'right' });
+        
+        doc.text(`Total TVA :`, 140, finalY + 7);
+        doc.text(invoice.totalVAT.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 196, finalY + 7, { align: 'right' });
+        
+        doc.setFontSize(14);
+        doc.text(`TOTAL TTC :`, 140, finalY + 16);
+        doc.text(invoice.totalTTC.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 196, finalY + 16, { align: 'right' });
+
+        // Footer: Bank info
+        if (seller.iban) {
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("Coordonnées bancaires :", margin, 250);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Titulaire : ${seller.bankName || seller.name || seller.companyName}`, margin, 255);
+            doc.text(`IBAN : ${seller.iban}`, margin, 260);
+            if (seller.bic) doc.text(`BIC : ${seller.bic}`, margin, 265);
+        }
+
+        // Save
+        doc.save(`Facture_${invoice.invoiceNumber}.pdf`);
+    },
     /**
      * Creates a new sales invoice.
      */
@@ -73,13 +168,32 @@ export const salesService = {
     },
 
     /**
+     * Fetches a specific invoice by ID.
+     */
+    async getInvoice(invoiceId: string) {
+        const docRef = doc(db, 'sales_invoices', invoiceId);
+        const snapshot = await getDoc(docRef);
+        if (!snapshot.exists()) return null;
+        return { id: snapshot.id, ...snapshot.data() } as SalesInvoice;
+    },
+
+    /**
+     * Updates an existing invoice.
+     */
+    async updateInvoice(invoiceId: string, data: Partial<SalesInvoice>) {
+        const docRef = doc(db, 'sales_invoices', invoiceId);
+        const updateData = {
+            ...data,
+            updatedAt: new Date().toISOString()
+        };
+        await updateDoc(docRef, updateData);
+        return { id: invoiceId, ...updateData };
+    },
+
+    /**
      * Updates an invoice status.
      */
     async updateStatus(invoiceId: string, status: SalesInvoice['status']) {
-        const docRef = doc(db, 'sales_invoices', invoiceId);
-        await updateDoc(docRef, {
-            status,
-            updatedAt: new Date().toISOString()
-        });
+        return this.updateInvoice(invoiceId, { status });
     }
 };

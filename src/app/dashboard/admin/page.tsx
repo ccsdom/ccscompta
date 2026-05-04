@@ -194,7 +194,7 @@ function SyncControl() {
             window.location.reload();
         } catch (error) {
             console.error("Sync Error:", error);
-            await auditService.logSystem("Échec de la synchronisation Admin", "error", { error: String(error) });
+            await auditService.logSystem("Échec de la synchronisation Admin", "error", undefined, { error: String(error) });
         } finally {
             setLoading(false);
         }

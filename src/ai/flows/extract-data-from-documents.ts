@@ -51,7 +51,12 @@ const ExtractDataOutputSchema = z.object({
     creditAccount: z.string().optional(),
     vatAccount: z.string().optional(),
     confidenceScore: z.number().optional()
-  }).optional().describe("Proposition d'imputation comptable automatique basée sur le PCG.")
+  }).optional().describe("Proposition d'imputation comptable automatique basée sur le PCG."),
+  summary: z.string().optional().describe('Un court résumé du contenu du document généré par IA.'),
+  insight: z.object({
+    type: z.enum(['positive', 'negative', 'neutral']),
+    message: z.string()
+  }).optional().describe('Une analyse qualitative ou un point de vigilance particulier.')
 });
 export type ExtractDataOutput = z.infer<typeof ExtractDataOutputSchema>;
 

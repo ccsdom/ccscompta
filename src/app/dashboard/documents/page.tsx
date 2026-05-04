@@ -8,7 +8,7 @@ import { DataValidationForm } from '@/components/data-validation-form';
 import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning, ShieldCheck } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -28,6 +28,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClientSwitcher } from '@/components/client-switcher';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
 import { ExportModal } from '@/components/export-modal';
@@ -200,6 +202,12 @@ export default function DocumentsPage() {
     const docRef = doc(db, 'documents', docId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists() || !docSnap.data()?.clientId) return;
+    
+    // Security: Ensure cabinetId matches
+    if (userProfile?.cabinetId && docSnap.data()?.cabinetId !== userProfile.cabinetId) {
+        toast({ variant: "destructive", title: "Accès refusé", description: "Vous n'avez pas les droits pour modifier ce document." });
+        return;
+    }
     const clientId = docSnap.data()!.clientId;
 
     const trail = await addAuditEvent(docId, 'Document approuvé manuellement', getCurrentUser());
@@ -223,8 +231,14 @@ export default function DocumentsPage() {
   };
 
    const handleAddComment = async (commentText: string) => {
-    if (!commentText.trim() || !activeDocument) return;
+    if (!commentText.trim() || !activeDocument || !userProfile?.cabinetId) return;
     const docId = activeDocument.id;
+    
+    // Security: Ensure cabinetId matches
+    if (activeDocument.cabinetId !== userProfile.cabinetId) {
+        toast({ variant: "destructive", title: "Accès refusé" });
+        return;
+    }
     const newComment: Comment = {
       id: crypto.randomUUID(),
       text: commentText,
@@ -547,14 +561,19 @@ export default function DocumentsPage() {
                         <span className="text-xs">({docsInGroup.length})</span>
                       </h3>
                       <div className="space-y-2">
-                          {docsInGroup.map(doc => (
-                             <div
-                              key={doc.id}
-                              onClick={() => handleSetActiveDocument(doc)}
-                              className={cn(
-                                'w-full text-left p-2 rounded-lg border flex items-start gap-3 transition-colors cursor-pointer',
-                                activeDocument?.id === doc.id ? 'bg-muted border-primary' : 'hover:bg-muted/50'
-                              )}
+                          <AnimatePresence mode="popLayout">
+                          {docsInGroup.map((doc, idx) => (
+                             <motion.div
+                               key={doc.id}
+                               initial={{ opacity: 0, x: -20 }}
+                               animate={{ opacity: 1, x: 0 }}
+                               exit={{ opacity: 0, scale: 0.95 }}
+                               transition={{ delay: idx * 0.03, duration: 0.2 }}
+                               onClick={() => handleSetActiveDocument(doc)}
+                               className={cn(
+                                 'w-full text-left p-2 rounded-lg border flex items-start gap-3 transition-colors cursor-pointer',
+                                 activeDocument?.id === doc.id ? 'bg-muted border-primary' : 'hover:bg-muted/50'
+                               )}
                             >
                                <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                                  <Checkbox
@@ -594,8 +613,9 @@ export default function DocumentsPage() {
                                   </Tooltip>
                                 </TooltipProvider>
                               </div>
-                            </div>
+                            </motion.div>
                           ))}
+                          </AnimatePresence>
                         </div>
                     </div>
                   )

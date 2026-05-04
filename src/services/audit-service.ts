@@ -41,9 +41,9 @@ export class AuditService {
     /**
      * Helper for quick system-level logs
      */
-    public async logSystem(action: string, type: SystemAuditLog['type'] = 'info', metadata?: any) {
-        const userName = localStorage.getItem('userName') || 'System';
-        const userEmail = localStorage.getItem('userEmail') || 'system@ccscompta.ai';
+    public async logSystem(action: string, type: SystemAuditLog['type'] = 'info', actor?: { name: string, email: string }, metadata?: any) {
+        const userName = actor?.name || localStorage.getItem('userName') || 'System';
+        const userEmail = actor?.email || localStorage.getItem('userEmail') || 'system@ccscompta.ai';
 
         return this.logAction({
             action,
@@ -58,9 +58,9 @@ export class AuditService {
     /**
      * Helper for auth-level logs
      */
-    public async logAuth(action: string, type: SystemAuditLog['type'] = 'info', metadata?: any) {
-        const userName = localStorage.getItem('userName') || 'Unknown';
-        const userEmail = localStorage.getItem('userEmail') || 'unknown@auth.ai';
+    public async logAuth(action: string, type: SystemAuditLog['type'] = 'info', actor?: { name: string, email: string }, metadata?: any) {
+        const userName = actor?.name || localStorage.getItem('userName') || 'Unknown';
+        const userEmail = actor?.email || localStorage.getItem('userEmail') || 'unknown@auth.ai';
 
         return this.logAction({
             action,
@@ -69,6 +69,44 @@ export class AuditService {
             userName,
             userEmail,
             metadata
+        });
+    }
+
+    /**
+     * Logs impersonation events
+     */
+    public async logImpersonation(action: 'start' | 'stop', actor: { name: string, email: string, role: string }, target: { name: string, id: string, type: 'cabinet' | 'client' }) {
+        return this.logAction({
+            action: `Impersonation ${action}: ${actor.name} as ${target.name}`,
+            type: action === 'start' ? 'warning' : 'info',
+            category: 'impersonation',
+            userName: actor.name,
+            userEmail: actor.email,
+            metadata: {
+                actorRole: actor.role,
+                targetId: target.id,
+                targetName: target.name,
+                targetType: target.type,
+                timestamp: new Date().toISOString()
+            }
+        });
+    }
+
+    /**
+     * Logs actions on documents
+     */
+    public async logDocumentAction(action: string, actor: { name: string, email: string }, documentId: string, documentName: string, metadata?: any) {
+        return this.logAction({
+            action: `${action}: ${documentName}`,
+            type: 'info',
+            category: 'document',
+            userName: actor.name,
+            userEmail: actor.email,
+            metadata: {
+                ...metadata,
+                documentId,
+                documentName
+            }
         });
     }
 }

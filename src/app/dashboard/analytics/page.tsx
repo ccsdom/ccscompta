@@ -3,13 +3,14 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle, TrendingUp } from "lucide-react";
+import { DollarSign, Users, FileText, LayoutGrid, BarChart as BarChartIcon, PercentCircle, TrendingUp, ShieldCheck } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer, Label, LabelList, BarChart, PieChart } from 'recharts';
 import type { Document, Client } from '@/lib/types';
 import {type ChartConfig} from '@/components/ui/chart';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,7 @@ const defaultVisibleComponents = {
 }
 
 export default function AnalyticsPage() {
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
@@ -395,44 +397,44 @@ export default function AnalyticsPage() {
 
        {visibleComponents.keyStats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm border-primary/10 shadow-lg">
+          <Card className="glass-panel border-none premium-shadow-sm bg-gradient-to-br from-primary/5 via-transparent to-transparent">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Dépenses (TTC)</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><DollarSign className="h-4 w-4 text-primary" /></div>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Total Dépenses (TTC)</CardTitle>
+              <div className="h-8 w-8 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20"><DollarSign className="h-4 w-4 text-primary" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
-              <p className="text-xs text-muted-foreground mt-1">Basé sur {analyticsData.approvedDocsCount} documents approuvés</p>
+              <div className="text-3xl font-black font-space tracking-tighter">{analyticsData.totalSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
+              <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">Basé sur {analyticsData.approvedDocsCount} documents</p>
             </CardContent>
           </Card>
-           <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm border-emerald-500/10 shadow-lg">
+           <Card className="glass-panel border-none premium-shadow-sm bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TVA Déductible</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><PercentCircle className="h-4 w-4 text-emerald-500" /></div>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">TVA Déductible</CardTitle>
+              <div className="h-8 w-8 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20"><PercentCircle className="h-4 w-4 text-emerald-500" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{analyticsData.totalVat.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
-              <p className="text-xs text-muted-foreground mt-1">Sur les documents de la période</p>
+              <div className="text-3xl font-black font-space tracking-tighter text-emerald-600 dark:text-emerald-400">{analyticsData.totalVat.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
+              <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">Période en cours</p>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm shadow-lg">
+          <Card className="glass-panel border-none premium-shadow-sm bg-gradient-to-br from-orange-500/5 via-transparent to-transparent">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fournisseur Principal</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center"><Users className="h-4 w-4 text-orange-500" /></div>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Fournisseur Principal</CardTitle>
+              <div className="h-8 w-8 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20"><Users className="h-4 w-4 text-orange-500" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold truncate">{analyticsData.mainVendor}</div>
-              <p className="text-xs text-muted-foreground mt-1">Plus grand volume de dépenses</p>
+              <div className="text-xl font-black font-space truncate">{analyticsData.mainVendor}</div>
+              <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">Top Volume</p>
             </CardContent>
           </Card>
-           <Card className="bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-sm shadow-lg">
+           <Card className="glass-panel border-none premium-shadow-sm bg-gradient-to-br from-primary/5 via-transparent to-transparent">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Panier Moyen / Doc</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><TrendingUp className="h-4 w-4 text-primary" /></div>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Panier Moyen / Doc</CardTitle>
+              <div className="h-8 w-8 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20"><TrendingUp className="h-4 w-4 text-primary" /></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
-               <p className="text-xs text-muted-foreground mt-1">Moyenne des montants validés</p>
+              <div className="text-3xl font-black font-space tracking-tighter">{analyticsData.averageSpent.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</div>
+               <p className="text-[10px] font-bold text-muted-foreground/60 mt-2 uppercase tracking-tight">Valeur moyenne</p>
             </CardContent>
           </Card>
         </div>
@@ -446,12 +448,12 @@ export default function AnalyticsPage() {
             <TabsContent value="overview" className="space-y-6 mt-4">
                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
                     {visibleComponents.expensesByMonth && (
-                    <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle>Dépenses par Mois</CardTitle>
+                    <Card className="lg:col-span-1 glass-panel border-none premium-shadow-sm overflow-hidden">
+                        <CardHeader className="border-b border-muted/20 bg-muted/5">
+                            <CardTitle className="text-lg font-black font-space tracking-tight uppercase tracking-widest text-[10px] opacity-60">Dépenses par Mois</CardTitle>
                             <CardDescription>Évolution des dépenses totales approuvées au fil du temps.</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <ChartContainer config={chartConfig} className="h-[250px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={analyticsData.monthlyChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
@@ -476,12 +478,12 @@ export default function AnalyticsPage() {
                     )}
 
                     {visibleComponents.distributionByCategory && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Répartition par Catégorie</CardTitle>
+                    <Card className="glass-panel border-none premium-shadow-sm overflow-hidden">
+                        <CardHeader className="border-b border-muted/20 bg-muted/5">
+                            <CardTitle className="text-lg font-black font-space tracking-tight uppercase tracking-widest text-[10px] opacity-60">Répartition par Catégorie</CardTitle>
                             <CardDescription>Distribution des dépenses par catégorie comptable.</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex items-center justify-center">
+                        <CardContent className="flex items-center justify-center pt-6">
                             <ChartContainer config={chartConfig} className="mx-auto aspect-square h-full max-w-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -512,12 +514,12 @@ export default function AnalyticsPage() {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                     {visibleComponents.expensesByVendor && (
-                    <Card className="lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle>Top 5 des Dépenses par Fournisseur</CardTitle>
+                    <Card className="lg:col-span-3 glass-panel border-none premium-shadow-sm overflow-hidden">
+                        <CardHeader className="border-b border-muted/20 bg-muted/5">
+                            <CardTitle className="text-lg font-black font-space tracking-tight uppercase tracking-widest text-[10px] opacity-60">Top 5 Fournisseurs</CardTitle>
                             <CardDescription>Classement des fournisseurs par montant total dépensé.</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <ChartContainer config={chartConfig} className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart layout="vertical" data={analyticsData.vendorChartData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
@@ -541,12 +543,12 @@ export default function AnalyticsPage() {
                     </Card>
                     )}
                     {visibleComponents.averageSpendByType && (
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle>Dépense Moyenne par Type</CardTitle>
+                    <Card className="lg:col-span-2 glass-panel border-none premium-shadow-sm overflow-hidden">
+                        <CardHeader className="border-b border-muted/20 bg-muted/5">
+                            <CardTitle className="text-lg font-black font-space tracking-tight uppercase tracking-widest text-[10px] opacity-60">Dépense Moyenne / Type</CardTitle>
                             <CardDescription>Montant moyen des dépenses pour chaque type de document.</CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="pt-6">
                             <ChartContainer config={chartConfig} className="h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={analyticsData.averageSpendByTypeChartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
@@ -572,12 +574,12 @@ export default function AnalyticsPage() {
                 </div>
             </TabsContent>
             <TabsContent value="vat_analysis" className="mt-4">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Détail de la TVA Déductible</CardTitle>
+                 <Card className="glass-panel border-none premium-shadow-sm overflow-hidden">
+                    <CardHeader className="border-b border-muted/20 bg-muted/5">
+                        <CardTitle className="text-lg font-black font-space tracking-tight uppercase tracking-widest text-[10px] opacity-60">Détail de la TVA Déductible</CardTitle>
                         <CardDescription>Liste de tous les documents approuvés avec TVA pour la période sélectionnée.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-6">
                         <Table>
                             <TableHeader>
                                 <TableRow>

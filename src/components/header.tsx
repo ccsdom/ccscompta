@@ -47,6 +47,7 @@ import { cn } from '@/lib/utils';
 import { useBranding } from './branding-provider';
 import { useAuth, db } from '@/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { auditService } from '@/services/audit-service';
 
 
 export function Header({children}: {children?: React.ReactNode}) {
@@ -166,6 +167,14 @@ export function Header({children}: {children?: React.ReactNode}) {
           title: "Session d'impersonation terminée",
           description: `Vous avez repris votre session en tant que ${originalName || 'Administrateur'}.`,
       });
+      
+      // Log the end of impersonation
+      if (originalName && originalEmail && profile) {
+          auditService.logImpersonation('stop', 
+              { name: originalName, email: originalEmail, role: originalRole || 'admin' },
+              { name: profile.name, id: profile.id, type: 'cabinet' }
+          );
+      }
       
       window.dispatchEvent(new Event('storage'));
 

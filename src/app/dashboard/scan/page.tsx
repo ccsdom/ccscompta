@@ -87,6 +87,7 @@ export default function ScanPage() {
                 status: 'pending',
                 storagePath: storagePath,
                 clientId: clientId,
+                cabinetId: currentClient?.cabinetId || '',
                 auditTrail: initialTrail,
                 comments: [],
             };

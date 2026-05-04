@@ -16,7 +16,8 @@ import {
   FileText,
   TrendingUp,
   Users,
-  CreditCard
+  CreditCard,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,12 +96,7 @@ export default function SalesDashboard() {
     }
   };
 
-  const stats = [
-    { label: 'Chiffre d\'Affaires', value: '12 450,00 €', icon: TrendingUp, color: 'text-blue-500', trend: '+12%' },
-    { label: 'En attente', value: '3 200,00 €', icon: Clock, color: 'text-amber-500', trend: '5 factures' },
-    { label: 'Payé ce mois', value: '8 900,00 €', icon: CheckCircle2, color: 'text-emerald-500', trend: '+8%' },
-    { label: 'Clients actifs', value: '12', icon: Users, color: 'text-purple-500', trend: '+2 nouveaux' },
-  ];
+
 
   return (
     <div className="p-8 space-y-8 max-w-[1600px] mx-auto">
@@ -109,15 +105,51 @@ export default function SalesDashboard() {
           <h1 className="text-4xl font-black font-space tracking-tight">Mes Ventes</h1>
           <p className="text-muted-foreground font-medium">Gérez vos factures et suivez votre trésorerie en temps réel.</p>
         </div>
-        <Link href="/dashboard/sales/new">
-          <Button className="h-12 px-6 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-black font-space gap-2 shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">
-            <Plus className="h-5 w-5" /> Nouvelle Facture
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/sales/settings">
+            <Button variant="outline" className="h-12 px-6 rounded-2xl border-white/10 bg-white/5 gap-2 font-space uppercase text-[10px] tracking-widest font-black">
+              <Settings className="h-5 w-5" /> Paramètres
+            </Button>
+          </Link>
+          <Link href="/dashboard/sales/new">
+            <Button className="h-12 px-6 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-black font-space gap-2 shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+              <Plus className="h-5 w-5" /> Nouvelle Facture
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
+        {[
+          { 
+            label: 'Chiffre d\'Affaires', 
+            value: invoices.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.totalTTC, 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 
+            icon: TrendingUp, 
+            color: 'text-blue-500', 
+            trend: `${invoices.filter(i => i.status === 'paid').length} payées` 
+          },
+          { 
+            label: 'En attente', 
+            value: invoices.filter(i => i.status === 'sent').reduce((acc, curr) => acc + curr.totalTTC, 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 
+            icon: Clock, 
+            color: 'text-amber-500', 
+            trend: `${invoices.filter(i => i.status === 'sent').length} factures` 
+          },
+          { 
+            label: 'Total TTC Global', 
+            value: invoices.reduce((acc, curr) => acc + curr.totalTTC, 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 
+            icon: CreditCard, 
+            color: 'text-emerald-500', 
+            trend: 'Total historique' 
+          },
+          { 
+            label: 'Impayées / Retard', 
+            value: invoices.filter(i => i.status === 'overdue').reduce((acc, curr) => acc + curr.totalTTC, 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 
+            icon: AlertCircle, 
+            color: 'text-rose-500', 
+            trend: `${invoices.filter(i => i.status === 'overdue').length} en retard` 
+          },
+        ].map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -138,7 +170,6 @@ export default function SalesDashboard() {
                 <div className="flex flex-col">
                   <span className="text-2xl font-black font-space">{stat.value}</span>
                   <span className="text-[10px] font-bold text-muted-foreground mt-1 flex items-center gap-1">
-                    {stat.trend.startsWith('+') ? <ArrowUpRight className="h-3 w-3 text-emerald-500" /> : <Clock className="h-3 w-3" />}
                     {stat.trend}
                   </span>
                 </div>
@@ -223,8 +254,17 @@ export default function SalesDashboard() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="glass-panel border-white/10 p-2 min-w-[160px]">
-                          <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium"><FileText className="h-4 w-4" /> Voir / Éditer</DropdownMenuItem>
-                          <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium"><Download className="h-4 w-4" /> Télécharger PDF</DropdownMenuItem>
+                          <Link href={`/dashboard/sales/${invoice.id}`}>
+                            <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer font-medium">
+                              <FileText className="h-4 w-4" /> Voir / Éditer
+                            </DropdownMenuItem>
+                          </Link>
+                          <DropdownMenuItem 
+                            className="rounded-lg gap-2 cursor-pointer font-medium"
+                            onClick={() => salesService.generateInvoicePDF(invoice, userProfile)}
+                          >
+                            <Download className="h-4 w-4" /> Télécharger PDF
+                          </DropdownMenuItem>
                           {invoice.status !== 'paid' && (
                             <DropdownMenuItem 
                               className="rounded-lg gap-2 cursor-pointer font-medium text-emerald-500 focus:text-emerald-500"

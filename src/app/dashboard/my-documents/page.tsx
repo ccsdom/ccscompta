@@ -61,6 +61,7 @@ export default function MyDocumentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
   const [showPasswordAlert, setShowPasswordAlert] = useState(false);
+  const [cabinetId, setCabinetId] = useState<string | null>(null);
   const { toast } = useToast();
   const { storage } = useFirebase();
   
@@ -91,6 +92,12 @@ export default function MyDocumentsPage() {
             
             const dismissed = localStorage.getItem(`password_alert_dismissed_${storedClientId}`);
             setShowPasswordAlert(!dismissed);
+
+            if (storedClientId) {
+                getDoc(doc(db, 'clients', storedClientId))
+                    .then(snap => { if (snap.exists()) setCabinetId(snap.data().cabinetId); })
+                    .catch(err => console.warn('Could not load cabinet ID:', err));
+            }
 
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -130,6 +137,7 @@ export default function MyDocumentsPage() {
             status: 'pending' as const,
             storagePath,
             clientId: clientId,
+            cabinetId: cabinetId || '',
             comments: [],
             auditTrail: addAuditEvent([], 'Document téléversé'),
         };

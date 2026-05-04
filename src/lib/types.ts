@@ -16,7 +16,7 @@ export interface SystemAuditLog {
     userName: string;
     action: string;
     type: 'info' | 'warning' | 'error' | 'security';
-    category: 'auth' | 'billing' | 'system' | 'cabinet' | 'document';
+    category: 'auth' | 'billing' | 'system' | 'cabinet' | 'document' | 'impersonation';
     metadata?: Record<string, any>;
 }
 
@@ -79,6 +79,13 @@ export interface Client {
     stripeSubscriptionItemId?: string; // The specific item for metered billing
     hasBankConnected?: boolean;
     lastBankConnectionId?: string;
+    // Invoicing / Seller info
+    iban?: string;
+    bic?: string;
+    bankName?: string;
+    vatNumber?: string;
+    website?: string;
+    logoUrl?: string;
 }
 
 export interface Invoice {
@@ -159,6 +166,7 @@ export interface Document {
   name: string;
   uploadDate: string; // ISO 8601 string date
   status: 'pending' | 'processing' | 'reviewing' | 'approved' | 'error' | 'duplicate';
+  cabinetId: string;
   dataUrl?: string; // Stored in memory for preview, not in DB
   storagePath: string; // Can be a real path or a simulated one
   type?: string;
@@ -177,6 +185,11 @@ export interface Document {
       creditAccount?: string;
       vatAccount?: string;
       confidenceScore?: number;
+    };
+    summary?: string;
+    insight?: {
+      type: 'positive' | 'negative' | 'neutral';
+      message: string;
     };
     transactions?: {
       date: string;

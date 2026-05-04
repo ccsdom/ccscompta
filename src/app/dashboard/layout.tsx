@@ -9,7 +9,7 @@ import { CommandCenter } from "@/components/command-center";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, UserCheck, UserCog, User, Briefcase, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ScanLine, BarChart, Menu, UserCheck, UserCog, User, Briefcase, CreditCard, Building, Settings } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

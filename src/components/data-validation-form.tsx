@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableHeader, TableRow, TableHead } from '@/components/ui/table';
+import { DocumentSummary } from './document-summary';
 
 import { runBankReconciliation } from '@/ai/flows/reconcile-actions';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -45,6 +46,8 @@ const initialFormState: ExtractDataOutput = {
   otherInformation: '',
   anomalies: [],
   transactions: [],
+  summary: '',
+  insight: undefined
 };
 
 // ─── Sub-component: Audit Trail ──────────────────────────────────────────────
@@ -436,6 +439,11 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                                         </Alert>
                                     )}
                                     
+                                    <DocumentSummary 
+                                       summary={formData.summary} 
+                                       insight={formData.insight} 
+                                    />
+
                                     {hasExtractedData ? (
                                         isBankStatement ? (
                                             <BankStatementData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} documentId={document.id} clientId={document.clientId!} />
