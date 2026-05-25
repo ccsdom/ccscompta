@@ -145,7 +145,7 @@ export function Header({children}: {children?: React.ReactNode}) {
   const handleLogout = async () => {
     await auth.signOut();
     localStorage.clear();
-    router.push('/login');
+    router.push('/connexion');
   };
 
   const handleStopImpersonating = () => {

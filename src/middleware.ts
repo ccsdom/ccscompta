@@ -8,8 +8,8 @@ export function middleware(request: NextRequest) {
 
   if (path.startsWith('/dashboard')) {
     // Redirection si aucun cookie de rôle (non connecté)
-    if (!roleCookie && path !== '/login') {
-      return NextResponse.redirect(new URL('/login', request.url));
+    if (!roleCookie && path !== '/connexion') {
+      return NextResponse.redirect(new URL('/connexion', request.url));
     }
 
     // Protection rigoureuse des routes par rôle
