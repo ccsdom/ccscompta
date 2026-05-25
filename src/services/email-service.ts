@@ -7,8 +7,8 @@ export class EmailService {
     /**
      * Sends an invitation email to a cabinet admin.
      */
-    public static async sendCabinetInvitation(cabinet: { name: string, email: string, id: string }) {
-        const loginUrl = `${window.location.origin}/onboarding?cabinetId=${cabinet.id}`;
+    public static async sendCabinetInvitation(cabinet: { name: string, email: string, id: string, invitationUrl: string }) {
+        const loginUrl = cabinet.invitationUrl;
         
         const html = `
             <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; background-color: #0c0c0c; color: #ffffff; padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1);">
@@ -49,7 +49,8 @@ export class EmailService {
             },
             metadata: {
                 cabinetId: cabinet.id,
-                type: 'invitation'
+                type: 'invitation',
+                secured: true
             },
             status: 'pending', // Explicit status for some extensions
             createdAt: new Date().toISOString()

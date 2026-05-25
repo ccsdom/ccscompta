@@ -154,6 +154,8 @@ export interface Cabinet {
     quotas: CabinetQuotas;
     invitationSentAt?: string;
     invitationStatus?: 'pending' | 'accepted' | 'expired';
+    invitationExpiresAt?: string;
+    invitedBy?: string;
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
     stripeSubscriptionItemId?: string;
@@ -208,4 +210,33 @@ export interface Document {
   exportId?: string;
   billableLines?: number; // Number of accounting lines generated for this doc
   billingPeriod?: string; // YYYY-MM format for easy grouping
+}
+
+export interface DepreciationSchedule {
+  year: number;
+  openingValue: number;
+  depreciationAmount: number; // Montant de la dotation
+  closingValue: number; // Valeur Nette Comptable
+}
+
+export interface Asset {
+  id: string;
+  clientId: string;
+  cabinetId: string;
+  documentId: string; // Facture d'origine
+  name: string;
+  amortizationMethod: 'linear' | 'declining';
+  acquisitionDate: string; // ISO 8601 string
+  serviceStartDate: string; // Date de mise en service (ISO)
+  acquisitionValue: number; // Montant HT
+  usefulLifeMonths: number; // Durée en mois
+  depreciationBase: number;
+  residualValue: number;
+  decliningCoefficient?: number; // V2: coefficient dégressif
+  isDecliningEligible?: boolean; // V2: éligibilité
+  fiscalNotes?: string;
+  status: 'active' | 'scrapped' | 'sold';
+  schedule: DepreciationSchedule[];
+  createdAt: string;
+  updatedAt: string;
 }

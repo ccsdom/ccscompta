@@ -10,10 +10,9 @@ import { CompanySearchCombobox } from "@/components/company-search-combobox";
 import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { KeyRound, UserPlus, ChevronLeft, Search, Sparkles } from "lucide-react";
-import { useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getApp } from "firebase/app";
+import { KeyRound, UserPlus, ChevronLeft, Search, Sparkles, Copy } from "lucide-react";
+import { useAuth, errorEmitter, FirestorePermissionError, functions } from "@/firebase";
+import { httpsCallable } from "firebase/functions";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -50,7 +49,6 @@ export default function NewClientPage() {
                 throw new Error("Le service d'authentification n'est pas prêt.");
             }
             
-            const functions = getFunctions(getApp());
             const createUserFunc = httpsCallable(functions, 'createUserWithRole');
             const result = await createUserFunc(data)
                 .catch((error) => {
@@ -65,7 +63,7 @@ export default function NewClientPage() {
                     throw error;
                 });
 
-            const resultData = result.data as { success: boolean; message: string; };
+            const resultData = result.data as { success: boolean; message: string; setupLink?: string; };
 
              if (!resultData.success) {
                 throw new Error(resultData.message || 'Une erreur inconnue est survenue.');
@@ -79,9 +77,23 @@ export default function NewClientPage() {
                         <p>Le compte pour <strong>{data.name}</strong> a été créé.</p>
                          <Alert variant="default" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
                             <KeyRound className="h-4 w-4" />
-                            <AlertTitle className="font-space font-black uppercase text-[10px] tracking-widest">Mot de passe envoyé</AlertTitle>
-                            <AlertDescription className="text-xs">
-                                L'utilisateur recevra ses accès sous peu. Mot de passe initial : <strong>password</strong>
+                            <AlertTitle className="font-space font-black uppercase text-[10px] tracking-widest">Lien d'activation</AlertTitle>
+                            <AlertDescription className="space-y-2 text-xs">
+                                <p>Transmettez ce lien au client via un canal sécurisé pour qu'il définisse son mot de passe.</p>
+                                {resultData.setupLink ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 gap-2 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                                        onClick={() => navigator.clipboard.writeText(resultData.setupLink!)}
+                                    >
+                                        <Copy className="h-3.5 w-3.5" />
+                                        Copier le lien
+                                    </Button>
+                                ) : (
+                                    <p>Le lien n'a pas pu être généré automatiquement. Régénérez-le depuis Firebase Auth.</p>
+                                )}
                             </AlertDescription>
                         </Alert>
                     </div>

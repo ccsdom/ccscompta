@@ -1,4 +1,4 @@
-
+﻿
 'use client';
 
 import { useState } from 'react';
@@ -11,9 +11,8 @@ import { type Client } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { useAuth } from '@/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getApp } from 'firebase/app';
+import { useAuth, functions } from '@/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 
 interface ClientImportDialogProps {
@@ -22,6 +21,7 @@ interface ClientImportDialogProps {
 }
 
 type ParsedClient = Omit<Client, 'id' | 'newDocuments' | 'lastActivity' | 'status'>;
+type ActivationLink = { name: string; email: string; setupLink: string };
 
 export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImportDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -42,7 +42,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 toast({
                     variant: 'destructive',
                     title: 'Type de fichier invalide',
-                    description: 'Veuillez sélectionner un fichier CSV.'
+                    description: 'Veuillez sÃ©lectionner un fichier CSV.'
                 });
                 return;
             }
@@ -63,11 +63,11 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
 
                 if (missingHeaders.length > 0) {
-                    setErrors([`Les en-têtes suivants sont manquants dans votre fichier CSV : ${missingHeaders.join(', ')}.`]);
+                    setErrors([`Les en-tÃªtes suivants sont manquants dans votre fichier CSV : ${missingHeaders.join(', ')}.`]);
                     setIsLoading(false);
                     return;
                 }
-                
+
                 if (results.errors.length > 0) {
                     setErrors(results.errors.map(e => `Ligne ${e.row}: ${e.message}`));
                 }
@@ -86,13 +86,13 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
             }
         });
     };
-    
+
     const handleImport = async () => {
         if (parsedData.length === 0 || errors.length > 0) {
             toast({
                 variant: 'destructive',
                 title: 'Importation impossible',
-                description: 'Le fichier contient des erreurs ou aucune donnée valide à importer.'
+                description: 'Le fichier contient des erreurs ou aucune donnÃ©e valide Ã  importer.'
             });
             return;
         }
@@ -100,14 +100,14 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         setIsLoading(true);
         let importedCount = 0;
         let errorCount = 0;
-        
+        const activationLinks: ActivationLink[] = [];
+
         if (!clientAuth) {
             toast({ variant: 'destructive', title: 'Erreur d\'authentification', description: 'Veuillez vous reconnecter.' });
             setIsLoading(false);
             return;
         }
-        
-        const functions = getFunctions(getApp());
+
         const createUserFunc = httpsCallable(functions, 'createUserWithRole');
 
 
@@ -117,35 +117,54 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                     ...clientData,
                     role: 'client',
                 };
-                
+
                 const result = await createUserFunc(dataToSend);
-                const resultData = result.data as { success: boolean };
+                const resultData = result.data as { success: boolean; setupLink?: string };
 
                 if (resultData.success) {
                     importedCount++;
+                    if (resultData.setupLink) {
+                        activationLinks.push({
+                            name: clientData.name,
+                            email: clientData.email,
+                            setupLink: resultData.setupLink,
+                        });
+                    }
                 } else {
-                    throw new Error('La création a échoué côté serveur.');
+                    throw new Error('La crÃ©ation a Ã©chouÃ© cÃ´tÃ© serveur.');
                 }
 
             } catch (error: any) {
                 errorCount++;
-                let msg = `Erreur pour ${clientData.name}: ${error.message}`;
                 console.error(`Failed to import client ${clientData.name}: ${error.message}`);
             }
         }
 
         if (importedCount > 0) {
+            if (activationLinks.length > 0) {
+                const csv = Papa.unparse(activationLinks);
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `liens-activation-clients-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            }
+
             toast({
                 duration: 20000,
-                title: 'Importation terminée, action requise !',
+                title: 'Importation terminÃ©e, action requise !',
                 description: (
                     <div className="space-y-2">
-                        <p>{importedCount} profils clients et comptes d'accès ont été créés.</p>
+                        <p>{importedCount} profils clients et comptes d'accÃ¨s ont Ã©tÃ© crÃ©Ã©s.</p>
                         <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
                              <KeyRound className="h-4 w-4" />
-                             <AlertTitle>Mots de passe initiaux</AlertTitle>
+                             <AlertTitle>Liens d'activation</AlertTitle>
                              <AlertDescription>
-                                Le mot de passe initial pour chaque client importé est "password".
+                                Un fichier CSV contenant les liens d'activation disponibles vient d'Ãªtre gÃ©nÃ©rÃ©.
                              </AlertDescription>
                          </Alert>
                     </div>
@@ -153,12 +172,12 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
             });
             onClientsImported();
         }
-        
+
         if (errorCount > 0) {
              toast({
                 variant: 'destructive',
                 title: `${errorCount} erreur(s) lors de l'importation`,
-                description: "Certains clients n'ont pas pu être importés. Vérifiez les doublons d'email ou de SIRET."
+                description: "Certains clients n'ont pas pu Ãªtre importÃ©s. VÃ©rifiez les doublons d'email ou de SIRET."
             });
         }
 
@@ -169,7 +188,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         setIsOpen(false);
         setIsLoading(false);
     }
-    
+
     const resetState = () => {
         setFile(null);
         setParsedData([]);
@@ -205,7 +224,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 <DialogHeader>
                     <DialogTitle>Importer des clients depuis un fichier CSV</DialogTitle>
                     <DialogDescription>
-                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les en-têtes : {REQUIRED_HEADERS.join(', ')}.
+                        TÃ©lÃ©versez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les en-tÃªtes : {REQUIRED_HEADERS.join(', ')}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -225,7 +244,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                             <div className="flex flex-col items-center justify-center text-center">
                                 <File className="h-10 w-10 text-muted-foreground" />
                                 <p className="mt-4 text-sm font-medium">
-                                    Glissez-déposez ou <span className="font-semibold text-primary">parcourir</span>
+                                    Glissez-dÃ©posez ou <span className="font-semibold text-primary">parcourir</span>
                                 </p>
                                 <p className="mt-1 text-xs text-muted-foreground">
                                     Fichier CSV uniquement
@@ -235,7 +254,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                         <div className="mt-6 text-center">
                            <a href="/clients-to-import.csv" download="clients-a-importer.csv" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2">
                                  <Download className="mr-2 h-4 w-4"/>
-                                 Télécharger le fichier pré-rempli
+                                 TÃ©lÃ©charger le fichier prÃ©-rempli
                                </a>
                         </div>
                     </div>
@@ -254,7 +273,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                             </div>
                         ) : errors.length > 0 ? (
                             <div className="h-64 p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
-                                <h3 className="font-bold flex items-center gap-2"><AlertCircle /> Erreurs détectées</h3>
+                                <h3 className="font-bold flex items-center gap-2"><AlertCircle /> Erreurs dÃ©tectÃ©es</h3>
                                 <ScrollArea className="mt-2 h-[200px] text-sm">
                                     <ul className="space-y-1 list-disc pl-5">
                                         {errors.map((error, i) => <li key={i}>{error}</li>)}
@@ -265,7 +284,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                             <div>
                                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                                     <CheckCircle className="h-5 w-5 text-green-500" />
-                                    Aperçu des données ({parsedData.length} clients détectés)
+                                    AperÃ§u des donnÃ©es ({parsedData.length} clients dÃ©tectÃ©s)
                                 </h3>
                                 <ScrollArea className="h-64 border rounded-lg">
                                     <Table>
@@ -291,7 +310,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                         )}
                     </div>
                 )}
-                
+
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button variant="ghost">Annuler</Button>
@@ -305,4 +324,4 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
     );
 }
 
-    
+

@@ -1,32 +1,85 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // --- Helper function pour vérifier si l'utilisateur est un membre du personnel ---
-    function isStaff() {
-      // Pour utiliser cette fonction, vous devez avoir des "custom claims" sur vos utilisateurs
-      // contenant leur rôle. La fonction ci-dessous est un exemple.
-      // Assurez-vous que votre backend assigne bien ces rôles.
-      return request.auth.token.role in ['admin', 'accountant', 'secretary'];
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    match /{userId}/{allPaths=**} {
-      
-      // PERMISSION DE LECTURE (GET)
-      // Qui peut voir le contenu d'un fichier spécifique ?
-      // - L'utilisateur propriétaire du dossier.
-      // - Les membres du personnel.
-      allow get: if request.auth != null && (request.auth.uid == userId || isStaff());
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
 
-      // PERMISSION DE LISTAGE (LIST)
-      // Qui peut voir la liste des fichiers dans un dossier ?
-      // - Uniquement les membres du personnel. Les clients n'ont pas besoin de lister les fichiers.
-      allow list: if request.auth != null && isStaff();
-      
-      // PERMISSIONS D'ÉCRITURE (CREATE, UPDATE, DELETE)
-      // Qui peut téléverser, modifier ou supprimer un fichier ?
-      // - Uniquement l'utilisateur propriétaire du dossier.
-      allow write: if request.auth != null && (request.auth.uid == userId || isStaff());
+    function isStaff() {
+      return isAuthenticated() && request.auth.token.role in ['admin', 'accountant', 'secretary'];
+    }
+
+    function isAccountingStaff() {
+      return isAuthenticated() && request.auth.token.role in ['admin', 'accountant'];
+    }
+
+    function callerCabinetId() {
+      return request.auth.token.cabinetId;
+    }
+
+    function clientPath(clientId) {
+      return /databases/(default)/documents/clients/$(clientId);
+    }
+
+    function clientBelongsToCallerCabinet(clientId) {
+      return isStaff()
+        && callerCabinetId() != null
+        && firestore.exists(clientPath(clientId))
+        && firestore.get(clientPath(clientId)).data.cabinetId == callerCabinetId();
+    }
+
+    function canAccessClientFiles(clientId) {
+      return isAuthenticated()
+        && (request.auth.uid == clientId || isAdmin() || clientBelongsToCallerCabinet(clientId));
+    }
+
+    function isAccountingDocumentUpload() {
+      return request.resource != null
+        && request.resource.size < 20 * 1024 * 1024
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType.matches('image/.*')
+        );
+    }
+
+    function isLogoUpload() {
+      return request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /mails/{clientId}/{allPaths=**} {
+      allow get: if canAccessClientFiles(clientId);
+      allow list: if isStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
+      allow create, update: if false;
+      allow delete: if isAccountingStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
+    }
+
+    match /exports/{clientId}/{allPaths=**} {
+      allow get: if canAccessClientFiles(clientId);
+      allow list: if isAccountingStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
+      allow create, update, delete: if false;
+    }
+
+    match /cabinets/{cabinetId}/{allPaths=**} {
+      allow get: if true;
+      allow list: if isAdmin() || (isStaff() && callerCabinetId() == cabinetId);
+      allow create, update: if (isAdmin() || (isStaff() && callerCabinetId() == cabinetId))
+        && isLogoUpload();
+      allow delete: if isAdmin() || (isStaff() && callerCabinetId() == cabinetId);
+    }
+
+    match /{clientId}/{allPaths=**} {
+      allow get: if canAccessClientFiles(clientId);
+      allow list: if isStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
+      allow create, update: if canAccessClientFiles(clientId) && isAccountingDocumentUpload();
+      allow delete: if canAccessClientFiles(clientId);
     }
   }
 }

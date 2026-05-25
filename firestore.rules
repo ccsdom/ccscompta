@@ -2,136 +2,228 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper functions ---
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    function profilePath(userId) {
+      return /databases/$(database)/documents/clients/$(userId);
+    }
+
     function getProfile() {
-      return get(/databases/$(database)/documents/clients/$(request.auth.uid)).data;
+      return get(profilePath(request.auth.uid)).data;
+    }
+
+    function callerRole() {
+      return request.auth.token.role;
+    }
+
+    function callerCabinetId() {
+      return request.auth.token.cabinetId;
     }
 
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'admin';
+      return isAuthenticated() && callerRole() == 'admin';
     }
 
     function isStaff() {
-      return isAuthenticated() && (
-        request.auth.token.role in ['admin', 'accountant', 'secretary']
-      );
+      return isAuthenticated() && callerRole() in ['admin', 'accountant', 'secretary'];
+    }
+
+    function isAccountingStaff() {
+      return isAuthenticated() && callerRole() in ['admin', 'accountant'];
+    }
+
+    function isOwner(clientId) {
+      return isAuthenticated() && request.auth.uid == clientId;
     }
 
     function isCabinetStaff(cabinetId) {
-      return isStaff() && (isAdmin() || (getProfile().cabinetId == cabinetId));
+      return isAdmin() || (isStaff() && callerCabinetId() == cabinetId);
     }
 
-    // --- GLOBAL ADMIN OVERRIDE ---
-    // Les administrateurs peuvent tout faire
+    function isCabinetAccountingStaff(cabinetId) {
+      return isAdmin() || (isAccountingStaff() && callerCabinetId() == cabinetId);
+    }
+
+    function clientBelongsToCabinet(clientId, cabinetId) {
+      return exists(profilePath(clientId)) && get(profilePath(clientId)).data.cabinetId == cabinetId;
+    }
+
+    function canReadClientScoped(clientId, cabinetId) {
+      return isOwner(clientId)
+        || isCabinetStaff(cabinetId)
+        || (isStaff() && clientBelongsToCabinet(clientId, callerCabinetId()));
+    }
+
+    function canCreateClientScoped(clientId, cabinetId) {
+      return (isOwner(clientId) && getProfile().cabinetId == cabinetId)
+        || (isCabinetStaff(cabinetId) && clientBelongsToCabinet(clientId, cabinetId));
+    }
+
+    function clientIdentityUnchanged() {
+      return request.resource.data.clientId == resource.data.clientId
+        && request.resource.data.cabinetId == resource.data.cabinetId;
+    }
+
+    function protectedClientFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'cabinetId', 'isCabinetAdmin', 'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionItemId']);
+    }
+
+    // Global system admins are isolated through custom claims only.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // --- Legacy / User collection ---
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // --- User collection ('clients') ---
     match /clients/{userId} {
-      allow get: if isAuthenticated() && (isStaff() || request.auth.uid == userId);
-      allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId));
-      // Seul un staff peut créer un profil (via Cloud Function typiquement), 
-      // ou l'utilisateur lui-même mais sans pouvoir choisir son rôle/cabinet.
-      allow create: if isAuthenticated() && (
-        isAdmin() || 
-        (request.auth.uid == userId && 
-         request.resource.data.role == 'client' && 
-         !('cabinetId' in request.resource.data))
-      );
-      allow update: if isAdmin() || (
-        isAuthenticated() && request.auth.uid == userId && 
-        !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'cabinetId', 'isCabinetAdmin']))
-      );
-      allow delete: if isAdmin();
+      allow get: if isOwner(userId) || isCabinetStaff(resource.data.cabinetId);
+      allow list: if isStaff() && (isAdmin() || resource.data.cabinetId == callerCabinetId());
+      allow create: if isAuthenticated() && request.auth.uid == userId
+        && request.resource.data.role == 'client'
+        && !('cabinetId' in request.resource.data);
+      allow update: if (isOwner(userId) && protectedClientFieldsUnchanged())
+        || (
+          isCabinetStaff(resource.data.cabinetId)
+          && protectedClientFieldsUnchanged()
+        );
+      allow delete: if false;
     }
 
-    // --- Documents collection ---
     match /documents/{docId} {
-        allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == request.query.filters.clientId));
-        allow create: if isAuthenticated() && (isStaff() || request.auth.uid == request.resource.data.clientId);
-        allow update, delete: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId)
+        && clientIdentityUnchanged();
+      allow delete: if isCabinetStaff(resource.data.cabinetId);
     }
-    
-    // --- Invoices & Bilans collection ---
+
     match /invoices/{invoiceId} {
-        allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == request.query.filters.clientId));
-        allow create, update, delete: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId)
+        && clientIdentityUnchanged();
+      allow delete: if isCabinetStaff(resource.data.cabinetId);
     }
-    
+
     match /bilans/{bilanId} {
-        allow get: if isCabinetStaff(resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == resource.data.clientId);
-        allow list: if isAuthenticated() && (isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (request.auth.uid == request.query.filters.clientId));
-        allow create, update, delete: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if isCabinetAccountingStaff(resource.data.cabinetId) && clientIdentityUnchanged();
+      allow delete: if isCabinetAccountingStaff(resource.data.cabinetId);
     }
 
-    // --- Bank Reconciliations ---
     match /reconciliations/{reconcId} {
-      allow get: if isCabinetStaff(resource.data.cabinetId);
-      // Correction de la règle list : utiliser request.query.filters pour valider le cabinetId
-      allow list: if isAuthenticated() && (isAdmin() || (isStaff() && request.query.filters.cabinetId == getProfile().cabinetId));
-      allow write: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId);
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId)
+        || isCabinetStaff(resource.data.cabinetId);
+      allow list: if isCabinetStaff(resource.data.cabinetId);
+      allow create: if isCabinetAccountingStaff(request.resource.data.cabinetId);
+      allow update: if isCabinetAccountingStaff(resource.data.cabinetId)
+        && request.resource.data.cabinetId == resource.data.cabinetId;
+      allow delete: if isCabinetAccountingStaff(resource.data.cabinetId);
     }
 
-    // --- Notifications collection ---
+    match /assets/{assetId} {
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if isCabinetAccountingStaff(request.resource.data.cabinetId)
+        && clientBelongsToCabinet(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if isCabinetAccountingStaff(resource.data.cabinetId)
+        && clientIdentityUnchanged();
+      allow delete: if isCabinetAccountingStaff(resource.data.cabinetId);
+    }
+
+    match /accounting_entries/{entryId} {
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if isCabinetAccountingStaff(request.resource.data.cabinetId)
+        && clientBelongsToCabinet(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if isCabinetAccountingStaff(resource.data.cabinetId)
+        && resource.data.status != 'exported'
+        && clientIdentityUnchanged();
+      allow delete: if isCabinetAccountingStaff(resource.data.cabinetId)
+        && resource.data.status != 'exported';
+    }
+
+    match /fec_exports/{exportId} {
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if isCabinetAccountingStaff(request.resource.data.cabinetId)
+        && clientBelongsToCabinet(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update, delete: if false;
+    }
+
+    match /fiscal_years/{yearId} {
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if isCabinetAccountingStaff(request.resource.data.cabinetId)
+        && clientBelongsToCabinet(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if isCabinetAccountingStaff(resource.data.cabinetId)
+        && clientIdentityUnchanged();
+      allow delete: if isCabinetAccountingStaff(resource.data.cabinetId)
+        && resource.data.isClosed != true;
+    }
+
     match /notifications/{notifId} {
-        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
-        allow list: if isAuthenticated() && (isStaff() || request.query.limit <= 50 && request.auth.uid == request.query.filters.clientId);
-        allow create: if isStaff(); 
-        allow update: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId); 
-        allow delete: if isAdmin();
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if isStaff();
+      allow update: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow delete: if false;
     }
 
-    // --- Mails collection (Ingestion IA) ---
     match /mails/{mailId} {
-        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
-        allow list: if isStaff();
-        allow create: if isAdmin(); // Autoriser admin pour tests
-        allow update, delete: if isStaff();
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if isStaff() && (isAdmin() || resource.data.cabinetId == callerCabinetId());
+      allow create: if isStaff();
+      allow update, delete: if isStaff() && (isAdmin() || resource.data.cabinetId == callerCabinetId());
     }
 
-    // --- Cabinets collection ---
-    // --- Cabinets collection ---
+    match /mail/{mailId} {
+      allow create: if isAdmin();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /emails/{emailId} {
+      allow create: if isAdmin();
+      allow read, update, delete: if isAdmin();
+    }
+
     match /cabinets/{cabinetId} {
-        allow get: if true; // Permettre la lecture du nom du cabinet pour l'onboarding
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isCabinetStaff(cabinetId);
-        allow delete: if isAdmin();
+      allow get: if isAdmin() || isCabinetStaff(cabinetId);
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isCabinetStaff(cabinetId) && request.resource.data.id == resource.data.id);
+      allow delete: if false;
     }
 
-    // --- Bank Connections ---
     match /bank_connections/{connectionId} {
-        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
-        allow list: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.auth.uid == request.query.filters.clientId);
-        allow write: if isCabinetStaff(request.resource.data.cabinetId || resource.data.cabinetId) || (isAuthenticated() && request.auth.uid == request.resource.data.clientId);
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update, delete: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId)
+        && clientIdentityUnchanged();
     }
 
-    // --- Sales Invoices ---
     match /sales_invoices/{invoiceId} {
-        allow get: if isAuthenticated() && (isStaff() || request.auth.uid == resource.data.clientId);
-        allow list: if isAdmin() || (isStaff() && resource.data.cabinetId == getProfile().cabinetId) || (isAuthenticated() && request.auth.uid == request.query.filters.clientId);
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.clientId;
-        allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.clientId;
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update, delete: if isOwner(resource.data.clientId) && clientIdentityUnchanged();
     }
 
-    // --- Audit Logs ---
     match /audit/{auditId} {
-        allow read: if isAdmin();
-        allow create: if isAuthenticated();
-        allow update, delete: if false; // Immutable logs
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
     }
   }
 }

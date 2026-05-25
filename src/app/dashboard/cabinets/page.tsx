@@ -52,9 +52,10 @@ import { auditService } from "@/services/audit-service";
 import { EmailService } from "@/services/email-service";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { db, functions } from '@/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn, formatDate } from "@/lib/utils";
@@ -130,13 +131,28 @@ export default function CabinetsManagementPage() {
         router.push('/dashboard/accountant');
     };
 
-    const handleCopyLink = (cabinetId: string) => {
-        const url = `${window.location.origin}/onboarding?cabinetId=${cabinetId}`;
-        navigator.clipboard.writeText(url);
-        toast({
-            title: "Lien copié !",
-            description: "Le lien d'onboarding est dans votre presse-papier.",
-        });
+    const prepareInvitation = async (cabinetId: string) => {
+        const prepareCabinetInvitation = httpsCallable(functions, 'prepareCabinetInvitation');
+        const result = await prepareCabinetInvitation({ cabinetId });
+        const data = result.data as { success: boolean; invitationUrl?: string; expiresAt?: string };
+        if (!data.success || !data.invitationUrl) {
+            throw new Error("Le lien d'invitation n'a pas pu être généré.");
+        }
+        return data;
+    };
+
+    const handleCopyLink = async (cabinetId: string) => {
+        try {
+            const data = await prepareInvitation(cabinetId);
+            await navigator.clipboard.writeText(data.invitationUrl!);
+            toast({
+                title: "Nouveau lien sécurisé copié !",
+                description: "Les précédents liens d'invitation de ce cabinet sont révoqués.",
+            });
+        } catch (error) {
+            console.error("Erreur copie invitation:", error);
+            toast({ variant: "destructive", title: "Erreur d'invitation", description: "Impossible de générer le lien sécurisé." });
+        }
     };
 
     const handleSaveCabinet = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -192,18 +208,14 @@ export default function CabinetsManagementPage() {
     const handleSendInvitation = async (cabinet: any) => {
         try {
             await auditService.logSystem(`INVITATION : Envoi des accès pour ${cabinet.name} (${cabinet.email})`, 'security');
+            const invitation = await prepareInvitation(cabinet.id);
             
             // 1. Déclencher l'envoi réel du mail via le service d'email
             await EmailService.sendCabinetInvitation({
                 id: cabinet.id,
                 name: cabinet.name,
-                email: cabinet.email
-            });
-
-            // 2. Mettre à jour Firestore pour le suivi UI
-            await updateDoc(doc(db, 'cabinets', cabinet.id), {
-                invitationSentAt: new Date().toISOString(),
-                invitationStatus: 'pending'
+                email: cabinet.email,
+                invitationUrl: invitation.invitationUrl!
             });
 
             toast({

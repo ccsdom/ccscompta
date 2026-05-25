@@ -12,7 +12,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "claims:backfill": "node scripts/backfill-custom-claims.mjs"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",

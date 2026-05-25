@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 import { Loader2, ShieldCheck, Lock, CheckCircle2, Building, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { db, functions } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { functions } from '@/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,39 +25,47 @@ function OnboardingContent() {
     const [step, setStep] = useState(1); // 1: Welcome/Verify, 2: Set Password, 3: Success
 
     const cabinetId = searchParams.get('cabinetId');
+    const token = searchParams.get('token');
 
     useEffect(() => {
         const verifyInvitation = async () => {
-            if (!cabinetId) {
-                toast({ variant: "destructive", title: "Lien invalide", description: "Aucun identifiant de cabinet fourni." });
+            if (!cabinetId || !token) {
+                toast({ variant: "destructive", title: "Lien invalide", description: "Ce lien d'invitation est incomplet." });
                 setIsLoading(false);
                 return;
             }
 
             try {
-                const docRef = doc(db, 'cabinets', cabinetId);
-                const docSnap = await getDoc(docRef);
+                const verifyCabinetInvitation = httpsCallable(functions, 'verifyCabinetInvitation');
+                const result = await verifyCabinetInvitation({ cabinetId, token });
+                const data = result.data as {
+                    valid: boolean;
+                    status?: string;
+                    name?: string;
+                    email?: string;
+                };
 
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.invitationStatus === 'accepted') {
-                        toast({ title: "Déjà configuré", description: "Votre compte est déjà actif. Redirection vers la connexion..." });
-                        setTimeout(() => router.push('/connexion'), 2000);
-                        return;
-                    }
-                    setCabinet(data);
+                if (data.status === 'accepted') {
+                    toast({ title: "Déjà configuré", description: "Votre compte est déjà actif. Redirection vers la connexion..." });
+                    setTimeout(() => router.push('/connexion'), 2000);
+                    return;
+                }
+
+                if (data.valid && data.email) {
+                    setCabinet({ name: data.name, email: data.email });
                 } else {
-                    toast({ variant: "destructive", title: "Cabinet introuvable", description: "Ce lien semble expiré ou invalide." });
+                    toast({ variant: "destructive", title: "Invitation invalide", description: "Ce lien semble expiré ou invalide." });
                 }
             } catch (error) {
                 console.error("Verification error:", error);
+                toast({ variant: "destructive", title: "Invitation invalide", description: "Ce lien semble expiré ou invalide." });
             } finally {
                 setIsLoading(false);
             }
         };
 
         verifyInvitation();
-    }, [cabinetId, router, toast]);
+    }, [cabinetId, router, toast, token]);
 
     const handleCreateAccount = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,8 +74,8 @@ function OnboardingContent() {
             return;
         }
 
-        if (password.length < 8) {
-            toast({ variant: "destructive", title: "Mot de passe trop court", description: "Minimum 8 caractères requis." });
+        if (password.length < 12) {
+            toast({ variant: "destructive", title: "Mot de passe trop court", description: "Minimum 12 caractères requis." });
             return;
         }
 
@@ -78,6 +85,7 @@ function OnboardingContent() {
             
             await setupInvitedCabinet({
                 cabinetId,
+                token,
                 password,
                 email: cabinet.email,
                 name: cabinet.name
@@ -217,7 +225,7 @@ function OnboardingContent() {
                                                 type="password" 
                                                 value={password} 
                                                 onChange={(e) => setPassword(e.target.value)} 
-                                                placeholder="••••••••"
+                                                placeholder="12 caractères minimum"
                                                 className="h-12 bg-white/5 border-white/10"
                                                 required 
                                             />
