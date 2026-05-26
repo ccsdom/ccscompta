@@ -3,6 +3,8 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
+    "audit:high": "npm audit --audit-level=high",
+    "verify": "tsc && npm audit --audit-level=high",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",

@@ -13,6 +13,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "audit:high": "npm audit --audit-level=high",
+    "verify:static": "tsc --noEmit && npm audit --audit-level=high",
     "claims:backfill": "node scripts/backfill-custom-claims.mjs"
   },
   "dependencies": {
