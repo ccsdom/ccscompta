@@ -78,6 +78,8 @@ Livre le 2026-05-26 :
 - Import photo depuis smartphone en secours quand l'acces camera navigateur est indisponible.
 - Historique documents mobile rendu plus lisible : statut, metadonnees comptables, commentaires et actions compactes.
 - Consultation document mobile restructuree par onglets `Apercu`, `Donnees`, `Notes`, avec ouverture externe du justificatif.
+- Recherche locale et filtres de statut ajoutes a l'historique client mobile.
+- Centre de suivi client ajoute : documents en attente, en examen, erreurs, fichiers rejetes et justificatifs manquants.
 
 ### Chantier 4 - Cockpit Admin SaaS
 

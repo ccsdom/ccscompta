@@ -2,17 +2,17 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ExternalLink, FileUp, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, ShieldAlert, UploadCloud } from 'lucide-react';
+import { AlertCircle, BellRing, ExternalLink, FileUp, FilterX, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Search, ShieldAlert } from 'lucide-react';
 import type { Document, AuditEvent, Comment } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
@@ -27,7 +27,7 @@ import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { db } from '@/firebase';
-import { formatDate, parseDate } from '@/lib/utils';
+import { cn, formatDate, parseDate } from '@/lib/utils';
 import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
 
 
@@ -55,6 +55,38 @@ const getStatusBadge = (status: Document['status']) => {
   }
 };
 
+type DocumentStatusFilter = 'all' | 'attention' | Document['status'];
+
+const statusFilterOptions: { value: DocumentStatusFilter; label: string }[] = [
+  { value: 'all', label: 'Tous' },
+  { value: 'attention', label: 'À traiter' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'processing', label: 'Traitement' },
+  { value: 'reviewing', label: 'En examen' },
+  { value: 'approved', label: 'Validés' },
+  { value: 'error', label: 'Erreurs' },
+  { value: 'duplicate', label: 'Doublons' },
+];
+
+const attentionStatuses: Document['status'][] = ['error', 'reviewing'];
+
+const documentMatchesText = (doc: Document, query: string) => {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const searchableText = [
+    doc.name,
+    doc.type,
+    doc.status,
+    doc.extractedData?.category,
+    doc.extractedData?.otherInformation,
+    ...(doc.extractedData?.vendorNames || []),
+    ...(doc.extractedData?.dates || []),
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  return searchableText.includes(normalizedQuery);
+};
+
 
 export default function MyDocumentsPage() {
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
@@ -63,8 +95,12 @@ export default function MyDocumentsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCriteria, setSearchCriteria] = useState<IntelligentSearchOutput | null>(null);
+  const [statusFilter, setStatusFilter] = useState<DocumentStatusFilter>('all');
+  const [recentUploadRejections, setRecentUploadRejections] = useState<FileUploadRejection[]>([]);
   const [showPasswordAlert, setShowPasswordAlert] = useState(false);
   const [cabinetId, setCabinetId] = useState<string | null>(null);
+  const uploadSectionRef = useRef<HTMLDivElement>(null);
+  const historySectionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { storage } = useFirebase();
   
@@ -89,9 +125,9 @@ export default function MyDocumentsPage() {
                 setClientId(null);
             }
             const storedQuery = localStorage.getItem('searchQuery');
-            if (storedQuery) setSearchQuery(storedQuery);
+            setSearchQuery(storedQuery || '');
             const storedCriteria = localStorage.getItem('searchCriteria');
-            if (storedCriteria) setSearchCriteria(JSON.parse(storedCriteria));
+            setSearchCriteria(storedCriteria ? JSON.parse(storedCriteria) : null);
             
             const dismissed = localStorage.getItem(`password_alert_dismissed_${storedClientId}`);
             setShowPasswordAlert(!dismissed);
@@ -117,6 +153,37 @@ export default function MyDocumentsPage() {
       }
       setShowPasswordAlert(false);
   }
+
+  const scrollToUpload = () => {
+    uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToHistory = () => {
+    historySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleLocalSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setSearchCriteria(null);
+
+    if (value.trim()) {
+      localStorage.setItem('searchQuery', value);
+    } else {
+      localStorage.removeItem('searchQuery');
+    }
+
+    localStorage.removeItem('searchCriteria');
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  const clearDocumentFilters = () => {
+    setSearchQuery('');
+    setSearchCriteria(null);
+    setStatusFilter('all');
+    localStorage.removeItem('searchQuery');
+    localStorage.removeItem('searchCriteria');
+    window.dispatchEvent(new Event('storage'));
+  };
 
   const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
     const event: AuditEvent = {
@@ -157,6 +224,7 @@ export default function MyDocumentsPage() {
 }, [cabinetId, storage, toast]);
 
   const handleRejectedFiles = (rejections: FileUploadRejection[]) => {
+    setRecentUploadRejections(rejections.slice(0, 4));
     toast({
       variant: 'destructive',
       title: 'Certains fichiers ont ete ignores',
@@ -183,6 +251,7 @@ export default function MyDocumentsPage() {
     await Promise.all(processingPromises);
     
     if (successCount > 0) {
+      setRecentUploadRejections([]);
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été envoyés avec succès.` });
     } else if (files.length > 0) {
        toast({ variant: "destructive", title: "Échec du téléversement", description: `Aucun document n'a pu être envoyé. Veuillez réessayer.` });
@@ -227,7 +296,7 @@ export default function MyDocumentsPage() {
   
   const filteredDocuments = useMemo(() => {
         let docs = [...(documents || [])];
-        if (searchCriteria) { 
+        if (searchCriteria) {
             const { documentTypes, minAmount, maxAmount, startDate, endDate, vendor, keywords, originalQuery } = searchCriteria;
 
             if (documentTypes && documentTypes.length > 0) {
@@ -263,12 +332,15 @@ export default function MyDocumentsPage() {
                 );
             }
         }
-        else if (searchQuery) {
-            const lowercasedQuery = searchQuery.toLowerCase();
-            docs = docs.filter(doc => 
- doc.name.toLowerCase().includes(lowercasedQuery) || (doc.type && doc.type.toLowerCase().includes(lowercasedQuery)) ||
-                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor && vendor.toLowerCase().includes(lowercasedQuery)))
-            );
+
+        if (searchQuery.trim()) {
+            docs = docs.filter(doc => documentMatchesText(doc, searchQuery));
+        }
+
+        if (statusFilter === 'attention') {
+            docs = docs.filter(doc => attentionStatuses.includes(doc.status) || (doc.extractedData?.anomalies?.length || 0) > 0);
+        } else if (statusFilter !== 'all') {
+            docs = docs.filter(doc => doc.status === statusFilter);
         }
         
         return docs.sort((a,b) => {
@@ -277,7 +349,7 @@ export default function MyDocumentsPage() {
             return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
         });
 
-  }, [documents, searchQuery, searchCriteria]);
+  }, [documents, searchQuery, searchCriteria, statusFilter]);
 
 
   const CommentsSectionClient = ({ comments, onAddComment }: { comments: Comment[], onAddComment: (text: string) => void }) => {
@@ -462,6 +534,120 @@ export default function MyDocumentsPage() {
     return list;
   }, [documents]);
 
+  const documentStats = useMemo(() => {
+    const source = documents || [];
+    return {
+      total: source.length,
+      pending: source.filter(doc => doc.status === 'pending').length,
+      processing: source.filter(doc => doc.status === 'processing').length,
+      reviewing: source.filter(doc => doc.status === 'reviewing').length,
+      approved: source.filter(doc => doc.status === 'approved').length,
+      error: source.filter(doc => doc.status === 'error').length,
+      duplicate: source.filter(doc => doc.status === 'duplicate').length,
+      attention: source.filter(doc => attentionStatuses.includes(doc.status) || (doc.extractedData?.anomalies?.length || 0) > 0).length,
+    };
+  }, [documents]);
+
+  const documentsInError = useMemo(() => (documents || []).filter(doc => doc.status === 'error'), [documents]);
+  const documentsToReview = useMemo(() => (documents || []).filter(doc => doc.status === 'reviewing'), [documents]);
+  const pendingDocuments = useMemo(() => (documents || []).filter(doc => doc.status === 'pending' || doc.status === 'processing'), [documents]);
+  const hasActiveDocumentFilters = Boolean(searchQuery.trim() || searchCriteria || statusFilter !== 'all');
+
+  const getFilterCount = (filter: DocumentStatusFilter) => {
+    if (filter === 'all') return documentStats.total;
+    if (filter === 'attention') return documentStats.attention;
+    return documentStats[filter] || 0;
+  };
+
+  const AttentionCenter = () => {
+    const hasItems = anomalies.length > 0 || documentsInError.length > 0 || documentsToReview.length > 0 || pendingDocuments.length > 0 || recentUploadRejections.length > 0;
+    if (!hasItems) return null;
+
+    return (
+      <section className="rounded-lg border bg-background/70 p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <BellRing className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Suivi des pièces</h2>
+              <p className="text-sm text-muted-foreground">{documentStats.total} document{documentStats.total > 1 ? 's' : ''} dans votre espace</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center sm:w-auto">
+            <div className="rounded-md border bg-muted/30 px-3 py-2">
+              <div className="text-lg font-bold">{pendingDocuments.length}</div>
+              <div className="text-[11px] text-muted-foreground">En attente</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 px-3 py-2">
+              <div className="text-lg font-bold">{documentsToReview.length}</div>
+              <div className="text-[11px] text-muted-foreground">À vérifier</div>
+            </div>
+            <div className="rounded-md border bg-muted/30 px-3 py-2">
+              <div className={cn("text-lg font-bold", documentsInError.length > 0 && "text-destructive")}>{documentsInError.length}</div>
+              <div className="text-[11px] text-muted-foreground">Erreurs</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {recentUploadRejections.length > 0 && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-destructive">Fichier rejeté</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{summarizeUploadRejections(recentUploadRejections)}</p>
+                </div>
+                <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={scrollToUpload}>Corriger</Button>
+              </div>
+            </div>
+          )}
+
+          {anomalies.length > 0 && (
+            <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{anomalies.length} justificatif{anomalies.length > 1 ? 's' : ''} manquant{anomalies.length > 1 ? 's' : ''}</p>
+                  <p className="mt-1 truncate text-xs opacity-80">{anomalies[0].description || anomalies[0].docName}</p>
+                </div>
+                <Button size="sm" variant="outline" className="h-8 shrink-0 bg-transparent" onClick={scrollToUpload}>Fournir</Button>
+              </div>
+            </div>
+          )}
+
+          {documentsInError.length > 0 && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-start gap-3">
+                <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-destructive">{documentsInError.length} document{documentsInError.length > 1 ? 's' : ''} en erreur</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{documentsInError[0].name}</p>
+                </div>
+                <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => { setStatusFilter('error'); scrollToHistory(); }}>Voir</Button>
+              </div>
+            </div>
+          )}
+
+          {documentsToReview.length > 0 && (
+            <div className="rounded-lg border border-yellow-300/70 bg-yellow-50 p-3 text-yellow-950 dark:border-yellow-900/60 dark:bg-yellow-950/20 dark:text-yellow-200">
+              <div className="flex items-start gap-3">
+                <FileClock className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{documentsToReview.length} document{documentsToReview.length > 1 ? 's' : ''} en examen</p>
+                  <p className="mt-1 truncate text-xs opacity-80">{documentsToReview[0].name}</p>
+                </div>
+                <Button size="sm" variant="outline" className="h-8 shrink-0 bg-transparent" onClick={() => { setStatusFilter('reviewing'); scrollToHistory(); }}>Suivre</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   return (
     <div className="space-y-6">
        {showPasswordAlert && (
@@ -487,40 +673,9 @@ export default function MyDocumentsPage() {
         <p className="text-muted-foreground mt-2 text-lg">Dépôt simplifié, suivi et actions requises en un clin d'œil.</p>
       </div>
 
-      {anomalies.length > 0 && (
-          <div className="glass-panel border-l-4 border-l-destructive bg-destructive/5 dark:bg-destructive/10 p-5 sm:p-7 rounded-r-2xl mb-8 animate-in slide-in-from-top-4 fade-in duration-700 ease-out premium-shadow">
-             <div className="flex items-center gap-3 mb-5">
-                 <ShieldAlert className="h-7 w-7 text-destructive animate-pulse" />
-                 <h2 className="text-2xl font-bold text-destructive font-display tracking-tight">Actions Requises ({anomalies.length})</h2>
-             </div>
-             <p className="text-base text-destructive/80 dark:text-destructive/70 mb-5 font-medium leading-relaxed">
-                 Votre expert-comptable a identifié des <strong>anomalies bancaires</strong>. Des justificatifs sont manquants pour valider votre TVA. 
-             </p>
-             <div className="space-y-4">
-                 {anomalies.slice(0, 3).map((anomaly, idx) => (
-                     <div key={`${anomaly.docId}-${idx}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/50 dark:bg-black/20 p-4 rounded-xl shadow-sm border border-destructive/10 backdrop-blur-md gap-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                         <div>
-                             <p className="font-semibold text-sm">{anomaly.description} <span className="font-bold text-red-600 block sm:inline mt-1 sm:mt-0 sm:ml-2">{anomaly.amount.toFixed(2)} €</span></p>
-                             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><FileClock className="h-3 w-3" /> Extrait le {anomaly.date} depuis {anomaly.docName}</p>
-                         </div>
-                         <Button size="sm" variant="outline" className="shrink-0 border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors" onClick={() => {
-                             toast({title: "Dépôt contextuel", description: "Glissez le reçu relatif à cette dépense dans le Dépôt Magique ci-dessous."});
-                         }}>
-                             <UploadCloud className="h-4 w-4 mr-2" />
-                             Fournir le reçu
-                         </Button>
-                     </div>
-                 ))}
-                 {anomalies.length > 3 && (
-                     <div className="text-center pt-2">
-                         <span className="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Voir les {anomalies.length - 3} autres relances...</span>
-                     </div>
-                 )}
-             </div>
-          </div>
-      )}
+      <AttentionCenter />
 
-      <Card className="glass-panel overflow-hidden border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 premium-shadow">
+      <Card ref={uploadSectionRef} className="glass-panel overflow-hidden border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 premium-shadow">
         <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-8">
             <CardTitle className="text-3xl font-display text-primary">Nouveau document</CardTitle>
             <CardDescription className="text-base text-foreground/70">Déposez vos fichiers ici. Ils seront automatiquement envoyés à votre comptable pour traitement.</CardDescription>
@@ -530,8 +685,60 @@ export default function MyDocumentsPage() {
         </CardContent>
       </Card>
       
-      <div className="pt-8 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
-          <h2 className="text-3xl font-bold tracking-tight mb-6 font-display">Historique des documents</h2>
+      <div ref={historySectionRef} className="pt-8 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight font-display sm:text-3xl">Historique des documents</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{filteredDocuments.length} résultat{filteredDocuments.length > 1 ? 's' : ''} affiché{filteredDocuments.length > 1 ? 's' : ''}</p>
+            </div>
+            {hasActiveDocumentFilters && (
+              <Button variant="ghost" size="sm" onClick={clearDocumentFilters} className="w-full justify-center sm:w-auto">
+                <FilterX className="mr-2 h-4 w-4" />
+                Réinitialiser
+              </Button>
+            )}
+          </div>
+
+          <div className="mb-4 rounded-lg border bg-background/70 p-3 shadow-sm sm:p-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => handleLocalSearchChange(event.target.value)}
+                placeholder="Rechercher un document, fournisseur, montant..."
+                className="h-11 pl-9"
+              />
+            </div>
+
+            {searchCriteria && (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                <span className="min-w-0 truncate text-muted-foreground">Recherche intelligente : {searchCriteria.originalQuery}</span>
+                <Button variant="ghost" size="sm" onClick={clearDocumentFilters} className="h-8 shrink-0">Effacer</Button>
+              </div>
+            )}
+
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {statusFilterOptions.map((option) => {
+                const isActive = statusFilter === option.value;
+                const count = getFilterCount(option.value);
+                return (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={isActive ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-9 shrink-0"
+                    onClick={() => setStatusFilter(option.value)}
+                  >
+                    {option.label}
+                    <span className={cn("ml-2 rounded-full px-1.5 text-[11px]", isActive ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
            {isLoading ? (
                <div className="space-y-4 glass-panel p-6 rounded-2xl">
                   <Skeleton className="h-20 w-full opacity-50" />
@@ -556,8 +763,12 @@ export default function MyDocumentsPage() {
                       <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 ring-1 ring-primary/20 premium-shadow">
                         <FileUp className="h-10 w-10 text-primary" />
                       </div>
-                      <h3 className="text-xl font-bold font-display tracking-tight">Aucun document historique</h3>
-                      <p className="text-base text-muted-foreground mt-2 max-w-md">Déposez votre premier justificatif dans la zone ci-dessus pour qu'il soit analysé par votre comptable.</p>
+                      <h3 className="text-xl font-bold font-display tracking-tight">{hasActiveDocumentFilters ? 'Aucun résultat' : 'Aucun document historique'}</h3>
+                      <p className="text-base text-muted-foreground mt-2 max-w-md">
+                        {hasActiveDocumentFilters
+                          ? "Aucun document ne correspond aux filtres actifs."
+                          : "Déposez votre premier justificatif dans la zone ci-dessus pour qu'il soit analysé par votre comptable."}
+                      </p>
                   </CardContent>
               </Card>
             )}
