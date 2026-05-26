@@ -19,14 +19,15 @@ import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
-import { useFirebase, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { addDoc, collection, doc, updateDoc, deleteDoc, increment, getDoc, query, where, writeBatch } from 'firebase/firestore';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { collection, doc, updateDoc, deleteDoc, getDoc, query, where } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { db } from '@/firebase';
 import { formatDate, parseDate } from '@/lib/utils';
+import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -126,68 +127,41 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = useCallback(async (file: File, clientId: string) => {
-    const storagePath = `${clientId}/${Date.now()}-${file.name}`;
-    const storageRef = ref(storage, storagePath);
-
     try {
-        await uploadBytes(storageRef, file);
+        const result = await uploadClientDocument({
+            db,
+            storage,
+            file,
+            clientId,
+            currentUser: getCurrentUser(),
+            cabinetId,
+            auditAction: 'Document televerse',
+        });
 
-        const newDocData: Omit<Document, 'id' | 'dataUrl'> = {
-            name: file.name,
-            uploadDate: new Date().toISOString(),
-            status: 'pending' as const,
-            storagePath,
-            clientId: clientId,
-            cabinetId: cabinetId || '',
-            comments: [],
-            auditTrail: addAuditEvent([], 'Document téléversé'),
-        };
-        
-        const documentsCollection = collection(db, 'documents');
-
-        addDoc(documentsCollection, newDocData)
-          .then(() => {
-              const clientDocRef = doc(db, "clients", clientId);
-              const updatePayload = { newDocuments: increment(1) };
-              // Non-blocking update with contextual error handling
-              updateDoc(clientDocRef, updatePayload)
-                .catch((error) => {
-                    const permissionError = new FirestorePermissionError({
-                        path: clientDocRef.path,
-                        operation: 'update',
-                        requestResourceData: updatePayload,
-                    });
-                    errorEmitter.emit('permission-error', permissionError);
-                });
-          })
-          .catch((error) => {
-              // This is the contextual error handler for the addDoc operation
-              const permissionError = new FirestorePermissionError({
-                  path: documentsCollection.path,
-                  operation: 'create',
-                  requestResourceData: newDocData,
-              });
-              errorEmitter.emit('permission-error', permissionError);
-              // We re-throw it so the outer catch block can inform the user.
-              throw error; 
-          });
+        if (!cabinetId) {
+            setCabinetId(result.cabinetId);
+        }
 
         return { success: true };
 
     } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        // This catch block will now mostly handle non-permission errors, 
-        // or signal that a permission error was emitted.
-         if (!(error instanceof FirestorePermissionError)) {
-             toast({
-                variant: 'destructive',
-                title: `Échec du téléversement pour ${file.name}`,
-                description: "Une erreur est survenue lors de l'envoi ou de la sauvegarde. Veuillez réessayer."
-            });
-        }
+        toast({
+            variant: 'destructive',
+            title: `Echec du televersement pour ${file.name}`,
+            description: "Une erreur est survenue lors de l'envoi ou de la sauvegarde. Veuillez reessayer."
+        });
         return { success: false };
     }
-}, [storage, toast]);
+}, [cabinetId, storage, toast]);
+
+  const handleRejectedFiles = (rejections: FileUploadRejection[]) => {
+    toast({
+      variant: 'destructive',
+      title: 'Certains fichiers ont ete ignores',
+      description: summarizeUploadRejections(rejections),
+    });
+  };
 
 
   const handleFileDrop = async (files: File[]) => {
@@ -467,7 +441,7 @@ export default function MyDocumentsPage() {
             <CardDescription className="text-base text-foreground/70">Déposez vos fichiers ici. Ils seront automatiquement envoyés à votre comptable pour traitement.</CardDescription>
         </CardHeader>
         <CardContent>
-             <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} />
+             <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} onFileReject={handleRejectedFiles} />
         </CardContent>
       </Card>
       

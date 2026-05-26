@@ -1,15 +1,18 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react';
+import { validateAccountingFiles, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
 
 interface FileUploaderProps {
-  onFileDrop: (files: File[]) => Promise<void>; // Make it a promise to await completion
-  isLoading: boolean; // Keep this prop for initial state if needed, but manage internal loading state
+  onFileDrop: (files: File[]) => Promise<void>;
+  isLoading: boolean;
+  onFileReject?: (rejections: FileUploadRejection[]) => void;
 }
 
-export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUploaderProps) {
+export function FileUploader({ onFileDrop, isLoading: parentIsLoading, onFileReject }: FileUploaderProps) {
+  const inputId = useId();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -32,10 +35,20 @@ export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUpl
   };
 
   const startUploadProcess = async (files: File[]) => {
-      if (files.length === 0) return;
+      const { acceptedFiles, rejectedFiles } = validateAccountingFiles(files);
+
+      if (rejectedFiles.length > 0) {
+        onFileReject?.(rejectedFiles);
+      }
+
+      if (acceptedFiles.length === 0) return;
+
       setIsUploading(true);
-      await onFileDrop(files);
-      setIsUploading(false);
+      try {
+        await onFileDrop(acceptedFiles);
+      } finally {
+        setIsUploading(false);
+      }
   }
 
   const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
@@ -45,13 +58,13 @@ export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUpl
     if (isUploading) return;
 
     const files = Array.from(e.dataTransfer.files);
-    startUploadProcess(files);
+    void startUploadProcess(files);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      startUploadProcess(files);
+      void startUploadProcess(files);
       e.target.value = ''; // Reset input to allow re-uploading the same file
     }
   };
@@ -62,7 +75,7 @@ export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUpl
         <div className="relative group">
             <div className={`absolute -inset-0.5 bg-gradient-to-r from-primary/30 to-blue-500/30 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 ${isDragging ? 'opacity-100 blur-md' : ''}`}></div>
             <label
-            htmlFor="file-upload"
+            htmlFor={inputId}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -71,7 +84,7 @@ export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUpl
                 ${isDragging && !isLoading ? 'border-primary bg-primary/5 scale-[1.02] shadow-xl' : 'border-border bg-background/50 backdrop-blur-sm'}`}
             >
             <input
-                id="file-upload"
+                id={inputId}
                 type="file"
                 multiple
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -99,7 +112,7 @@ export function FileUploader({ onFileDrop, isLoading: parentIsLoading }: FileUpl
                         Glissez-déposez vos reçus, factures ou relevés ici,<br/> ou <span className="font-bold text-primary underline decoration-primary/30 underline-offset-4">parcourez vos fichiers</span>.
                         </p>
                         <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 bg-muted/50 px-3 py-1 rounded-full border">
-                        PDF • PNG • JPG (Jusqu'à 50 fichiers)
+                        PDF • PNG • JPG (20 Mo max, jusqu'à 50 fichiers)
                         </p>
                     </>
                 )}

@@ -6,11 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { FileUploader } from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
-import { ref, uploadBytes } from 'firebase/storage';
 import { useFirebase, db } from '@/firebase';
-import { addDoc, collection, doc, increment, updateDoc, getDoc } from 'firebase/firestore';
-import type { Document, AuditEvent } from '@/lib/types';
 import { PlusCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
@@ -42,44 +40,17 @@ export function QuickUpload() {
         return () => window.removeEventListener('storage', loadSettings);
     }, []);
 
-    const addAuditEvent = (trail: AuditEvent[], action: string): AuditEvent[] => {
-        const event: AuditEvent = {
-            action,
-            date: new Date().toISOString(),
-            user: getCurrentUser(),
-        };
-        return [...trail, event];
-    }
-
     const processSingleFile = useCallback(async (file: File, clientId: string) => {
         try {
-            // Fetch client to get cabinetId for strict isolation
-            const clientSnap = await getDoc(doc(db, 'clients', clientId));
-            if (!clientSnap.exists()) {
-                throw new Error("Client non trouvé");
-            }
-            const clientData = clientSnap.data();
-            const cabinetId = clientData.cabinetId;
-
-            const storagePath = `${clientId}/${Date.now()}-${file.name}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, file);
-
-            const newDocData: any = {
-                name: file.name,
-                uploadDate: new Date().toISOString(),
-                status: 'pending' as const,
-                storagePath,
-                clientId: clientId,
-                cabinetId: cabinetId || null,
-                comments: [],
-                auditTrail: addAuditEvent([], 'Document téléversé (ajout rapide)'),
-            };
-
-            await addDoc(collection(db, 'documents'), newDocData);
-            await updateDoc(doc(db, "clients", clientId), { newDocuments: increment(1) });
-
-
+            await uploadClientDocument({
+                db,
+                storage,
+                file,
+                clientId,
+                currentUser: getCurrentUser(),
+                auditAction: 'Document televerse (ajout rapide)',
+            });
+            return true;
         } catch (error) {
             console.error(`Error processing ${file.name}:`, error);
             toast({
@@ -87,8 +58,17 @@ export function QuickUpload() {
                 title: "Le traitement a échoué",
                 description: `Impossible de traiter ${file.name}.`,
             });
+            return false;
         }
     }, [storage, toast]);
+
+    const handleRejectedFiles = (rejections: FileUploadRejection[]) => {
+        toast({
+            variant: "destructive",
+            title: "Certains fichiers ont ete ignores",
+            description: summarizeUploadRejections(rejections),
+        });
+    };
     
     const handleFileDrop = async (files: File[]) => {
         if (!selectedClientId) {
@@ -100,9 +80,13 @@ export function QuickUpload() {
         setIsLoading(true);
         setFilesToProcessCount(files.length);
         
+        let successCount = 0;
         const processingPromises = files.map(file => 
-            processSingleFile(file, selectedClientId).then(() => {
-                setProcessedFiles(prev => [...prev, file]);
+            processSingleFile(file, selectedClientId).then((success) => {
+                if (success) {
+                    successCount++;
+                    setProcessedFiles(prev => [...prev, file]);
+                }
             })
         );
 
@@ -110,7 +94,11 @@ export function QuickUpload() {
         
         setIsLoading(false);
         window.dispatchEvent(new Event('storage')); // Notify other components to refetch
-        toast({ title: "Téléversement terminé", description: `${files.length} document(s) ont été envoyés. Ils seront traités sous peu.` });
+        if (successCount > 0) {
+            toast({ title: "Televersement termine", description: `${successCount} document(s) ont ete envoyes. Ils seront traites sous peu.` });
+        } else if (files.length > 0) {
+            toast({ variant: "destructive", title: "Echec du televersement", description: "Aucun document n'a pu etre envoye." });
+        }
     };
 
 
@@ -131,7 +119,7 @@ export function QuickUpload() {
                 </DialogHeader>
                 
                 <div className="py-4">
-                    <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} />
+                    <FileUploader onFileDrop={handleFileDrop} isLoading={isLoading} onFileReject={handleRejectedFiles} />
                 </div>
 
                 {isLoading && filesToProcessCount > 0 && (

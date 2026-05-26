@@ -20,7 +20,7 @@ CCS Compta doit devenir une plateforme SaaS cabinet/client pour reduire les oper
 
 ### En Cours
 
-- Preparation du chantier 3 : parcours client mobile.
+- Chantier 3 : parcours client mobile, premiere tranche sur le depot de pieces.
 
 ### Risques Ouverts
 
@@ -57,7 +57,7 @@ Commandes locales :
 
 ### Chantier 3 - Parcours Client Mobile
 
-Statut : a lancer apres chantier 2.
+Statut : en cours.
 
 Objectif : rendre le depot de pieces simple, rapide et fiable sur smartphone.
 
@@ -67,6 +67,13 @@ Livrables attendus :
 - Gestion claire des erreurs reseau, taille, type de fichier et reprise.
 - Etats de chargement et confirmation lisibles.
 - Verification responsive sur mobile.
+
+Livre le 2026-05-26 :
+
+- Validation client des fichiers avant upload : type, taille et limite par lot.
+- Chemin d'upload partage entre page client et ajout rapide.
+- Creation Firestore et compteur client atomises apres upload Storage.
+- Correction du comptage de succes dans l'ajout rapide.
 
 ### Chantier 4 - Cockpit Admin SaaS
 
