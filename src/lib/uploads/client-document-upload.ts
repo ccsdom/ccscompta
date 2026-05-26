@@ -107,6 +107,11 @@ export async function uploadClientDocument({
   cabinetId,
   auditAction = 'Document televerse',
 }: UploadClientDocumentInput): Promise<UploadClientDocumentResult> {
+  const { rejectedFiles } = validateAccountingFiles([file]);
+  if (rejectedFiles.length > 0) {
+    throw new Error(rejectedFiles[0].reason);
+  }
+
   let resolvedCabinetId = cabinetId || '';
 
   if (!resolvedCabinetId) {

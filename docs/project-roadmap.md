@@ -74,6 +74,8 @@ Livre le 2026-05-26 :
 - Chemin d'upload partage entre page client et ajout rapide.
 - Creation Firestore et compteur client atomises apres upload Storage.
 - Correction du comptage de succes dans l'ajout rapide.
+- Scan mobile aligne sur le meme helper d'upload avec nettoyage anti-fichier orphelin.
+- Import photo depuis smartphone en secours quand l'acces camera navigateur est indisponible.
 
 ### Chantier 4 - Cockpit Admin SaaS
 
