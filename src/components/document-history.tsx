@@ -23,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { format, isValid } from "date-fns";
 import { fr } from 'date-fns/locale';
 import { Skeleton } from "./ui/skeleton";
-import { parseDate, formatDate } from "@/lib/utils";
+import { cn, parseDate, formatDate } from "@/lib/utils";
 
 interface DocumentHistoryProps {
   documents: Document[];
@@ -53,9 +53,29 @@ const getStatusBadge = (status: Document['status']) => {
       return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80">Approuvé</Badge>;
     case 'error':
       return <Badge variant="destructive">Erreur</Badge>;
+    case 'duplicate':
+      return <Badge variant="secondary">Doublon</Badge>;
     default:
       return <Badge variant="outline">Inconnu</Badge>;
   }
+};
+
+const formatAmount = (amount?: number | null) => {
+    if (typeof amount !== 'number') return null;
+    return amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+};
+
+const getDocumentFacts = (doc: Document) => {
+    const vendor = doc.extractedData?.vendorNames?.filter(Boolean).join(', ');
+    const amount = formatAmount(doc.extractedData?.amounts?.[0]);
+    const documentDate = doc.extractedData?.dates?.[0] ? formatDate(doc.extractedData.dates[0]) : null;
+
+    return [
+        doc.type ? { label: 'Type', value: doc.type } : null,
+        vendor ? { label: 'Fournisseur', value: vendor } : null,
+        amount ? { label: 'Montant', value: amount } : null,
+        documentDate ? { label: 'Date piece', value: documentDate } : null,
+    ].filter(Boolean) as { label: string; value: string }[];
 };
 
 const groupDocumentsByMonth = (documents: Document[]) => {
@@ -119,7 +139,10 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                         <TableRow 
                             key={doc.id} 
                             data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
-                            className="cursor-pointer transition-colors duration-300 hover:bg-primary/5 data-[state=selected]:bg-primary/10 border-b-border/20 group"
+                            className={cn(
+                                "cursor-pointer transition-colors duration-300 hover:bg-primary/5 data-[state=selected]:bg-primary/10 border-b-border/20 group",
+                                activeDocumentId === doc.id && "bg-primary/10"
+                            )}
                             onClick={() => setActiveDocument(doc)}
                         >
                             <TableCell className="font-medium py-4">
@@ -151,42 +174,93 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
             </div>
             
             {/* Mobile Card List View */}
-            <div className="space-y-6 md:hidden">
+            <div className="space-y-5 md:hidden">
                 {sortedMonths.map(month => (
-                    <div key={month} className="animate-in slide-in-from-bottom-4 fade-in duration-500">
-                        <h4 className="text-sm font-bold text-muted-foreground px-2 capitalize mb-3">{month}</h4>
-                        <div className="space-y-4">
-                            {monthlyGroups[month].map(doc => (
-                                <Card key={doc.id} onClick={() => setActiveDocument(doc)} className="cursor-pointer active:scale-[0.98] glass-panel border-border/40 hover:border-primary/40 transition-all duration-300 premium-shadow-sm group overflow-hidden relative">
-                                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                    <CardHeader className="p-4 pb-2">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className="bg-primary/10 p-2 rounded-lg border border-primary/20 group-hover:bg-primary/20 transition-colors shrink-0">
+                    <section key={month} className="animate-in slide-in-from-bottom-4 fade-in duration-500">
+                        <h4 className="px-1 pb-2 text-xs font-semibold uppercase text-muted-foreground">{month}</h4>
+                        <div className="space-y-3">
+                            {monthlyGroups[month].map(doc => {
+                                const facts = getDocumentFacts(doc);
+                                const isActive = activeDocumentId === doc.id;
+
+                                return (
+                                    <Card
+                                        key={doc.id}
+                                        onClick={() => setActiveDocument(doc)}
+                                        className={cn(
+                                            "cursor-pointer overflow-hidden rounded-lg border-border/60 bg-background/70 transition-colors active:bg-primary/5",
+                                            isActive && "border-primary/60 bg-primary/5"
+                                        )}
+                                    >
+                                        <CardHeader className="p-3 pb-2">
+                                            <div className="flex items-start gap-3">
+                                                <div className="mt-0.5 shrink-0 rounded-md border border-primary/20 bg-primary/10 p-2">
                                                     <FileText className="h-4 w-4 text-primary"/>
                                                 </div>
-                                                <div className="font-semibold truncate" title={doc.name}>{doc.name}</div>
+                                                <div className="min-w-0 flex-1">
+                                                    <CardTitle className="truncate text-sm font-semibold" title={doc.name}>{doc.name}</CardTitle>
+                                                    <CardDescription className="mt-1 text-xs">{formatDate(doc.uploadDate)}</CardDescription>
+                                                </div>
+                                                <div className="shrink-0">{getStatusBadge(doc.status)}</div>
                                             </div>
-                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-1 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-colors text-muted-foreground" disabled={doc.status === 'approved'}><Trash2 className="h-4 w-4"/></Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent className="glass-panel w-[90vw] rounded-2xl">
-                                                  <AlertDialogHeader><AlertDialogTitle className="font-display">Supprimer ce document ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
-                                                  <AlertDialogFooter className="flex-col sm:flex-row gap-2"><AlertDialogCancel className="border-border/50 mt-0">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 premium-shadow-sm">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                        <CardDescription className="ml-11 text-xs opacity-80">{formatDate(doc.uploadDate)}</CardDescription>
-                                    </CardHeader>
-                                    <CardFooter className="p-4 pt-3 flex justify-between items-center bg-muted/5">
-                                        {getStatusBadge(doc.status)}
-                                        <Button size="sm" variant="ghost" className="hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground font-medium" onClick={(e) => { e.stopPropagation(); setActiveDocument(doc); }}><Eye className="h-4 w-4 mr-2"/>Consulter</Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
+                                        </CardHeader>
+
+                                        <CardContent className="px-3 pb-3 pt-1">
+                                            {facts.length > 0 ? (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {facts.map((fact) => (
+                                                        <div key={fact.label} className="min-w-0 rounded-md bg-muted/40 p-2">
+                                                            <div className="text-[11px] font-medium text-muted-foreground">{fact.label}</div>
+                                                            <div className="truncate text-xs font-semibold text-foreground" title={fact.value}>{fact.value}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                                                    Analyse comptable en attente.
+                                                </div>
+                                            )}
+                                        </CardContent>
+
+                                        <CardFooter className="flex items-center justify-between gap-2 border-t bg-muted/20 p-3">
+                                            <span className="truncate text-xs text-muted-foreground">
+                                                {(doc.comments || []).length} commentaire{(doc.comments || []).length > 1 ? 's' : ''}
+                                            </span>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8"
+                                                    onClick={(e) => { e.stopPropagation(); setActiveDocument(doc); }}
+                                                >
+                                                    <Eye className="mr-1.5 h-4 w-4"/>
+                                                    Voir
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                            disabled={doc.status === 'approved'}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            aria-label="Supprimer le document"
+                                                        >
+                                                            <Trash2 className="h-4 w-4"/>
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent className="glass-panel w-[92vw] rounded-lg">
+                                                      <AlertDialogHeader><AlertDialogTitle className="font-display">Supprimer ce document ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
+                                                      <AlertDialogFooter className="flex-col gap-2 sm:flex-row"><AlertDialogCancel className="mt-0 border-border/50">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 premium-shadow-sm">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </CardFooter>
+                                    </Card>
+                                );
+                            })}
                         </div>
-                    </div>
+                    </section>
                 ))}
             </div>
         </div>

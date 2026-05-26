@@ -20,7 +20,7 @@ CCS Compta doit devenir une plateforme SaaS cabinet/client pour reduire les oper
 
 ### En Cours
 
-- Chantier 3 : parcours client mobile, premiere tranche sur le depot de pieces.
+- Chantier 3 : parcours client mobile, tranche consultation et historique documents.
 
 ### Risques Ouverts
 
@@ -76,6 +76,8 @@ Livre le 2026-05-26 :
 - Correction du comptage de succes dans l'ajout rapide.
 - Scan mobile aligne sur le meme helper d'upload avec nettoyage anti-fichier orphelin.
 - Import photo depuis smartphone en secours quand l'acces camera navigateur est indisponible.
+- Historique documents mobile rendu plus lisible : statut, metadonnees comptables, commentaires et actions compactes.
+- Consultation document mobile restructuree par onglets `Apercu`, `Donnees`, `Notes`, avec ouverture externe du justificatif.
 
 ### Chantier 4 - Cockpit Admin SaaS
 

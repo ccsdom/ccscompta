@@ -6,14 +6,15 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileUp, Eye, Trash2, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, ShieldAlert, UploadCloud } from 'lucide-react';
-import type { Document, AuditEvent, Comment, Notification } from '@/lib/types';
+import { ExternalLink, FileUp, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, ShieldAlert, UploadCloud } from 'lucide-react';
+import type { Document, AuditEvent, Comment } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -284,17 +285,17 @@ export default function MyDocumentsPage() {
     const handleSubmit = () => { if (newComment.trim()) { onAddComment(newComment.trim()); setNewComment(""); } }
     
     return (
-        <div className="flex flex-col h-full">
-            <h3 className="font-semibold text-lg px-6 pt-6 pb-2">Commentaires</h3>
-            <ScrollArea className="flex-1 px-6">
+        <div className="flex h-full min-h-0 flex-col">
+            <h3 className="px-4 pb-2 pt-4 text-base font-semibold sm:px-6 sm:pt-6">Commentaires</h3>
+            <ScrollArea className="min-h-0 flex-1 px-4 sm:px-6">
                 <div className="space-y-4 py-4">
                     {comments.length > 0 ? (
                         comments.slice().reverse().map((comment) => (
                             <div key={comment.id} className="flex items-start gap-3 text-sm">
                                 <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
-                                <div className="flex-1 bg-muted rounded-md p-3">
-                                    <div className="flex items-center justify-between"><p className="font-semibold">{comment.user}</p><p className="text-xs text-muted-foreground">{format(parseDate(comment.date) || new Date(), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p></div>
-                                    <p className="mt-1 text-foreground/90">{comment.text}</p>
+                                <div className="min-w-0 flex-1 rounded-md bg-muted p-3">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="font-semibold">{comment.user}</p><p className="text-xs text-muted-foreground">{format(parseDate(comment.date) || new Date(), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p></div>
+                                    <p className="mt-1 break-words text-foreground/90">{comment.text}</p>
                                 </div>
                             </div>
                         ))
@@ -303,51 +304,135 @@ export default function MyDocumentsPage() {
                     )}
                 </div>
             </ScrollArea>
-             <div className="flex items-start gap-3 p-6 border-t">
+             <div className="flex items-start gap-3 border-t p-4 sm:p-6">
                 <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback>Moi</AvatarFallback></Avatar>
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                     <Textarea placeholder="Répondre ou poser une question..." value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2} className="bg-transparent border"/>
-                    <Button size="sm" className="mt-2" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
+                    <Button size="sm" className="mt-2 w-full sm:w-auto" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
                 </div>
             </div>
         </div>
     )
 }
 
+  const PreviewFrame = ({ docItem }: { docItem: Document }) => (
+    <div className="flex h-full min-h-0 flex-col gap-3 p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold">Aperçu</h3>
+        {docItem.dataUrl && (
+          <Button asChild size="sm" variant="outline" className="h-8 shrink-0">
+            <a href={docItem.dataUrl} target="_blank" rel="noreferrer">
+              <ExternalLink className="mr-1.5 h-4 w-4" />
+              Ouvrir
+            </a>
+          </Button>
+        )}
+      </div>
+      <div className="min-h-[360px] flex-1 overflow-hidden rounded-lg border bg-muted/40">
+        {docItem.dataUrl ? (
+          <iframe src={docItem.dataUrl} className="h-full min-h-[360px] w-full" title="Aperçu du document" />
+        ) : (
+          <div className="flex h-full min-h-[360px] items-center justify-center text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin"/>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const DataRow = ({ label, value }: { label: string; value?: string | null }) => (
+    <div className="flex items-start justify-between gap-4 rounded-lg border bg-background/70 p-3 text-sm">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 max-w-[65%] truncate text-right font-medium" title={value || '-'}>{value || '-'}</span>
+    </div>
+  );
+
+  const ValidatedDataPanel = ({ docItem }: { docItem: Document }) => {
+    const data = docItem.extractedData;
+    const vendor = data?.vendorNames?.filter(Boolean).join(', ');
+    const date = data?.dates?.[0] ? formatDate(data.dates[0]) : null;
+    const amount = data?.amounts?.[0]?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+    const vat = typeof data?.vatAmount === 'number' ? data.vatAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : null;
+    const hasValidatedData = docItem.status === 'approved' && Boolean(data);
+
+    return (
+      <div className="space-y-4 p-4 sm:p-6">
+        <div>
+          <h3 className="text-base font-semibold">Données validées</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Synthèse retenue par le cabinet.</p>
+        </div>
+
+        {hasValidatedData ? (
+          <div className="space-y-2">
+            <DataRow label="Fournisseur" value={vendor} />
+            <DataRow label="Date pièce" value={date} />
+            <DataRow label="Montant TTC" value={amount} />
+            <DataRow label="TVA" value={vat} />
+            <DataRow label="Catégorie" value={data?.category} />
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+            Les données du document seront affichées après validation par votre comptable.
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const DocumentPreviewSheet = () => (
-     <SheetContent side="right" className="p-0 w-full sm:max-w-xl flex flex-col">
+     <SheetContent side="right" className="flex !w-full !max-w-none flex-col p-0 sm:!max-w-3xl lg:!max-w-5xl">
         {activeDocument ? (
             <>
-                <SheetHeader className="p-6 border-b">
-                  <SheetTitle>{activeDocument.name}</SheetTitle>
-                   <div className="flex items-center gap-x-3">
-                    <SheetDescription>Téléversé le {formatDate(activeDocument.uploadDate)}</SheetDescription>-{getStatusBadge(activeDocument.status)}
+                <SheetHeader className="border-b px-4 py-4 pr-12 text-left sm:px-6">
+                  <SheetTitle className="truncate text-base sm:text-lg" title={activeDocument.name}>{activeDocument.name}</SheetTitle>
+                   <div className="flex flex-wrap items-center gap-2">
+                    <SheetDescription>Téléversé le {formatDate(activeDocument.uploadDate)}</SheetDescription>
+                    {getStatusBadge(activeDocument.status)}
                    </div>
                 </SheetHeader>
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
-                    <div className="h-full flex flex-col"><div className="flex-1 p-6">
-                            <div className="aspect-[3/4] max-h-[400px] w-full bg-muted rounded-md overflow-hidden mx-auto mb-4">
-                                {activeDocument.dataUrl ? (
-                                    <iframe src={activeDocument.dataUrl} className="w-full h-full" title="Aperçu du document" />
-                                ): (
-                                    <div className="flex items-center justify-center h-full text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin"/></div>
-                                )}
-                            </div>
-                            <h3 className="font-semibold text-lg mb-4">Données validées</h3>
-                            {activeDocument.status === 'approved' && activeDocument.extractedData ? (
-                                <div className="space-y-3 text-sm">
-                                    <div className="flex justify-between"><span>Fournisseur:</span><span className="font-medium">{activeDocument.extractedData.vendorNames?.join(', ')}</span></div>
-                                    <div className="flex justify-between"><span>Date:</span><span className="font-medium">{activeDocument.extractedData.dates?.[0]}</span></div>
-                                    <div className="flex justify-between"><span>Montant:</span><span className="font-medium">{activeDocument.extractedData.amounts?.[0]?.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'})}</span></div>
-                                    <div className="flex justify-between"><span>Catégorie:</span><span className="font-medium">{activeDocument.extractedData.category}</span></div>
-                                </div>
-                            ) : ( <div className="text-center text-sm text-muted-foreground py-8"><p>Les données du document n'ont pas encore été validées par votre comptable.</p></div> )}
-                        </div></div>
-                    <div className="h-full flex flex-col border-l bg-muted/20">
-                         <CommentsSectionClient comments={activeDocument.comments || []} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
+
+                <Tabs defaultValue="preview" className="flex min-h-0 flex-1 flex-col md:hidden">
+                  <div className="border-b px-4 py-3">
+                    <TabsList className="grid h-10 w-full grid-cols-3">
+                      <TabsTrigger value="preview">Aperçu</TabsTrigger>
+                      <TabsTrigger value="data">Données</TabsTrigger>
+                      <TabsTrigger value="comments">Notes</TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <TabsContent value="preview" className="m-0 min-h-0 flex-1 overflow-hidden">
+                    <PreviewFrame docItem={activeDocument} />
+                  </TabsContent>
+                  <TabsContent value="data" className="m-0 min-h-0 flex-1 overflow-auto">
+                    <ValidatedDataPanel docItem={activeDocument} />
+                  </TabsContent>
+                  <TabsContent value="comments" className="m-0 min-h-0 flex-1 overflow-hidden">
+                    <CommentsSectionClient comments={activeDocument.comments || []} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
+                  </TabsContent>
+                </Tabs>
+
+                <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+                    <div className="min-h-0 border-r">
+                        <PreviewFrame docItem={activeDocument} />
                     </div>
+                    <Tabs defaultValue="data" className="flex min-h-0 flex-col bg-muted/10">
+                      <div className="border-b p-4">
+                        <TabsList className="grid h-10 w-full grid-cols-2">
+                          <TabsTrigger value="data">Données</TabsTrigger>
+                          <TabsTrigger value="comments">Commentaires</TabsTrigger>
+                        </TabsList>
+                      </div>
+                      <TabsContent value="data" className="m-0 min-h-0 flex-1 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          <ValidatedDataPanel docItem={activeDocument} />
+                        </ScrollArea>
+                      </TabsContent>
+                      <TabsContent value="comments" className="m-0 min-h-0 flex-1 overflow-hidden">
+                        <CommentsSectionClient comments={activeDocument.comments || []} onAddComment={(text) => handleAddComment(activeDocument.id, text)} />
+                      </TabsContent>
+                    </Tabs>
                 </div>
-                 <div className="p-6 border-t"><Button onClick={() => setIsSheetOpen(false)} className="w-full">Fermer</Button></div>
+
+                 <div className="border-t p-4 sm:p-6"><Button onClick={() => setIsSheetOpen(false)} className="w-full">Fermer</Button></div>
             </>
         ) : ( <div className="h-full flex items-center justify-center"><p>Sélectionnez un document.</p></div> )}
       </SheetContent>
