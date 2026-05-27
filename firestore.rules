@@ -51,6 +51,12 @@ service cloud.firestore {
       return exists(profilePath(clientId)) && get(profilePath(clientId)).data.cabinetId == cabinetId;
     }
 
+    function isCabinetMember(cabinetId) {
+      return isAuthenticated()
+        && exists(profilePath(request.auth.uid))
+        && getProfile().cabinetId == cabinetId;
+    }
+
     function canReadClientScoped(clientId, cabinetId) {
       return isOwner(clientId)
         || isCabinetStaff(cabinetId)
@@ -198,7 +204,7 @@ service cloud.firestore {
     }
 
     match /cabinets/{cabinetId} {
-      allow get: if isAdmin() || isCabinetStaff(cabinetId);
+      allow get: if isAdmin() || isCabinetStaff(cabinetId) || isCabinetMember(cabinetId);
       allow list: if isAdmin();
       allow create: if isAdmin();
       allow update: if isAdmin() || (isCabinetStaff(cabinetId) && request.resource.data.id == resource.data.id);
