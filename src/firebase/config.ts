@@ -1,5 +1,3 @@
-
-
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -9,5 +7,18 @@ export const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Exporter le nom du bucket pour une utilisation centralisée
+const requiredFirebaseConfigKeys = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+] as const;
+
+export function hasExplicitFirebaseConfig() {
+  return requiredFirebaseConfigKeys.every((key) => Boolean(firebaseConfig[key]));
+}
+
+// Exporter le nom du bucket pour une utilisation centralisee
 export const STORAGE_BUCKET = firebaseConfig.storageBucket;
