@@ -1,44 +1,48 @@
 import { db } from '@/firebase';
-import { 
-    collection, 
-    addDoc, 
-    updateDoc, 
-    doc, 
+import {
+    collection,
+    addDoc,
+    updateDoc,
+    doc,
     getDoc,
-    query, 
-    where, 
-    getDocs, 
-    orderBy, 
+    query,
+    where,
+    getDocs,
+    orderBy,
     limit,
-    Timestamp 
+    Timestamp
 } from 'firebase/firestore';
 import { SalesInvoice, SalesInvoiceItem } from '@/lib/types';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 export const salesService = {
     /**
      * Generates a professional PDF for a sales invoice.
      */
-    generateInvoicePDF(invoice: SalesInvoice, seller: any) {
+    async generateInvoicePDF(invoice: SalesInvoice, seller: any) {
+        const [{ default: jsPDF }] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]);
+        const safeSeller = seller || {};
+
         const doc = new jsPDF();
         const margin = 14;
-        
+
         // Header: Seller Info
         doc.setFontSize(20);
         doc.setFont("helvetica", "bold");
-        doc.text(seller.name || seller.companyName || "Mon Entreprise", margin, 20);
-        
+        doc.text(safeSeller.name || safeSeller.companyName || "Mon Entreprise", margin, 20);
+
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         const sellerInfo = [
-            seller.address,
-            seller.siret ? `SIRET: ${seller.siret}` : null,
-            seller.vatNumber ? `TVA: ${seller.vatNumber}` : null,
-            seller.email,
-            seller.phone
+            safeSeller.address,
+            safeSeller.siret ? `SIRET: ${safeSeller.siret}` : null,
+            safeSeller.vatNumber ? `TVA: ${safeSeller.vatNumber}` : null,
+            safeSeller.email,
+            safeSeller.phone
         ].filter(Boolean);
-        
+
         sellerInfo.forEach((line, i) => {
             doc.text(line as string, margin, 28 + (i * 5));
         });
@@ -47,7 +51,7 @@ export const salesService = {
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
         doc.text("FACTURE", 140, 20);
-        
+
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         doc.text(`N° : ${invoice.invoiceNumber}`, 140, 28);
@@ -87,23 +91,23 @@ export const salesService = {
         doc.setFont("helvetica", "bold");
         doc.text(`Total HT :`, 140, finalY);
         doc.text(invoice.totalHT.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 196, finalY, { align: 'right' });
-        
+
         doc.text(`Total TVA :`, 140, finalY + 7);
         doc.text(invoice.totalVAT.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 196, finalY + 7, { align: 'right' });
-        
+
         doc.setFontSize(14);
         doc.text(`TOTAL TTC :`, 140, finalY + 16);
         doc.text(invoice.totalTTC.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }), 196, finalY + 16, { align: 'right' });
 
         // Footer: Bank info
-        if (seller.iban) {
+        if (safeSeller.iban) {
             doc.setFontSize(10);
             doc.setFont("helvetica", "bold");
             doc.text("Coordonnées bancaires :", margin, 250);
             doc.setFont("helvetica", "normal");
-            doc.text(`Titulaire : ${seller.bankName || seller.name || seller.companyName}`, margin, 255);
-            doc.text(`IBAN : ${seller.iban}`, margin, 260);
-            if (seller.bic) doc.text(`BIC : ${seller.bic}`, margin, 265);
+            doc.text(`Titulaire : ${safeSeller.bankName || safeSeller.name || safeSeller.companyName}`, margin, 255);
+            doc.text(`IBAN : ${safeSeller.iban}`, margin, 260);
+            if (safeSeller.bic) doc.text(`BIC : ${safeSeller.bic}`, margin, 265);
         }
 
         // Save
@@ -114,7 +118,7 @@ export const salesService = {
      */
     async createInvoice(invoice: Omit<SalesInvoice, 'id' | 'createdAt' | 'updatedAt' | 'invoiceNumber'>) {
         const nextNumber = await this.generateInvoiceNumber(invoice.clientId);
-        
+
         const newInvoice = {
             ...invoice,
             invoiceNumber: nextNumber,

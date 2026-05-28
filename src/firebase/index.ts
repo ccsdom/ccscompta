@@ -1,7 +1,7 @@
 
 'use client';
 
-import { firebaseConfig, hasExplicitFirebaseConfig } from '@/firebase/config';
+import { firebaseConfig, hasExplicitFirebaseConfig, hasResolvedFirebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
@@ -10,9 +10,19 @@ import { getFunctions } from 'firebase/functions';
 
 export function initializeFirebase() {
   if (!getApps().length) {
-    const firebaseApp = hasExplicitFirebaseConfig()
-      ? initializeApp(firebaseConfig)
-      : initializeApp();
+    if (!hasResolvedFirebaseConfig()) {
+      throw new Error(
+        '[Firebase] Configuration incomplete. Define NEXT_PUBLIC_FIREBASE_* variables or provide a valid embedded fallback config.'
+      );
+    }
+
+    if (!hasExplicitFirebaseConfig()) {
+      console.warn(
+        '[Firebase] NEXT_PUBLIC_FIREBASE_* variables are missing. Using embedded public fallback config.'
+      );
+    }
+
+    const firebaseApp = initializeApp(firebaseConfig);
 
     return getSdks(firebaseApp);
   }

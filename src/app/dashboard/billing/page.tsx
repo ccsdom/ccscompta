@@ -25,9 +25,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Invoice, Client } from '@/lib/types';
 import { Input } from '@/components/ui/input';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import Papa from 'papaparse';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { useCollection, useMemoFirebase } from '@/firebase';
@@ -159,10 +156,14 @@ export default function BillingPage() {
         setSelectedInvoiceIds([]);
     }
 
-    const handleBulkDownloadPDF = () => {
+    const handleBulkDownloadPDF = async () => {
         const docToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id)) || [];
         if (docToExport.length === 0) return;
         
+        const [{ default: jsPDF }] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]);
         const pdf = new jsPDF();
         pdf.text("Factures sélectionnées", 14, 16);
         (pdf as any).autoTable({
@@ -179,7 +180,7 @@ export default function BillingPage() {
         toast({ title: 'Téléchargement lancé', description: 'Le PDF avec les factures sélectionnées est en cours de génération.' });
     };
 
-    const handleBulkExportCSV = () => {
+    const handleBulkExportCSV = async () => {
         const dataToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id))
             .map(({ clientName, number, amount, status, date, dueDate }) => ({
                 Client: clientName,
@@ -192,6 +193,7 @@ export default function BillingPage() {
         
         if(dataToExport.length === 0) return;
 
+        const Papa = await import('papaparse');
         const csv = Papa.unparse(dataToExport);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
@@ -201,6 +203,7 @@ export default function BillingPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         toast({ title: 'Exportation réussie', description: 'Le fichier CSV a été téléchargé.' });
     };
 
