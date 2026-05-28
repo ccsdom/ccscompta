@@ -45,7 +45,7 @@ import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { cn, parseDate } from '@/lib/utils';
 import { useBranding } from './branding-provider';
-import { useAuth, db } from '@/firebase';
+import { useAuth, db, errorEmitter, FirestorePermissionError, isFirebasePermissionDenied } from '@/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { auditService } from '@/services/audit-service';
 
@@ -88,6 +88,17 @@ export function Header({children}: {children?: React.ReactNode}) {
             })) as Notification[];
             setNotifications(notifs);
             setHasUnread(notifs.some(n => !n.isRead));
+        }, (error) => {
+            console.warn('Could not load notifications', error);
+            setNotifications([]);
+            setHasUnread(false);
+
+            if (isFirebasePermissionDenied(error)) {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    operation: 'list',
+                    path: 'notifications',
+                }));
+            }
         });
 
         const loadImpersonation = () => {
