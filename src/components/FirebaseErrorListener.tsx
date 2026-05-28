@@ -1,39 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * An invisible component that listens for globally emitted 'permission-error' events.
- * It throws any received error to be caught by Next.js's global-error.tsx.
+ * It converts permission failures into recoverable UI feedback instead of
+ * crashing the whole client application.
  */
 export function FirebaseErrorListener() {
-  // Use the specific error type for the state for type safety.
-  const [error, setError] = useState<FirestorePermissionError | null>(null);
+  const { toast } = useToast();
+  const lastToastRef = useRef<{ key: string; at: number } | null>(null);
 
   useEffect(() => {
-    // The callback now expects a strongly-typed error, matching the event payload.
     const handleError = (error: FirestorePermissionError) => {
-      // Set error in state to trigger a re-render.
-      setError(error);
+      const key = `${error.operation}:${error.path}`;
+      const now = Date.now();
+      const lastToast = lastToastRef.current;
+
+      console.warn('Firestore permission denied', error.request);
+
+      if (lastToast?.key === key && now - lastToast.at < 8000) {
+        return;
+      }
+
+      lastToastRef.current = { key, at: now };
+      toast({
+        variant: 'destructive',
+        title: 'Acces refuse',
+        description: "Votre session n'a pas les droits necessaires pour cette donnee. Reconnectez-vous ou contactez votre cabinet si le probleme persiste.",
+      });
     };
 
-    // The typed emitter will enforce that the callback for 'permission-error'
-    // matches the expected payload type (FirestorePermissionError).
     errorEmitter.on('permission-error', handleError);
 
-    // Unsubscribe on unmount to prevent memory leaks.
     return () => {
       errorEmitter.off('permission-error', handleError);
     };
-  }, []);
+  }, [toast]);
 
-  // On re-render, if an error exists in state, throw it.
-  if (error) {
-    throw error;
-  }
-
-  // This component renders nothing.
   return null;
 }

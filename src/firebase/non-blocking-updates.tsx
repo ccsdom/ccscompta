@@ -10,7 +10,7 @@ import {
   SetOptions,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
-import {FirestorePermissionError} from '@/firebase/errors';
+import { FirestorePermissionError, isFirebasePermissionDenied } from '@/firebase/errors';
 
 /**
  * Initiates a setDoc operation for a document reference.
@@ -18,6 +18,11 @@ import {FirestorePermissionError} from '@/firebase/errors';
  */
 export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
   setDoc(docRef, data, options).catch(error => {
+    if (!isFirebasePermissionDenied(error)) {
+      console.error('Non-blocking setDoc failed', error);
+      return;
+    }
+
     errorEmitter.emit(
       'permission-error',
       new FirestorePermissionError({
@@ -39,6 +44,11 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
 export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
   const promise = addDoc(colRef, data)
     .catch(error => {
+      if (!isFirebasePermissionDenied(error)) {
+        console.error('Non-blocking addDoc failed', error);
+        return;
+      }
+
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -59,6 +69,11 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
 export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
   updateDoc(docRef, data)
     .catch(error => {
+      if (!isFirebasePermissionDenied(error)) {
+        console.error('Non-blocking updateDoc failed', error);
+        return;
+      }
+
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -78,6 +93,11 @@ export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) 
 export function deleteDocumentNonBlocking(docRef: DocumentReference) {
   deleteDoc(docRef)
     .catch(error => {
+      if (!isFirebasePermissionDenied(error)) {
+        console.error('Non-blocking deleteDoc failed', error);
+        return;
+      }
+
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({

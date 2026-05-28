@@ -109,7 +109,7 @@ export default function MyDocumentsPage() {
     return query(collection(db, 'documents'), where('clientId', '==', clientId));
   }, [clientId]);
   
-  const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
+  const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useCollection<Document>(documentsQuery);
 
   const isLoading = isLoadingDocuments;
 
@@ -739,7 +739,20 @@ export default function MyDocumentsPage() {
             </div>
           </div>
 
-           {isLoading ? (
+           {documentsError ? (
+              <Alert variant="destructive" className="bg-destructive/5">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Acces aux documents indisponible</AlertTitle>
+                <AlertDescription className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    Votre session ne permet pas de charger cet historique pour le moment. Reconnectez-vous ou contactez votre cabinet si le probleme persiste.
+                  </span>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 bg-transparent" onClick={() => window.location.reload()}>
+                    Recharger
+                  </Button>
+                </AlertDescription>
+              </Alert>
+           ) : isLoading ? (
                <div className="space-y-4 glass-panel p-6 rounded-2xl">
                   <Skeleton className="h-20 w-full opacity-50" />
                   <Skeleton className="h-20 w-full opacity-50" />
