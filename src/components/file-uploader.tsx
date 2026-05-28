@@ -1,9 +1,13 @@
-
 'use client';
 
 import { useId, useState } from 'react';
-import { UploadCloud, Loader2 } from 'lucide-react';
-import { validateAccountingFiles, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
+import { Loader2, UploadCloud } from 'lucide-react';
+import {
+  MAX_ACCOUNTING_UPLOAD_FILES,
+  MAX_ACCOUNTING_UPLOAD_SIZE_BYTES,
+  validateAccountingFiles,
+  type FileUploadRejection,
+} from '@/lib/uploads/client-document-upload';
 
 interface FileUploaderProps {
   onFileDrop: (files: File[]) => Promise<void>;
@@ -15,109 +19,119 @@ export function FileUploader({ onFileDrop, isLoading: parentIsLoading, onFileRej
   const inputId = useId();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const isLoading = parentIsLoading || isUploading;
+  const maxUploadSizeMb = Math.round(MAX_ACCOUNTING_UPLOAD_SIZE_BYTES / 1024 / 1024);
 
-  const handleDragEnter = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isUploading) return;
+  const handleDragEnter = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isLoading) return;
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDragLeave = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     setIsDragging(false);
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
   };
 
   const startUploadProcess = async (files: File[]) => {
-      const { acceptedFiles, rejectedFiles } = validateAccountingFiles(files);
+    if (isLoading) return;
 
-      if (rejectedFiles.length > 0) {
-        onFileReject?.(rejectedFiles);
-      }
+    const { acceptedFiles, rejectedFiles } = validateAccountingFiles(files);
 
-      if (acceptedFiles.length === 0) return;
+    if (rejectedFiles.length > 0) {
+      onFileReject?.(rejectedFiles);
+    }
 
-      setIsUploading(true);
-      try {
-        await onFileDrop(acceptedFiles);
-      } finally {
-        setIsUploading(false);
-      }
-  }
+    if (acceptedFiles.length === 0) return;
 
-  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (isUploading) return;
-
-    const files = Array.from(e.dataTransfer.files);
-    void startUploadProcess(files);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      void startUploadProcess(files);
-      e.target.value = ''; // Reset input to allow re-uploading the same file
+    setIsUploading(true);
+    try {
+      await onFileDrop(acceptedFiles);
+    } finally {
+      setIsUploading(false);
     }
   };
-  
-  const isLoading = parentIsLoading || isUploading;
+
+  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    if (isLoading) return;
+
+    void startUploadProcess(Array.from(event.dataTransfer.files));
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files) return;
+
+    void startUploadProcess(Array.from(event.target.files));
+    event.target.value = '';
+  };
 
   return (
-        <div className="relative group">
-            <div className={`absolute -inset-0.5 bg-gradient-to-r from-primary/30 to-blue-500/30 rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 ${isDragging ? 'opacity-100 blur-md' : ''}`}></div>
-            <label
-            htmlFor={inputId}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className={`relative flex flex-col items-center justify-center w-full min-h-[200px] p-8 border hover:border-primary/50 rounded-xl cursor-pointer transition-all duration-300
-                ${isDragging && !isLoading ? 'border-primary bg-primary/5 scale-[1.02] shadow-xl' : 'border-border bg-background/50 backdrop-blur-sm'}`}
-            >
-            <input
-                id={inputId}
-                type="file"
-                multiple
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                onChange={handleFileChange}
-                accept="image/*,.pdf"
-                disabled={isLoading}
-            />
-            <div className="flex flex-col items-center justify-center text-center transform transition-transform duration-300 group-hover:-translate-y-1">
-                {isLoading ? (
-                    <>
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-                            <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
-                        </div>
-                        <h3 className="mt-6 text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">Traitement IA en cours...</h3>
-                        <p className="mt-2 text-sm font-medium text-muted-foreground w-3/4 mx-auto">Veuillez patienter pendant que notre intelligence artificielle analyse vos documents.</p>
-                    </>
-                ) : (
-                    <>
-                        <div className="p-4 bg-primary/10 rounded-full mb-4 group-hover:scale-110 transition-transform duration-500 shadow-inner">
-                            <UploadCloud className="h-12 w-12 text-primary drop-shadow-sm" />
-                        </div>
-                        <h3 className="text-2xl font-bold tracking-tight mb-2">Dépôt Magique</h3>
-                        <p className="mt-1 text-base font-medium text-muted-foreground">
-                        Glissez-déposez vos reçus, factures ou relevés ici,<br/> ou <span className="font-bold text-primary underline decoration-primary/30 underline-offset-4">parcourez vos fichiers</span>.
-                        </p>
-                        <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 bg-muted/50 px-3 py-1 rounded-full border">
-                        PDF • PNG • JPG (20 Mo max, jusqu'à 50 fichiers)
-                        </p>
-                    </>
-                )}
-            </div>
-            </label>
+    <div className="group relative">
+      <div className={`absolute -inset-0.5 rounded-xl bg-gradient-to-r from-primary/30 to-blue-500/30 opacity-30 blur transition duration-1000 group-hover:opacity-100 group-hover:duration-200 ${isDragging ? 'opacity-100 blur-md' : ''}`} />
+      <label
+        htmlFor={inputId}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        aria-busy={isLoading}
+        aria-disabled={isLoading}
+        className={`relative flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-xl border p-6 transition-all duration-300 hover:border-primary/50 sm:p-8 ${
+          isDragging && !isLoading
+            ? 'scale-[1.02] border-primary bg-primary/5 shadow-xl'
+            : 'border-border bg-background/50 backdrop-blur-sm'
+        }`}
+      >
+        <input
+          id={inputId}
+          type="file"
+          multiple
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          onChange={handleFileChange}
+          accept="image/*,.pdf"
+          disabled={isLoading}
+        />
+
+        <div className="flex transform flex-col items-center justify-center text-center transition-transform duration-300 group-hover:-translate-y-1">
+          {isLoading ? (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
+                <Loader2 className="relative z-10 h-16 w-16 animate-spin text-primary" />
+              </div>
+              <h3 className="mt-6 bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-xl font-bold text-transparent">Envoi securise en cours...</h3>
+              <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">
+                Vos pieces sont transmises au cabinet. Vous pourrez suivre leur statut dans l'historique.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mb-4 rounded-full bg-primary/10 p-4 shadow-inner transition-transform duration-500 group-hover:scale-110">
+                <UploadCloud className="h-12 w-12 text-primary drop-shadow-sm" />
+              </div>
+              <h3 className="mb-2 text-2xl font-bold tracking-tight">Deposer des pieces</h3>
+              <p className="mt-1 max-w-lg text-base font-medium text-muted-foreground">
+                Prenez une photo ou ajoutez vos factures, recus et releves.
+                <br className="hidden sm:block" />{' '}
+                <span className="font-bold text-primary underline underline-offset-4 decoration-primary/30">Choisir des fichiers</span>
+              </p>
+              <p className="mt-4 rounded-full border bg-muted/50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                PDF, PNG, JPG - {maxUploadSizeMb} Mo max, {MAX_ACCOUNTING_UPLOAD_FILES} fichiers
+              </p>
+            </>
+          )}
         </div>
+      </label>
+    </div>
   );
 }

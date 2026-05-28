@@ -669,8 +669,8 @@ export default function MyDocumentsPage() {
       )}
 
       <div>
-        <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Mon Dépôt Magique</h1>
-        <p className="text-muted-foreground mt-2 text-lg">Dépôt simplifié, suivi et actions requises en un clin d'œil.</p>
+        <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Mes pieces comptables</h1>
+        <p className="text-muted-foreground mt-2 text-lg">Depot securise, suivi clair et actions requises en un coup d'oeil.</p>
       </div>
 
       <AttentionCenter />
@@ -678,7 +678,7 @@ export default function MyDocumentsPage() {
       <Card ref={uploadSectionRef} className="glass-panel overflow-hidden border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 premium-shadow">
         <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-8">
             <CardTitle className="text-3xl font-display text-primary">Nouveau document</CardTitle>
-            <CardDescription className="text-base text-foreground/70">Déposez vos fichiers ici. Ils seront automatiquement envoyés à votre comptable pour traitement.</CardDescription>
+            <CardDescription className="text-base text-foreground/70">Ajoutez vos fichiers ici. Ils seront automatiquement transmis a votre comptable pour traitement.</CardDescription>
         </CardHeader>
         <CardContent>
              <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} onFileReject={handleRejectedFiles} />
