@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,21 +33,26 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ClientImportDialog } from '@/components/client-import-dialog';
 import type { Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { AiClientDialog } from '@/components/ai-client-dialog';
 import { useCollection, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, doc, writeBatch, where } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { cn, formatDate } from '@/lib/utils';
 
 import { useBranding } from '@/components/branding-provider';
+
+const ClientImportDialog = dynamic(
+  () => import('@/components/client-import-dialog').then((module) => module.ClientImportDialog),
+  { ssr: false }
+);
+
+const AiClientDialog = dynamic(
+  () => import('@/components/ai-client-dialog').then((module) => module.AiClientDialog),
+  { ssr: false }
+);
 
 export default function ClientsPage() {
     const router = useRouter();
@@ -214,10 +220,11 @@ export default function ClientsPage() {
         return filteredClients;
     }
 
-    const handleExportXLSX = () => {
+    const handleExportXLSX = async () => {
         const usersToExport = getUsersToExport();
         if (!usersToExport) return;
 
+        const XLSX = await import('xlsx');
         const worksheet = XLSX.utils.json_to_sheet(usersToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
@@ -231,9 +238,14 @@ export default function ClientsPage() {
         });
     }
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         const usersToExport = getUsersToExport();
         if (!usersToExport) return;
+
+        const [{ default: jsPDF }] = await Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]);
 
         const doc = new jsPDF();
         doc.text(`Liste des Clients`, 14, 16);
