@@ -21,6 +21,7 @@ CCS Compta doit devenir une plateforme SaaS cabinet/client pour reduire les oper
 ### En Cours
 
 - Chantier 3 : parcours client mobile, tranche consultation et historique documents.
+- Remediation post-audit securite (2026-06-01) : verrouillage des creations Firestore multi-tenant, neutralisation du middleware base cookie, et durcissement de la source de role d'impersonation.
 
 ### Risques Ouverts
 
