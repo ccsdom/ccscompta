@@ -181,7 +181,7 @@ service cloud.firestore {
     match /notifications/{notifId} {
       allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
       allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
-      allow create: if isStaff();
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
       allow update: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
       allow delete: if false;
     }
@@ -189,7 +189,7 @@ service cloud.firestore {
     match /mails/{mailId} {
       allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
       allow list: if isStaff() && (isAdmin() || resource.data.cabinetId == callerCabinetId());
-      allow create: if isStaff();
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
       allow update, delete: if isStaff() && (isAdmin() || resource.data.cabinetId == callerCabinetId());
     }
 

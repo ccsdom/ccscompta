@@ -42,7 +42,6 @@ export default function LoginPage() {
             // Ignore errors if user was already signed out
         } finally {
             localStorage.clear();
-            document.cookie = 'userRole=; path=/; max-age=0; SameSite=Lax';
             window.dispatchEvent(new Event('storage'));
         }
     };
@@ -66,10 +65,8 @@ export default function LoginPage() {
         const userRole = typeof userRoleValue === 'string' ? userRoleValue : 'client';
         const displayName = user.displayName || user.email!.split('@')[0];
 
-        localStorage.setItem('userRole', userRole);
         localStorage.setItem('userName', displayName);
         localStorage.setItem('userEmail', user.email!);
-        document.cookie = `userRole=${userRole}; path=/; max-age=86400; SameSite=Lax; Secure`;
         
         if (userRole === 'client') {
             localStorage.setItem('selectedClientId', user.uid);

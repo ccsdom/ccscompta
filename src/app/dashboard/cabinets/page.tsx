@@ -112,7 +112,7 @@ export default function CabinetsManagementPage() {
         }
         
         // Simuler le rôle cabinet (accountant)
-        localStorage.setItem('userRole', 'accountant');
+        localStorage.setItem('impersonatedRole', 'accountant');
         localStorage.setItem('userName', cabinet.name);
         localStorage.setItem('userEmail', cabinet.email || 'contact@cabinet.com');
         localStorage.setItem('selectedCabinetId', cabinet.id);

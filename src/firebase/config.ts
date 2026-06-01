@@ -18,17 +18,7 @@ function normalizeEnvValue(value: string | undefined) {
   return trimmed;
 }
 
-// Safe public fallback used when NEXT_PUBLIC_* variables are missing in deployment.
-const embeddedFirebaseConfig = {
-  apiKey: 'AIzaSyC1Wu-pJ12Ionb9dsjWmaGusuxGmh5LZB4',
-  authDomain: 'ccs-compta.firebaseapp.com',
-  projectId: 'ccs-compta',
-  storageBucket: 'ccs-compta.firebasestorage.app',
-  messagingSenderId: '641289397299',
-  appId: '1:641289397299:web:160436367ad4dff3e6ef46',
-} satisfies Record<FirebaseConfigKey, string>;
-
-const envFirebaseConfig = {
+const nextPublicFirebaseConfig = {
   apiKey: normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
   authDomain: normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
   projectId: normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
@@ -37,13 +27,22 @@ const envFirebaseConfig = {
   appId: normalizeEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 } satisfies Record<FirebaseConfigKey, string | undefined>;
 
+const legacyFirebaseConfig = {
+  apiKey: normalizeEnvValue(process.env.FIREBASE_API_KEY),
+  authDomain: normalizeEnvValue(process.env.FIREBASE_AUTH_DOMAIN),
+  projectId: normalizeEnvValue(process.env.FIREBASE_PROJECT_ID),
+  storageBucket: normalizeEnvValue(process.env.FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: normalizeEnvValue(process.env.FIREBASE_MESSAGING_SENDER_ID),
+  appId: normalizeEnvValue(process.env.FIREBASE_APP_ID),
+} satisfies Record<FirebaseConfigKey, string | undefined>;
+
 export const firebaseConfig = {
-  apiKey: envFirebaseConfig.apiKey ?? embeddedFirebaseConfig.apiKey,
-  authDomain: envFirebaseConfig.authDomain ?? embeddedFirebaseConfig.authDomain,
-  projectId: envFirebaseConfig.projectId ?? embeddedFirebaseConfig.projectId,
-  storageBucket: envFirebaseConfig.storageBucket ?? embeddedFirebaseConfig.storageBucket,
-  messagingSenderId: envFirebaseConfig.messagingSenderId ?? embeddedFirebaseConfig.messagingSenderId,
-  appId: envFirebaseConfig.appId ?? embeddedFirebaseConfig.appId,
+  apiKey: nextPublicFirebaseConfig.apiKey ?? legacyFirebaseConfig.apiKey ?? '',
+  authDomain: nextPublicFirebaseConfig.authDomain ?? legacyFirebaseConfig.authDomain ?? '',
+  projectId: nextPublicFirebaseConfig.projectId ?? legacyFirebaseConfig.projectId ?? '',
+  storageBucket: nextPublicFirebaseConfig.storageBucket ?? legacyFirebaseConfig.storageBucket ?? '',
+  messagingSenderId: nextPublicFirebaseConfig.messagingSenderId ?? legacyFirebaseConfig.messagingSenderId ?? '',
+  appId: nextPublicFirebaseConfig.appId ?? legacyFirebaseConfig.appId ?? '',
 } satisfies Record<FirebaseConfigKey, string>;
 
 const requiredFirebaseConfigKeys = [
@@ -60,7 +59,15 @@ export function hasResolvedFirebaseConfig() {
 }
 
 export function hasExplicitFirebaseConfig() {
-  return requiredFirebaseConfigKeys.every((key) => Boolean(envFirebaseConfig[key]));
+  return requiredFirebaseConfigKeys.every(
+    (key) => Boolean(nextPublicFirebaseConfig[key] || legacyFirebaseConfig[key])
+  );
+}
+
+export function isUsingLegacyFirebaseConfigOnly() {
+  const hasNextPublic = requiredFirebaseConfigKeys.every((key) => Boolean(nextPublicFirebaseConfig[key]));
+  const hasLegacy = requiredFirebaseConfigKeys.every((key) => Boolean(legacyFirebaseConfig[key]));
+  return !hasNextPublic && hasLegacy;
 }
 
 // Exporter le nom du bucket pour une utilisation centralisee

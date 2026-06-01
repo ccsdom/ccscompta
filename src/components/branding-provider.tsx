@@ -37,7 +37,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         const checkImpersonation = () => {
             const sid = localStorage.getItem('selectedClientId');
             const scid = localStorage.getItem('selectedCabinetId');
-            const srole = localStorage.getItem('userRole') as Role;
+            const srole = localStorage.getItem('impersonatedRole') as Role;
             setImpersonatedId(sid);
             setImpersonatedCabinetId(scid);
             setImpersonatedRole(srole);
@@ -73,7 +73,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         if (profileError && impersonatedId) {
             console.warn("Impersonation failed: insufficient permissions. Resetting to real profile.");
             localStorage.removeItem('selectedClientId');
-            localStorage.removeItem('userRole');
+            localStorage.removeItem('impersonatedRole');
             setImpersonatedId(null);
             setImpersonatedRole(null);
             window.dispatchEvent(new Event('storage'));
@@ -125,6 +125,8 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
     const value = useMemo(() => {
         const baseProfile = profile || null;
+        const canApplyImpersonatedRole = isActuallyStaff && !!impersonatedId && !!impersonatedRole;
+        const effectiveRole = canApplyImpersonatedRole ? impersonatedRole : (baseProfile?.role || null);
         // Patch profile cabinetId for impersonating admins
         const effectiveProfile = (baseProfile && isActuallyStaff && impersonatedCabinetId && !baseProfile.cabinetId)
             ? { ...baseProfile, cabinetId: impersonatedCabinetId }
@@ -133,9 +135,9 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         return {
             cabinet: cabinet || null,
             profile: effectiveProfile,
-            role: impersonatedRole || baseProfile?.role || null,
+            role: effectiveRole,
             isLoading: isUserLoading || isProfileLoading || isCabinetLoading,
-            isImpersonating: !!impersonatedId || !!impersonatedCabinetId,
+            isImpersonating: isActuallyStaff && (!!impersonatedId || !!impersonatedCabinetId),
         };
     }, [cabinet, profile, impersonatedRole, isUserLoading, isProfileLoading, isCabinetLoading, impersonatedId, impersonatedCabinetId, isActuallyStaff]);
 

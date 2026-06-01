@@ -157,7 +157,7 @@ export default function ClientsPage() {
             localStorage.setItem('originalUserEmail', profile?.email || '');
         }
 
-        localStorage.setItem('userRole', 'client');
+        localStorage.setItem('impersonatedRole', 'client');
         localStorage.setItem('userName', client.legalRepresentative || client.name);
         localStorage.setItem('userEmail', client.email);
         localStorage.setItem('selectedClientId', client.id);

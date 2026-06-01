@@ -164,13 +164,13 @@ export function Header({children}: {children?: React.ReactNode}) {
       const originalName = localStorage.getItem('originalUserName');
       const originalEmail = localStorage.getItem('originalUserEmail');
 
-      localStorage.setItem('userRole', originalRole || 'admin');
       localStorage.setItem('userName', originalName || 'Super Admin');
       localStorage.setItem('userEmail', originalEmail || '');
 
       localStorage.removeItem('originalUserRole');
       localStorage.removeItem('originalUserName');
       localStorage.removeItem('originalUserEmail');
+      localStorage.removeItem('impersonatedRole');
       localStorage.removeItem('selectedClientId');
       localStorage.removeItem('selectedCabinetId');
 

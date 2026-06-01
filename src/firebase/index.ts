@@ -1,7 +1,7 @@
 
 'use client';
 
-import { firebaseConfig, hasExplicitFirebaseConfig, hasResolvedFirebaseConfig } from '@/firebase/config';
+import { firebaseConfig, hasResolvedFirebaseConfig, isUsingLegacyFirebaseConfigOnly } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
@@ -12,13 +12,13 @@ export function initializeFirebase() {
   if (!getApps().length) {
     if (!hasResolvedFirebaseConfig()) {
       throw new Error(
-        '[Firebase] Configuration incomplete. Define NEXT_PUBLIC_FIREBASE_* variables or provide a valid embedded fallback config.'
+        '[Firebase] Configuration incomplete. Define NEXT_PUBLIC_FIREBASE_* variables (preferred) or FIREBASE_* variables.'
       );
     }
 
-    if (!hasExplicitFirebaseConfig()) {
+    if (isUsingLegacyFirebaseConfigOnly()) {
       console.warn(
-        '[Firebase] NEXT_PUBLIC_FIREBASE_* variables are missing. Using embedded public fallback config.'
+        '[Firebase] Using legacy FIREBASE_* variables. Migrate to NEXT_PUBLIC_FIREBASE_* to avoid deployment drift.'
       );
     }
 
