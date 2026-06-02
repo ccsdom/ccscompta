@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, LogIn, FileUp, Wand2, Users, Briefcase, Activity, ShieldCheck, UserPlus, ArrowRight, Filter } from "lucide-react";
+import { Building, PlusCircle, Search, MoreHorizontal, Edit, Trash2, Download, CheckCircle, XCircle, FileSpreadsheet, LogIn, FileUp, Wand2, Users, Briefcase, Activity, ShieldCheck, UserPlus, ArrowRight, Filter, KeyRound } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -37,8 +37,9 @@ import type { Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useCollection, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDoc, useMemoFirebase, useUser, functions } from '@/firebase';
 import { collection, query, doc, writeBatch, where } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { db } from '@/firebase';
 import { cn, formatDate } from '@/lib/utils';
 
@@ -124,6 +125,7 @@ export default function ClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [userToDelete, setUserToDelete] = useState<Client | null>(null);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [sendingAccessUserId, setSendingAccessUserId] = useState<string | null>(null);
     
     const loading = isBrandingLoading || isLoadingStaffUsers || isLoadingClientUser || (isStaff && (isLoadingAccountants || isBrandingLoading));
 
@@ -169,6 +171,38 @@ export default function ClientsPage() {
 
         window.dispatchEvent(new Event('storage'));
         router.push('/dashboard/my-documents');
+    }
+
+    const handleSendAccess = async (client: Client) => {
+        setSendingAccessUserId(client.id);
+
+        try {
+            const sendUserSetupEmail = httpsCallable(functions, 'sendUserSetupEmail');
+            const result = await sendUserSetupEmail({ clientId: client.id });
+            const data = result.data as { success?: boolean; setupLink?: string; emailQueued?: boolean };
+
+            if (!data.success || !data.emailQueued) {
+                throw new Error("L'email d'activation n'a pas pu etre envoye.");
+            }
+
+            if (data.setupLink) {
+                await navigator.clipboard.writeText(data.setupLink);
+            }
+
+            toast({
+                title: "Acces client envoye",
+                description: `Un email d'activation a ete transmis a ${client.email}. Le lien a aussi ete copie par securite.`,
+            });
+        } catch (error: any) {
+            console.error("Erreur renvoi acces client:", error);
+            toast({
+                variant: 'destructive',
+                title: "Erreur d'envoi",
+                description: error.message || "Impossible de renvoyer l'acces client.",
+            });
+        } finally {
+            setSendingAccessUserId(null);
+        }
     }
     
     const handleDeleteUser = async () => {
@@ -536,6 +570,14 @@ export default function ClientsPage() {
                                                                 <DropdownMenuItem onClick={() => handleImpersonate(user)} className="rounded-lg p-3 font-medium transition-colors cursor-pointer text-primary">
                                                                 <LogIn className="mr-2 h-4 w-4" />
                                                                 Prendre la main
+                                                            </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    disabled={sendingAccessUserId === user.id}
+                                                                    onClick={() => handleSendAccess(user)}
+                                                                    className="rounded-lg p-3 font-medium transition-colors cursor-pointer"
+                                                                >
+                                                                <KeyRound className="mr-2 h-4 w-4" />
+                                                                {sendingAccessUserId === user.id ? 'Envoi en cours...' : 'Renvoyer acces'}
                                                             </DropdownMenuItem>
                                                                 <DropdownMenuSeparator className="bg-white/5" />
                                                                 <DropdownMenuItem className="text-red-500 rounded-lg p-3 font-medium transition-colors cursor-pointer" onClick={() => setUserToDelete(user)}>

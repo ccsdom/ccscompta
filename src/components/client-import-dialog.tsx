@@ -100,6 +100,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         setIsLoading(true);
         let importedCount = 0;
         let errorCount = 0;
+        let emailedCount = 0;
         const activationLinks: ActivationLink[] = [];
 
         if (!clientAuth) {
@@ -119,10 +120,13 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 };
 
                 const result = await createUserFunc(dataToSend);
-                const resultData = result.data as { success: boolean; setupLink?: string };
+                const resultData = result.data as { success: boolean; setupLink?: string; emailQueued?: boolean };
 
                 if (resultData.success) {
                     importedCount++;
+                    if (resultData.emailQueued) {
+                        emailedCount++;
+                    }
                     if (resultData.setupLink) {
                         activationLinks.push({
                             name: clientData.name,
@@ -156,15 +160,17 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
 
             toast({
                 duration: 20000,
-                title: 'Importation terminÃ©e, action requise !',
+                title: emailedCount > 0 ? 'Importation terminee, emails envoyes' : 'Importation terminee, action requise',
                 description: (
                     <div className="space-y-2">
                         <p>{importedCount} profils clients et comptes d'accÃ¨s ont Ã©tÃ© crÃ©Ã©s.</p>
                         <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
                              <KeyRound className="h-4 w-4" />
-                             <AlertTitle>Liens d'activation</AlertTitle>
+                             <AlertTitle>{emailedCount > 0 ? 'Emails d activation' : 'Liens d activation'}</AlertTitle>
                              <AlertDescription>
-                                Un fichier CSV contenant les liens d'activation disponibles vient d'Ãªtre gÃ©nÃ©rÃ©.
+                                {emailedCount > 0
+                                    ? `${emailedCount} email(s) d'activation ont ete mis en file. Un CSV de secours contenant les liens disponibles vient aussi d'etre genere.`
+                                    : "Un fichier CSV contenant les liens d'activation disponibles vient d'etre genere."}
                              </AlertDescription>
                          </Alert>
                     </div>

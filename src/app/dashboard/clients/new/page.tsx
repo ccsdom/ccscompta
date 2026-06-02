@@ -63,7 +63,7 @@ export default function NewClientPage() {
                     throw error;
                 });
 
-            const resultData = result.data as { success: boolean; message: string; setupLink?: string; };
+            const resultData = result.data as { success: boolean; message: string; setupLink?: string; emailQueued?: boolean; };
 
              if (!resultData.success) {
                 throw new Error(resultData.message || 'Une erreur inconnue est survenue.');
@@ -77,9 +77,15 @@ export default function NewClientPage() {
                         <p>Le compte pour <strong>{data.name}</strong> a été créé.</p>
                          <Alert variant="default" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
                             <KeyRound className="h-4 w-4" />
-                            <AlertTitle className="font-space font-black uppercase text-[10px] tracking-widest">Lien d'activation</AlertTitle>
+                            <AlertTitle className="font-space font-black uppercase text-[10px] tracking-widest">
+                                {resultData.emailQueued ? "Email d'activation envoye" : "Lien d'activation"}
+                            </AlertTitle>
                             <AlertDescription className="space-y-2 text-xs">
-                                <p>Transmettez ce lien au client via un canal sécurisé pour qu'il définisse son mot de passe.</p>
+                                <p>
+                                    {resultData.emailQueued
+                                        ? "Le client va recevoir un email pour definir son mot de passe."
+                                        : "Transmettez ce lien au client via un canal securise pour qu'il definisse son mot de passe."}
+                                </p>
                                 {resultData.setupLink ? (
                                     <Button
                                         type="button"

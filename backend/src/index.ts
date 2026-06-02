@@ -27,6 +27,8 @@ function getDb() {
 
 type AuthContext = NonNullable<CallableRequest["auth"]>;
 
+const DEFAULT_APP_BASE_URL = 'https://ccscompta.fr';
+
 function getCallerRole(auth: AuthContext): string {
   return typeof auth.token.role === 'string' ? auth.token.role : 'client';
 }
@@ -49,16 +51,119 @@ function hashInvitationToken(token: string): string {
 
 function getAccountSetupUrl(): string {
   return process.env.ACCOUNT_SETUP_CONTINUE_URL ||
-    process.env.APP_BASE_URL ||
-    'https://ccscompta.web.app/connexion';
+    `${getAppBaseUrl()}/connexion`;
 }
 
 function getAppBaseUrl(): string {
-  return (process.env.APP_BASE_URL || 'https://ccscompta.web.app').replace(/\/$/, '');
+  return (process.env.APP_BASE_URL || DEFAULT_APP_BASE_URL).replace(/\/$/, '');
 }
 
 function buildCabinetOnboardingUrl(cabinetId: string, token: string): string {
   return `${getAppBaseUrl()}/onboarding?cabinetId=${encodeURIComponent(cabinetId)}&token=${encodeURIComponent(token)}`;
+}
+
+function buildCabinetInvitationMailPayload(cabinet: { id: string; name: string; email: string; invitationUrl: string }) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
+      <h1 style="font-size: 24px; margin-bottom: 8px;">Bienvenue sur CCS Compta</h1>
+      <p style="font-size: 15px; line-height: 1.6;">
+        Votre espace cabinet <strong>${cabinet.name}</strong> est pret. Cliquez sur le bouton ci-dessous pour definir votre mot de passe et activer votre compte comptable.
+      </p>
+      <p style="font-size: 14px; line-height: 1.6;">
+        Identifiant de connexion: <strong>${cabinet.email}</strong>
+      </p>
+      <p style="margin: 28px 0;">
+        <a href="${cabinet.invitationUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; padding: 14px 22px; border-radius: 8px; text-decoration: none; font-weight: 700;">
+          Activer mon espace cabinet
+        </a>
+      </p>
+      <p style="font-size: 12px; color: #6b7280; line-height: 1.5;">
+        Ce lien est personnel et expire automatiquement. Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur:<br/>
+        ${cabinet.invitationUrl}
+      </p>
+    </div>
+  `;
+
+  return {
+    to: cabinet.email,
+    message: {
+      subject: `[CCS Compta] Activez votre espace cabinet - ${cabinet.name}`,
+      html,
+    },
+    metadata: {
+      cabinetId: cabinet.id,
+      type: 'cabinet-invitation',
+      secured: true,
+    },
+    status: 'pending',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+async function queueCabinetInvitationEmail(cabinet: { id: string; name: string; email: string; invitationUrl: string }) {
+  const payload = buildCabinetInvitationMailPayload(cabinet);
+  await getDb().collection('mail').add(payload);
+}
+
+function getRoleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    admin: 'administrateur',
+    accountant: 'comptable',
+    secretary: 'secretaire',
+    client: 'client',
+  };
+
+  return labels[role] || 'utilisateur';
+}
+
+function buildUserSetupMailPayload(user: { uid: string; name?: string; email: string; role: string; cabinetId?: string; setupLink: string }) {
+  const displayName = user.name || user.email;
+  const roleLabel = getRoleLabel(user.role);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
+      <h1 style="font-size: 24px; margin-bottom: 8px;">Bienvenue sur CCS Compta</h1>
+      <p style="font-size: 15px; line-height: 1.6;">
+        Bonjour <strong>${displayName}</strong>, votre espace ${roleLabel} est pret.
+      </p>
+      <p style="font-size: 15px; line-height: 1.6;">
+        Cliquez sur le bouton ci-dessous pour definir votre mot de passe et activer votre acces securise.
+      </p>
+      <p style="font-size: 14px; line-height: 1.6;">
+        Identifiant de connexion: <strong>${user.email}</strong>
+      </p>
+      <p style="margin: 28px 0;">
+        <a href="${user.setupLink}" style="display: inline-block; background: #2563eb; color: #ffffff; padding: 14px 22px; border-radius: 8px; text-decoration: none; font-weight: 700;">
+          Activer mon acces
+        </a>
+      </p>
+      <p style="font-size: 12px; color: #6b7280; line-height: 1.5;">
+        Ce lien est personnel. Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur:<br/>
+        ${user.setupLink}
+      </p>
+    </div>
+  `;
+
+  return {
+    to: user.email,
+    message: {
+      subject: '[CCS Compta] Activez votre espace',
+      html,
+    },
+    metadata: {
+      uid: user.uid,
+      cabinetId: user.cabinetId || null,
+      role: user.role,
+      type: 'user-setup',
+      secured: true,
+    },
+    status: 'pending',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+async function queueUserSetupEmail(user: { uid: string; name?: string; email: string; role: string; cabinetId?: string; setupLink: string }) {
+  const payload = buildUserSetupMailPayload(user);
+  await getDb().collection('mail').add(payload);
 }
 
 async function getClientOrThrow(clientId: string) {
@@ -519,6 +624,7 @@ export const createUserWithRole = onCall(
       });
 
       let setupLink: string | undefined;
+      let emailQueued = false;
       try {
         setupLink = await admin.auth().generatePasswordResetLink(email, {
           url: getAccountSetupUrl(),
@@ -528,13 +634,30 @@ export const createUserWithRole = onCall(
         logger.error(`Impossible de generer le lien d activation pour ${email}`, linkError);
       }
 
+      if (setupLink) {
+        try {
+          await queueUserSetupEmail({
+            uid,
+            name: profileDataClean.name,
+            email,
+            role,
+            cabinetId: targetCabinetId,
+            setupLink,
+          });
+          emailQueued = true;
+        } catch (mailError) {
+          logger.error(`Impossible de mettre en file l email d activation pour ${email}`, mailError);
+        }
+      }
+
       logger.info(`Utilisateur ${uid} crÃ©Ã© avec le rÃ´le : ${role}`);
       return {
         success: true,
         uid,
         setupLink,
+        emailQueued,
         message: setupLink
-          ? 'Utilisateur cree. Lien d activation genere.'
+          ? (emailQueued ? 'Utilisateur cree. Email d activation envoye.' : 'Utilisateur cree. Lien d activation genere mais email non envoye.')
           : 'Utilisateur cree. Le lien d activation devra etre regenere.',
       };
     } catch (error: any) {
@@ -552,6 +675,70 @@ export const createUserWithRole = onCall(
         throw new HttpsError('invalid-argument', 'Le mot de passe fourni est trop faible. Il doit contenir au moins 6 caractÃ¨res.');
       }
       throw new HttpsError('internal', "Erreur lors de la crÃ©ation du compte : " + error.message, error.message);
+    }
+  }
+);
+
+export const sendUserSetupEmail = onCall(
+  { region: "europe-west9" },
+  async (request: CallableRequest<any>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    const clientId = request.data?.clientId;
+    if (typeof clientId !== 'string' || !clientId.trim()) {
+      throw new HttpsError('invalid-argument', 'clientId requis.');
+    }
+
+    try {
+      const { targetClient, targetCabinetId } = await assertClientCabinetAccess(
+        request.auth,
+        clientId,
+        ['admin', 'accountant', 'secretary']
+      );
+
+      if (targetClient.role !== 'client') {
+        throw new HttpsError('failed-precondition', 'Le renvoi d acces est reserve aux comptes clients.');
+      }
+
+      const email = String(targetClient.email || '').trim().toLowerCase();
+      if (!email) {
+        throw new HttpsError('failed-precondition', 'Ce client n a pas d email de connexion.');
+      }
+
+      await admin.auth().getUser(clientId);
+
+      const setupLink = await admin.auth().generatePasswordResetLink(email, {
+        url: getAccountSetupUrl(),
+        handleCodeInApp: false,
+      });
+
+      await queueUserSetupEmail({
+        uid: clientId,
+        name: targetClient.name,
+        email,
+        role: 'client',
+        cabinetId: targetCabinetId,
+        setupLink,
+      });
+
+      await getDb().collection('clients').doc(clientId).set({
+        setupEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: targetClient.status === 'inactive' ? targetClient.status : 'onboarding',
+      }, { merge: true });
+
+      logger.info(`Email d activation client ${clientId} mis en file pour ${email}`);
+      return {
+        success: true,
+        setupLink,
+        emailQueued: true,
+      };
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        throw new HttpsError('failed-precondition', 'Le compte Auth de ce client est introuvable.');
+      }
+      throwCallableError(error, 'Erreur sendUserSetupEmail:');
     }
   }
 );
@@ -608,6 +795,161 @@ export const prepareCabinetInvitation = onCall(
       };
     } catch (error) {
       throwCallableError(error, 'Erreur prepareCabinetInvitation:');
+    }
+  }
+);
+
+/**
+ * Cree un cabinet depuis le super admin et envoie immediatement le lien d'activation.
+ */
+export const createCabinetWithInvitation = onCall(
+  { region: "europe-west9" },
+  async (request: CallableRequest<any>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    if (getCallerRole(request.auth) !== 'admin') {
+      throw new HttpsError('permission-denied', 'Seul un administrateur systeme peut creer un cabinet.');
+    }
+
+    const name = String(request.data?.name || '').trim();
+    const email = String(request.data?.email || '').trim().toLowerCase();
+    const plan = String(request.data?.plan || 'starter');
+    const allowedPlans = ['starter', 'professional', 'enterprise', 'elite'];
+
+    if (!name) {
+      throw new HttpsError('invalid-argument', 'Nom du cabinet requis.');
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new HttpsError('invalid-argument', 'Email cabinet invalide.');
+    }
+    if (!allowedPlans.includes(plan)) {
+      throw new HttpsError('invalid-argument', 'Plan cabinet invalide.');
+    }
+
+    const maxClients = Number(request.data?.quotas?.maxClients || 10);
+    const maxDocumentsPerMonth = Number(request.data?.quotas?.maxDocumentsPerMonth || 100);
+    const maxCollaborators = Number(request.data?.quotas?.maxCollaborators || 5);
+    const storageLimitGb = Number(request.data?.quotas?.storageLimitGb || 5);
+
+    try {
+      const duplicateCabinet = await getDb().collection('cabinets').where('email', '==', email).limit(1).get();
+      if (!duplicateCabinet.empty) {
+        throw new HttpsError('already-exists', 'Un cabinet utilise deja cet email.');
+      }
+
+      const cabinetRef = getDb().collection('cabinets').doc();
+      const token = generateInvitationToken();
+      const expiresAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      const invitationUrl = buildCabinetOnboardingUrl(cabinetRef.id, token);
+
+      await cabinetRef.set({
+        id: cabinetRef.id,
+        name,
+        email,
+        plan,
+        status: 'active',
+        quotas: {
+          maxClients,
+          maxDocumentsPerMonth,
+          maxCollaborators,
+          storageLimitGb,
+          usedDocumentsMonth: 0,
+          usedClients: 0,
+        },
+        invitationTokenHash: hashInvitationToken(token),
+        invitationExpiresAt: expiresAt,
+        invitationSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        invitationStatus: 'pending',
+        invitedBy: request.auth.uid,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+      });
+
+      await queueCabinetInvitationEmail({
+        id: cabinetRef.id,
+        name,
+        email,
+        invitationUrl,
+      });
+
+      logger.info(`Cabinet ${cabinetRef.id} cree et invitation envoyee a ${email}`);
+      return {
+        success: true,
+        cabinetId: cabinetRef.id,
+        invitationUrl,
+        expiresAt: expiresAt.toDate().toISOString(),
+      };
+    } catch (error) {
+      throwCallableError(error, 'Erreur createCabinetWithInvitation:');
+    }
+  }
+);
+
+/**
+ * Regenere et envoie le lien d'activation d'un cabinet existant.
+ */
+export const sendCabinetInvitation = onCall(
+  { region: "europe-west9" },
+  async (request: CallableRequest<any>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    if (getCallerRole(request.auth) !== 'admin') {
+      throw new HttpsError('permission-denied', 'Seul un administrateur systeme peut inviter un cabinet.');
+    }
+
+    const cabinetId = request.data?.cabinetId;
+    if (typeof cabinetId !== 'string' || !cabinetId.trim()) {
+      throw new HttpsError('invalid-argument', 'cabinetId requis.');
+    }
+
+    try {
+      const cabinetRef = getDb().collection('cabinets').doc(cabinetId);
+      const cabinetSnap = await cabinetRef.get();
+      if (!cabinetSnap.exists) {
+        throw new HttpsError('not-found', 'Cabinet introuvable.');
+      }
+
+      const cabinetData = cabinetSnap.data();
+      if (cabinetData?.invitationStatus === 'accepted') {
+        throw new HttpsError('failed-precondition', 'Ce cabinet est deja configure.');
+      }
+      if (!cabinetData?.email || !cabinetData?.name) {
+        throw new HttpsError('failed-precondition', 'Nom et email cabinet requis.');
+      }
+
+      const token = generateInvitationToken();
+      const expiresAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      const invitationUrl = buildCabinetOnboardingUrl(cabinetId, token);
+      const email = String(cabinetData.email).trim().toLowerCase();
+      const name = String(cabinetData.name).trim();
+
+      await cabinetRef.update({
+        invitationTokenHash: hashInvitationToken(token),
+        invitationExpiresAt: expiresAt,
+        invitationSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        invitationStatus: 'pending',
+        invitedBy: request.auth.uid,
+      });
+
+      await queueCabinetInvitationEmail({
+        id: cabinetId,
+        name,
+        email,
+        invitationUrl,
+      });
+
+      logger.info(`Invitation cabinet ${cabinetId} envoyee a ${email}`);
+      return {
+        success: true,
+        invitationUrl,
+        expiresAt: expiresAt.toDate().toISOString(),
+      };
+    } catch (error) {
+      throwCallableError(error, 'Erreur sendCabinetInvitation:');
     }
   }
 );
@@ -931,7 +1273,7 @@ export const createPortalSession = onCall(
 
         try {
             const { StripeService } = await import('./stripe.js');
-            const returnUrl = request.data.returnUrl || 'https://ccscompta.web.app/dashboard/settings';
+            const returnUrl = request.data.returnUrl || `${getAppBaseUrl()}/dashboard/settings`;
             const session = await StripeService.createPortalSession(clientData.stripeCustomerId, returnUrl);
             return { url: session.url };
         } catch (error: any) {
@@ -970,8 +1312,8 @@ export const generateCabinetCheckout = onCall(
 
         try {
             const { StripeService } = await import('./stripe.js');
-            const successUrl = 'https://ccscompta.web.app/dashboard/admin/subscriptions?success=true';
-            const cancelUrl = 'https://ccscompta.web.app/dashboard/admin/subscriptions?canceled=true';
+            const successUrl = `${getAppBaseUrl()}/dashboard/admin/subscriptions?success=true`;
+            const cancelUrl = `${getAppBaseUrl()}/dashboard/admin/subscriptions?canceled=true`;
 
             const session = await StripeService.createCheckoutSession(
                 cabinetId,
