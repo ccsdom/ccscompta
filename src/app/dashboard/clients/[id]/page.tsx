@@ -1,33 +1,25 @@
 
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import type { Client, Document } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Building, Mail, Phone, BarChart2, Edit, FileWarning, Clock, CheckCircle, UploadCloud } from 'lucide-react';
+import { Building, Mail, Phone, BarChart2, Edit, FileWarning, Clock, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { DocumentHistory } from '@/components/document-history';
 import { BilanHistory } from '@/components/bilan-history';
-import { FileUploader } from '@/components/file-uploader';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useDoc, useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import { useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { db } from '@/firebase';
-import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
-
-const getCurrentUser = () => localStorage.getItem('userName') || 'Manager cabinet';
 
 export default function ClientProfilePage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
-    const { toast } = useToast();
-    const { storage } = useFirebase();
-    const [isUploading, setIsUploading] = useState(false);
 
     const clientRef = useMemoFirebase(() => params.id ? doc(db, 'clients', params.id) : null, [params.id]);
     const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
@@ -45,59 +37,6 @@ export default function ClientProfilePage() {
             nextDeadline: new Date(2024, 7, 20) // Placeholder
         }
     }, [documents]);
-
-    const handleRejectedFiles = useCallback((rejections: FileUploadRejection[]) => {
-        toast({
-            variant: 'destructive',
-            title: 'Certains fichiers ont ete ignores',
-            description: summarizeUploadRejections(rejections),
-        });
-    }, [toast]);
-
-    const handleManagerFileDrop = useCallback(async (files: File[]) => {
-        if (!client) {
-            toast({
-                variant: 'destructive',
-                title: 'Client indisponible',
-                description: "Impossible de rattacher les documents sans dossier client charge.",
-            });
-            return;
-        }
-
-        setIsUploading(true);
-        let uploadedCount = 0;
-
-        try {
-            for (const file of files) {
-                await uploadClientDocument({
-                    db,
-                    storage,
-                    file,
-                    clientId: client.id,
-                    currentUser: getCurrentUser(),
-                    cabinetId: client.cabinetId,
-                    auditAction: 'Document televerse par le cabinet pour le client',
-                });
-                uploadedCount++;
-            }
-
-            toast({
-                title: 'Documents ajoutes',
-                description: `${uploadedCount} piece${uploadedCount > 1 ? 's' : ''} rattachee${uploadedCount > 1 ? 's' : ''} au dossier ${client.name}.`,
-            });
-
-            window.dispatchEvent(new Event('storage'));
-        } catch (error: any) {
-            console.error('Manager client upload failed:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Echec du depot',
-                description: error.message || "Impossible d'ajouter les documents de ce client.",
-            });
-        } finally {
-            setIsUploading(false);
-        }
-    }, [client, storage, toast]);
 
     if (loading) {
         return (
@@ -207,24 +146,6 @@ export default function ClientProfilePage() {
                                     <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
                                     <div><p className="font-medium">Téléphone</p><p className="text-muted-foreground">{client.phone || 'N/A'}</p></div>
                                 </div>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <UploadCloud className="h-5 w-5 text-primary" />
-                                    Depot cabinet
-                                </CardTitle>
-                                <CardDescription>
-                                    Ajoutez des pieces pour ce client lorsqu'il ne peut pas utiliser l'espace en ligne.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <FileUploader
-                                    onFileDrop={handleManagerFileDrop}
-                                    isLoading={isUploading}
-                                    onFileReject={handleRejectedFiles}
-                                />
                             </CardContent>
                         </Card>
                     </div>
