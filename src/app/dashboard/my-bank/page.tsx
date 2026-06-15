@@ -32,15 +32,19 @@ export default function MyBankPage() {
 
     useEffect(() => {
         const loadTransactions = async () => {
-            if (isLinked && storedClientId) {
-                setIsLoading(true);
-                const data = await BankService.getTransactions(storedClientId);
-                setTransactions(data);
-                setIsLoading(false);
+            if (storedClientId) {
+                const isBankLinked = localStorage.getItem(`bank_linked_${storedClientId}`) === 'true';
+                setIsLinked(isBankLinked);
+                if (isBankLinked) {
+                    setIsLoading(true);
+                    const data = await BankService.getTransactions(storedClientId);
+                    setTransactions(data);
+                    setIsLoading(false);
+                }
             }
         };
         loadTransactions();
-    }, [isLinked, storedClientId]);
+    }, [storedClientId]);
 
     const documentsQuery = useMemoFirebase(() => {
         if (!storedClientId) return null;
@@ -55,12 +59,18 @@ export default function MyBankPage() {
         setTimeout(() => {
             setIsLinked(true);
             setIsLinking(false);
+            if (storedClientId) {
+                localStorage.setItem(`bank_linked_${storedClientId}`, 'true');
+                // Trigger storage event for other tabs/components
+                window.dispatchEvent(new Event('storage'));
+            }
             toast({
                 title: "Banque connectée",
                 description: "Votre flux bancaire est désormais synchronisé avec CCS Compta.",
             });
         }, 1500);
     };
+
 
     const runAutoMatch = async () => {
         if (!storedClientId || isMatching || transactions.length === 0) return;

@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { db } from '@/firebase';
 import { cn, formatDate, parseDate } from '@/lib/utils';
 import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
+import { OnboardingProgress } from '@/components/onboarding-progress';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -113,6 +114,9 @@ export default function MyDocumentsPage() {
 
   const isLoading = isLoadingDocuments;
 
+  const hasUploadedDocument = documents ? documents.length > 0 : false;
+  const [hasConnectedBank, setHasConnectedBank] = useState(false);
+
    useEffect(() => {
     const loadState = () => {
         try {
@@ -137,6 +141,9 @@ export default function MyDocumentsPage() {
                     .then(snap => { if (snap.exists()) setCabinetId(snap.data().cabinetId); })
                     .catch(err => console.warn('Could not load cabinet ID:', err));
             }
+
+            // Gamification state
+            setHasConnectedBank(localStorage.getItem(`bank_linked_${storedClientId}`) === 'true');
 
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -672,6 +679,12 @@ export default function MyDocumentsPage() {
         <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Mes pieces comptables</h1>
         <p className="text-muted-foreground mt-2 text-lg">Depot securise, suivi clair et actions requises en un coup d'oeil.</p>
       </div>
+
+      <OnboardingProgress 
+        hasCompletedProfile={true} 
+        hasConnectedBank={hasConnectedBank} 
+        hasUploadedDocument={hasUploadedDocument} 
+      />
 
       <AttentionCenter />
 
