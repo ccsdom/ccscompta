@@ -18,12 +18,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableHeader, TableRow, TableHead } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { db } from '@/firebase';
-import { runBankReconciliation, saveBankReconciliation } from '@/ai/flows/reconcile-actions';
-import { getBankAuthLink, syncBankTransactions } from '@/ai/flows/bank-actions';
-import type { Client } from '@/lib/types';
+import { collection, query, where, doc, writeBatch } from 'firebase/firestore';
+import { db, useCollection, useMemoFirebase } from '@/firebase';
+import { runBankReconciliation, saveBankReconciliation } from '@/services/bank-reconciliation-service';
+import { getBankAuthLink, syncBankTransactions } from '@/services/bank-connection-service';
+import type { Client, Document } from '@/lib/types';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -499,16 +499,50 @@ function StepResults({
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // State for dual pane interactions
+  const [selectedTxIdx, setSelectedTxIdx] = useState<number | null>(null);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [localTransactions, setLocalTransactions] = useState<ParsedTransaction[]>(transactions);
 
-  const matched = transactions.filter(t => t.matchingDocumentId);
-  const anomalies = transactions.filter(t => t.isAnomaly);
-  const pending = transactions.filter(t => !t.matchingDocumentId && !t.isAnomaly);
-  const matchRate = ((matched.length / transactions.length) * 100).toFixed(0);
+  // Fetch approved documents for this client
+  const documentsQuery = useMemoFirebase(() => {
+    if (!client.id) return null;
+    return query(collection(db, 'documents'), where('clientId', '==', client.id), where('status', '==', 'approved'));
+  }, [client.id]);
+
+  const { data: documents } = useCollection<Document>(documentsQuery);
+
+  const matched = localTransactions.filter(t => t.matchingDocumentId);
+  const anomalies = localTransactions.filter(t => t.isAnomaly);
+  const pending = localTransactions.filter(t => !t.matchingDocumentId && !t.isAnomaly);
+  const matchRate = localTransactions.length ? ((matched.length / localTransactions.length) * 100).toFixed(0) : '0';
+
+  const availableDocuments = useMemo(() => {
+    if (!documents) return [];
+    // Filter out documents that are already matched in localTransactions
+    const matchedDocIds = new Set(matched.map(m => m.matchingDocumentId));
+    return documents.filter(doc => !matchedDocIds.has(doc.id) && doc.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [documents, matched, searchQuery]);
+
+  const handleLink = (txIndex: number, docId: string, isAiSuggestion = false) => {
+    const newTxs = [...localTransactions];
+    newTxs[txIndex].matchingDocumentId = docId;
+    if (!isAiSuggestion) {
+      newTxs[txIndex].confidenceScore = 100; // Manual match
+      newTxs[txIndex].isAnomaly = false;
+    }
+    setLocalTransactions(newTxs);
+    setSelectedTxIdx(null);
+    setSelectedDocId(null);
+    toast({ title: 'Rapprochement effectué', description: 'Transaction et facture liées avec succès.' });
+  };
 
   const handleExportCSV = () => {
     const rows = [
       ['Date', 'Description', 'Montant', 'Statut', 'Document ID', 'Score IA'],
-      ...transactions.map(t => [
+      ...localTransactions.map(t => [
         t.date, t.description, t.amount.toFixed(2),
         t.matchingDocumentId ? 'Lettré' : t.isAnomaly ? 'Anomalie' : 'En attente',
         t.matchingDocumentId || '', t.confidenceScore ? `${t.confidenceScore}%` : '',
@@ -531,9 +565,9 @@ function StepResults({
         clientId: client.id,
         clientName: client.name,
         summary: {
-          totalTransactions: transactions.length,
+          totalTransactions: localTransactions.length,
           matchedTransactions: matched.length,
-          totalAmount: transactions.reduce((acc, t) => acc + t.amount, 0),
+          totalAmount: localTransactions.reduce((acc, t) => acc + t.amount, 0),
           matchedAmount: matched.reduce((acc, t) => acc + t.amount, 0),
           anomalyCount: anomalies.length
         },
@@ -541,8 +575,29 @@ function StepResults({
         anomalies: anomalies.map(a => ({ date: a.date, description: a.description, amount: a.amount, reason: a.anomalyReason }))
       });
       if (!res.success) throw new Error(res.error);
+      
+      // Also write BQ draft entries to `accounting_entries` for all matched transactions
+      const batch = writeBatch(db);
+      matched.forEach(match => {
+         const entryRef = doc(collection(db, 'accounting_entries'));
+         batch.set(entryRef, {
+             clientId: client.id,
+             date: match.date,
+             description: `Règlement ${match.description}`,
+             journal: 'BQ',
+             lines: [
+                 { account: match.amount < 0 ? '401000' : '512000', debit: Math.abs(match.amount), credit: 0 },
+                 { account: match.amount < 0 ? '512000' : '411000', debit: 0, credit: Math.abs(match.amount) }
+             ],
+             status: 'draft',
+             documentId: match.matchingDocumentId,
+             createdAt: new Date().toISOString()
+         });
+      });
+      await batch.commit();
+
       setIsSaved(true);
-      toast({ title: 'Rapport archivé', description: 'Le rapprochement est désormais disponible dans le dossier permanent.' });
+      toast({ title: 'Rapport archivé et écritures générées', description: 'Le rapprochement BQ est terminé avec succès.' });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
@@ -551,7 +606,7 @@ function StepResults({
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Stats Dash */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -580,103 +635,207 @@ function StepResults({
         ))}
       </div>
 
-      {/* Main Results Table */}
-      <Card className="glass-panel border-none premium-shadow overflow-hidden">
-        <CardHeader className="border-b border-white/5 bg-white/5 px-8 flex-row items-center justify-between">
-          <div>
-            <CardTitle className="font-space text-2xl font-black">Historique du rapprochement</CardTitle>
-            <CardDescription className="text-muted-foreground font-medium">Analyse comparative IA vs Relevé Bancaire</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="rounded-xl border-white/10 gap-2 font-space font-bold uppercase text-[10px] tracking-widest">
+      <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10">
+        <h3 className="font-space font-black text-xl flex items-center gap-2">
+          <RefreshCw className="h-5 w-5 text-primary" /> Mode Rapprochement Avancé
+        </h3>
+        <Button variant="outline" size="sm" onClick={handleExportCSV} className="rounded-xl border-white/10 gap-2 font-space font-bold uppercase text-[10px] tracking-widest">
             <DownloadCloud className="h-4 w-4" /> Exporter Rapport
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="h-[450px]">
-            <table className="w-full text-sm border-collapse">
-              <thead className="bg-white/5 sticky top-0 z-20">
-                <tr className="border-b border-white/10">
-                  <th className="px-8 py-4 text-left font-space uppercase text-[10px] font-black tracking-widest text-muted-foreground">Date</th>
-                  <th className="px-8 py-4 text-left font-space uppercase text-[10px] font-black tracking-widest text-muted-foreground">Virement / Transaction</th>
-                  <th className="px-4 py-4 text-right font-space uppercase text-[10px] font-black tracking-widest text-muted-foreground">Montant</th>
-                  <th className="px-8 py-4 text-center font-space uppercase text-[10px] font-black tracking-widest text-muted-foreground">Statut Lettrage</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {transactions.map((t, i) => (
-                  <motion.tr
-                    key={i}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.02 }}
-                    className={cn(
-                      'group transition-all duration-300',
-                      t.isAnomaly ? 'bg-red-500/[0.03] hover:bg-red-500/[0.08]' :
-                      t.matchingDocumentId ? 'bg-emerald-500/[0.03] hover:bg-emerald-500/[0.08]' : 'hover:bg-white/5'
-                    )}
-                  >
-                    <td className="px-8 py-4 font-mono text-xs tabular-nums opacity-60">{t.date}</td>
-                    <td className="px-8 py-4">
-                      <div className="font-bold text-sm truncate font-space max-w-sm" title={t.description}>{t.description}</div>
-                    </td>
-                    <td className={cn(
-                      'px-4 py-4 text-right font-black font-space text-sm tabular-nums',
-                      t.amount < 0 ? 'text-red-500' : 'text-emerald-500'
-                    )}>
-                      {t.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
-                    </td>
-                    <td className="px-8 py-4 text-center">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <AnimatePresence>
-                              {t.matchingDocumentId ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 px-3 py-1 font-space font-black uppercase text-[10px] tracking-widest rounded-lg">
-                                  <Sparkles className="h-3 w-3 mr-1.5 inline-block" />
-                                  Match IA {t.confidenceScore}%
-                                </Badge>
-                              ) : t.isAnomaly ? (
-                                <Badge variant="destructive" className="px-3 py-1 font-space font-black uppercase text-[10px] tracking-widest rounded-lg">
-                                  <AlertTriangle className="h-3 w-3 mr-1.5 inline-block" />
-                                  Anomalie
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="border-amber-500/20 text-amber-600 px-3 py-1 font-space font-black uppercase text-[10px] tracking-widest rounded-lg">
-                                  <Clock className="h-3 w-3 mr-1.5 inline-block" />
-                                  En attente
-                                </Badge>
-                              )}
-                            </AnimatePresence>
-                          </TooltipTrigger>
-                          <TooltipContent className="glass-panel border-white/10 p-4 max-w-xs shadow-2xl">
-                            {t.matchingDocumentId && <p className="font-space font-black mb-1">🔍 Facture trouvée</p>}
-                            {t.matchingDocumentId && <p className="text-xs opacity-70">Réf : {t.matchingDocumentId}</p>}
-                            {t.isAnomaly && <p className="text-xs text-red-500 font-bold">{t.anomalyReason}</p>}
-                            {!t.matchingDocumentId && !t.isAnomaly && <p className="text-xs italic opacity-60">Aucune pièce comptable ne semble correspondre à ce montant / libellé.</p>}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+        </Button>
+      </div>
 
-      <div className="flex flex-col sm:flex-row justify-center items-center gap-6 pb-12">
+      {/* Dual Pane Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[600px]">
+        {/* Left Pane: Transactions */}
+        <Card className="glass-panel border-none premium-shadow overflow-hidden flex flex-col relative">
+          <div className="p-4 border-b border-white/10 bg-white/5 flex items-center justify-between z-10">
+            <h4 className="font-space font-black uppercase tracking-widest text-sm flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-blue-400" /> Transactions Bancaires
+            </h4>
+            <Badge variant="secondary" className="font-space text-xs bg-white/10">{pending.length} en attente</Badge>
+          </div>
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-3">
+              <AnimatePresence>
+                {localTransactions.map((t, idx) => {
+                  if (t.matchingDocumentId) return null; // Hide matched
+                  
+                  const isSelected = selectedTxIdx === idx;
+                  const hasSuggestion = t.confidenceScore && t.confidenceScore >= 50 && !t.isAnomaly;
+
+                  return (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9, x: -50 }}
+                      key={idx}
+                      onClick={() => setSelectedTxIdx(isSelected ? null : idx)}
+                      className={cn(
+                        "p-4 rounded-2xl border cursor-pointer transition-all duration-300",
+                        isSelected 
+                          ? "bg-blue-500/10 border-blue-500/50 shadow-lg shadow-blue-500/20" 
+                          : t.isAnomaly 
+                            ? "bg-red-500/5 border-red-500/20 hover:border-red-500/40" 
+                            : "bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10"
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="space-y-1">
+                          <span className="text-xs font-mono opacity-70 bg-black/20 px-2 py-1 rounded-md">{t.date}</span>
+                          <p className="font-bold text-sm leading-tight max-w-[200px] break-words">{t.description}</p>
+                        </div>
+                        <div className={cn(
+                          "font-black font-space text-base",
+                          t.amount < 0 ? "text-red-400" : "text-emerald-400"
+                        )}>
+                          {t.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
+                        </div>
+                      </div>
+                      
+                      {t.isAnomaly && (
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 p-2 rounded-lg">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span className="font-medium">{t.anomalyReason}</span>
+                        </div>
+                      )}
+
+                      {hasSuggestion && (
+                        <div className="mt-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="h-4 w-4 text-emerald-400" />
+                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Suggestion IA ({t.confidenceScore}%)</span>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="w-full h-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
+                            onClick={(e) => { e.stopPropagation(); handleLink(idx, documents?.find(d => t.description.toLowerCase().includes(d.name.toLowerCase()))?.id || "doc-simulé", true); }}
+                          >
+                            Valider la suggestion
+                          </Button>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+              {pending.length === 0 && (
+                <div className="text-center p-8 opacity-50">
+                  <CheckCircle2 className="h-12 w-12 mx-auto mb-2 text-emerald-500" />
+                  <p className="font-space font-bold">Toutes les transactions sont lettrées !</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </Card>
+
+        {/* Right Pane: Invoices */}
+        <Card className="glass-panel border-none premium-shadow overflow-hidden flex flex-col relative">
+          <div className="p-4 border-b border-white/10 bg-white/5 flex flex-col gap-3 z-10">
+            <div className="flex items-center justify-between">
+              <h4 className="font-space font-black uppercase tracking-widest text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4 text-emerald-400" /> Factures approuvées
+              </h4>
+              <Badge variant="secondary" className="font-space text-xs bg-white/10">{availableDocuments.length} pièces</Badge>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Rechercher une facture..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-black/20 border-white/10 rounded-xl focus-visible:ring-emerald-500/50"
+              />
+            </div>
+          </div>
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-3">
+              <AnimatePresence>
+                {!documents ? (
+                  Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl bg-white/5" />)
+                ) : availableDocuments.map((doc) => {
+                  const isSelected = selectedDocId === doc.id;
+                  
+                  const amountHT = doc.extractedData?.amounts?.[0] || 0;
+                  const vatAmount = doc.extractedData?.vatAmount || 0;
+                  const totalTTC = amountHT + vatAmount;
+
+                  return (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9, x: 50 }}
+                      key={doc.id}
+                      onClick={() => setSelectedDocId(isSelected ? null : doc.id)}
+                      className={cn(
+                        "p-4 rounded-2xl border cursor-pointer transition-all duration-300",
+                        isSelected 
+                          ? "bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/20" 
+                          : "bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10"
+                      )}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <p className="font-bold text-sm max-w-[200px] truncate">{doc.name}</p>
+                          <div className="flex items-center gap-2 text-xs opacity-70">
+                            <span className="bg-black/20 px-2 py-0.5 rounded uppercase tracking-wider">{doc.type === 'purchase_invoice' ? 'Achat' : 'Vente'}</span>
+                            <span>{new Date(doc.uploadDate).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-black font-space text-sm">
+                            {totalTTC > 0 ? `${totalTTC.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €` : 'N/A'}
+                          </div>
+                          {doc.extractedData?.vendorNames?.[0] && (
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
+                              {doc.extractedData.vendorNames[0]}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {isSelected && selectedTxIdx !== null && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-4 pt-3 border-t border-emerald-500/20"
+                        >
+                          <Button 
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                            onClick={(e) => { e.stopPropagation(); handleLink(selectedTxIdx, doc.id); }}
+                          >
+                            <Link2 className="h-4 w-4 mr-2" /> Lier à la transaction
+                          </Button>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+              {documents && availableDocuments.length === 0 && (
+                <div className="text-center p-8 opacity-50">
+                  <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                  <p className="font-space font-medium text-sm">Aucune facture ne correspond à cette recherche.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-center items-center gap-6 pt-6">
         <Button 
           size="lg"
           onClick={handleSaveResults} 
-          disabled={isSaving || isSaved}
+          disabled={isSaving || isSaved || matched.length === 0}
           className={cn(
-            "h-14 px-8 rounded-2xl font-black font-space text-lg transition-all duration-500",
+            "h-14 px-8 rounded-[1.5rem] font-black font-space text-lg transition-all duration-500",
             isSaved ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30" : "bg-primary shadow-primary/30"
           )}
         >
-          {isSaving ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : isSaved ? <ShieldCheck className="h-6 w-6 mr-3" /> : <ShieldCheck className="h-6 w-6 mr-3" />}
-          {isSaved ? "Rapport archivé avec succès" : "Enregistrer et archiver"}
+          {isSaving ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : isSaved ? <CheckCircle2 className="h-6 w-6 mr-3" /> : <ShieldCheck className="h-6 w-6 mr-3" />}
+          {isSaved ? "Rapprochement validé et comptabilisé" : "Comptabiliser le lettrage"}
         </Button>
         <Button variant="ghost" size="lg" onClick={onReset} className="h-14 font-space font-black uppercase tracking-widest text-sm hover:bg-white/5">
           <RotateCcw className="h-4 w-4 mr-2" /> Nouveau Rapprochement

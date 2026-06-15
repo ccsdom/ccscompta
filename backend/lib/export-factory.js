@@ -101,6 +101,69 @@ class ExportFactory {
         }
         return rows.join('\n');
     }
+    /**
+     * Generates a French FEC string from standardized AccountingEntry objects.
+     * Format: DGFIP compliance with Pipe (|) separator.
+     */
+    static generateFECFromEntries(entries) {
+        const columns = [
+            'JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate',
+            'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib',
+            'PieceRef', 'PieceDate', 'EcritureLib', 'Debit', 'Credit',
+            'EcritureLet', 'DateLet', 'ValidDate', 'Montantdevise', 'Idevise'
+        ];
+        const rows = [columns.join('|')];
+        const formatDate = (dateStr) => {
+            if (!dateStr)
+                return '';
+            return dateStr.split('T')[0].replace(/-/g, '');
+        };
+        const formatAmount = (num) => {
+            return (num || 0).toFixed(2).replace('.', ',');
+        };
+        const mapJournalCodeToLib = (code) => {
+            const map = {
+                OD: 'Opérations Diverses',
+                VE: 'Ventes',
+                HA: 'Achats',
+                BQ: 'Banque',
+                CA: 'Caisse',
+            };
+            return map[code] || code;
+        };
+        // Sort chronologically
+        const sortedEntries = [...entries].sort((a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime());
+        sortedEntries.forEach((entry, index) => {
+            const ecritureNum = `ECR-${entry.fiscalYear}-${String(index + 1).padStart(5, '0')}`;
+            const ecritureDate = formatDate(entry.entryDate);
+            const validDate = formatDate(entry.validatedAt) || ecritureDate;
+            const pieceRef = entry.sourceId || ecritureNum;
+            const journalLib = mapJournalCodeToLib(entry.journalCode);
+            entry.lines.forEach((line) => {
+                rows.push([
+                    entry.journalCode,
+                    journalLib,
+                    ecritureNum,
+                    ecritureDate,
+                    line.accountNumber,
+                    line.accountLabel,
+                    '', // CompAuxNum
+                    '', // CompAuxLib
+                    pieceRef,
+                    ecritureDate, // PieceDate
+                    entry.label,
+                    formatAmount(line.debit),
+                    formatAmount(line.credit),
+                    '', // EcritureLet
+                    '', // DateLet
+                    validDate,
+                    '', // Montantdevise
+                    '' // Idevise
+                ].join('|'));
+            });
+        });
+        return rows.join('\r\n');
+    }
 }
 exports.ExportFactory = ExportFactory;
 //# sourceMappingURL=export-factory.js.map

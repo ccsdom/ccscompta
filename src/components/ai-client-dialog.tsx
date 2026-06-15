@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Wand2, Loader2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { extractClientData } from '@/ai/flows/extract-client-data-flow';
+import { extractClientData } from '@/services/company-lookup-service';
 import { Label } from './ui/label';
 
 interface AiClientDialogProps {

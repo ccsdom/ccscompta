@@ -177,8 +177,15 @@ export interface Document {
     dates?: string[];
     amounts?: number[];
     vendorNames?: string[];
-    vatAmount?: number | null;
-    vatRate?: number | null;
+    vatAmount?: number | null; // Deprecated
+    vatRate?: number | null; // Deprecated
+    vatDetails?: {
+      rate: number;
+      amount: number;
+      baseHT: number;
+    }[];
+    siret?: string;
+    supplierName?: string;
     category?: string | null;
     otherInformation?: string;
     anomalies?: string[];

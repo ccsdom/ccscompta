@@ -1,378 +1,437 @@
-
-'use client';
-
-import Link from "next/link";
-import { Logo } from '@/components/logo';
-import { Button } from "@/components/ui/button";
-import { Building, Users, Handshake, Target, ArrowRight, Menu } from "lucide-react";
-import Image from "next/image";
-import { motion } from 'framer-motion';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle
-} from '@/components/ui/navigation-menu';
-import { cn } from '@/lib/utils';
-import React from 'react';
-import { Input } from "@/components/ui/input";
-import { usePathname } from "next/navigation";
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+  ArrowRight,
+  BadgeCheck,
+  Building2,
+  CheckCircle2,
+  Compass,
+  FileCheck2,
+  HeartHandshake,
+  Lightbulb,
+  Menu,
+  ShieldCheck,
+  Smartphone,
+  Target,
+  Users2,
+} from 'lucide-react';
+import { Logo } from '@/components/logo';
 
-const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => {
+const siteUrl = 'https://ccscompta.fr/a-propos';
+
+export const metadata: Metadata = {
+  title: 'A propos de CCS Compta | SaaS comptable pour cabinets exigeants',
+  description:
+    'CCS Compta aide les cabinets comptables a moderniser la collecte client, reduire la saisie manuelle et garder le controle humain sur la production comptable.',
+  alternates: {
+    canonical: '/a-propos',
+  },
+  openGraph: {
+    title: 'A propos de CCS Compta - Moderniser la collecte comptable',
+    description:
+      'Une vision produit exigeante pour simplifier la relation client, proteger les pieces comptables et accelerer la production des cabinets.',
+    url: siteUrl,
+    siteName: 'CCS Compta',
+    locale: 'fr_FR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'A propos de CCS Compta',
+    description:
+      'Un SaaS pense pour les cabinets comptables : collecte client, OCR IA, pre-saisie, validation et securite.',
+  },
+};
+
+const navLinks = [
+  { href: '/fonctionnalites', label: 'Fonctionnalites' },
+  { href: '/tarifs', label: 'Tarifs' },
+  { href: '/securite', label: 'Securite' },
+  { href: '/blog', label: 'Ressources' },
+];
+
+const beliefs = [
+  {
+    icon: Target,
+    title: 'Le cabinet garde le controle',
+    description:
+      'L automatisation doit supprimer les operations fastidieuses, pas remplacer le jugement professionnel.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Le client doit comprendre vite',
+    description:
+      'Un bon portail client se juge sur smartphone, dans les moments simples : deposer, suivre, completer.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'La confiance se construit dans l architecture',
+    description:
+      'Roles, separation par cabinet, historique et controle des acces doivent etre au coeur du produit.',
+  },
+];
+
+const operatingPrinciples = [
+  'Partir des irritants reels des cabinets, pas d une demonstration technologique.',
+  'Construire des parcours courts pour les clients qui ne veulent pas apprendre un outil de plus.',
+  'Rendre les statuts, rejets et demandes de complement lisibles par tous.',
+  'Proteger les donnees comptables avec des permissions et une separation claires.',
+  'Mesurer la robustesse par les tests, les builds et les parcours utilisateurs connectes.',
+  'Avancer vite, mais sans casser les fondations du SaaS.',
+];
+
+const roadmapMindset = [
+  {
+    icon: FileCheck2,
+    title: 'Collecte plus propre',
+    description:
+      'Moins de pieces perdues dans les e-mails, plus de documents rattaches au bon client et au bon statut.',
+  },
+  {
+    icon: Lightbulb,
+    title: 'IA utile, pas spectaculaire',
+    description:
+      'OCR, extraction, detection d anomalies et recherche intelligente au service du controle cabinet.',
+  },
+  {
+    icon: Users2,
+    title: 'Organisation cabinet',
+    description:
+      'Des interfaces pour super admin, managers, collaborateurs, secretaires et clients, avec les bons droits.',
+  },
+  {
+    icon: Compass,
+    title: 'Produit durable',
+    description:
+      'Une architecture qui migre progressivement les traitements critiques cote backend et reduit les risques.',
+  },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'AboutPage',
+  name: 'A propos de CCS Compta',
+  url: siteUrl,
+  description:
+    'Mission et vision de CCS Compta : simplifier la collecte comptable, reduire la saisie et renforcer la relation client des cabinets.',
+  isPartOf: {
+    '@type': 'WebSite',
+    name: 'CCS Compta',
+    url: 'https://ccscompta.fr',
+  },
+};
+
+function PublicHeader() {
   return (
-    <li>
-      <NavigationMenuLink asChild>
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className
-          )}
-          {...props}
-        >
-          <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        </a>
-      </NavigationMenuLink>
-    </li>
-  );
-});
-ListItem.displayName = "ListItem";
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-3 font-semibold text-slate-950">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+            <Logo className="h-5 w-5" />
+          </span>
+          <span className="text-base font-black">CCS Compta</span>
+        </Link>
 
-export default function AboutPage() {
-  const pathname = usePathname();
+        <nav className="hidden items-center gap-8 text-sm font-semibold text-slate-600 md:flex">
+          {navLinks.map((link) => (
+            <Link key={link.href} href={link.href} className="transition hover:text-blue-700">
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-  const team = [
-    { name: "Alice Dubois", role: "Fondatrice & CEO", avatar: "https://randomuser.me/api/portraits/women/44.jpg" },
-    { name: "Bruno Petit", role: "Directeur Technique (CTO)", avatar: "https://randomuser.me/api/portraits/men/45.jpg" },
-    { name: "Carla Moreau", role: "Responsable Produit", avatar: "https://randomuser.me/api/portraits/women/46.jpg" },
-    { name: "David Martin", role: "Développeur Principal", avatar: "https://randomuser.me/api/portraits/men/47.jpg" },
-  ];
-  
-  const navLinks = [
-    { href: "/fonctionnalites", text: "Fonctionnalités" },
-    { href: "/tarifs", text: "Tarifs" },
-    { href: "/a-propos", text: "À Propos" },
-    { href: "/blog", text: "Blog" },
-    { href: "/assistance", text: "Support" }
-  ];
-
-
-  return (
-    <div className="flex flex-col min-h-screen bg-background font-sans">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/">
-            <div className="flex items-center gap-2 font-semibold">
-              <Logo className="h-6 w-6 text-primary" />
-              <span className="font-bold text-lg hidden sm:inline-block">CCS Compta</span>
-            </div>
+        <div className="hidden items-center gap-3 md:flex">
+          <Link href="/connexion" className="text-sm font-semibold text-slate-700 transition hover:text-blue-700">
+            Se connecter
           </Link>
+          <Link
+            href="/connexion"
+            className="inline-flex h-10 items-center rounded-lg bg-slate-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            Demander une demo
+          </Link>
+        </div>
 
-          <NavigationMenu className="hidden md:flex">
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Découvrir</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
-                    <li className="row-span-3">
-                      <NavigationMenuLink asChild>
-                        <Link
-                          href="/">
-                          <div className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
-                            <Logo className="h-6 w-6" />
-                            <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
-                            <p className="text-sm leading-tight text-muted-foreground">
-                              La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
-                            </p>
-                          </div>
-                        </Link>
-                      </NavigationMenuLink>
-                    </li>
-                    <ListItem href="/fonctionnalites" title="Fonctionnalités">
-                      Découvrez comment l'IA transforme votre productivité.
-                    </ListItem>
-                    <ListItem href="/tarifs" title="Tarifs">
-                      Des plans simples et transparents pour tous les besoins.
-                    </ListItem>
-                    <ListItem href="/securite" title="Sécurité">
-                      Votre confiance, notre priorité.
-                    </ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-
-              <NavigationMenuItem>
-                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/a-propos'}>
-                    <Link href="/a-propos">À Propos</Link>
-                  </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
-                    <Link href="/blog">Blog</Link>
-                  </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                 <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/assistance'}>
-                    <Link href="/assistance">Support</Link>
-                  </NavigationMenuLink>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-
-          <div className="flex items-center gap-2">
-             <Button asChild className="hidden md:inline-flex">
-              <Link href="/connexion">Se connecter</Link>
-            </Button>
-            <div className="md:hidden">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Ouvrir le menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left">
-                   <nav className="grid gap-6 text-lg font-medium mt-8">
-                     <SheetClose asChild>
-                       <Link
-                         href="/"
-                         >
-                         <div className="flex items-center gap-2 text-lg font-semibold mb-4">
-                            <Logo className="h-6 w-6 text-primary" />
-                            <span className="font-bold text-lg">CCS Compta</span>
-                         </div>
-                       </Link>
-                     </SheetClose>
-                     {navLinks.map(link => (
-                       <SheetClose asChild key={link.href}>
-                          <Link
-                            href={link.href}
-                            className="text-muted-foreground hover:text-foreground">
-                            {link.text}
-                          </Link>
-                       </SheetClose>
-                     ))}
-                      <SheetClose asChild>
-                        <Link href="/connexion" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
-                      </SheetClose>
-                   </nav>
-                </SheetContent>
-              </Sheet>
+        <details className="group relative md:hidden">
+          <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Ouvrir le menu</span>
+          </summary>
+          <div className="absolute right-0 mt-3 hidden w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl group-open:block">
+            <div className="grid gap-1">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href} className="rounded-lg px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  {link.label}
+                </Link>
+              ))}
+              <Link href="/connexion" className="mt-2 rounded-lg bg-blue-600 px-3 py-3 text-center text-sm font-bold text-white">
+                Demander une demo
+              </Link>
             </div>
+          </div>
+        </details>
+      </div>
+    </header>
+  );
+}
+
+function MissionPanel() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/10 sm:p-6">
+      <div className="rounded-2xl bg-slate-950 p-6 text-white">
+        <div className="flex items-center gap-2 text-sm font-bold text-blue-200">
+          <HeartHandshake className="h-4 w-4" />
+          Notre role
+        </div>
+        <p className="mt-5 text-3xl font-black leading-tight">
+          Rendre la collecte comptable assez simple pour le client, assez robuste pour le cabinet.
+        </p>
+        <p className="mt-4 leading-7 text-slate-300">
+          CCS Compta doit devenir le pont fiable entre les pieces du client et la production du cabinet.
+        </p>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {[
+          ['Simplifier', 'moins de friction client'],
+          ['Controler', 'validation humaine gardee'],
+          ['Produire', 'dossiers mieux prepares'],
+        ].map(([title, description]) => (
+          <div key={title} className="rounded-2xl bg-slate-50 p-4">
+            <p className="font-black text-blue-700">{title}</p>
+            <p className="mt-2 text-sm font-semibold leading-5 text-slate-600">{description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-slate-200 bg-white">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-8">
+        <div>
+          <Link href="/" className="flex items-center gap-3 font-black text-slate-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
+              <Logo className="h-5 w-5" />
+            </span>
+            CCS Compta
+          </Link>
+          <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">
+            Plateforme SaaS pour cabinets comptables : collecte client, OCR, validation et suivi des pieces.
+          </p>
+        </div>
+        <div>
+          <p className="font-bold text-slate-950">Produit</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-500">
+            <Link href="/fonctionnalites" className="hover:text-blue-700">Fonctionnalites</Link>
+            <Link href="/tarifs" className="hover:text-blue-700">Tarifs</Link>
+            <Link href="/securite" className="hover:text-blue-700">Securite</Link>
           </div>
         </div>
-      </header>
-      <main className="flex-1">
-        <section className="py-20 md:py-24 text-center">
-          <div className="container mx-auto max-w-4xl px-4">
-            <motion.h1 
-              className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl font-display"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              Notre mission : simplifier la vie des <span className="text-primary">experts-comptables</span>.
-            </motion.h1>
-            <motion.p 
-              className="text-muted-foreground mt-6 max-w-3xl mx-auto text-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              Nous croyons que la technologie peut libérer les comptables des tâches répétitives pour leur permettre de se concentrer sur leur véritable valeur ajoutée : le conseil.
-            </motion.p>
+        <div>
+          <p className="font-bold text-slate-950">Ressources</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-500">
+            <Link href="/blog" className="hover:text-blue-700">Blog</Link>
+            <Link href="/assistance" className="hover:text-blue-700">Assistance</Link>
+            <Link href="/a-propos" className="hover:text-blue-700">A propos</Link>
           </div>
-        </section>
+        </div>
+        <div>
+          <p className="font-bold text-slate-950">Legal</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-500">
+            <Link href="/mentions-legales" className="hover:text-blue-700">Mentions legales</Link>
+            <Link href="/politique-de-confidentialite" className="hover:text-blue-700">Confidentialite</Link>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
 
-        <section className="py-12 md:py-20 bg-muted/30">
-          <div className="container mx-auto max-w-6xl px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                  <Building className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg">Fondation</h3>
-                <p className="text-muted-foreground text-sm">Fondé en 2023</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg">Équipe</h3>
-                <p className="text-muted-foreground text-sm">4 passionnés</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                  <Handshake className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg">Partenaires</h3>
-                <p className="text-muted-foreground text-sm">+10 cabinets</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                  <Target className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg">Vision</h3>
-                <p className="text-muted-foreground text-sm">Zéro saisie manuelle</p>
-              </div>
-            </div>
-          </div>
-        </section>
+export default function AboutPage() {
+  return (
+    <div className="min-h-screen bg-white text-slate-950">
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PublicHeader />
 
-        <section className="py-24">
-          <div className="container mx-auto max-w-6xl px-4">
-            <div className="grid md:grid-cols-2 gap-16 items-center">
-              <div>
-                <h2 className="text-3xl font-bold tracking-tight font-display mb-4">
-                  L'histoire derrière CCS Compta
-                </h2>
-                <p className="text-muted-foreground mb-4 text-lg">
-                  Née de la frustration face à des processus comptables obsolètes et chronophages, CCS Compta a été créée par une équipe d'experts-comptables et de développeurs. Notre objectif commun : créer un outil qui travaille pour le comptable, et non l'inverse.
-                </p>
-                <p className="text-muted-foreground text-lg">
-                  Chaque fonctionnalité a été pensée et conçue en collaboration directe avec des professionnels du secteur pour répondre à des besoins réels et concrets.
-                </p>
+      <main>
+        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-sm font-bold text-blue-700 shadow-sm">
+                <BadgeCheck className="h-4 w-4" />
+                Mission produit
               </div>
-              <div>
-                <Image
-                  src="https://picsum.photos/seed/team/800/600"
-                  alt="Équipe travaillant ensemble"
-                  width={800}
-                  height={600}
-                  className="rounded-xl shadow-lg"
-                  data-ai-hint="team working together"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-        
-        <section className="py-20 bg-muted/30">
-          <div className="container mx-auto max-w-4xl px-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight font-display mb-12">
-              Une équipe dédiée à votre succès
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {team.map((member, index) => (
-                <motion.div 
-                  key={index}
-                  className="flex flex-col items-center"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  viewport={{ once: true }}
+              <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.05] text-slate-950 sm:text-5xl lg:text-6xl">
+                Redonner du temps utile aux cabinets comptables.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+                CCS Compta existe pour retirer les operations de collecte et de pre-saisie qui ralentissent la production, tout en preservant le controle humain, la securite et la qualite du dossier.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/connexion"
+                  className="inline-flex h-12 items-center justify-center rounded-lg bg-slate-950 px-6 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
                 >
-                  <Image src={member.avatar} alt={member.name} width={96} height={96} className="rounded-full mb-3" />
-                  <p className="font-semibold">{member.name}</p>
-                  <p className="text-sm text-primary">{member.role}</p>
-                </motion.div>
+                  Demander une demo
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+                <Link
+                  href="/fonctionnalites"
+                  className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-200 bg-white px-6 text-sm font-black text-slate-800 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
+                >
+                  Voir le produit
+                </Link>
+              </div>
+            </div>
+
+            <MissionPanel />
+          </div>
+        </section>
+
+        <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black uppercase text-blue-700">Ce que nous croyons</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                La meilleure technologie est celle qui rend le metier plus clair.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                Nous construisons CCS Compta avec une conviction simple : l IA et l automatisation doivent augmenter le cabinet, pas le deposseder de son expertise.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-5 md:grid-cols-3">
+              {beliefs.map((belief) => {
+                const Icon = belief.icon;
+
+                return (
+                  <article key={belief.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                      <Icon className="h-6 w-6" />
+                    </span>
+                    <h3 className="mt-5 text-xl font-black text-slate-950">{belief.title}</h3>
+                    <p className="mt-3 leading-7 text-slate-600">{belief.description}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-950 px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-bold text-blue-200">
+                <Building2 className="h-4 w-4" />
+                Exigence cabinet
+              </div>
+              <h2 className="mt-5 text-3xl font-black leading-tight sm:text-4xl">
+                Un SaaS comptable doit etre plus qu une belle interface.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-300">
+                Il doit supporter des donnees sensibles, des utilisateurs varies, des habitudes de travail reelles et une exigence de fiabilite quotidienne.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {operatingPrinciples.map((principle) => (
+                <div key={principle} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
+                  <p className="text-sm font-semibold leading-6 text-slate-200">{principle}</p>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="py-24">
-          <div className="container mx-auto max-w-4xl px-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Rejoignez l'aventure
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Prêt à faire partie de la révolution comptable ?
-            </p>
-            <div className="mt-8">
-              <Button size="lg" asChild>
-                <Link
-                  href="/connexion"
-                  className="flex items-center justify-center gap-2">
-                  Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+        <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black uppercase text-blue-700">Trajectoire produit</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                Construire progressivement un outil robuste, efficace et simple.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                Notre priorite est d avancer par fondations solides : securite, experience mobile, backend fiable, tests connectes et pages publiques professionnelles.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+              {roadmapMindset.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <Icon className="h-7 w-7 text-blue-700" />
+                    <h3 className="mt-5 text-lg font-black text-slate-950">{item.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{item.description}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_1.05fr] lg:items-center">
+            <div>
+              <p className="text-sm font-black uppercase text-blue-700">Notre promesse</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                Moins de saisie subie, plus de valeur produite.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                Le but n est pas de faire croire que tout devient automatique. Le but est de rendre les operations repetitives plus courtes, les dossiers plus propres, et le suivi client plus fluide.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="grid gap-4 md:grid-cols-3">
+                {[
+                  ['Client', 'depose et suit simplement'],
+                  ['CCS Compta', 'prepare et signale'],
+                  ['Cabinet', 'controle et produit'],
+                ].map(([title, description]) => (
+                  <div key={title} className="rounded-2xl bg-slate-50 p-5">
+                    <p className="text-lg font-black text-slate-950">{title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto w-full rounded-[2rem] border border-slate-200 bg-slate-50 p-8 shadow-sm md:w-3/4 lg:p-12">
+            <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-sm font-black uppercase text-blue-700">Prochaine etape</p>
+                <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                  Decouvrir comment CCS Compta peut s adapter a votre cabinet.
+                </h2>
+                <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
+                  Nous pouvons cadrer vos priorites : collecte client, mobile, securite, pre-saisie, organisation equipe et deploiement progressif.
+                </p>
+              </div>
+              <Link
+                href="/connexion"
+                className="inline-flex h-12 items-center justify-center rounded-lg bg-slate-950 px-6 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+              >
+                Demander une demo
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>
       </main>
-      <footer className="border-t bg-background">
-        <div className="container mx-auto max-w-7xl px-4 py-16">
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-4">
-            <div className="lg:col-span-1">
-              <Link href="/">
-                <div className="flex items-center gap-2 mb-4">
-                  <Logo className="h-7 w-7 text-primary" />
-                  <span className="font-bold text-xl">CCS Compta</span>
-                </div>
-              </Link>
-              <p className="text-muted-foreground max-w-xs text-sm">La comptabilité de demain, dès aujourd'hui. Simplifiez, automatisez, conseillez.</p>
-            </div>
 
-            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-2">
-              <div>
-                <p className="font-semibold text-foreground">Produit</p>
-                <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/fonctionnalites" className="text-sm text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
-                  <Link href="/tarifs" className="text-sm text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
-                  <Link href="/securite" className="text-sm text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
-                </nav>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Entreprise</p>
-                <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/a-propos" className="text-sm text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
-                  <Link href="/blog" className="text-sm text-muted-foreground transition-colors hover:text-primary">Blog</Link>
-                  <Link href="/assistance" className="text-sm text-muted-foreground transition-colors hover:text-primary">Contact</Link>
-                </nav>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Légal</p>
-                <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/mentions-legales" className="text-sm text-muted-foreground transition-colors hover:text-primary">Mentions Légales</Link>
-                  <Link href="/politique-de-confidentialite" className="text-sm text-muted-foreground transition-colors hover:text-primary">Politique de Confidentialité</Link>
-                </nav>
-              </div>
-            </div>
-
-            <div className="lg:col-span-1">
-              <p className="font-semibold text-foreground">Restez informés</p>
-              <p className="text-muted-foreground text-sm mt-4">Abonnez-vous à notre newsletter pour les dernières nouvelles.</p>
-              <form className="mt-4 flex gap-2">
-                <Input type="email" placeholder="Votre email" className="max-w-xs" />
-                <Button type="submit">S'inscrire</Button>
-              </form>
-            </div>
-          </div>
-
-          <div className="mt-12 border-t pt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.</p>
-            <div className="flex space-x-4">
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-primary">
-                <span className="sr-only">Twitter</span>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.71v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                </svg>
-              </Link>
-              <Link
-                href="#"
-                className="text-muted-foreground hover:text-primary">
-                <span className="sr-only">LinkedIn</span>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

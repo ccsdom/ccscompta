@@ -19,7 +19,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
+import type { IntelligentSearchOutput } from '@/services/intelligent-search-service';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { collection, doc, updateDoc, deleteDoc, getDoc, query, where } from 'firebase/firestore';

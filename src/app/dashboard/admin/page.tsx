@@ -126,7 +126,7 @@ function OperationalFeed() {
                                         initial={{ x: -20, opacity: 0 }}
                                         animate={{ x: 0, opacity: 1 }}
                                         transition={{ delay: i * 0.05 }}
-                                        key={log.id} 
+                                        key={log.id || i} 
                                         className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all duration-300 group"
                                     >
                                         <div className={cn(
@@ -221,6 +221,7 @@ export default function SuperAdminDashboard() {
 
     const { role: userRole } = useBranding();
     const isAuthorizedAdmin = userRole === 'admin';
+    const router = useRouter();
 
     const qCabinets = useMemoFirebase(() => isAuthorizedAdmin ? query(collection(db, 'cabinets')) : null, [isAuthorizedAdmin]);
     const qClients = useMemoFirebase(() => isAuthorizedAdmin ? query(collection(db, 'clients')) : null, [isAuthorizedAdmin]);
@@ -231,6 +232,25 @@ export default function SuperAdminDashboard() {
     const { data: docs } = useCollection<Document>(qDocs);
 
     const { toast } = useToast();
+
+    if (userRole && !isAuthorizedAdmin) {
+        return (
+            <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <ShieldAlert className="h-10 w-10 text-red-500" />
+                    </div>
+                    <h2 className="text-3xl font-black font-space tracking-tight mb-4">Acces refuse</h2>
+                    <p className="text-muted-foreground mb-8 text-lg font-medium">
+                        Cette section est reservee aux administrateurs systeme.
+                    </p>
+                    <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest">
+                        Retour au tableau de bord
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
 
     const stats = [
         { label: "Volume de Travail", value: docs?.length || 0, trend: "LÉGAL", up: true, icon: HardDrive },

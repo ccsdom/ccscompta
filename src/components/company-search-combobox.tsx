@@ -5,7 +5,7 @@ import { useState, useCallback, Fragment } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { searchCompany, type CompanySearchResult } from '@/ai/flows/search-company-flow';
+import { searchCompany, type CompanySearchResult } from '@/services/company-lookup-service';
 import debounce from 'lodash.debounce';
 import { ChevronsUpDown, Loader2, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

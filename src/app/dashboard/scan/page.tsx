@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Client } from '@/lib/types';
 import { db, useFirebase } from '@/firebase';
-import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
+import { createInvoiceForDocument } from '@/services/invoice-service';
 import { doc as getDocRef, getDoc } from 'firebase/firestore';
 import {
   summarizeUploadRejections,

@@ -63,8 +63,8 @@ export default function ClientsPage() {
     const isStaff = useMemo(() => userRole && ['accountant', 'secretary'].includes(userRole), [userRole]);
 
     // Explicit block for Super Admin to force impersonation
-    if (userRole === 'admin') {
-        return (
+    if (false && userRole === 'admin') {
+        /*
              <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
                 <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
                     <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -77,7 +77,7 @@ export default function ClientsPage() {
                     </Button>
                 </Card>
             </div>
-        )
+        */
     }
 
     const staffUsersQuery = useMemoFirebase(() => {
@@ -137,6 +137,24 @@ export default function ClientsPage() {
             
         return { filteredClients: clients };
     }, [allUsers, searchTerm]);
+
+    // Explicit block for Super Admin to force impersonation
+    if (userRole === 'admin') {
+        return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <ShieldCheck className="h-10 w-10 text-red-500" />
+                    </div>
+                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+                    <p className="text-muted-foreground mb-8 text-lg font-medium">L'acces direct au pilotage client est restreint pour le Super Admin. Veuillez impersonner un cabinet pour gerer ses clients.</p>
+                    <Button onClick={() => router.push('/dashboard/cabinets')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                        Aller a la Gestion Cabinets
+                    </Button>
+                </Card>
+            </div>
+        )
+    }
     
     const handleSelectAll = (checked: boolean | string) => {
         if (checked) {
@@ -254,17 +272,30 @@ export default function ClientsPage() {
         return filteredClients;
     }
 
-    const handleExportXLSX = async () => {
+    const handleExportCSV = async () => {
         const usersToExport = getUsersToExport();
         if (!usersToExport) return;
 
-        const XLSX = await import('xlsx');
-        const worksheet = XLSX.utils.json_to_sheet(usersToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
-        
+        const Papa = await import('papaparse');
+        const rows = usersToExport.map((client) => ({
+            Nom: client.name,
+            Email: client.email,
+            Statut: client.status,
+            Siret: client.siret || '',
+            Cabinet: client.cabinetId || '',
+            DerniereActivite: formatDate(client.lastActivity),
+        }));
+        const csv = Papa.unparse(rows);
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
         const date = new Date().toISOString().slice(0, 10);
-        XLSX.writeFile(workbook, `export-clients-${date}.xlsx`);
+        link.href = url;
+        link.download = `export-clients-${date}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         
         toast({
             title: "Exportation réussie",
@@ -276,14 +307,14 @@ export default function ClientsPage() {
         const usersToExport = getUsersToExport();
         if (!usersToExport) return;
 
-        const [{ default: jsPDF }] = await Promise.all([
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
             import('jspdf'),
             import('jspdf-autotable'),
         ]);
 
         const doc = new jsPDF();
         doc.text(`Liste des Clients`, 14, 16);
-        (doc as any).autoTable({
+        autoTable(doc, {
             head: [['Nom', 'Email', 'Statut', 'Dernière Activité']],
             body: usersToExport.map(c => [c.name, c.email, c.status, formatDate(c.lastActivity)]),
             startY: 20,
@@ -410,9 +441,9 @@ export default function ClientsPage() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent className="glass-panel border-white/10 shadow-2xl rounded-xl p-2">
-                                        <DropdownMenuItem onClick={handleExportXLSX} className="rounded-lg p-3 font-medium transition-colors cursor-pointer">
+                                        <DropdownMenuItem onClick={handleExportCSV} className="rounded-lg p-3 font-medium transition-colors cursor-pointer">
                                             <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-500" />
-                                            Exporter en .xlsx
+                                            Exporter en .csv
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={handleExportPDF} className="rounded-lg p-3 font-medium transition-colors cursor-pointer">
                                             <FileUp className="mr-2 h-4 w-4 text-red-500" />

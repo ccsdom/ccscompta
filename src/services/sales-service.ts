@@ -19,7 +19,7 @@ export const salesService = {
      * Generates a professional PDF for a sales invoice.
      */
     async generateInvoicePDF(invoice: SalesInvoice, seller: any) {
-        const [{ default: jsPDF }] = await Promise.all([
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
             import('jspdf'),
             import('jspdf-autotable'),
         ]);
@@ -71,7 +71,7 @@ export const salesService = {
         }
 
         // Table
-        (doc as any).autoTable({
+        autoTable(doc, {
             startY: 95,
             head: [['Désignation', 'Qté', 'Prix Unitaire HT', 'TVA', 'Total TTC']],
             body: invoice.items.map(item => [

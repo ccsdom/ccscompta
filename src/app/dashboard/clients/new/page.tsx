@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as z from "zod";
 import { useState, useEffect } from "react";
 import { CompanySearchCombobox } from "@/components/company-search-combobox";
-import { type ExtractClientDataOutput } from '@/ai/flows/extract-client-data-flow';
+import { type ExtractClientDataOutput } from '@/services/company-lookup-service';
 import { useSearchParams } from 'next/navigation'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KeyRound, UserPlus, ChevronLeft, Search, Sparkles, Copy } from "lucide-react";

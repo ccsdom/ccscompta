@@ -8,11 +8,12 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { supportChat } from '@/ai/flows/support-chat-flow';
+import { Avatar, AvatarFallback } from './ui/avatar';
+import { supportChat } from '@/services/support-chat-service';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
-import type { Message } from 'genkit';
+import { useUser } from '@/firebase';
+import { useBranding } from '@/components/branding-provider';
 
 
 export function SupportChatbot() {
@@ -20,10 +21,13 @@ export function SupportChatbot() {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [documentation, setDocumentation] = useState<string | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const [isMounted, setIsMounted] = useState(false);
     const dragControls = useDragControls();
+    
+    // Nouveaux hooks pour récupérer l'identité et le rôle
+    const { user } = useUser();
+    const { role } = useBranding();
 
     useEffect(() => {
         setIsMounted(true);
@@ -33,20 +37,10 @@ export function SupportChatbot() {
         if (isOpen) {
              // Start with a predefined welcome message
             if (messages.length === 0) {
-                setMessages([{ role: 'model', content: [{ text: "Bonjour ! Je suis ComptaBot, votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?" }] }]);
-            }
-            // Fetch documentation when chat opens
-            if (documentation === null) {
-                fetch('/DOCUMENTATION.html')
-                    .then(response => response.text())
-                    .then(text => setDocumentation(text))
-                    .catch(error => {
-                        console.error("Failed to fetch documentation:", error);
-                        setDocumentation("Documentation not available.");
-                    });
+                setMessages([{ role: 'model', content: [{ text: "Bonjour ! Je suis l'AI Accountant Copilot, votre analyste financier virtuel. Comment puis-je vous aider aujourd'hui ?" }] }]);
             }
         }
-    }, [isOpen, messages.length, documentation]);
+    }, [isOpen, messages.length]);
 
     useEffect(() => {
         // Auto-scroll to bottom
@@ -60,7 +54,7 @@ export function SupportChatbot() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim() || isLoading || documentation === null) return;
+        if (!input.trim() || isLoading) return;
 
         const userMessage = { role: 'user', content: [{ text: input }] };
         const newMessages: any[] = [...messages, userMessage];
@@ -68,13 +62,23 @@ export function SupportChatbot() {
         setInput('');
         setIsLoading(true);
 
+        // Détermination du clientId pour le contexte financier
+        let clientId = undefined;
+        if (role === 'client' && user?.uid) {
+            clientId = user.uid;
+        } else if ((role === 'accountant' || role === 'admin' || role === 'secretary')) {
+            clientId = localStorage.getItem('selectedClientId') || undefined;
+        }
+
         try {
             // The history sent to the AI must not include the initial welcome message from the bot.
-            const historyForAI = newMessages.slice(1);
-
+            const historyForAI = newMessages.slice(1).map((message) => ({
+                role: message.role === 'user' ? 'user' as const : 'model' as const,
+                text: String(message.content?.[0]?.text || ''),
+            }));
             const response = await supportChat({
                 history: historyForAI,
-                documentation: documentation,
+                clientId: clientId,
             });
             setMessages([...newMessages, { role: 'model', content: [{ text: response }] }]);
         } catch (error) {
@@ -116,8 +120,8 @@ export function SupportChatbot() {
                                             <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
                                         </div>
                                         <div>
-                                            <CardTitle className="text-base">ComptaBot</CardTitle>
-                                            <p className="text-xs text-muted-foreground flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500"></span> En ligne</p>
+                                            <CardTitle className="text-base">AI Copilot</CardTitle>
+                                            <p className="text-xs text-muted-foreground flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500"></span> Analyste Financier</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center">
@@ -167,9 +171,9 @@ export function SupportChatbot() {
                                         onChange={(e) => setInput(e.target.value)}
                                         placeholder="Posez votre question..."
                                         autoComplete="off"
-                                        disabled={isLoading || documentation === null}
+                                        disabled={isLoading}
                                     />
-                                    <Button type="submit" size="icon" disabled={isLoading || !input.trim() || documentation === null}>
+                                    <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
                                         <Send className="h-4 w-4" />
                                     </Button>
                                 </form>

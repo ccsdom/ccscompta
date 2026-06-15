@@ -49,8 +49,8 @@ export default function BillingPage() {
     const isStaff = useMemo(() => role && ['accountant', 'secretary'].includes(role), [role]);
 
     // Explicit block for Super Admin to force impersonation
-    if (role === 'admin') {
-        return (
+    if (false && role === 'admin') {
+        /*
              <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
                 <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
                     <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -63,7 +63,7 @@ export default function BillingPage() {
                     </Button>
                 </Card>
             </div>
-        )
+        */
     }
 
     const clientsQuery = useMemoFirebase(() => {
@@ -107,6 +107,24 @@ export default function BillingPage() {
                    (!end || invoiceDate <= end);
         }).sort((a, b) => (parseDate(b.date)?.getTime() || 0) - (parseDate(a.date)?.getTime() || 0));
     }, [invoices, clientFilter, statusFilter, startDateFilter, endDateFilter]);
+
+    // Explicit block for Super Admin to force impersonation
+    if (role === 'admin') {
+        return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <ShieldCheck className="h-10 w-10 text-red-500" />
+                    </div>
+                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+                    <p className="text-muted-foreground mb-8 text-lg font-medium">L'acces direct a la facturation cabinet est restreint pour le Super Admin. Veuillez impersonner un cabinet pour gerer sa facturation.</p>
+                    <Button onClick={() => router.push('/dashboard/cabinets')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                        Aller a la Gestion Cabinets
+                    </Button>
+                </Card>
+            </div>
+        )
+    }
 
     const handleSelectAll = (checked: boolean | 'indeterminate') => {
         setSelectedInvoiceIds(checked ? filteredInvoices.map(inv => inv.id) : []);
@@ -160,13 +178,13 @@ export default function BillingPage() {
         const docToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id)) || [];
         if (docToExport.length === 0) return;
         
-        const [{ default: jsPDF }] = await Promise.all([
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
             import('jspdf'),
             import('jspdf-autotable'),
         ]);
         const pdf = new jsPDF();
         pdf.text("Factures sélectionnées", 14, 16);
-        (pdf as any).autoTable({
+        autoTable(pdf, {
             head: [['Client', 'Numéro', 'Montant', 'Statut']],
             body: docToExport.map(inv => [
                     inv.clientName,

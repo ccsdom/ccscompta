@@ -79,7 +79,7 @@ service firebase.storage {
       allow get: if canAccessClientFiles(clientId);
       allow list: if isStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
       allow create, update: if canAccessClientFiles(clientId) && isAccountingDocumentUpload();
-      allow delete: if canAccessClientFiles(clientId);
+      allow delete: if isAccountingStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
     }
   }
 }

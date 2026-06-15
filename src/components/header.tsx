@@ -39,7 +39,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { QuickUpload } from "./quick-upload";
 import type { Notification } from '@/lib/types';
-import { intelligentSearch } from '@/ai/flows/intelligent-search-flow';
+import { intelligentSearch } from '@/services/intelligent-search-service';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from './ui/skeleton';
 import { useRouter } from 'next/navigation';

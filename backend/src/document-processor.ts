@@ -16,8 +16,13 @@ export const ExtractDataOutputSchema = z.object({
   dates: z.array(z.string()).optional(),
   amounts: z.array(z.number()).optional(),
   vendorNames: z.array(z.string()).optional(),
-  vatAmount: z.number().nullable().optional(),
-  vatRate: z.number().nullable().optional(),
+  siret: z.string().optional().describe('The SIRET or SIREN number of the supplier, if present.'),
+  supplierName: z.string().optional().describe('The name of the supplier.'),
+  vatDetails: z.array(z.object({
+    rate: z.number().describe('VAT rate as a percentage, e.g. 20 for 20%.'),
+    amount: z.number().describe('The total VAT amount for this rate.'),
+    baseHT: z.number().describe('The HT (excluding VAT) base amount for this rate.')
+  })).optional().describe('A detailed list of all VAT rates applied, their amounts, and HT bases.'),
   transactions: z.array(TransactionSchema).optional(),
   category: z.string().nullable().optional(),
   otherInformation: z.string().optional(),
@@ -48,10 +53,11 @@ You are an expert at extracting key information from a single French accounting 
 Your goal is to extract:
 - Dates: All dates present.
 - Amounts: All total monetary amounts (TTC).
-- Vendor Names: Suppliers.
-- VAT: Total VAT amount (TVA) and rate (e.g., 20).
+- Vendor Names / SupplierName: Identify the supplier.
+- SIRET: Extract the 14-digit SIRET or 9-digit SIREN of the supplier if present on the document.
+- VAT Details: Extract every single VAT rate present on the document. For EACH rate (e.g., 20%, 10%, 5.5%), extract the 'rate' (as a number: 20), the 'amount' of VAT for that rate, and the 'baseHT' (the amount before tax that this rate applies to).
 - Category: Suggested accounting category.
-- Accounting Intelligence (PCG Français): Suggest technical accounts (debit starts with 6, credit 401000, vat 445660).
+- Accounting Intelligence (PCG Français): Suggest technical accounts based on the supplier's activity (e.g. 626000 for telecom/internet, 607000 for merchandise, 613000 for rent, 606300 for small equipment). The credit account is usually 401000 for suppliers.
 `;
 
 const controllerPrompt = `
@@ -153,8 +159,8 @@ export function calculateBillableLines(data: ExtractDataOutput, documentType: st
         // For bank statements, each transaction line + bank account line = 2 lines per transaction
         return (data.transactions?.length || 0) * 2;
     } else {
-        // For invoices/receipts: Charge + VAT + Supplier = 3 lines
-        // Even if VAT is zero, we usually have 3 lines in the accounting entry
-        return 3;
+        // For invoices/receipts: 1 Supplier line + (1 VAT line + 1 Charge line) per VAT rate
+        const vatRatesCount = data.vatDetails?.length || 1;
+        return 1 + (vatRatesCount * 2);
     }
 }

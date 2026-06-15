@@ -1,321 +1,575 @@
-
-'use client';
-
-import Link from "next/link";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Banknote,
+  BarChart3,
+  BellRing,
+  Bot,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
+  FolderCheck,
+  LockKeyhole,
+  Menu,
+  ScanLine,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  UploadCloud,
+  Users2,
+} from 'lucide-react';
 import { Logo } from '@/components/logo';
-import { Button } from "@/components/ui/button";
-import { Bot, Users, ShieldCheck, FileJson, CalendarCheck2, BarChart2, MessageSquare, ScanLine, ArrowRight, Menu } from "lucide-react";
-import Image from "next/image";
-import { motion } from 'framer-motion';
-import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle } from '@/components/ui/navigation-menu';
-import { cn } from '@/lib/utils';
-import React from 'react';
-import { usePathname } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+const siteUrl = 'https://ccscompta.fr/fonctionnalites';
 
-const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => (
-  <li>
-    <NavigationMenuLink asChild>
-      <a
-        ref={ref}
-        className={cn(
-          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-          className
-        )}
-        {...props}
-      >
-        <div className="text-sm font-medium leading-none">{title}</div>
-        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">{children}</p>
-      </a>
-    </NavigationMenuLink>
-  </li>
-));
-ListItem.displayName = "ListItem";
+export const metadata: Metadata = {
+  title: 'Fonctionnalites CCS Compta | Collecte, OCR, pre-saisie et validation comptable',
+  description:
+    'Decouvrez les fonctionnalites CCS Compta pour cabinets comptables : portail client mobile, collecte securisee, OCR IA, pre-saisie, validation, suivi, relances et pilotage multi-dossiers.',
+  alternates: {
+    canonical: '/fonctionnalites',
+  },
+  openGraph: {
+    title: 'Fonctionnalites CCS Compta - Portail IA pour cabinets comptables',
+    description:
+      'Une plateforme SaaS pour collecter les pieces clients, extraire les donnees, controler les anomalies et piloter la production comptable.',
+    url: siteUrl,
+    siteName: 'CCS Compta',
+    locale: 'fr_FR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Fonctionnalites CCS Compta',
+    description:
+      'Portail client mobile, OCR IA, pre-saisie comptable, validation cabinet et suivi des pieces dans une interface simple.',
+  },
+};
 
-const features = [
+const navLinks = [
+  { href: '/fonctionnalites', label: 'Fonctionnalites' },
+  { href: '/tarifs', label: 'Tarifs' },
+  { href: '/securite', label: 'Securite' },
+  { href: '/blog', label: 'Ressources' },
+];
+
+const heroProof = [
+  { value: 'Mobile', label: 'depot client rapide depuis smartphone' },
+  { value: 'IA', label: 'lecture et pre-saisie des donnees utiles' },
+  { value: 'Controle', label: 'validation humaine avant production' },
+];
+
+const featurePillars = [
   {
-    icon: <Bot className="h-8 w-8 text-primary" />,
-    title: "Extraction de Données par IA",
-    description: "Notre technologie OCR et IA de pointe lit vos factures, reçus ou relevés bancaires. Elle extrait et structure automatiquement les informations essentielles (fournisseurs, dates, montants, TVA), éliminant la saisie manuelle et les risques d'erreurs.",
-    image: { src: "https://picsum.photos/seed/feature1/800/600", alt: "Illustration de l'extraction de données par IA", hint: "AI data extraction process" }
+    icon: UploadCloud,
+    eyebrow: 'Collecte',
+    title: 'Portail client simple et securise',
+    description:
+      'Un espace clair pour deposer factures, tickets, releves et justificatifs sans multiplier les e-mails ni les relances.',
+    points: ['Depot mobile ou ordinateur', 'Statuts visibles par le client', 'Pieces rattachees au bon dossier'],
   },
   {
-    icon: <Users className="h-8 w-8 text-primary" />,
-    title: "Portail Client Collaboratif",
-    description: "Offrez à vos clients un espace unique, sécurisé et intuitif pour téléverser leurs documents et suivre leur traitement en temps réel. La communication est centralisée, transparente et efficace.",
-    image: { src: "https://picsum.photos/seed/feature2/800/600", alt: "Tableau de bord du portail client", hint: "client dashboard interface" }
+    icon: ScanLine,
+    eyebrow: 'Lecture',
+    title: 'OCR et extraction IA',
+    description:
+      'CCS Compta prepare les champs importants avant intervention cabinet : fournisseur, date, TTC, TVA, categorie et signaux d anomalie.',
+    points: ['Analyse des documents courants', 'Score de confiance', 'Anomalies mises en evidence'],
   },
   {
-    icon: <FileJson className="h-8 w-8 text-primary" />,
-    title: "Validation et Intégration",
-    description: "Vérifiez les données extraites par l'IA en un clin d'œil grâce à une interface claire. Une fois approuvées, elles sont prêtes à être envoyées vers votre logiciel de production (ex: Cegid), garantissant un flux de travail sans couture.",
-    image: { src: "https://picsum.photos/seed/feature3/800/600", alt: "Interface de validation de document", hint: "data validation UI" }
+    icon: ClipboardCheck,
+    eyebrow: 'Validation',
+    title: 'Controle cabinet maitrise',
+    description:
+      'Le collaborateur garde la main sur chaque piece : correction, commentaire, acceptation, rejet ou demande de complement.',
+    points: ['File de traitement priorisee', 'Commentaires centralises', 'Historique des decisions'],
   },
   {
-    icon: <BarChart2 className="h-8 w-8 text-primary" />,
-    title: "Tableaux de Bord Analytiques",
-    description: "Transformez les données brutes en informations exploitables. Visualisez les dépenses par catégorie, fournisseur, et leur évolution pour un meilleur pilotage financier et des conseils plus pertinents.",
-    image: { src: "https://picsum.photos/seed/feature4/800/600", alt: "Graphiques d'analyse financière", hint: "analytics charts graphs" }
-  },
-  {
-    icon: <CalendarCheck2 className="h-8 w-8 text-primary" />,
-    title: "Gestion Proactive des Échéances",
-    description: "Ne manquez plus jamais une date importante. Notre agenda génère automatiquement les échéances de TVA et de bilan pour chaque client, vous permettant d'anticiper et de planifier efficacement.",
-    image: { src: "https://picsum.photos/seed/feature5/800/600", alt: "Calendrier avec les échéances fiscales", hint: "calendar deadlines" }
-  },
-  {
-    icon: <ScanLine className="h-8 w-8 text-primary" />,
-    title: "Scan Mobile",
-    description: "Permettez à vos clients de numériser leurs documents directement depuis leur smartphone. L'image est optimisée et téléversée en un instant, pour une collecte encore plus rapide et facile.",
-    image: { src: "https://picsum.photos/seed/feature6/800/600", alt: "Utilisation du scan mobile sur un smartphone", hint: "mobile phone scanning" }
+    icon: FolderCheck,
+    eyebrow: 'Production',
+    title: 'Dossiers mieux prepares',
+    description:
+      'Les pieces deviennent exploitables plus vite, avec une vision par client, periode, statut et niveau d urgence.',
+    points: ['Vue multi-clients', 'Suivi des pieces manquantes', 'Preparation export comptable'],
   },
 ];
 
-export default function FeaturesPage() {
-  const pathname = usePathname();
-    const navLinks = [
-    { href: "/fonctionnalites", text: "Fonctionnalités" },
-    { href: "/tarifs", text: "Tarifs" },
-    { href: "/a-propos", text: "À Propos" },
-    { href: "/blog", text: "Blog" },
-    { href: "/assistance", text: "Support" }
-  ];
+const modules = [
+  {
+    icon: Smartphone,
+    title: 'Experience client',
+    items: ['Depot en quelques secondes', 'Historique des documents', 'Demandes de complement lisibles', 'Interface adaptee smartphone'],
+  },
+  {
+    icon: Users2,
+    title: 'Travail cabinet',
+    items: ['Tri par statut', 'Rejets motives', 'Upload pour le compte du client', 'Coordination collaborateur et manager'],
+  },
+  {
+    icon: Bot,
+    title: 'Assistance IA',
+    items: ['Extraction structuree', 'Detection des incoherences', 'Recherche intelligente', 'Support integre a l application'],
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Securite et gouvernance',
+    items: ['Roles separes', 'Isolation par cabinet', 'Acces limites au besoin', 'Journalisation des operations sensibles'],
+  },
+];
 
+const workflow = [
+  {
+    title: 'Le client depose',
+    description: 'Il photographie ou ajoute sa piece, puis suit son statut sans relancer le cabinet.',
+  },
+  {
+    title: 'CCS Compta prepare',
+    description: 'La plateforme lit le document, extrait les donnees et signale ce qui merite attention.',
+  },
+  {
+    title: 'Le cabinet controle',
+    description: 'Le collaborateur valide, corrige ou demande un complement avec une trace claire.',
+  },
+  {
+    title: 'La production avance',
+    description: 'Les dossiers sont plus propres, les priorites plus visibles et les operations repetitives reduites.',
+  },
+];
 
+const impactCards = [
+  {
+    icon: BellRing,
+    title: 'Moins de relances inutiles',
+    description: 'Les statuts et demandes de pieces rendent la collecte plus lisible pour le client et le cabinet.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Pilotage plus net',
+    description: 'Les equipes visualisent les volumes, les blocages et les dossiers qui demandent une action.',
+  },
+  {
+    icon: Banknote,
+    title: 'Temps mieux investi',
+    description: 'La saisie repetitive recule pour laisser plus de place au controle, a la revision et au conseil.',
+  },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Fonctionnalites CCS Compta',
+  url: siteUrl,
+  description:
+    'Fonctionnalites du SaaS CCS Compta pour cabinets comptables : collecte client, OCR IA, validation, suivi et securite multi-cabinet.',
+  isPartOf: {
+    '@type': 'WebSite',
+    name: 'CCS Compta',
+    url: 'https://ccscompta.fr',
+  },
+};
+
+function PublicHeader() {
   return (
-    <div className="flex flex-col min-h-screen bg-background font-sans">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/">
-            <div className="flex items-center gap-2 font-semibold">
-              <Logo className="h-6 w-6 text-primary" />
-              <span className="font-bold text-lg hidden sm:inline-block">CCS Compta</span>
-            </div>
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-3 font-semibold text-slate-950">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+            <Logo className="h-5 w-5" />
+          </span>
+          <span className="text-base font-black">CCS Compta</span>
+        </Link>
+
+        <nav className="hidden items-center gap-8 text-sm font-semibold text-slate-600 md:flex">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={link.href === '/fonctionnalites' ? 'text-blue-700' : 'transition hover:text-blue-700'}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 md:flex">
+          <Link href="/connexion" className="text-sm font-semibold text-slate-700 transition hover:text-blue-700">
+            Se connecter
           </Link>
-
-          <NavigationMenu className="hidden md:flex">
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Découvrir</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
-                    <li className="row-span-3">
-                      <NavigationMenuLink asChild>
-                        <Link href="/">
-                          <div className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md">
-                            <Logo className="h-6 w-6" />
-                            <div className="mb-2 mt-4 text-lg font-medium">CCS Compta</div>
-                            <p className="text-sm leading-tight text-muted-foreground">
-                              La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
-                            </p>
-                          </div>
-                        </Link>
-                      </NavigationMenuLink>
-                    </li>
-                    <ListItem href="/fonctionnalites" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
-                    <ListItem href="/tarifs" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
-                    <ListItem href="/securite" title="Sécurité">Votre confiance, notre priorité.</ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/a-propos'}>
-                  <Link href="/a-propos">À Propos</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/blog'}>
-                  <Link href="/blog">Blog</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()} active={pathname === '/assistance'}>
-                  <Link href="/assistance">Support</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-
-          <div className="flex items-center gap-2">
-             <Button asChild className="hidden md:inline-flex">
-              <Link href="/connexion">Se connecter</Link>
-            </Button>
-            <div className="md:hidden">
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="icon">
-                      <Menu className="h-5 w-5" />
-                      <span className="sr-only">Ouvrir le menu</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left">
-                     <nav className="grid gap-6 text-lg font-medium mt-8">
-                       <SheetClose asChild>
-                         <Link href="/">
-                          <div className="flex items-center gap-2 text-lg font-semibold mb-4">
-                           <Logo className="h-6 w-6 text-primary" />
-                           <span className="font-bold text-lg">CCS Compta</span>
-                          </div>
-                         </Link>
-                       </SheetClose>
-                       {navLinks.map(link => (
-                         <SheetClose asChild key={link.href}>
-                            <Link href={link.href} className="text-muted-foreground hover:text-foreground">
-                              {link.text}
-                            </Link>
-                         </SheetClose>
-                       ))}
-                        <SheetClose asChild>
-                          <Link href="/connexion" className="font-semibold text-primary hover:text-primary/90">Se connecter</Link>
-                        </SheetClose>
-                     </nav>
-                  </SheetContent>
-                </Sheet>
-              </div>
-          </div>
+          <Link
+            href="/connexion"
+            className="inline-flex h-10 items-center rounded-lg bg-slate-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            Demander une demo
+          </Link>
         </div>
-      </header>
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="py-20 md:py-24 text-center">
-          <div className="container mx-auto max-w-4xl px-4">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl font-display">
-              Des fonctionnalités puissantes, une <span className="text-primary">simplicité radicale</span>.
-            </h1>
-            <p className="text-muted-foreground mt-6 max-w-3xl mx-auto text-lg">
-              Découvrez comment chaque outil de CCS Compta est conçu pour transformer votre productivité et clarifier votre vision financière.
-            </p>
-          </div>
-        </section>
 
-        {/* Features Section */}
-        <section className="py-12 md:py-20">
-          <div className="container mx-auto max-w-6xl px-4 space-y-24">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center"
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className={index % 2 === 0 ? 'md:order-1' : 'md:order-2'}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                    {feature.icon}
+        <details className="group relative md:hidden">
+          <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-900 shadow-sm">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Ouvrir le menu</span>
+          </summary>
+          <div className="absolute right-0 mt-3 hidden w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl group-open:block">
+            <div className="grid gap-1">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href} className="rounded-lg px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  {link.label}
+                </Link>
+              ))}
+              <Link href="/connexion" className="mt-2 rounded-lg bg-blue-600 px-3 py-3 text-center text-sm font-bold text-white">
+                Demander une demo
+              </Link>
+            </div>
+          </div>
+        </details>
+      </div>
+    </header>
+  );
+}
+
+function FeatureProductView() {
+  return (
+    <div className="relative mx-auto max-w-xl">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <p className="text-xs font-bold uppercase text-blue-700">Vue production</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Pieces a traiter aujourd hui</p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Flux actif</span>
+        </div>
+
+        <div className="grid gap-4 p-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="space-y-3">
+            {[
+              ['Facture fournisseur', 'Extraction terminee', 'A valider'],
+              ['Ticket carburant', 'TVA detectee', 'Complement'],
+              ['Releve bancaire', '18 lignes lues', 'Pret'],
+            ].map(([name, detail, status]) => (
+              <div key={name} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700 shadow-sm">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-slate-950">{name}</p>
+                      <p className="mt-1 text-sm text-slate-500">{detail}</p>
+                    </div>
                   </div>
-                  <h2 className="text-3xl font-bold tracking-tight mb-4 font-display">{feature.title}</h2>
-                  <p className="text-muted-foreground text-lg">{feature.description}</p>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm">{status}</span>
                 </div>
-                <div className={index % 2 === 0 ? 'md:order-2' : 'md:order-1'}>
-                  <div className="relative rounded-xl bg-muted/50 p-2 ring-1 ring-inset ring-primary/10">
-                    <Image
-                      src={feature.image.src}
-                      alt={feature.image.alt}
-                      width={800}
-                      height={600}
-                      className="rounded-md shadow-xl"
-                      data-ai-hint={feature.image.hint}
-                    />
-                  </div>
-                </div>
-              </motion.div>
+              </div>
             ))}
           </div>
+
+          <div className="rounded-2xl bg-slate-950 p-5 text-white">
+            <div className="flex items-center gap-2 text-sm font-bold text-blue-200">
+              <Sparkles className="h-4 w-4" />
+              Synthese IA
+            </div>
+            <div className="mt-5 space-y-4">
+              <div>
+                <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-300">
+                  <span>Champs reconnus</span>
+                  <span>92%</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/10">
+                  <div className="h-2 w-[92%] rounded-full bg-emerald-400" />
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-bold uppercase text-slate-400">Point de controle</p>
+                <p className="mt-2 text-sm leading-6 text-slate-100">Montant TVA coherent, fournisseur connu, periode a confirmer.</p>
+              </div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+                <CheckCircle2 className="h-4 w-4" />
+                Pret pour validation humaine
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto mt-4 grid max-w-lg grid-cols-3 gap-2 text-center text-xs font-bold text-slate-600">
+        {['Collecter', 'Analyser', 'Valider'].map((item) => (
+          <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-slate-200 bg-white">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-8">
+        <div>
+          <Link href="/" className="flex items-center gap-3 font-black text-slate-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
+              <Logo className="h-5 w-5" />
+            </span>
+            CCS Compta
+          </Link>
+          <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">
+            Plateforme SaaS pour cabinets comptables : collecte client, OCR, validation et suivi des pieces.
+          </p>
+        </div>
+        <div>
+          <p className="font-bold text-slate-950">Produit</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-500">
+            <Link href="/fonctionnalites" className="hover:text-blue-700">Fonctionnalites</Link>
+            <Link href="/tarifs" className="hover:text-blue-700">Tarifs</Link>
+            <Link href="/securite" className="hover:text-blue-700">Securite</Link>
+          </div>
+        </div>
+        <div>
+          <p className="font-bold text-slate-950">Ressources</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-500">
+            <Link href="/blog" className="hover:text-blue-700">Blog</Link>
+            <Link href="/assistance" className="hover:text-blue-700">Assistance</Link>
+            <Link href="/a-propos" className="hover:text-blue-700">A propos</Link>
+          </div>
+        </div>
+        <div>
+          <p className="font-bold text-slate-950">Legal</p>
+          <div className="mt-4 grid gap-3 text-sm text-slate-500">
+            <Link href="/mentions-legales" className="hover:text-blue-700">Mentions legales</Link>
+            <Link href="/politique-de-confidentialite" className="hover:text-blue-700">Confidentialite</Link>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export default function FeaturesPage() {
+  return (
+    <div className="min-h-screen bg-white text-slate-950">
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PublicHeader />
+
+      <main>
+        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-sm font-bold text-blue-700 shadow-sm">
+                <BadgeCheck className="h-4 w-4" />
+                Fonctionnalites pensees cabinet
+              </div>
+              <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.05] text-slate-950 sm:text-5xl lg:text-6xl">
+                Tout le flux comptable, de la piece client au dossier pret a produire.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+                CCS Compta rassemble collecte client, OCR IA, pre-saisie, controle humain, suivi des statuts et pilotage cabinet dans une interface claire, rapide et securisee.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/connexion"
+                  className="inline-flex h-12 items-center justify-center rounded-lg bg-slate-950 px-6 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  Demander une demo
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+                <Link
+                  href="/securite"
+                  className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-200 bg-white px-6 text-sm font-black text-slate-800 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
+                >
+                  Voir la securite
+                </Link>
+              </div>
+            </div>
+
+            <FeatureProductView />
+
+            <div className="grid gap-3 sm:grid-cols-3 lg:col-span-2">
+              {heroProof.map((item) => (
+                <div key={item.value} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-2xl font-black text-slate-950">{item.value}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-24 bg-muted/30">
-          <div className="container mx-auto max-w-4xl px-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Prêt à moderniser votre comptabilité ?
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Rejoignez les cabinets et entreprises qui ont choisi de travailler plus intelligemment.
-            </p>
-            <div className="mt-8">
-              <Button size="lg" asChild>
-                <Link href="/connexion">Commencer maintenant <ArrowRight className="ml-2 h-4 w-4" /></Link>
-              </Button>
+        <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black uppercase text-blue-700">Modules essentiels</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                Une plateforme complete, sans complexite inutile.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                Chaque fonctionnalite doit servir un objectif concret : reduire la friction, securiser les donnees et accelerer le travail du cabinet.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-5 md:grid-cols-2">
+              {featurePillars.map((feature) => {
+                const Icon = feature.icon;
+
+                return (
+                  <article key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                        <Icon className="h-6 w-6" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-black uppercase text-blue-700">{feature.eyebrow}</p>
+                        <h3 className="mt-2 text-xl font-black text-slate-950">{feature.title}</h3>
+                        <p className="mt-3 leading-7 text-slate-600">{feature.description}</p>
+                      </div>
+                    </div>
+                    <div className="mt-6 grid gap-2">
+                      {feature.points.map((point) => (
+                        <div key={point} className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          {point}
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-50 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div>
+              <p className="text-sm font-black uppercase text-blue-700">Parcours operationnel</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                Un chemin clair pour chaque piece.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                Le produit ne cherche pas a remplacer le jugement comptable. Il retire les taches lentes, repetitives et disperses qui ralentissent la production.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                {workflow.map((step, index) => (
+                  <div key={step.title} className="rounded-2xl bg-slate-50 p-5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+                        {index + 1}
+                      </span>
+                      <ChevronRight className="h-5 w-5 text-slate-300" />
+                    </div>
+                    <h3 className="mt-5 text-lg font-black text-slate-950">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{step.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-6 lg:grid-cols-[1fr_1.15fr] lg:items-center">
+              <div>
+                <p className="text-sm font-black uppercase text-blue-700">Vision cabinet</p>
+                <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                  Des outils pour les clients, les collaborateurs et les managers.
+                </h2>
+                <p className="mt-4 text-lg leading-8 text-slate-600">
+                  Une bonne solution comptable doit etre simple cote client, puissante cote cabinet, et suffisamment structuree pour accompagner la croissance.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {modules.map((module) => {
+                  const Icon = module.icon;
+
+                  return (
+                    <article key={module.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-white">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <h3 className="mt-4 text-lg font-black text-slate-950">{module.title}</h3>
+                      <ul className="mt-4 grid gap-2 text-sm leading-6 text-slate-600">
+                        {module.items.map((item) => (
+                          <li key={item} className="flex gap-2">
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-slate-950 px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-bold text-blue-200">
+                <LockKeyhole className="h-4 w-4" />
+                Robustesse et confiance
+              </div>
+              <h2 className="mt-5 text-3xl font-black leading-tight sm:text-4xl">
+                La performance produit n a de valeur que si les donnees restent maitrisees.
+              </h2>
+              <p className="mt-4 text-lg leading-8 text-slate-300">
+                CCS Compta est concu autour d une separation stricte par cabinet, d une gestion claire des roles et d une logique de validation avant exploitation.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {impactCards.map((card) => {
+                const Icon = card.icon;
+
+                return (
+                  <article key={card.title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                    <Icon className="h-7 w-7 text-blue-200" />
+                    <h3 className="mt-5 text-lg font-black">{card.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">{card.description}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="mx-auto w-full rounded-[2rem] border border-slate-200 bg-slate-50 p-8 shadow-sm md:w-3/4 lg:p-12">
+            <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-sm font-black uppercase text-blue-700">Prochaine etape</p>
+                <h2 className="mt-3 text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                  Transformer la collecte comptable en experience simple et professionnelle.
+                </h2>
+                <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
+                  L objectif est clair : moins d operations manuelles, plus de controle, et une experience client enfin fluide.
+                </p>
+              </div>
+              <Link
+                href="/connexion"
+                className="inline-flex h-12 items-center justify-center rounded-lg bg-slate-950 px-6 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
+              >
+                Demander une demo
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>
       </main>
-      {/* Footer */}
-      <footer className="border-t bg-background">
-        <div className="container mx-auto max-w-7xl px-4 py-16">
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-4">
-            <div className="lg:col-span-1">
-              <Link href="/">
-                <div className="flex items-center gap-2 mb-4">
-                    <Logo className="h-7 w-7 text-primary" />
-                    <span className="font-bold text-xl">CCS Compta</span>
-                </div>
-              </Link>
-              <p className="text-muted-foreground max-w-xs text-sm">La comptabilité de demain, dès aujourd'hui. Simplifiez, automatisez, conseillez.</p>
-            </div>
 
-            <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-2">
-              <div>
-                <p className="font-semibold text-foreground">Produit</p>
-                <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/fonctionnalites" className="text-sm text-muted-foreground transition-colors hover:text-primary">Fonctionnalités</Link>
-                  <Link href="/tarifs" className="text-sm text-muted-foreground transition-colors hover:text-primary">Tarifs</Link>
-                  <Link href="/securite" className="text-sm text-muted-foreground transition-colors hover:text-primary">Sécurité</Link>
-                </nav>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Entreprise</p>
-                <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/a-propos" className="text-sm text-muted-foreground transition-colors hover:text-primary">À Propos</Link>
-                  <Link href="/blog" className="text-sm text-muted-foreground transition-colors hover:text-primary">Blog</Link>
-                  <Link href="/assistance" className="text-sm text-muted-foreground transition-colors hover:text-primary">Contact</Link>
-                </nav>
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Légal</p>
-                <nav className="mt-4 flex flex-col space-y-3">
-                  <Link href="/mentions-legales" className="text-sm text-muted-foreground transition-colors hover:text-primary">Mentions Légales</Link>
-                  <Link href="/politique-de-confidentialite" className="text-sm text-muted-foreground transition-colors hover:text-primary">Politique de Confidentialité</Link>
-                </nav>
-              </div>
-            </div>
-
-            <div className="lg:col-span-1">
-              <p className="font-semibold text-foreground">Restez informés</p>
-              <p className="text-muted-foreground text-sm mt-4">Abonnez-vous à notre newsletter pour les dernières nouvelles.</p>
-              <form className="mt-4 flex gap-2">
-                <Input type="email" placeholder="Votre email" className="max-w-xs" />
-                <Button type="submit">S'inscrire</Button>
-              </form>
-            </div>
-          </div>
-
-          <div className="mt-12 border-t pt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} CCS Compta. Tous droits réservés.</p>
-            <div className="flex space-x-4">
-              <Link href="#" className="text-muted-foreground hover:text-primary">
-                <span className="sr-only">Twitter</span>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.71v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                </svg>
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary">
-                <span className="sr-only">LinkedIn</span>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fillRule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -1,4 +1,3 @@
-﻿
 'use server';
 /**
  * @fileOverview Cloud Functions for Firebase.
@@ -208,6 +207,881 @@ function throwCallableError(error: unknown, context: string): never {
   const message = error instanceof Error ? error.message : 'Erreur interne.';
   throw new HttpsError('internal', message);
 }
+
+type CompanySearchResult = {
+  name: string;
+  siret: string;
+  address: string;
+  legalRepresentative: string;
+};
+
+type SupportChatMessage = {
+  role: 'user' | 'model';
+  text: string;
+};
+
+type IntelligentSearchOutput = {
+  documentTypes?: string[];
+  startDate?: string;
+  endDate?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  vendor?: string;
+  keywords?: string[];
+  originalQuery: string;
+};
+
+type BankReconciliationTransaction = {
+  date: string;
+  description: string;
+  amount: number;
+};
+
+type BankReconciliationInvoice = {
+  id: string;
+  date?: string | null;
+  amount?: number | null;
+  vendorName?: string | null;
+};
+
+type BankReconciliationOutput = {
+  matches: Array<{
+    transactionIndex: number;
+    documentId: string;
+    confidenceScore: number;
+  }>;
+  anomalies: Array<{
+    transactionIndex: number;
+    reason: string;
+  }>;
+};
+
+type CreateInvoiceInput = {
+  clientId?: unknown;
+  documentId?: unknown;
+};
+
+type MockBankTransaction = {
+  date: string;
+  description: string;
+  amount: number;
+};
+
+
+const SUPPORT_CHAT_DOCUMENTATION = `
+Documentation CCS Compta
+
+CCS Compta est une plateforme de gestion comptable collaborative pour les clients, les comptables et les administrateurs.
+
+Espace client:
+- La page Mes Documents permet de televerser des documents comptables et de suivre leur statut.
+- Les formats acceptes sont PDF, JPG et PNG.
+- Les statuts principaux sont: en attente, en traitement, en examen, approuve et erreur.
+- Le scanner permet d'utiliser l'appareil photo d'un telephone ou d'un ordinateur pour numeriser une facture ou un recu papier.
+- La page Mon Analyse affiche un apercu financier base sur les documents approuves: total des depenses, principaux fournisseurs et repartition par categorie.
+- Les commentaires sur un document permettent au client et au comptable d'echanger au sujet d'une piece precise.
+
+Espace comptable:
+- Le tableau de bord donne une vue d'ensemble de l'activite des clients, des documents en attente et des validations recentes.
+- La gestion des clients permet de creer, modifier ou importer des dossiers clients via CSV.
+- La page Documents du client permet de verifier les donnees extraites, corriger les champs, approuver le document et preparer l'integration comptable.
+- Les comptables peuvent accompagner les clients qui ne sont pas a l'aise avec l'outil numerique.
+
+Espace administrateur:
+- L'administrateur gere les cabinets, les utilisateurs, les roles et les droits d'acces.
+- Les invitations permettent aux cabinets et utilisateurs de definir leur mot de passe et d'activer leur acces.
+
+Securite et bonnes pratiques:
+- Chaque utilisateur doit se connecter avec son propre compte.
+- Les droits dependent du role et du cabinet rattache.
+- Les liens d'activation sont personnels et doivent etre transmis par un canal securise.
+`;
+
+function normalizeCompanySearchQuery(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new HttpsError('invalid-argument', 'Le terme de recherche est obligatoire.');
+  }
+
+  const query = value.trim();
+  if (query.length < 3 || query.length > 120) {
+    throw new HttpsError('invalid-argument', 'Le terme de recherche doit contenir entre 3 et 120 caracteres.');
+  }
+
+  return query;
+}
+
+function normalizeIntelligentSearchQuery(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new HttpsError('invalid-argument', 'La requete de recherche est obligatoire.');
+  }
+
+  const queryText = value.trim();
+  if (queryText.length < 2 || queryText.length > 300) {
+    throw new HttpsError('invalid-argument', 'La requete de recherche doit contenir entre 2 et 300 caracteres.');
+  }
+
+  return queryText;
+}
+
+function normalizeIsoDate(value: unknown): string {
+  if (typeof value !== 'string') {
+    return new Date().toISOString();
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return new Date().toISOString();
+  }
+
+  return parsedDate.toISOString();
+}
+
+function normalizeBankTransactions(value: unknown): BankReconciliationTransaction[] {
+  if (!Array.isArray(value)) {
+    throw new HttpsError('invalid-argument', 'La liste des transactions est obligatoire.');
+  }
+
+  const transactions = value.slice(0, 500).map((transaction): BankReconciliationTransaction => {
+    const candidate = transaction as { date?: unknown; description?: unknown; amount?: unknown };
+    const date = typeof candidate.date === 'string' ? candidate.date.trim().slice(0, 80) : '';
+    const description = typeof candidate.description === 'string' ? candidate.description.trim().slice(0, 500) : '';
+    const amount = typeof candidate.amount === 'number'
+      ? candidate.amount
+      : typeof candidate.amount === 'string'
+        ? Number(candidate.amount.replace(',', '.'))
+        : Number.NaN;
+
+    if (!date || !description || !Number.isFinite(amount)) {
+      throw new HttpsError('invalid-argument', 'Une transaction bancaire est invalide.');
+    }
+
+    return { date, description, amount };
+  });
+
+  if (transactions.length === 0) {
+    throw new HttpsError('invalid-argument', 'Aucune transaction bancaire valide.');
+  }
+
+  return transactions;
+}
+
+function normalizeDocumentId(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new HttpsError('invalid-argument', 'Document obligatoire.');
+  }
+
+  return value.trim();
+}
+
+function normalizeClientId(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new HttpsError('invalid-argument', 'Client obligatoire.');
+  }
+
+  return value.trim();
+}
+
+function normalizeOptionalCabinetId(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeRequisitionId(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new HttpsError('invalid-argument', 'Requisition bancaire obligatoire.');
+  }
+
+  return value.trim();
+}
+
+async function assertInvoiceCreationAccess(auth: AuthContext, clientId: string) {
+  const callerRole = getCallerRole(auth);
+
+  if (callerRole === 'client') {
+    if (auth.uid !== clientId) {
+      throw new HttpsError('permission-denied', 'Acces interdit a ce client.');
+    }
+
+    const targetClient = await getClientOrThrow(clientId);
+    return {
+      callerRole,
+      targetClient,
+      targetCabinetId: targetClient.cabinetId,
+    };
+  }
+
+  return assertClientCabinetAccess(auth, clientId, ['admin', 'accountant', 'secretary']);
+}
+
+async function assertBankAccess(auth: AuthContext, clientId: string, expectedCabinetId?: string) {
+  const callerRole = getCallerRole(auth);
+
+  if (callerRole === 'client') {
+    if (auth.uid !== clientId) {
+      throw new HttpsError('permission-denied', 'Acces interdit a ce client.');
+    }
+
+    const targetClient = await getClientOrThrow(clientId);
+    const targetCabinetId = targetClient.cabinetId;
+    if (expectedCabinetId && targetCabinetId && expectedCabinetId !== targetCabinetId) {
+      throw new HttpsError('permission-denied', 'Acces interdit a ce cabinet.');
+    }
+
+    return { callerRole, targetClient, targetCabinetId };
+  }
+
+  const access = await assertClientCabinetAccess(auth, clientId, ['admin', 'accountant', 'secretary']);
+  if (expectedCabinetId && access.targetCabinetId && expectedCabinetId !== access.targetCabinetId) {
+    throw new HttpsError('permission-denied', 'Acces interdit a ce cabinet.');
+  }
+
+  return access;
+}
+
+async function searchFrenchCompanies(query: string): Promise<CompanySearchResult[]> {
+  const response = await fetch(
+    `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`
+  );
+
+  if (!response.ok) {
+    logger.error('French company API search failed', {
+      status: response.status,
+      statusText: response.statusText,
+    });
+    return [];
+  }
+
+  const data = await response.json() as { results?: unknown[] };
+
+  return (data.results || [])
+    .map((result): CompanySearchResult | null => {
+      const company = result as {
+        nom_raison_sociale?: unknown;
+        nom_complet?: unknown;
+        siege?: { siret?: unknown; adresse?: unknown };
+        dirigeants?: Array<{ prenoms?: unknown; nom?: unknown }>;
+      };
+
+      const name = typeof company.nom_raison_sociale === 'string'
+        ? company.nom_raison_sociale
+        : typeof company.nom_complet === 'string'
+          ? company.nom_complet
+          : '';
+      const siret = typeof company.siege?.siret === 'string' ? company.siege.siret : '';
+
+      if (!name || !siret) {
+        return null;
+      }
+
+      const mainRepresentative = company.dirigeants?.[0];
+      const legalRepresentative = mainRepresentative
+        ? `${typeof mainRepresentative.prenoms === 'string' ? mainRepresentative.prenoms : ''} ${typeof mainRepresentative.nom === 'string' ? mainRepresentative.nom : ''}`.trim()
+        : '';
+
+      return {
+        name,
+        siret,
+        address: typeof company.siege?.adresse === 'string' ? company.siege.adresse : '',
+        legalRepresentative: legalRepresentative || 'N/A',
+      };
+    })
+    .filter((result): result is CompanySearchResult => result !== null);
+}
+
+function normalizeSupportChatHistory(value: unknown): SupportChatMessage[] {
+  if (!Array.isArray(value)) {
+    throw new HttpsError('invalid-argument', 'Historique de conversation invalide.');
+  }
+
+  return value.slice(-20).map((message): SupportChatMessage => {
+    const candidate = message as {
+      role?: unknown;
+      text?: unknown;
+      content?: Array<{ text?: unknown }>;
+    };
+    const role = candidate.role === 'user' ? 'user' : 'model';
+    const rawText = typeof candidate.text === 'string'
+      ? candidate.text
+      : typeof candidate.content?.[0]?.text === 'string'
+        ? candidate.content[0].text
+        : '';
+    const text = rawText.trim().slice(0, 1500);
+
+    if (!text) {
+      throw new HttpsError('invalid-argument', 'Un message de conversation est vide.');
+    }
+
+    return { role, text };
+  });
+}
+
+async function generateSupportChatAnswer(history: SupportChatMessage[], financialContext: string = ''): Promise<string> {
+  const { genkit } = await import('genkit');
+  const { googleAI } = await import('@genkit-ai/google-genai');
+  const ai = genkit({
+    plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
+  });
+
+  const conversation = history
+    .map((message) => `${message.role === 'user' ? 'Utilisateur' : 'AI Copilot'}: ${message.text}`)
+    .join('\n');
+
+  const prompt = `Tu es AI Accountant Copilot, le directeur financier virtuel expert de CCS Compta.
+Tu dois répondre en français, de façon professionnelle, claire, concise, et proactive.
+Tu as accès aux données financières réelles du client via le Contexte Financier ci-dessous. 
+Si on te pose une question sur les dépenses, la TVA, les fournisseurs ou l'état de la comptabilité, utilise ces données pour formuler une réponse personnalisée et chiffrée.
+Pour toute question d'ordre technique sur la plateforme, réfère-toi à la Documentation Officielle.
+Si tu ne peux vraiment pas répondre, dis que tu n'as pas l'information et propose de contacter le support.
+Ne dis jamais explicitement "d'après le contexte financier qu'on m'a fourni", agis comme si tu savais ces choses naturellement.
+Tu peux utiliser du markdown simple quand c'est utile.
+
+Documentation officielle:
+${SUPPORT_CHAT_DOCUMENTATION}
+
+Contexte Financier du Client:
+${financialContext || "Aucune donnée financière disponible pour ce client (ou aucun client sélectionné)."}
+
+Conversation:
+${conversation}
+
+Réponse:`;
+
+  const response = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt,
+    config: {
+      temperature: 0.2,
+    },
+  });
+
+  return response.text || "Une erreur est survenue lors de la generation de la reponse.";
+}
+
+async function loadApprovedInvoicesForReconciliation(
+  clientId: string,
+  cabinetId?: string
+): Promise<BankReconciliationInvoice[]> {
+  const snapshot = await getDb()
+    .collection('documents')
+    .where('clientId', '==', clientId)
+    .where('status', '==', 'approved')
+    .get();
+
+  return snapshot.docs
+    .map((docSnap): BankReconciliationInvoice | null => {
+      const data = docSnap.data();
+      if (cabinetId && data.cabinetId !== cabinetId) {
+        return null;
+      }
+
+      const extracted = data.extractedData || {};
+      const firstAmount = Array.isArray(extracted.amounts) ? extracted.amounts[0] : null;
+      const firstDate = Array.isArray(extracted.dates) ? extracted.dates[0] : null;
+      const firstVendor = Array.isArray(extracted.vendorNames) ? extracted.vendorNames[0] : null;
+
+      if (typeof firstAmount !== 'number') {
+        return null;
+      }
+
+      return {
+        id: docSnap.id,
+        date: typeof firstDate === 'string' ? firstDate : null,
+        amount: firstAmount,
+        vendorName: typeof firstVendor === 'string' ? firstVendor : null,
+      };
+    })
+    .filter((invoice): invoice is BankReconciliationInvoice => invoice !== null);
+}
+
+async function generateBankReconciliation(
+  transactions: BankReconciliationTransaction[],
+  invoices: BankReconciliationInvoice[]
+): Promise<BankReconciliationOutput> {
+  const { genkit, z } = await import('genkit');
+  const { googleAI } = await import('@genkit-ai/google-genai');
+  const ai = genkit({
+    plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
+  });
+
+  const outputSchema = z.object({
+    matches: z.array(z.object({
+      transactionIndex: z.number().describe('Index base 0 de la transaction rapprochee.'),
+      documentId: z.string().describe('Identifiant du document correspondant.'),
+      confidenceScore: z.number().describe('Score de confiance entre 0 et 100.'),
+    })).describe('Transactions rapprochees a une facture existante.'),
+    anomalies: z.array(z.object({
+      transactionIndex: z.number().describe('Index base 0 de la transaction anormale.'),
+      reason: z.string().describe('Raison courte et professionnelle de l anomalie.'),
+    })).describe('Transactions qui semblent orphelines ou suspectes.'),
+  });
+
+  const { output } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: `Tu es un expert-comptable specialise en rapprochement bancaire.
+Ta mission est de rapprocher des transactions bancaires avec des factures ou recus approuves.
+
+Regles:
+- Une transaction debit negative peut correspondre a une facture positive du meme montant.
+- Tolere un ecart de quelques centimes si le fournisseur et la date concordent.
+- Un paiement carte peut apparaitre 1 a 3 jours apres la facture.
+- Si le rapprochement est evident, retourne un confidenceScore proche de 100.
+- Ne rapproche jamais deux transactions avec la meme facture si ce n'est pas clairement justifie.
+- Signale en anomalies les depenses orphelines ou suspectes avec une raison courte en francais.
+- Les charges URSSAF, DGFIP ou salaires peuvent etre normales meme sans facture classique.
+
+Transactions:
+${JSON.stringify(transactions)}
+
+Factures approuvees:
+${JSON.stringify(invoices)}
+
+Retourne uniquement le JSON structure demande.`,
+    output: {
+      schema: outputSchema,
+    },
+    config: {
+      temperature: 0.1,
+    },
+  });
+
+  return output || { matches: [], anomalies: [] };
+}
+
+async function createProcessingInvoiceForDocument(clientId: string, documentId: string, cabinetId?: string): Promise<string> {
+  const db = getDb();
+  const documentSnap = await db.collection('documents').doc(documentId).get();
+  if (!documentSnap.exists) {
+    throw new HttpsError('not-found', 'Document introuvable.');
+  }
+
+  const documentData = documentSnap.data() || {};
+  if (documentData.clientId !== clientId) {
+    throw new HttpsError('permission-denied', 'Le document ne correspond pas au client.');
+  }
+
+  if (cabinetId && documentData.cabinetId && documentData.cabinetId !== cabinetId) {
+    throw new HttpsError('permission-denied', 'Acces interdit a ce document.');
+  }
+
+  const existingInvoiceSnap = await db
+    .collection('invoices')
+    .where('documentId', '==', documentId)
+    .limit(1)
+    .get();
+
+  if (!existingInvoiceSnap.empty) {
+    return existingInvoiceSnap.docs[0].id;
+  }
+
+  const clientSnap = await db.collection('clients').doc(clientId).get();
+  if (!clientSnap.exists) {
+    throw new HttpsError('not-found', 'Client introuvable.');
+  }
+
+  const clientData = clientSnap.data() || {};
+  const now = new Date();
+  const dueDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const invoiceRef = await db.collection('invoices').add({
+    clientId,
+    clientName: typeof clientData.name === 'string' ? clientData.name : 'Client',
+    cabinetId: cabinetId || clientData.cabinetId || documentData.cabinetId || null,
+    documentId,
+    number: `INV-${Date.now()}`,
+    date: now.toISOString(),
+    dueDate: dueDate.toISOString(),
+    amount: 0.50,
+    status: 'pending',
+    createdAt: now.toISOString(),
+    source: 'document-processing',
+  });
+
+  return invoiceRef.id;
+}
+
+function buildMockBankTransactions(): MockBankTransaction[] {
+  const baseDate = new Date();
+  baseDate.setHours(12, 0, 0, 0);
+
+  const rows = [
+    { offset: 8, description: 'Amazon.fr Prime', amount: -14.99 },
+    { offset: 7, description: 'Virement Client 4589', amount: 1250.00 },
+    { offset: 6, description: 'Facture EDF Pro', amount: -245.50 },
+    { offset: 5, description: 'Orange Communications', amount: -49.90 },
+    { offset: 4, description: 'Station Service Total', amount: -75.00 },
+    { offset: 3, description: 'URSSAF Cotisations', amount: -890.00 },
+    { offset: 2, description: 'Adobe Systems Inc', amount: -65.99 },
+    { offset: 1, description: 'Loyer Bureau', amount: -1500.00 },
+    { offset: 0, description: 'Remboursement Assurance', amount: 45.00 },
+  ];
+
+  return rows.map((row) => {
+    const date = new Date(baseDate);
+    date.setDate(baseDate.getDate() - row.offset);
+    return {
+      date: date.toISOString().slice(0, 10),
+      description: row.description,
+      amount: row.amount,
+    };
+  });
+}
+
+async function generateIntelligentSearchCriteria(queryText: string, currentDate: string): Promise<IntelligentSearchOutput> {
+  const { genkit, z } = await import('genkit');
+  const { googleAI } = await import('@genkit-ai/google-genai');
+  const ai = genkit({
+    plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
+  });
+
+  const outputSchema = z.object({
+    documentTypes: z.array(z.string()).optional().describe('Types de documents a rechercher: invoice, receipt, bank statement, etc.'),
+    startDate: z.string().optional().describe('Date de debut au format YYYY-MM-DD.'),
+    endDate: z.string().optional().describe('Date de fin au format YYYY-MM-DD.'),
+    minAmount: z.number().optional().describe('Montant minimum.'),
+    maxAmount: z.number().optional().describe('Montant maximum.'),
+    vendor: z.string().optional().describe('Nom du fournisseur ou vendeur.'),
+    keywords: z.array(z.string()).optional().describe('Mots cles utiles pour une recherche texte.'),
+    originalQuery: z.string().describe('Requete utilisateur originale.'),
+  });
+
+  const { output } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: `Tu es un interpreteur expert de requetes de recherche pour une application de gestion de documents comptables.
+Convertis la requete utilisateur en objet JSON structure.
+
+Date du jour: ${currentDate}
+Requete utilisateur: "${queryText}"
+
+Regles:
+- Identifie les types de documents: facture -> invoice, recu/ticket -> receipt, releve bancaire -> bank statement.
+- Convertis les periodes relatives ou explicites en startDate/endDate au format YYYY-MM-DD.
+- Detecte les montants: plus de, moins de, entre.
+- Detecte un fournisseur ou vendeur si la requete en mentionne un.
+- Place les autres termes utiles dans keywords.
+- Retourne toujours originalQuery avec la requete originale.
+- Omets les champs non presents.`,
+    output: {
+      schema: outputSchema,
+    },
+    config: {
+      temperature: 0.1,
+    },
+  });
+
+  return {
+    ...(output || {}),
+    originalQuery: output?.originalQuery || queryText,
+  };
+}
+
+export const searchCompany = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ query?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const query = normalizeCompanySearchQuery(request.data?.query);
+      const results = await searchFrenchCompanies(query);
+      return { results };
+    } catch (error) {
+      throwCallableError(error, 'searchCompany failed');
+    }
+  }
+);
+
+export const extractClientData = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ searchTerm?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const searchTerm = normalizeCompanySearchQuery(request.data?.searchTerm);
+      const [bestMatch] = await searchFrenchCompanies(searchTerm);
+
+      if (!bestMatch) {
+        return {
+          name: null,
+          siret: null,
+          email: null,
+          phone: null,
+          legalRepresentative: null,
+          address: null,
+          fiscalYearEndDate: null,
+        };
+      }
+
+      return {
+        name: bestMatch.name,
+        siret: bestMatch.siret,
+        email: null,
+        phone: null,
+        legalRepresentative: bestMatch.legalRepresentative,
+        address: bestMatch.address,
+        fiscalYearEndDate: null,
+      };
+    } catch (error) {
+      throwCallableError(error, 'extractClientData failed');
+    }
+  }
+);
+
+export const getBankAuthLink = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ clientId?: unknown; cabinetId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = normalizeClientId(request.data?.clientId);
+      const cabinetId = normalizeOptionalCabinetId(request.data?.cabinetId);
+      const { targetCabinetId } = await assertBankAccess(request.auth, clientId, cabinetId);
+      const token = randomBytes(8).toString('base64url');
+      const mockAuthUrl = `https://ob.nordigen.com/psd2/start/mock-auth-${token}`;
+
+      logger.info('Mock bank auth link generated', {
+        clientId,
+        cabinetId: targetCabinetId || cabinetId || null,
+        callerUid: request.auth.uid,
+      });
+
+      return { success: true, url: mockAuthUrl };
+    } catch (error) {
+      throwCallableError(error, 'getBankAuthLink failed');
+    }
+  }
+);
+
+export const finalizeBankConnection = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ clientId?: unknown; cabinetId?: unknown; requisitionId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = normalizeClientId(request.data?.clientId);
+      const cabinetId = normalizeOptionalCabinetId(request.data?.cabinetId);
+      const requisitionId = normalizeRequisitionId(request.data?.requisitionId);
+      const { targetCabinetId } = await assertBankAccess(request.auth, clientId, cabinetId);
+      const resolvedCabinetId = targetCabinetId || cabinetId || null;
+      const db = getDb();
+      const connectionRef = await db.collection('bank_connections').add({
+        clientId,
+        cabinetId: resolvedCabinetId,
+        requisitionId,
+        status: 'active',
+        institutionId: 'SANDBOX_FINANCE',
+        institutionName: 'Banque de Demonstration',
+        lastSync: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        createdBy: request.auth.uid,
+      });
+
+      await db.collection('clients').doc(clientId).update({
+        hasBankConnected: true,
+        lastBankConnectionId: connectionRef.id,
+      });
+
+      return { success: true, connectionId: connectionRef.id };
+    } catch (error) {
+      throwCallableError(error, 'finalizeBankConnection failed');
+    }
+  }
+);
+
+export const syncBankTransactions = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ clientId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = normalizeClientId(request.data?.clientId);
+      await assertBankAccess(request.auth, clientId);
+      return {
+        success: true,
+        transactions: buildMockBankTransactions(),
+      };
+    } catch (error) {
+      throwCallableError(error, 'syncBankTransactions failed');
+    }
+  }
+);
+
+export const createInvoiceForDocument = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<CreateInvoiceInput>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = typeof request.data?.clientId === 'string' ? request.data.clientId.trim() : '';
+      if (!clientId) {
+        throw new HttpsError('invalid-argument', 'Client obligatoire.');
+      }
+
+      const documentId = normalizeDocumentId(request.data?.documentId);
+      const { targetCabinetId } = await assertInvoiceCreationAccess(request.auth, clientId);
+      const invoiceId = await createProcessingInvoiceForDocument(clientId, documentId, targetCabinetId);
+
+      return { success: true, id: invoiceId };
+    } catch (error) {
+      throwCallableError(error, 'createInvoiceForDocument failed');
+    }
+  }
+);
+
+export const intelligentSearch = onCall(
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 },
+  async (request: CallableRequest<{ query?: unknown; currentDate?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const queryText = normalizeIntelligentSearchQuery(request.data?.query);
+      const currentDate = normalizeIsoDate(request.data?.currentDate);
+      const criteria = await generateIntelligentSearchCriteria(queryText, currentDate);
+      return criteria;
+    } catch (error) {
+      throwCallableError(error, 'intelligentSearch failed');
+    }
+  }
+);
+
+export const runBankReconciliation = onCall(
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 120 },
+  async (request: CallableRequest<{ transactions?: unknown; clientId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = typeof request.data?.clientId === 'string' ? request.data.clientId.trim() : '';
+      if (!clientId) {
+        throw new HttpsError('invalid-argument', 'Client obligatoire.');
+      }
+
+      const { targetCabinetId } = await assertClientCabinetAccess(
+        request.auth,
+        clientId,
+        ['admin', 'accountant', 'secretary']
+      );
+      const transactions = normalizeBankTransactions(request.data?.transactions);
+      const invoices = await loadApprovedInvoicesForReconciliation(clientId, targetCabinetId);
+      const result = await generateBankReconciliation(transactions, invoices);
+
+      return { success: true, ...result };
+    } catch (error) {
+      throwCallableError(error, 'runBankReconciliation failed');
+    }
+  }
+);
+
+export const saveBankReconciliation = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{
+    clientId?: unknown;
+    clientName?: unknown;
+    summary?: unknown;
+    matches?: unknown;
+    anomalies?: unknown;
+  }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = typeof request.data?.clientId === 'string' ? request.data.clientId.trim() : '';
+      if (!clientId) {
+        throw new HttpsError('invalid-argument', 'Client obligatoire.');
+      }
+
+      const { targetCabinetId } = await assertClientCabinetAccess(
+        request.auth,
+        clientId,
+        ['admin', 'accountant', 'secretary']
+      );
+
+      const docRef = await getDb().collection('reconciliations').add({
+        clientId,
+        cabinetId: targetCabinetId || null,
+        clientName: typeof request.data?.clientName === 'string' ? request.data.clientName : '',
+        summary: typeof request.data?.summary === 'object' && request.data.summary !== null ? request.data.summary : {},
+        matches: Array.isArray(request.data?.matches) ? request.data.matches.slice(0, 500) : [],
+        anomalies: Array.isArray(request.data?.anomalies) ? request.data.anomalies.slice(0, 500) : [],
+        createdAt: new Date().toISOString(),
+        createdBy: request.auth.uid,
+        status: 'completed',
+      });
+
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      throwCallableError(error, 'saveBankReconciliation failed');
+    }
+  }
+);
+
+export const supportChat = onCall(
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 },
+  async (request: CallableRequest<{ history?: unknown, clientId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const history = normalizeSupportChatHistory(request.data?.history);
+      
+      let financialContext = '';
+      if (typeof request.data?.clientId === 'string' && request.data.clientId.trim() !== '') {
+        const clientId = request.data.clientId.trim();
+        const db = getDb();
+        const snapshot = await db.collection('documents')
+          .where('clientId', '==', clientId)
+          .where('status', '==', 'approved')
+          .get();
+        
+        let totalSpent = 0;
+        let totalVat = 0;
+        const vendors: Record<string, number> = {};
+
+        snapshot.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const amounts = data.extractedData?.amounts || [];
+            const vat = data.extractedData?.vatAmount || 0;
+            const vendor = (data.extractedData?.vendorNames || [])[0] || 'Inconnu';
+            const amount = amounts.reduce((a: number, b: number) => a + b, 0);
+            
+            totalSpent += amount;
+            totalVat += vat;
+            vendors[vendor] = (vendors[vendor] || 0) + amount;
+        });
+
+        const topVendors = Object.entries(vendors)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([name, val]) => `${name} (${val.toFixed(2)} €)`);
+
+        financialContext = `
+Nombre de documents approuvés: ${snapshot.docs.length}
+Total des dépenses TTC: ${totalSpent.toFixed(2)} €
+TVA Déductible totale: ${totalVat.toFixed(2)} €
+Top Fournisseurs: ${topVendors.length > 0 ? topVendors.join(', ') : 'Aucun'}
+`;
+      }
+
+      const response = await generateSupportChatAnswer(history, financialContext);
+      return { response };
+    } catch (error) {
+      throwCallableError(error, 'supportChat failed');
+    }
+  }
+);
 
 
 // type AnalyzeMailOutput = z.infer<typeof analyzeMailOutputSchema>;
@@ -1629,20 +2503,19 @@ export const requestWeeklySummary = onCall(
 export const autoMatchBankTransactions = onCall(
     { region: "europe-west9", memory: "1GiB" },
     async (request) => {
-        if (!request.auth) throw new HttpsError('unauthenticated', 'Non autorisÃ©');
+        if (!request.auth) throw new HttpsError('unauthenticated', 'Non autorisé');
 
         const clientId = request.data.clientId || request.auth.uid;
         const callerRole = getCallerRole(request.auth);
 
         if (callerRole === 'client' && clientId !== request.auth.uid) {
-            throw new HttpsError('permission-denied', 'Vous ne pouvez pas accÃ©der Ã  ce dossier.');
+            throw new HttpsError('permission-denied', 'Vous ne pouvez pas accéder à ce dossier.');
         }
 
         try {
             const db = getDb();
-            if (callerRole !== 'client') {
-                await assertClientCabinetAccess(request.auth, clientId, ['admin', 'accountant', 'secretary']);
-            }
+            const { targetCabinetId } = await assertClientCabinetAccess(request.auth, clientId, ['admin', 'accountant', 'secretary']);
+            
             const bankStatementsSnap = await db.collection("documents")
                 .where("clientId", "==", clientId)
                 .where("type", "==", "bank statement")
@@ -1659,6 +2532,65 @@ export const autoMatchBankTransactions = onCall(
 
             const batch = db.batch();
             let matchCount = 0;
+            let suggestionCount = 0;
+
+            // Fonction utilitaire de scoring multicritère
+            const calculateMatchScore = (tx: any, inv: any): number => {
+                let score = 0;
+                
+                // 1. Comparaison de montant (TTC vs Transaction)
+                const txAmount = Math.abs(tx.amount);
+                const invAmount = Math.abs(inv.extractedData?.amounts?.[0] || inv.amount || 0);
+                
+                if (txAmount === invAmount) {
+                    score += 55;
+                } else if (Math.abs(txAmount - invAmount) < 0.05) {
+                    score += 35; // Tolérance centimes
+                } else if (Math.abs(txAmount - invAmount) < 1.00) {
+                    score += 15; // Écart mineur
+                }
+                
+                // 2. Comparaison de date (Date Facture vs Date Transaction)
+                const txDateStr = tx.date;
+                const invDateStr = inv.extractedData?.dates?.[0] || inv.date || inv.uploadDate;
+                if (txDateStr && invDateStr) {
+                    const txDate = new Date(txDateStr);
+                    const invDate = new Date(invDateStr);
+                    const diffTime = Math.abs(txDate.getTime() - invDate.getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays <= 3) {
+                        score += 30;
+                    } else if (diffDays <= 10) {
+                        score += 15;
+                    } else if (diffDays <= 30) {
+                        score += 5;
+                    }
+                }
+                
+                // 3. Comparaison de nom de tiers (Libellé Transaction vs Nom Fournisseur)
+                const txDesc = (tx.description || '').toLowerCase();
+                const vendorName = (inv.extractedData?.vendorNames?.[0] || inv.vendorName || inv.name || '').toLowerCase();
+                
+                if (vendorName && txDesc) {
+                    const cleanStr = (s: string) => s.replace(/[^a-z0-9]/g, '');
+                    const cTx = cleanStr(txDesc);
+                    const cVendor = cleanStr(vendorName);
+                    
+                    if (cTx.includes(cVendor) || cVendor.includes(cTx)) {
+                        score += 20;
+                    } else {
+                        const txWords = txDesc.split(/\s+/).filter((w: string) => w.length > 3);
+                        const vendorWords = vendorName.split(/\s+/).filter((w: string) => w.length > 3);
+                        const commonWords = txWords.filter((w: string) => vendorWords.includes(w));
+                        if (commonWords.length > 0) {
+                            score += 15;
+                        }
+                    }
+                }
+                
+                return score;
+            };
 
             for (const bsDoc of bankStatementsSnap.docs) {
                 const data = bsDoc.data();
@@ -1669,27 +2601,115 @@ export const autoMatchBankTransactions = onCall(
 
                 for (let i = 0; i < transactions.length; i++) {
                     const tx = transactions[i];
-                    if (tx.matchingDocumentId) continue;
+                    
+                    // Si déjà rapproché, on ne touche à rien
+                    if (tx.matchingDocumentId || tx.status === 'matched') continue;
 
-                    const match = invoices.find(inv => {
-                        const amounts = inv.extractedData?.amounts || [];
-                        return amounts.some((a: number) => Math.abs(a) === Math.abs(tx.amount));
-                    });
+                    // Calculer le meilleur match parmi toutes les factures disponibles
+                    let bestMatch: any = null;
+                    let bestScore = 0;
 
-                    if (match) {
-                        tx.matchingDocumentId = match.id;
+                    for (const inv of invoices) {
+                        const score = calculateMatchScore(tx, inv);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMatch = inv;
+                        }
+                    }
+
+                    if (bestMatch && bestScore >= 90) {
+                        // Matching Automatique Évident
+                        const txId = `${bsDoc.id}-${i}`;
+                        tx.matchingDocumentId = bestMatch.id;
                         tx.status = 'matched';
+                        tx.confidenceScore = bestScore;
+                        
+                        // Supprimer les champs de suggestion s'ils existaient
+                        delete tx.suggestedDocId;
+                        delete tx.suggestedConfidenceScore;
+                        delete tx.suggestedVendor;
 
-                        batch.update(db.collection("documents").doc(match.id), {
-                            matchedTransactionId: `${bsDoc.id}-${i}`,
+                        batch.update(db.collection("documents").doc(bestMatch.id), {
+                            matchedTransactionId: txId,
                             isMatched: true
                         });
 
-                        const matchIndex = invoices.findIndex(i => i.id === match.id);
+                        // Retirer de la liste pour éviter les doubles correspondances
+                        const matchIndex = invoices.findIndex(inv => inv.id === bestMatch.id);
                         if (matchIndex > -1) invoices.splice(matchIndex, 1);
+
+                        // Générer l'écriture comptable de règlement associée (BQ)
+                        const now = new Date().toISOString();
+                        const entryRef = db.collection("accounting_entries").doc();
+                        
+                        const isExpense = tx.amount < 0;
+                        const amount = Math.abs(tx.amount);
+                        const partnerAccount = isExpense ? '401000' : '411000';
+                        const partnerLabel = isExpense ? 'Fournisseurs' : 'Clients';
+                        
+                        const lines = isExpense ? [
+                            {
+                                accountNumber: partnerAccount,
+                                accountLabel: partnerLabel,
+                                debit: amount,
+                                credit: 0
+                            },
+                            {
+                                accountNumber: '512000',
+                                accountLabel: 'Banque',
+                                debit: 0,
+                                credit: amount
+                            }
+                        ] : [
+                            {
+                                accountNumber: '512000',
+                                accountLabel: 'Banque',
+                                debit: amount,
+                                credit: 0
+                            },
+                            {
+                                accountNumber: partnerAccount,
+                                accountLabel: partnerLabel,
+                                debit: 0,
+                                credit: amount
+                            }
+                        ];
+
+                        batch.set(entryRef, {
+                            id: entryRef.id,
+                            clientId,
+                            cabinetId: targetCabinetId || bestMatch.cabinetId || '',
+                            journalCode: 'BQ',
+                            entryDate: tx.date || now.split('T')[0],
+                            label: `Règlement ${isExpense ? 'Fournisseur' : 'Client'} - ${tx.description} - Réf ${bestMatch.name || bestMatch.id.slice(0, 8)}`,
+                            lines,
+                            sourceType: 'bank_reconciliation',
+                            sourceId: txId,
+                            fiscalYear: new Date(tx.date || now).getFullYear(),
+                            status: 'draft',
+                            createdAt: now,
+                            updatedAt: now
+                        });
 
                         updated = true;
                         matchCount++;
+                    } else if (bestMatch && bestScore >= 50) {
+                        // Suggestion IA (à valider par l'utilisateur)
+                        tx.suggestedDocId = bestMatch.id;
+                        tx.suggestedConfidenceScore = bestScore;
+                        tx.suggestedVendor = bestMatch.extractedData?.vendorNames?.[0] || bestMatch.vendorName || bestMatch.name || 'Vendeur Inconnu';
+                        tx.status = 'pending';
+                        
+                        updated = true;
+                        suggestionCount++;
+                    } else {
+                        // Nettoyage au cas où les données changent
+                        if (tx.suggestedDocId) {
+                            delete tx.suggestedDocId;
+                            delete tx.suggestedConfidenceScore;
+                            delete tx.suggestedVendor;
+                            updated = true;
+                        }
                     }
                 }
 

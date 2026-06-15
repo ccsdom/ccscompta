@@ -20,18 +20,27 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Users, FileText, HardDrive, Zap, TrendingUp, AlertCircle, Loader2 } from "lucide-react";
+import { Building, Users, FileText, HardDrive, Zap, TrendingUp, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Cabinet } from "@/lib/types";
+import { useBranding } from "@/components/branding-provider";
+import { useRouter } from "next/navigation";
 
 export default function SubscriptionsTrackingPage() {
     const { toast } = useToast();
+    const { role: userRole } = useBranding();
+    const isAuthorizedAdmin = userRole === 'admin';
+    const router = useRouter();
+
     const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeneratingLink, setIsGeneratingLink] = useState(false);
     const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-    const qCabinets = useMemoFirebase(() => query(collection(db, 'cabinets'), orderBy('name')), []);
+    const qCabinets = useMemoFirebase(
+        () => (isAuthorizedAdmin ? query(collection(db, 'cabinets'), orderBy('name')) : null),
+        [isAuthorizedAdmin],
+    );
     const { data: cabinets, isLoading } = useCollection<Cabinet>(qCabinets);
 
     // Global Stats Aggregator
@@ -45,6 +54,25 @@ export default function SubscriptionsTrackingPage() {
             totalClients: acc.totalClients + (cab.quotas?.maxClients || 10),
         }), { docs: 0, clients: 0, storage: 0, totalDocs: 0, totalClients: 0 });
     }, [cabinets]);
+
+    if (userRole && !isAuthorizedAdmin) {
+        return (
+            <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <ShieldAlert className="h-10 w-10 text-red-500" />
+                    </div>
+                    <h2 className="text-3xl font-black font-space tracking-tight mb-4">Acces refuse</h2>
+                    <p className="text-muted-foreground mb-8 text-lg font-medium">
+                        Cette section est reservee aux administrateurs systeme.
+                    </p>
+                    <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest">
+                        Retour au tableau de bord
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 pb-10">

@@ -19,8 +19,13 @@ exports.ExtractDataOutputSchema = genkit_1.z.object({
     dates: genkit_1.z.array(genkit_1.z.string()).optional(),
     amounts: genkit_1.z.array(genkit_1.z.number()).optional(),
     vendorNames: genkit_1.z.array(genkit_1.z.string()).optional(),
-    vatAmount: genkit_1.z.number().nullable().optional(),
-    vatRate: genkit_1.z.number().nullable().optional(),
+    siret: genkit_1.z.string().optional().describe('The SIRET or SIREN number of the supplier, if present.'),
+    supplierName: genkit_1.z.string().optional().describe('The name of the supplier.'),
+    vatDetails: genkit_1.z.array(genkit_1.z.object({
+        rate: genkit_1.z.number().describe('VAT rate as a percentage, e.g. 20 for 20%.'),
+        amount: genkit_1.z.number().describe('The total VAT amount for this rate.'),
+        baseHT: genkit_1.z.number().describe('The HT (excluding VAT) base amount for this rate.')
+    })).optional().describe('A detailed list of all VAT rates applied, their amounts, and HT bases.'),
     transactions: genkit_1.z.array(TransactionSchema).optional(),
     category: genkit_1.z.string().nullable().optional(),
     otherInformation: genkit_1.z.string().optional(),
@@ -47,10 +52,11 @@ You are an expert at extracting key information from a single French accounting 
 Your goal is to extract:
 - Dates: All dates present.
 - Amounts: All total monetary amounts (TTC).
-- Vendor Names: Suppliers.
-- VAT: Total VAT amount (TVA) and rate (e.g., 20).
+- Vendor Names / SupplierName: Identify the supplier.
+- SIRET: Extract the 14-digit SIRET or 9-digit SIREN of the supplier if present on the document.
+- VAT Details: Extract every single VAT rate present on the document. For EACH rate (e.g., 20%, 10%, 5.5%), extract the 'rate' (as a number: 20), the 'amount' of VAT for that rate, and the 'baseHT' (the amount before tax that this rate applies to).
 - Category: Suggested accounting category.
-- Accounting Intelligence (PCG Français): Suggest technical accounts (debit starts with 6, credit 401000, vat 445660).
+- Accounting Intelligence (PCG Français): Suggest technical accounts based on the supplier's activity (e.g. 626000 for telecom/internet, 607000 for merchandise, 613000 for rent, 606300 for small equipment). The credit account is usually 401000 for suppliers.
 `;
 const controllerPrompt = `
 You are also a vigilant financial controller. Scrutinize the document for any red flags or anomalies.
@@ -131,15 +137,15 @@ async function processDocumentContent(buffer, mimeType, providedDocumentType) {
  * Calculates billable lines for monetization
  */
 function calculateBillableLines(data, documentType) {
-    var _a;
+    var _a, _b;
     if (documentType === 'bank statement') {
         // For bank statements, each transaction line + bank account line = 2 lines per transaction
         return (((_a = data.transactions) === null || _a === void 0 ? void 0 : _a.length) || 0) * 2;
     }
     else {
-        // For invoices/receipts: Charge + VAT + Supplier = 3 lines
-        // Even if VAT is zero, we usually have 3 lines in the accounting entry
-        return 3;
+        // For invoices/receipts: 1 Supplier line + (1 VAT line + 1 Charge line) per VAT rate
+        const vatRatesCount = ((_b = data.vatDetails) === null || _b === void 0 ? void 0 : _b.length) || 1;
+        return 1 + (vatRatesCount * 2);
     }
 }
 //# sourceMappingURL=document-processor.js.map

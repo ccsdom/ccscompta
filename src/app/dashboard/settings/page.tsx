@@ -46,10 +46,9 @@ import { configureFirestoreSecurityRules, configureStorageSecurityRules } from "
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from '@/firebase';
+import { useAuth, functions } from '@/firebase';
 import { useRouter } from "next/navigation";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getApp } from "firebase/app";
+import { httpsCallable } from "firebase/functions";
 import { STORAGE_BUCKET } from "@/firebase/config";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase";
@@ -193,7 +192,6 @@ export default function SettingsPage() {
     const handleSetAdminRole = async () => {
         setIsAdminRoleLoading(true);
         try {
-            const functions = getFunctions(getApp());
             const setAdminRoleFunc = httpsCallable(functions, 'setAdminRole');
             const result = await setAdminRoleFunc();
             const data = result.data as { success: boolean, message: string };

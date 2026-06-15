@@ -10,6 +10,9 @@ export interface BankTransaction {
     matchedDocId?: string;
     vendor?: string;
     sourceDocId: string;
+    suggestedDocId?: string;
+    suggestedConfidenceScore?: number;
+    suggestedVendor?: string;
 }
 
 export class BankService {
@@ -41,7 +44,10 @@ export class BankService {
                         status: tx.matchingDocumentId ? 'matched' : 'pending',
                         matchedDocId: tx.matchingDocumentId,
                         vendor: tx.vendor,
-                        sourceDocId: docSnap.id
+                        sourceDocId: docSnap.id,
+                        suggestedDocId: tx.suggestedDocId,
+                        suggestedConfidenceScore: tx.suggestedConfidenceScore,
+                        suggestedVendor: tx.suggestedVendor,
                     }));
                     allTransactions.push(...txs);
                 }

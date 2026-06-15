@@ -5,12 +5,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useBranding } from '@/components/branding-provider';
 import { DataValidationForm } from '@/components/data-validation-form';
-import { type ExtractDataOutput } from '@/ai/flows/extract-data-from-documents';
+import { type ExtractDataOutput } from '@/services/document-ai-service';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning, ShieldCheck } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import type { IntelligentSearchOutput } from '@/ai/flows/intelligent-search-flow';
+import type { IntelligentSearchOutput } from '@/services/intelligent-search-service';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import type { Comment, AuditEvent, Notification, Document, Client, UserProfile } from '@/lib/types';
 import Papa from 'papaparse';
@@ -31,7 +31,7 @@ import { ClientSwitcher } from '@/components/client-switcher';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { createInvoiceForDocument } from '@/ai/flows/invoice-actions';
+import { createInvoiceForDocument } from '@/services/invoice-service';
 import { ExportModal } from '@/components/export-modal';
 
 
@@ -72,8 +72,8 @@ export default function DocumentsPage() {
   const { profile: userProfile, role: userRole } = useBranding();
 
   // Explicit block for Super Admin to force impersonation
-  if (userRole === 'admin') {
-      return (
+  if (false && userRole === 'admin') {
+      /*
            <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
               <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
                   <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -86,7 +86,7 @@ export default function DocumentsPage() {
                   </Button>
               </Card>
           </div>
-      )
+      */
   }
 
   // Firestore hooks for real-time data
@@ -429,6 +429,24 @@ export default function DocumentsPage() {
     });
     return groups;
   }, [filteredDocuments]);
+
+  // Explicit block for Super Admin to force impersonation
+  if (userRole === 'admin') {
+      return (
+           <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+              <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                  <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                      <ShieldCheck className="h-10 w-10 text-red-500" />
+                  </div>
+                  <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+                  <p className="text-muted-foreground mb-8 text-lg font-medium">L'acces direct aux documents est restreint pour le Super Admin. Veuillez impersonner un cabinet pour acceder a ses documents.</p>
+                  <Button onClick={() => router.push('/dashboard/cabinets')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                      Aller a la Gestion Cabinets
+                  </Button>
+              </Card>
+          </div>
+      )
+  }
 
   const clearFilters = () => {
     if (dashboardFilter) {

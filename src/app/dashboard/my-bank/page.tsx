@@ -62,34 +62,24 @@ export default function MyBankPage() {
         }, 1500);
     };
 
-    const runAutoMatch = () => {
-        if (!clientDocuments || isMatching || transactions.length === 0) return;
+    const runAutoMatch = async () => {
+        if (!storedClientId || isMatching || transactions.length === 0) return;
         setIsMatching(true);
 
-        const newTxs = [...transactions];
-        let matchCount = 0;
-
-        // On simule le matching IA (normalement effectué par le backend, mais on permet une synchro manuelle UI)
-        setTimeout(() => {
-            newTxs.forEach((tx, idx) => {
-                if (tx.status === 'pending') {
-                    // On cherche un doc qui correspond au montant (TTC)
-                    const match = clientDocuments.find(doc => 
-                        doc.status === 'approved' && 
-                        doc.extractedData?.amounts?.some(a => Math.abs(a) === Math.abs(tx.amount))
-                    );
-
-                    if (match) {
-                        newTxs[idx] = { ...tx, status: 'matched', matchedDocId: match.id };
-                        matchCount++;
-                    }
-                }
-            });
-
-            setTransactions(newTxs);
-            setIsMatching(false);
+        try {
+            const { httpsCallable } = await import('firebase/firestore').then(() => import('firebase/functions'));
+            const { functions } = await import('@/firebase');
+            
+            const autoMatchFn = httpsCallable(functions, 'autoMatchBankTransactions');
+            const result = await autoMatchFn({ clientId: storedClientId }) as any;
+            
+            const matchCount = result.data?.matchCount || 0;
             
             if (matchCount > 0) {
+                // Recharger les transactions depuis la base de données
+                const data = await BankService.getTransactions(storedClientId);
+                setTransactions(data);
+
                 toast({
                     title: "Rapprochement terminé",
                     description: `${matchCount} transactions ont été automatiquement associées à vos justificatifs.`,
@@ -100,7 +90,16 @@ export default function MyBankPage() {
                     description: "Aucune nouvelle correspondance trouvée pour le moment.",
                 });
             }
-        }, 1500);
+        } catch (error: any) {
+            console.error("Auto-match error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erreur de rapprochement",
+                description: "Une erreur s'est produite lors de l'appel au moteur de lettrage.",
+            });
+        } finally {
+            setIsMatching(false);
+        }
     };
 
     if (!isLinked) {

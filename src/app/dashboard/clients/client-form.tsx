@@ -86,9 +86,8 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
         }
     }, [userRole, profile?.cabinetId, initialData?.cabinetId]);
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues: initialData || {
+    const defaultValues = useMemo(() => {
+        const fallback = {
             name: "",
             siret: "",
             email: "",
@@ -96,10 +95,30 @@ export function ClientForm({ initialData, onSave, isSubmitting }: ClientFormProp
             legalRepresentative: "",
             address: "",
             fiscalYearEndDate: "31/12",
-            role: 'client',
+            role: 'client' as const,
             assignedAccountantId: "unassigned",
             cabinetId: "",
-        },
+        };
+
+        if (!initialData) return fallback;
+
+        return {
+            name: initialData.name ?? fallback.name,
+            siret: initialData.siret ?? fallback.siret,
+            email: initialData.email ?? fallback.email,
+            phone: initialData.phone ?? fallback.phone,
+            legalRepresentative: initialData.legalRepresentative ?? fallback.legalRepresentative,
+            address: initialData.address ?? fallback.address,
+            fiscalYearEndDate: initialData.fiscalYearEndDate ?? fallback.fiscalYearEndDate,
+            role: initialData.role ?? fallback.role,
+            assignedAccountantId: initialData.assignedAccountantId ?? fallback.assignedAccountantId,
+            cabinetId: initialData.cabinetId ?? fallback.cabinetId,
+        };
+    }, [initialData]);
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues,
     });
 
     const onSubmit = (values: z.infer<typeof formSchema>) => {

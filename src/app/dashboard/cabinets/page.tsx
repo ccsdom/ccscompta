@@ -47,9 +47,8 @@ import {
     LinkIcon
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auditService } from "@/services/audit-service";
-import { EmailService } from "@/services/email-service";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useCollection, useMemoFirebase } from '@/firebase';
@@ -75,6 +74,9 @@ export default function CabinetsManagementPage() {
     }, [isAuthorizedAdmin]);
 
     const { data: cabinets, isLoading } = useCollection<any>(cabinetsQuery);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingCabinet, setEditingCabinet] = useState<any>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     if (userRole && !isAuthorizedAdmin) {
         return (
@@ -97,10 +99,6 @@ export default function CabinetsManagementPage() {
         c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingCabinet, setEditingCabinet] = useState<any>(null);
-    const [isSaving, setIsSaving] = useState(false);
 
     const handleImpersonate = async (cabinet: any) => {
         // Enregistrer l'état original pour pouvoir revenir
@@ -186,15 +184,27 @@ export default function CabinetsManagementPage() {
                 await auditService.logSystem(`Mise à jour quotas/plan pour ${name}`, 'info');
                 toast({ title: "Quotas mis à jour" });
             } else {
-                const id = `cabinet-${Math.random().toString(36).substr(2, 9)}`;
-                await setDoc(doc(db, 'cabinets', id), {
-                    ...cabinetData,
-                    id,
-                    status: 'active',
-                    createdAt: new Date().toISOString(),
+                const createCabinetWithInvitation = httpsCallable(functions, 'createCabinetWithInvitation');
+                const result = await createCabinetWithInvitation({
+                    name,
+                    email,
+                    plan,
+                    quotas: {
+                        maxClients,
+                        maxDocumentsPerMonth: maxDocs,
+                        maxCollaborators: 5,
+                        storageLimitGb: storageLimit,
+                    },
                 });
                 await auditService.logSystem(`Nouveau cabinet créé avec plan ${plan}: ${name}`, 'info');
-                toast({ title: "Cabinet déployé" });
+                const data = result.data as { success: boolean; cabinetId?: string; invitationUrl?: string };
+                if (data.invitationUrl) {
+                    await navigator.clipboard.writeText(data.invitationUrl);
+                }
+                toast({
+                    title: "Cabinet cree et invitation envoyee",
+                    description: `Un email d'activation a ete envoye a ${email}.`,
+                });
             }
             setIsDialogOpen(false);
             setEditingCabinet(null);
@@ -208,15 +218,13 @@ export default function CabinetsManagementPage() {
     const handleSendInvitation = async (cabinet: any) => {
         try {
             await auditService.logSystem(`INVITATION : Envoi des accès pour ${cabinet.name} (${cabinet.email})`, 'security');
-            const invitation = await prepareInvitation(cabinet.id);
-            
-            // 1. Déclencher l'envoi réel du mail via le service d'email
-            await EmailService.sendCabinetInvitation({
-                id: cabinet.id,
-                name: cabinet.name,
-                email: cabinet.email,
-                invitationUrl: invitation.invitationUrl!
-            });
+            const sendCabinetInvitation = httpsCallable(functions, 'sendCabinetInvitation');
+            const result = await sendCabinetInvitation({ cabinetId: cabinet.id });
+            const invitation = result.data as { success: boolean; invitationUrl?: string };
+
+            if (invitation.invitationUrl) {
+                await navigator.clipboard.writeText(invitation.invitationUrl);
+            }
 
             toast({
                 title: "Mail d'invitation envoyé",
