@@ -7,6 +7,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 export function initializeFirebase() {
   if (!getApps().length) {
@@ -30,6 +31,24 @@ export function initializeFirebase() {
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
+  if (typeof window !== 'undefined') {
+      // Pour le développement local, si NEXT_PUBLIC_RECAPTCHA_SITE_KEY n'est pas défini, 
+      // on utilise une clé de test reCAPTCHA publique ou le mode debug.
+      if (process.env.NODE_ENV === 'development') {
+          (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+      try {
+          initializeAppCheck(firebaseApp, {
+              provider: new ReCaptchaV3Provider(
+                  process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI' // Dummy fallback key
+              ),
+              isTokenAutoRefreshEnabled: true
+          });
+      } catch (e) {
+          console.warn('AppCheck non initialisé:', e);
+      }
+  }
+
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),

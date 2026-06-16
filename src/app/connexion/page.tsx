@@ -37,6 +37,7 @@ export default function LoginPage() {
     // Start with a clean slate on login page load
     const clearState = async () => {
         try {
+            await fetch('/api/auth/logout', { method: 'POST' });
             await signOut(auth);
         } catch (error) {
             // Ignore errors if user was already signed out
@@ -74,6 +75,18 @@ export default function LoginPage() {
             localStorage.removeItem('selectedClientId');
         }
         
+        // Secure Session Cookie generation
+        const idToken = await user.getIdToken();
+        const sessionResponse = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+        });
+
+        if (!sessionResponse.ok) {
+            throw new Error('Impossible de créer la session sécurisée.');
+        }
+
         let targetPath: string;
         switch (userRole) {
             case 'admin': targetPath = '/dashboard/admin'; break;

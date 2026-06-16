@@ -3372,3 +3372,67 @@ export const disposeAsset = onCall(
         }
     }
 );
+
+export const inviteClient = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ email: string; name: string; cabinetId?: string }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    const callerRole = getCallerRole(request.auth);
+    if (!['admin', 'accountant'].includes(callerRole)) {
+      throw new HttpsError('permission-denied', 'Seuls les admins et comptables peuvent inviter des clients.');
+    }
+
+    const { email, name, cabinetId } = request.data || {};
+    
+    if (!email || typeof email !== 'string' || !name || typeof name !== 'string') {
+      throw new HttpsError('invalid-argument', 'L\'email et le nom sont requis et doivent etre des chaines.');
+    }
+
+    let targetCabinetId = cabinetId;
+
+    // Si c'est un comptable, on force le cabinetId a celui du comptable
+    if (callerRole === 'accountant') {
+      const callerCabinetId = getCallerCabinetId(request.auth);
+      if (!callerCabinetId) {
+        throw new HttpsError('permission-denied', 'Le comptable n\'est rattache a aucun cabinet.');
+      }
+      targetCabinetId = callerCabinetId;
+    } else if (callerRole === 'admin' && !targetCabinetId) {
+      throw new HttpsError('invalid-argument', 'Un admin doit specifier un cabinetId.');
+    }
+
+    try {
+      const password = generateTemporaryPassword();
+      
+      const userRecord = await admin.auth().createUser({
+        email,
+        password,
+        displayName: name,
+      });
+
+      await admin.auth().setCustomUserClaims(userRecord.uid, {
+        role: 'client',
+        cabinetId: targetCabinetId
+      });
+
+      const db = getDb();
+      await db.collection('clients').doc(userRecord.uid).set({
+        name,
+        email,
+        cabinetId: targetCabinetId,
+        role: 'client',
+        status: 'active',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info(`Client ${email} created with temporary password: ${password}`);
+
+      return { success: true, uid: userRecord.uid, temporaryPassword: password };
+    } catch (error: any) {
+      throwCallableError(error, 'Erreur inviteClient:');
+    }
+  }
+);
