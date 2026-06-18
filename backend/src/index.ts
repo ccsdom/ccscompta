@@ -8,7 +8,7 @@
 import * as logger from 'firebase-functions/logger';
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import { onRequest, onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
-import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onDocumentWritten, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 // import { format as formatFns } from 'date-fns';
@@ -2056,25 +2056,50 @@ export const onDocumentPending = onDocumentWritten(
             }
         }
 
-        // 5. Calcul de la monÃ©tisation (billable lines)
+        // 4.5. Zéro-Clic (Zero-Touch) : Vérification de la mémoire locale
+        let isZeroTouch = false;
+        if (vendor && !isDuplicate) {
+            const vendorSlug = vendor.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const ruleDoc = await getDb().collection('clients').doc(data.clientId).collection('accounting_rules').doc(vendorSlug).get();
+            
+            if (ruleDoc.exists) {
+                const rule = ruleDoc.data();
+                if (rule && rule.accountingEntry) {
+                    extractedData.accountingEntry = {
+                        ...rule.accountingEntry,
+                        confidenceScore: 100 // Confiance absolue
+                    };
+                    isZeroTouch = true;
+                    logger.log(`⚡ [Zero-Touch] Règle locale appliquée pour ${vendor}`);
+                }
+            }
+        }
+
+        // 5. Calcul de la monetisation (billable lines)
         const billableLines = calculateBillableLines(extractedData, documentType);
 
-        // 6. Mise Ã  jour finale du document
+        // 6. Mise a jour finale du document
+        const finalStatus = isDuplicate ? 'duplicate' : (isZeroTouch ? 'approved' : 'reviewing');
+        
+        const auditAction = isDuplicate 
+            ? `Doublon detecte (ID: ${existingId})` 
+            : (isZeroTouch ? 'Auto-approbation (Zero-Touch) via Apprentissage Local' : 'Analyse IA automatique terminee');
+
         const updateData: any = {
             extractedData,
             billableLines,
             type: extractedData.documentType || documentType,
-            status: isDuplicate ? 'duplicate' : 'reviewing',
+            status: finalStatus,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
             'auditTrail': admin.firestore.FieldValue.arrayUnion({
-                action: isDuplicate ? `Doublon dÃ©tectÃ© (ID: ${existingId})` : 'Analyse IA automatique terminÃ©e',
+                action: auditAction,
                 date: new Date().toISOString(),
-                user: 'SystÃ¨me AI'
+                user: isZeroTouch ? 'Système Zero-Touch' : 'Système AI'
             })
         };
 
         if (isDuplicate) {
-            updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel dÃ©tectÃ© : une facture identique existe dÃ©jÃ .");
+            updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel détecté : une facture identique existe déjà.");
         }
 
         await event.data?.after.ref.update(updateData);
@@ -3433,6 +3458,43 @@ export const inviteClient = onCall(
       return { success: true, uid: userRecord.uid, temporaryPassword: password };
     } catch (error: any) {
       throwCallableError(error, 'Erreur inviteClient:');
+    }
+  }
+);
+/**
+ * Trigger Zéro-Clic: Apprentissage Local
+ * S'exécute lorsqu'un document est approuvé pour mémoriser l'imputation par fournisseur.
+ */
+export const onDocumentApproved = onDocumentUpdated(
+  {
+    document: "documents/{docId}",
+    region: "europe-west9"
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+
+    if (!before || !after) return;
+
+    // Détecter le passage à "approved"
+    if (before.status !== 'approved' && after.status === 'approved') {
+      const clientId = after.clientId;
+      const vendorName = after.extractedData?.vendorNames?.[0];
+      const accountingEntry = after.extractedData?.accountingEntry;
+
+      if (clientId && vendorName && accountingEntry) {
+        const vendorSlug = vendorName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const ruleRef = getDb().collection('clients').doc(clientId).collection('accounting_rules').doc(vendorSlug);
+        
+        await ruleRef.set({
+          vendorName,
+          accountingEntry,
+          lastApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+          approvalCount: admin.firestore.FieldValue.increment(1)
+        }, { merge: true });
+
+        logger.log(`🧠 [Local Learning] Règle apprise pour le fournisseur ${vendorName} (Client: ${clientId})`);
+      }
     }
   }
 );

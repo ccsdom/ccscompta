@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disposeAsset = exports.generateFECExport = exports.validateAccountingEntry = exports.generateDepreciationODs = exports.generateAssetSchedule = exports.autoMatchBankTransactions = exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.stripeWebhook = exports.generateCabinetCheckout = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.verifyCabinetInvitation = exports.sendCabinetInvitation = exports.createCabinetWithInvitation = exports.prepareCabinetInvitation = exports.sendUserSetupEmail = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = exports.supportChat = exports.saveBankReconciliation = exports.runBankReconciliation = exports.intelligentSearch = exports.createInvoiceForDocument = exports.syncBankTransactions = exports.finalizeBankConnection = exports.getBankAuthLink = exports.extractClientData = exports.searchCompany = void 0;
+exports.onDocumentApproved = exports.inviteClient = exports.disposeAsset = exports.generateFECExport = exports.validateAccountingEntry = exports.generateDepreciationODs = exports.generateAssetSchedule = exports.autoMatchBankTransactions = exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.stripeWebhook = exports.generateCabinetCheckout = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.verifyCabinetInvitation = exports.sendCabinetInvitation = exports.createCabinetWithInvitation = exports.prepareCabinetInvitation = exports.sendUserSetupEmail = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = exports.supportChat = exports.saveBankReconciliation = exports.runBankReconciliation = exports.intelligentSearch = exports.createInvoiceForDocument = exports.syncBankTransactions = exports.finalizeBankConnection = exports.getBankAuthLink = exports.extractClientData = exports.searchCompany = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
  * Backend logic for assigning user roles, creating users and processing documents.
@@ -1688,23 +1688,42 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
                 }
             }
         }
-        // 5. Calcul de la monÃ©tisation (billable lines)
+        // 4.5. Zéro-Clic (Zero-Touch) : Vérification de la mémoire locale
+        let isZeroTouch = false;
+        if (vendor && !isDuplicate) {
+            const vendorSlug = vendor.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const ruleDoc = await getDb().collection('clients').doc(data.clientId).collection('accounting_rules').doc(vendorSlug).get();
+            if (ruleDoc.exists) {
+                const rule = ruleDoc.data();
+                if (rule && rule.accountingEntry) {
+                    extractedData.accountingEntry = Object.assign(Object.assign({}, rule.accountingEntry), { confidenceScore: 100 // Confiance absolue
+                     });
+                    isZeroTouch = true;
+                    logger.log(`⚡ [Zero-Touch] Règle locale appliquée pour ${vendor}`);
+                }
+            }
+        }
+        // 5. Calcul de la monetisation (billable lines)
         const billableLines = calculateBillableLines(extractedData, documentType);
-        // 6. Mise Ã  jour finale du document
+        // 6. Mise a jour finale du document
+        const finalStatus = isDuplicate ? 'duplicate' : (isZeroTouch ? 'approved' : 'reviewing');
+        const auditAction = isDuplicate
+            ? `Doublon detecte (ID: ${existingId})`
+            : (isZeroTouch ? 'Auto-approbation (Zero-Touch) via Apprentissage Local' : 'Analyse IA automatique terminee');
         const updateData = {
             extractedData,
             billableLines,
             type: extractedData.documentType || documentType,
-            status: isDuplicate ? 'duplicate' : 'reviewing',
+            status: finalStatus,
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
             'auditTrail': admin.firestore.FieldValue.arrayUnion({
-                action: isDuplicate ? `Doublon dÃ©tectÃ© (ID: ${existingId})` : 'Analyse IA automatique terminÃ©e',
+                action: auditAction,
                 date: new Date().toISOString(),
-                user: 'SystÃ¨me AI'
+                user: isZeroTouch ? 'Système Zero-Touch' : 'Système AI'
             })
         };
         if (isDuplicate) {
-            updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel dÃ©tectÃ© : une facture identique existe dÃ©jÃ .");
+            updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel détecté : une facture identique existe déjà.");
         }
         await ((_j = event.data) === null || _j === void 0 ? void 0 : _j.after.ref.update(updateData));
         logger.log(`âœ… [Processor] SuccÃ¨s pour ${docId} : ${billableLines} lignes dÃ©tectÃ©es. ${isDuplicate ? '(DOUBLON)' : ''}`);
@@ -2808,6 +2827,88 @@ exports.disposeAsset = (0, https_1.onCall)({ region: "europe-west9" }, async (re
     }
     catch (error) {
         throwCallableError(error, 'Erreur disposeAsset:');
+    }
+});
+exports.inviteClient = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
+    }
+    const callerRole = getCallerRole(request.auth);
+    if (!['admin', 'accountant'].includes(callerRole)) {
+        throw new https_1.HttpsError('permission-denied', 'Seuls les admins et comptables peuvent inviter des clients.');
+    }
+    const { email, name, cabinetId } = request.data || {};
+    if (!email || typeof email !== 'string' || !name || typeof name !== 'string') {
+        throw new https_1.HttpsError('invalid-argument', 'L\'email et le nom sont requis et doivent etre des chaines.');
+    }
+    let targetCabinetId = cabinetId;
+    // Si c'est un comptable, on force le cabinetId a celui du comptable
+    if (callerRole === 'accountant') {
+        const callerCabinetId = getCallerCabinetId(request.auth);
+        if (!callerCabinetId) {
+            throw new https_1.HttpsError('permission-denied', 'Le comptable n\'est rattache a aucun cabinet.');
+        }
+        targetCabinetId = callerCabinetId;
+    }
+    else if (callerRole === 'admin' && !targetCabinetId) {
+        throw new https_1.HttpsError('invalid-argument', 'Un admin doit specifier un cabinetId.');
+    }
+    try {
+        const password = generateTemporaryPassword();
+        const userRecord = await admin.auth().createUser({
+            email,
+            password,
+            displayName: name,
+        });
+        await admin.auth().setCustomUserClaims(userRecord.uid, {
+            role: 'client',
+            cabinetId: targetCabinetId
+        });
+        const db = getDb();
+        await db.collection('clients').doc(userRecord.uid).set({
+            name,
+            email,
+            cabinetId: targetCabinetId,
+            role: 'client',
+            status: 'active',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.info(`Client ${email} created with temporary password: ${password}`);
+        return { success: true, uid: userRecord.uid, temporaryPassword: password };
+    }
+    catch (error) {
+        throwCallableError(error, 'Erreur inviteClient:');
+    }
+});
+/**
+ * Trigger Zéro-Clic: Apprentissage Local
+ * S'exécute lorsqu'un document est approuvé pour mémoriser l'imputation par fournisseur.
+ */
+exports.onDocumentApproved = (0, firestore_1.onDocumentUpdated)({
+    document: "documents/{docId}",
+    region: "europe-west9"
+}, async (event) => {
+    var _a, _b, _c, _d, _e;
+    const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
+    const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
+    if (!before || !after)
+        return;
+    // Détecter le passage à "approved"
+    if (before.status !== 'approved' && after.status === 'approved') {
+        const clientId = after.clientId;
+        const vendorName = (_d = (_c = after.extractedData) === null || _c === void 0 ? void 0 : _c.vendorNames) === null || _d === void 0 ? void 0 : _d[0];
+        const accountingEntry = (_e = after.extractedData) === null || _e === void 0 ? void 0 : _e.accountingEntry;
+        if (clientId && vendorName && accountingEntry) {
+            const vendorSlug = vendorName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const ruleRef = getDb().collection('clients').doc(clientId).collection('accounting_rules').doc(vendorSlug);
+            await ruleRef.set({
+                vendorName,
+                accountingEntry,
+                lastApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+                approvalCount: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+            logger.log(`🧠 [Local Learning] Règle apprise pour le fournisseur ${vendorName} (Client: ${clientId})`);
+        }
     }
 });
 //# sourceMappingURL=index.js.map
