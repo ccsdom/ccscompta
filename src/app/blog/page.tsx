@@ -1,198 +1,34 @@
 'use client';
 
 import Link from "next/link";
-import { Logo } from '@/components/logo';
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar, User, Menu, Mail, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, Calendar, User, Mail, Sparkles, TrendingUp } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle
-} from '@/components/ui/navigation-menu';
+import { Card, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { cn } from '@/lib/utils';
 import React from 'react';
 import { usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion } from 'framer-motion';
+import { PublicHeader } from '@/components/public-header';
+import { blogPosts } from '@/lib/data/blog-posts';
 
-const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => (
-  <li>
-    <NavigationMenuLink asChild>
-      <a
-        ref={ref}
-        className={cn(
-          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-          className
-        )}
-        {...props}
-      >
-        <div className="text-sm font-medium leading-none">{title}</div>
-        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">{children}</p>
-      </a>
-    </NavigationMenuLink>
-  </li>
-));
-ListItem.displayName = "ListItem";
+
 
 export default function BlogPage() {
   const pathname = usePathname();
 
-  const posts = [
-    {
-      title: "5 astuces pour optimiser votre processus de clôture comptable avec l'IA",
-      category: "Conseils",
-      author: "Alice Dubois",
-      date: "15 Juillet 2024",
-      image: { src: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800&h=450", alt: "Data analytics Dashboard", hint: "accounting process optimization" },
-      excerpt: "La clôture comptable est souvent un processus stressant. Découvrez comment l'intelligence artificielle peut transformer cette tâche en un processus fluide et sans erreur."
-    },
-    {
-      title: "CCS Compta annonce son intégration avec le logiciel Cegid",
-      category: "Nouveautés",
-      author: "Bruno Petit",
-      date: "1 Juillet 2024",
-      image: { src: "https://images.unsplash.com/photo-1556155092-490a1ba16284?auto=format&fit=crop&q=80&w=800&h=450", alt: "Business meeting", hint: "software integration logos" },
-      excerpt: "Nous sommes fiers d'annoncer notre nouvelle intégration native avec Cegid, permettant une synchronisation transparente de vos données comptables."
-    },
-    {
-      title: "Comment la numérisation des notes de frais révolutionne la vie des entrepreneurs",
-      category: "Productivité",
-      author: "Carla Moreau",
-      date: "20 Juin 2024",
-      image: { src: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80&w=800&h=450", alt: "Mobile scanning", hint: "mobile receipt scanning" },
-      excerpt: "Fini les boîtes à chaussures remplies de reçus ! Le scan mobile change la donne pour la gestion des notes de frais au quotidien."
-    },
-    {
-        title: "La facture électronique devient obligatoire : êtes-vous prêts ?",
-        category: "Législation",
-        author: "Alice Dubois",
-        date: "10 Juin 2024",
-        image: { src: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800&h=450", alt: "Legal documents", hint: "legal documents" },
-        excerpt: "La réforme sur la facturation électronique B2B entre en vigueur prochainement. Voici les étapes clés pour préparer votre entreprise sereinement."
-    }
-  ];
+  const posts = blogPosts;
 
   const featuredPost = posts[0];
   const remainingPosts = posts.slice(1);
   
-  const navLinks = [
-    { href: "/fonctionnalites", text: "Fonctionnalités" },
-    { href: "/tarifs", text: "Tarifs" },
-    { href: "/a-propos", text: "À Propos" },
-    { href: "/blog", text: "Blog" },
-    { href: "/assistance", text: "Support" }
-  ];
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans selection:bg-primary/30">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-          <Link href="/">
-            <div className="flex items-center gap-2 font-semibold group">
-              <Logo className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-lg hidden sm:inline-block tracking-tight">CCS Compta</span>
-            </div>
-          </Link>
-
-          <NavigationMenu className="hidden md:flex">
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger className="bg-transparent hover:bg-muted/50">Découvrir</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
-                    <li className="row-span-3">
-                      <NavigationMenuLink asChild>
-                        <Link href="/">
-                          <div className="flex h-full w-full select-none flex-col justify-end rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 p-6 no-underline outline-none focus:shadow-md border border-primary/10">
-                            <Logo className="h-8 w-8 text-primary mb-4" />
-                            <div className="mb-2 text-lg font-bold">CCS Compta</div>
-                            <p className="text-sm leading-relaxed text-muted-foreground">
-                              La comptabilité, réinventée. Automatisez la collecte et la saisie pour vous concentrer sur l'essentiel.
-                            </p>
-                          </div>
-                        </Link>
-                      </NavigationMenuLink>
-                    </li>
-                    <ListItem href="/fonctionnalites" title="Fonctionnalités">Découvrez comment l'IA transforme votre productivité.</ListItem>
-                    <ListItem href="/tarifs" title="Tarifs">Des plans simples et transparents pour tous les besoins.</ListItem>
-                    <ListItem href="/securite" title="Sécurité">Votre confiance, notre priorité.</ListItem>
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-
-             <NavigationMenuItem>
-                <NavigationMenuLink asChild className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-muted/50")} active={pathname === '/a-propos'}>
-                  <Link href="/a-propos">À Propos</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-muted/50")} active={pathname === '/blog'}>
-                  <Link href="/blog">Blog</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink asChild className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-muted/50")} active={pathname === '/assistance'}>
-                  <Link href="/assistance">Support</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-
-          <div className="flex items-center gap-4">
-             <Button asChild className="hidden md:inline-flex rounded-full px-6 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-              <Link href="/connexion">Connexion Client</Link>
-            </Button>
-            <div className="md:hidden">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-6 w-6" />
-                    <span className="sr-only">Ouvrir le menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                   <nav className="flex flex-col gap-6 text-lg font-medium mt-12">
-                     <SheetClose asChild>
-                       <Link href="/">
-                        <div className="flex items-center gap-3 text-lg font-semibold mb-8">
-                         <Logo className="h-8 w-8 text-primary" />
-                         <span className="font-bold text-2xl tracking-tight">CCS Compta</span>
-                        </div>
-                       </Link>
-                     </SheetClose>
-                     {navLinks.map(link => (
-                       <SheetClose asChild key={link.href}>
-                          <Link href={link.href} className="text-muted-foreground hover:text-foreground hover:translate-x-2 transition-transform">
-                            {link.text}
-                          </Link>
-                       </SheetClose>
-                     ))}
-                      <div className="pt-8 mt-auto">
-                        <SheetClose asChild>
-                            <Button asChild className="w-full rounded-full" size="lg">
-                                <Link href="/connexion">Se connecter</Link>
-                            </Button>
-                        </SheetClose>
-                      </div>
-                   </nav>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main className="flex-1">
         
@@ -228,7 +64,7 @@ export default function BlogPage() {
                     animate={{ opacity: 1, y: 0 }} 
                     transition={{ duration: 0.7, delay: 0.2 }}
                 >
-                    <Link href={`/blog/#${featuredPost.title.replace(/\s+/g, '-')}`}>
+                    <Link href={`/blog/${featuredPost.slug}`}>
                         <div className="relative rounded-3xl overflow-hidden group aspect-[16/9] md:aspect-[21/9] shadow-2xl shadow-primary/10 border border-white/10">
                             <Image 
                                 src={featuredPost.image.src} 
@@ -315,7 +151,7 @@ export default function BlogPage() {
                             <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {post.date}</span>
                         </div>
                         <CardTitle className="text-xl mb-3 leading-snug group-hover:text-primary transition-colors">
-                            <Link href={`/blog/#${post.title.replace(/\s+/g, '-')}`} className="focus:outline-none">
+                            <Link href={`/blog/${post.slug}`} className="focus:outline-none">
                                 <span className="absolute inset-0" aria-hidden="true" />
                                 {post.title}
                             </Link>
