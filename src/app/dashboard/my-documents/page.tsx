@@ -30,6 +30,7 @@ import { db } from '@/firebase';
 import { cn, formatDate, parseDate } from '@/lib/utils';
 import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
 import { OnboardingProgress } from '@/components/onboarding-progress';
+import { GamificationDashboard } from '@/components/gamification-dashboard';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -684,6 +685,11 @@ export default function MyDocumentsPage() {
         hasCompletedProfile={true} 
         hasConnectedBank={hasConnectedBank} 
         hasUploadedDocument={hasUploadedDocument} 
+      />
+
+      <GamificationDashboard 
+        documentsCount={filteredDocuments.length} 
+        anomaliesCount={anomalies.length} 
       />
 
       <AttentionCenter />
