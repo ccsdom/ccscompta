@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Check, Send, RotateCcw, Info, Loader2, ListOrdered, User, Clock, 
   CheckCircle, ShieldAlert, MessageSquare, FileJson2, Landmark, 
-  AlertCircle, Sparkles, ChevronRight, History, Zap
+  AlertCircle, Sparkles, ChevronRight, History, Zap, Trash2, Plus
 } from 'lucide-react';
 import { type Document, type AuditEvent, type Comment } from "@/lib/types";
 import { type ExtractDataOutput } from '@/services/document-ai-service';
@@ -182,6 +182,31 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
         setFormData(prev => ({ ...prev, vatDetails: newVatDetails }));
     }
 
+    const handleAddVat = () => {
+        setFormData(prev => ({
+            ...prev,
+            vatDetails: [...(prev.vatDetails || []), { rate: 0, baseHT: 0, amount: 0 }]
+        }));
+    }
+
+    const handleRemoveVat = (index: number) => {
+        setFormData(prev => {
+            const newVatDetails = [...(prev.vatDetails || [])];
+            newVatDetails.splice(index, 1);
+            return { ...prev, vatDetails: newVatDetails };
+        });
+    }
+
+    const handleAccountingChange = (field: 'debitAccount' | 'creditAccount' | 'vatAccount', value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            accountingEntry: {
+                ...(prev.accountingEntry || {}),
+                [field]: value
+            }
+        }));
+    }
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -207,23 +232,47 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
             </div>
             
             <div className="space-y-2">
-                <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Ventilation TVA</Label>
-                {(formData.vatDetails || []).map((vat, index) => (
-                    <div key={index} className="grid grid-cols-3 gap-2">
-                        <div className="relative">
-                            <Input type="number" value={vat.rate} onChange={(e) => handleVatChange(index, 'rate', e.target.value)} readOnly={isReadOnly} placeholder="Taux" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8" />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs">%</span>
-                        </div>
-                        <div className="relative">
-                            <Input type="number" value={vat.baseHT} onChange={(e) => handleVatChange(index, 'baseHT', e.target.value)} readOnly={isReadOnly} placeholder="Base HT" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8" />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs">€ (HT)</span>
-                        </div>
-                        <div className="relative">
-                            <Input type="number" value={vat.amount} onChange={(e) => handleVatChange(index, 'amount', e.target.value)} readOnly={isReadOnly} placeholder="Montant TVA" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8 text-emerald-500" />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs text-emerald-500">€ (TVA)</span>
-                        </div>
-                    </div>
-                ))}
+                <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Ventilation TVA</Label>
+                    {!isReadOnly && (
+                        <Button type="button" variant="ghost" size="sm" onClick={handleAddVat} className="h-6 px-2 text-[10px] hover:bg-white/10 text-primary">
+                            <Plus className="h-3 w-3 mr-1" /> Ajouter
+                        </Button>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <AnimatePresence>
+                        {(formData.vatDetails || []).map((vat, index) => (
+                            <motion.div 
+                                key={index} 
+                                initial={{ opacity: 0, height: 0, y: -10 }}
+                                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                                exit={{ opacity: 0, height: 0, y: -10 }}
+                                className="flex items-center gap-2"
+                            >
+                                <div className="grid grid-cols-3 gap-2 flex-1">
+                                    <div className="relative">
+                                        <Input type="number" value={vat.rate} onChange={(e) => handleVatChange(index, 'rate', e.target.value)} readOnly={isReadOnly} placeholder="Taux" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs">%</span>
+                                    </div>
+                                    <div className="relative">
+                                        <Input type="number" value={vat.baseHT} onChange={(e) => handleVatChange(index, 'baseHT', e.target.value)} readOnly={isReadOnly} placeholder="Base HT" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs">€ (HT)</span>
+                                    </div>
+                                    <div className="relative">
+                                        <Input type="number" value={vat.amount} onChange={(e) => handleVatChange(index, 'amount', e.target.value)} readOnly={isReadOnly} placeholder="Montant TVA" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8 text-emerald-500" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs text-emerald-500">€ (TVA)</span>
+                                    </div>
+                                </div>
+                                {!isReadOnly && (
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveVat(index)} className="h-11 w-11 shrink-0 text-red-500 hover:text-red-600 hover:bg-red-500/10">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
                 {(formData.vatDetails || []).length === 0 && (
                     <div className="text-xs opacity-50 italic">Aucune TVA détectée.</div>
                 )}
@@ -236,21 +285,21 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
                        <Badge variant="outline" className="text-[8px] border-primary/20 text-primary bg-primary/5">Confiance: {formData.accountingEntry.confidenceScore}%</Badge>
                    )}
                 </div>
-                <div className="grid grid-cols-3 gap-2 bg-white/5 p-3 rounded-xl border border-white/5 premium-shadow-sm">
+                <div className="grid grid-cols-3 gap-2 bg-white/5 p-3 rounded-xl border border-white/5 premium-shadow-sm transition-all focus-within:ring-1 focus-within:ring-primary/50">
                     <div>
                         <Label className="text-[8px] opacity-50 uppercase tracking-widest mb-1 block">Compte de charge (Débit)</Label>
                         <div className="relative">
                             <Sparkles className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-primary" />
-                            <Input value={formData.accountingEntry?.debitAccount ?? ''} readOnly className="bg-transparent border-none h-8 pl-7 font-mono text-sm text-primary font-bold focus-visible:ring-0" />
+                            <Input value={formData.accountingEntry?.debitAccount ?? ''} onChange={e => handleAccountingChange('debitAccount', e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-8 pl-7 font-mono text-sm text-primary font-bold focus-visible:ring-1 focus-visible:ring-primary/50 rounded-lg" placeholder="Ex: 606400" />
                         </div>
                     </div>
                     <div>
                         <Label className="text-[8px] opacity-50 uppercase tracking-widest mb-1 block">Compte Tiers (Crédit)</Label>
-                        <Input value={formData.accountingEntry?.creditAccount ?? ''} readOnly className="bg-transparent border-none h-8 font-mono text-sm focus-visible:ring-0" />
+                        <Input value={formData.accountingEntry?.creditAccount ?? ''} onChange={e => handleAccountingChange('creditAccount', e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-8 font-mono text-sm focus-visible:ring-1 focus-visible:ring-primary/50 rounded-lg" placeholder="Ex: 401000" />
                     </div>
                     <div>
                         <Label className="text-[8px] opacity-50 uppercase tracking-widest mb-1 block">Compte TVA (Débit)</Label>
-                        <Input value={formData.accountingEntry?.vatAccount ?? ''} readOnly className="bg-transparent border-none h-8 font-mono text-sm focus-visible:ring-0" />
+                        <Input value={formData.accountingEntry?.vatAccount ?? ''} onChange={e => handleAccountingChange('vatAccount', e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-8 font-mono text-sm focus-visible:ring-1 focus-visible:ring-primary/50 rounded-lg" placeholder="Ex: 445660" />
                     </div>
                 </div>
             </div>
