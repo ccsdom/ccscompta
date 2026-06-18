@@ -33,6 +33,7 @@ interface ParsedTransaction {
   description: string;
   amount: number;
   matchingDocumentId?: string;
+  suggestedDocumentId?: string;
   confidenceScore?: number;
   isAnomaly?: boolean;
   anomalyReason?: string;
@@ -504,6 +505,8 @@ function StepResults({
   // State for dual pane interactions
   const [selectedTxIdx, setSelectedTxIdx] = useState<number | null>(null);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
+  const [dragOverTxIdx, setDragOverTxIdx] = useState<number | null>(null);
   const [localTransactions, setLocalTransactions] = useState<ParsedTransaction[]>(transactions);
 
   // Fetch approved documents for this client
@@ -536,7 +539,26 @@ function StepResults({
     setLocalTransactions(newTxs);
     setSelectedTxIdx(null);
     setSelectedDocId(null);
+    setDragOverTxIdx(null);
+    setDraggedDocId(null);
     toast({ title: 'Rapprochement effectué', description: 'Transaction et facture liées avec succès.' });
+  };
+
+  const handleValidateAll = () => {
+    let count = 0;
+    const newTxs = localTransactions.map((tx) => {
+      if (!tx.matchingDocumentId && !tx.isAnomaly && tx.suggestedDocumentId && tx.confidenceScore && tx.confidenceScore >= 90) {
+        count++;
+        return { ...tx, matchingDocumentId: tx.suggestedDocumentId };
+      }
+      return tx;
+    });
+    if (count > 0) {
+      setLocalTransactions(newTxs);
+      toast({ title: 'Validation en masse', description: `${count} lettrages hautement probables validés d'un coup.` });
+    } else {
+      toast({ description: "Aucune suggestion avec un score >= 90% n'a été trouvée." });
+    }
   };
 
   const handleExportCSV = () => {
@@ -652,7 +674,14 @@ function StepResults({
             <h4 className="font-space font-black uppercase tracking-widest text-sm flex items-center gap-2">
               <Landmark className="h-4 w-4 text-blue-400" /> Transactions Bancaires
             </h4>
-            <Badge variant="secondary" className="font-space text-xs bg-white/10">{pending.length} en attente</Badge>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="font-space text-xs bg-white/10">{pending.length} en attente</Badge>
+              {localTransactions.some(tx => !tx.matchingDocumentId && !tx.isAnomaly && tx.suggestedDocumentId && tx.confidenceScore && tx.confidenceScore >= 90) && (
+                <Button onClick={handleValidateAll} size="sm" className="bg-emerald-500 hover:bg-emerald-600 h-7 rounded-lg text-[10px] uppercase font-black tracking-widest text-white shadow-lg shadow-emerald-500/20">
+                  <Sparkles className="h-3 w-3 mr-1" /> Tout Valider
+                </Button>
+              )}
+            </div>
           </div>
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-3">
@@ -671,13 +700,23 @@ function StepResults({
                       exit={{ opacity: 0, scale: 0.9, x: -50 }}
                       key={idx}
                       onClick={() => setSelectedTxIdx(isSelected ? null : idx)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverTxIdx(idx); }}
+                      onDragLeave={() => setDragOverTxIdx(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverTxIdx(null);
+                        const docId = e.dataTransfer.getData("text/plain");
+                        if (docId) handleLink(idx, docId);
+                      }}
                       className={cn(
-                        "p-4 rounded-2xl border cursor-pointer transition-all duration-300",
+                        "p-4 rounded-2xl border cursor-pointer transition-all duration-300 relative overflow-hidden",
                         isSelected 
                           ? "bg-blue-500/10 border-blue-500/50 shadow-lg shadow-blue-500/20" 
-                          : t.isAnomaly 
-                            ? "bg-red-500/5 border-red-500/20 hover:border-red-500/40" 
-                            : "bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10"
+                          : dragOverTxIdx === idx 
+                            ? "bg-emerald-500/20 border-emerald-500 border-2 border-dashed shadow-2xl shadow-emerald-500/30 scale-105 z-10"
+                            : t.isAnomaly 
+                              ? "bg-red-500/5 border-red-500/20 hover:border-red-500/40" 
+                              : "bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10"
                       )}
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -709,7 +748,7 @@ function StepResults({
                           <Button 
                             size="sm" 
                             className="w-full h-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
-                            onClick={(e) => { e.stopPropagation(); handleLink(idx, documents?.find(d => t.description.toLowerCase().includes(d.name.toLowerCase()))?.id || "doc-simulé", true); }}
+                            onClick={(e) => { e.stopPropagation(); handleLink(idx, t.suggestedDocumentId || documents?.find(d => t.description.toLowerCase().includes(d.name.toLowerCase()))?.id || "doc-simulé", true); }}
                           >
                             Valider la suggestion
                           </Button>
@@ -767,48 +806,59 @@ function StepResults({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9, x: 50 }}
                       key={doc.id}
-                      onClick={() => setSelectedDocId(isSelected ? null : doc.id)}
                       className={cn(
-                        "p-4 rounded-2xl border cursor-pointer transition-all duration-300",
-                        isSelected 
+                        "rounded-2xl border transition-all duration-300",
+                        draggedDocId === doc.id ? "opacity-50 scale-95 border-emerald-500/50 border-dashed" : "",
+                        isSelected && draggedDocId !== doc.id
                           ? "bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/20" 
                           : "bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10"
                       )}
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <p className="font-bold text-sm max-w-[200px] truncate">{doc.name}</p>
-                          <div className="flex items-center gap-2 text-xs opacity-70">
-                            <span className="bg-black/20 px-2 py-0.5 rounded uppercase tracking-wider">{doc.type === 'purchase_invoice' ? 'Achat' : 'Vente'}</span>
-                            <span>{new Date(doc.uploadDate).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-black font-space text-sm">
-                            {totalTTC > 0 ? `${totalTTC.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €` : 'N/A'}
-                          </div>
-                          {doc.extractedData?.vendorNames?.[0] && (
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
-                              {doc.extractedData.vendorNames[0]}
+                      <div
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", doc.id);
+                          setDraggedDocId(doc.id);
+                        }}
+                        onDragEnd={() => setDraggedDocId(null)}
+                        onClick={() => setSelectedDocId(isSelected ? null : doc.id)}
+                        className="p-4 cursor-grab active:cursor-grabbing w-full h-full"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <p className="font-bold text-sm max-w-[200px] truncate">{doc.name}</p>
+                            <div className="flex items-center gap-2 text-xs opacity-70">
+                              <span className="bg-black/20 px-2 py-0.5 rounded uppercase tracking-wider">{doc.type === 'purchase_invoice' ? 'Achat' : 'Vente'}</span>
+                              <span>{new Date(doc.uploadDate).toLocaleDateString()}</span>
                             </div>
-                          )}
+                          </div>
+                          <div className="text-right">
+                            <div className="font-black font-space text-sm">
+                              {totalTTC > 0 ? `${totalTTC.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €` : 'N/A'}
+                            </div>
+                            {doc.extractedData?.vendorNames?.[0] && (
+                              <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">
+                                {doc.extractedData.vendorNames[0]}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      
-                      {isSelected && selectedTxIdx !== null && (
-                        <motion.div 
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-4 pt-3 border-t border-emerald-500/20"
-                        >
-                          <Button 
-                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-                            onClick={(e) => { e.stopPropagation(); handleLink(selectedTxIdx, doc.id); }}
+                        
+                        {isSelected && selectedTxIdx !== null && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-4 pt-3 border-t border-emerald-500/20"
                           >
-                            <Link2 className="h-4 w-4 mr-2" /> Lier à la transaction
-                          </Button>
-                        </motion.div>
-                      )}
+                            <Button 
+                              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                              onClick={(e) => { e.stopPropagation(); handleLink(selectedTxIdx, doc.id); }}
+                            >
+                              <Link2 className="h-4 w-4 mr-2" /> Lier à la transaction
+                            </Button>
+                          </motion.div>
+                        )}
+                      </div>
                     </motion.div>
                   );
                 })}
@@ -869,13 +919,13 @@ export default function ReconciliationPage() {
       if (!result.success) throw new Error(result.error);
       const enriched = [...transactions];
       if ('matches' in result && result.matches) {
-        result.matches.forEach((m: any) => { if (enriched[m.transactionIndex]) { enriched[m.transactionIndex].matchingDocumentId = m.documentId; enriched[m.transactionIndex].confidenceScore = m.confidenceScore; } });
+        result.matches.forEach((m: any) => { if (enriched[m.transactionIndex]) { enriched[m.transactionIndex].suggestedDocumentId = m.documentId; enriched[m.transactionIndex].confidenceScore = m.confidenceScore; } });
       }
       if ('anomalies' in result && result.anomalies) {
         result.anomalies.forEach((a: any) => { if (enriched[a.transactionIndex]) { enriched[a.transactionIndex].isAnomaly = true; enriched[a.transactionIndex].anomalyReason = a.reason; } });
       }
       setReconciledTransactions(enriched);
-      toast({ title: 'Analyse terminée', description: `${enriched.filter(t => t.matchingDocumentId).length} lettrages automatiques effectués.` });
+      toast({ title: 'Analyse terminée', description: `${result.matches?.length || 0} lettrages automatiques suggérés.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Échec IA', description: err.message });
       setStep('import');

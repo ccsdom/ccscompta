@@ -19,7 +19,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertTriangle } from "lucide-react";
 import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import type { IdTokenResult } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -119,10 +119,63 @@ export default function LoginPage() {
   
   const handleGoogleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
-      toast({
-          title: "Fonctionnalité non disponible",
-          description: "La connexion via Google sera bientôt disponible.",
-      })
+      setIsLoading(true);
+      try {
+          const provider = new GoogleAuthProvider();
+          const userCredential = await signInWithPopup(auth, provider);
+          const user = userCredential.user;
+
+          // Force refresh of the token to get custom claims RIGHT after login
+          const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
+          const userRoleValue = idTokenResult.claims.role;
+          const userRole = typeof userRoleValue === 'string' ? userRoleValue : 'client';
+          const displayName = user.displayName || user.email!.split('@')[0];
+
+          localStorage.setItem('userName', displayName);
+          localStorage.setItem('userEmail', user.email!);
+          
+          if (userRole === 'client') {
+              localStorage.setItem('selectedClientId', user.uid);
+          } else {
+              localStorage.removeItem('selectedClientId');
+          }
+          
+          // Secure Session Cookie generation
+          const idToken = await user.getIdToken();
+          const sessionResponse = await fetch('/api/auth/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken }),
+          });
+
+          if (!sessionResponse.ok) {
+              throw new Error('Impossible de créer la session sécurisée.');
+          }
+
+          let targetPath: string;
+          switch (userRole) {
+              case 'admin': targetPath = '/dashboard/admin'; break;
+              case 'accountant': targetPath = '/dashboard/accountant'; break;
+              case 'secretary': targetPath = '/dashboard/secretary'; break;
+              case 'client': targetPath = '/dashboard/my-documents'; break;
+              default: targetPath = '/dashboard';
+          }
+          
+          window.dispatchEvent(new Event('storage'));
+          router.push(targetPath);
+      } catch (error: any) {
+          console.group("Auth Diagnostic");
+          console.error("Google Login Error Code:", error.code);
+          console.error("Google Login Error Message:", error.message);
+          console.groupEnd();
+          
+          toast({
+              variant: "destructive",
+              title: "Erreur de connexion Google",
+              description: error.message || "Une erreur est survenue lors de la connexion avec Google.",
+          });
+          setIsLoading(false);
+      }
   }
 
   return (
