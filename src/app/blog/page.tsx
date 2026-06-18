@@ -1,22 +1,22 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, Calendar, User, Mail, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, Calendar, User, Mail, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { cn } from '@/lib/utils';
 import React from 'react';
-import { usePathname } from "next/navigation";
+
 import { Input } from "@/components/ui/input";
 import { motion } from 'framer-motion';
 import { PublicHeader } from '@/components/public-header';
 import { blogPosts } from '@/lib/data/blog-posts';
-
+import { Logo } from '@/components/logo';
+import { Button } from '@/components/ui/button';
 
 
 export default function BlogPage() {
-  const pathname = usePathname();
 
   const posts = blogPosts;
 
