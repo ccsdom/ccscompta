@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/chart";
 import {
   Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-  LabelList, BarChart as ReBarChart
+  LabelList, BarChart as ReBarChart, Cell
 } from 'recharts';
 import type { Document, SalesInvoice } from '@/lib/types';
 import { type ChartConfig } from '@/components/ui/chart';
@@ -257,7 +257,7 @@ export default function MyReportsPage() {
                           />
                           <Bar dataKey="value" radius={[4, 4, 4, 4]}>
                                {waterfallData.map((entry, index) => (
-                                  <cell key={`cell-${index}`} fill={entry.fill} />
+                                  <Cell key={`cell-${index}`} fill={entry.fill} />
                               ))}
                               <LabelList dataKey="value" position="top" className="fill-foreground text-[11px] font-bold" formatter={(v: number) => `${v > 0 ? '+' : ''}${Math.round(v).toLocaleString()}€`} />
                           </Bar>
