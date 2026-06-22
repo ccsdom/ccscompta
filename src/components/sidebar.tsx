@@ -1,10 +1,9 @@
-
 'use client';
 // Force HMR re-render
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun, Building, DownloadCloud, Landmark, Activity, Clock as HistoryIcon, TrendingUp, Wifi } from 'lucide-react';
+import { LayoutDashboard, Settings, FileText, Users, BarChart, CreditCard, LifeBuoy, ScanLine, CalendarDays, Moon, Sun, Building, DownloadCloud, Landmark, Activity, Clock as HistoryIcon, TrendingUp, Wifi, BookOpen, MessageSquareText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
@@ -50,6 +49,7 @@ const clientNavItems: NavItem[] = [
   { href: '/dashboard/sales', icon: TrendingUp, label: 'Mes Ventes (Facturation)' },
   { href: '/dashboard/my-bank', icon: Landmark, label: 'Ma Banque' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
+  { href: '/dashboard/my-reports', icon: BookOpen, label: 'Mon Bilan' },
   { href: '/dashboard/my-invoices', icon: CreditCard, label: 'Mes Factures' },
 ];
 
