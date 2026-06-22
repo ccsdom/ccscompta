@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
   },
-  manifest: '/manifest.webmanifest',
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
