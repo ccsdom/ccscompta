@@ -4,7 +4,7 @@ import { admin, db } from '@/lib/firebase-admin';
 
 // Initialize Stripe (we fall back to a dummy key if not set, for local dev/builds)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
-  apiVersion: '2025-02-24.acacia', // Utiliser la dernière version recommandée par Stripe
+  apiVersion: '2026-05-27.dahlia' as any, // Bypass strict type
 });
 
 export async function POST(req: Request) {

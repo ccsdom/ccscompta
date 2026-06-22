@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { admin, db } from '@/lib/firebase-admin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
-  apiVersion: '2025-02-24.acacia',
+  apiVersion: '2026-05-27.dahlia' as any,
 });
 
 // We need to parse raw body for Stripe webhook signature verification
