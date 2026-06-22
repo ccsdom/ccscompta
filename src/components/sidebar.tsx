@@ -35,6 +35,7 @@ const accountantNavItems: NavItem[] = [
   { href: '/dashboard/accountant/reconciliation', icon: Landmark, label: 'Rapprochement Bancaire' },
   { href: '/dashboard/accountant/revision', icon: Activity, label: 'Révision Continue' },
   { href: '/dashboard/accountant/banking-sim', icon: Wifi, label: 'Simulation Bancaire' },
+  { href: '/dashboard/settings/billing', icon: Settings, label: 'Paramètres Cabinet' },
 ];
 
 const secretaryNavItems: NavItem[] = [

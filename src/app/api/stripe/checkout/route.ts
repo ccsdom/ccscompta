@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     // Default to a 49€/month plan if no priceId provided (for V1 simplicity)
     const activePriceId = priceId || process.env.STRIPE_PRICE_ID_DEFAULT || 'price_dummy';
 
-    // 1. Fetch Client from Firebase
+    // 1. Fetch Client and its Cabinet from Firebase
     const admin = getFirebaseAdminApp();
     const db = admin.firestore();
     const clientRef = db.collection('clients').doc(clientId);
@@ -31,8 +31,17 @@ export async function POST(req: Request) {
 
     const clientData = clientDoc.data();
     let stripeCustomerId = clientData?.stripeCustomerId;
+    const clientCabinetId = clientData?.cabinetId;
 
-    // 2. Create Stripe Customer if not exists
+    let stripeAccountOpts = undefined;
+    if (clientCabinetId) {
+        const cabinetDoc = await db.collection('cabinets').doc(clientCabinetId).get();
+        if (cabinetDoc.exists && cabinetDoc.data()?.stripeConnectStatus === 'active') {
+            stripeAccountOpts = { stripeAccount: cabinetDoc.data()?.stripeConnectAccountId };
+        }
+    }
+
+    // 2. Create Stripe Customer if not exists (on the correct account)
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: clientData?.email,
@@ -40,7 +49,7 @@ export async function POST(req: Request) {
         metadata: {
           clientId: clientId,
         },
-      });
+      }, stripeAccountOpts);
       stripeCustomerId = customer.id;
 
       // Save to Firebase
@@ -63,7 +72,7 @@ export async function POST(req: Request) {
       metadata: {
         clientId: clientId,
       },
-    });
+    }, stripeAccountOpts);
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {

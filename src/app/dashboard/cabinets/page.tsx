@@ -368,13 +368,25 @@ export default function CabinetsManagementPage() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
-                                                <Badge variant="outline" className="font-black text-[9px] uppercase tracking-tighter bg-primary/10 text-primary border-primary/20 w-fit">
+                                                <Badge variant="outline" className="font-black text-[9px] uppercase tracking-tighter bg-primary/10 text-primary border-primary/20 w-fit mb-1">
                                                     {cabinet.plan || 'SaaS Élite'}
                                                 </Badge>
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 w-fit">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                                    <span className="text-[9px] font-black uppercase text-emerald-500 tracking-tighter">Opérationnel</span>
-                                                </div>
+                                                {cabinet.stripeConnectStatus === 'active' ? (
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 w-fit">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                        <span className="text-[9px] font-black uppercase text-emerald-500 tracking-tighter">Stripe Connecté</span>
+                                                    </div>
+                                                ) : cabinet.stripeConnectStatus === 'pending' ? (
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 w-fit">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                        <span className="text-[9px] font-black uppercase text-amber-500 tracking-tighter">Onboarding Stripe</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 w-fit opacity-50">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                                        <span className="text-[9px] font-black uppercase text-primary tracking-tighter">Sans Stripe</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </TableCell>
                                         <TableCell>

@@ -159,6 +159,8 @@ export interface Cabinet {
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
     stripeSubscriptionItemId?: string;
+    stripeConnectAccountId?: string;
+    stripeConnectStatus?: 'pending' | 'active' | 'restricted';
     createdAt: string;
     nextBillingDate?: string;
 }
