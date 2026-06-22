@@ -7,7 +7,7 @@ import type { Client, Document } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Building, Mail, Phone, BarChart2, Edit, FileWarning, Clock, CheckCircle } from 'lucide-react';
+import { Building, Mail, Phone, BarChart2, Edit, FileWarning, Clock, CheckCircle, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { DocumentHistory } from '@/components/document-history';
 import { BilanHistory } from '@/components/bilan-history';
@@ -84,6 +84,11 @@ export default function ClientProfilePage() {
                                 href={`/dashboard/analytics`}
                                 onClick={() => { localStorage.setItem('selectedClientId', client.id); window.dispatchEvent(new Event('storage'));}}>
                                 <BarChart2 className="h-4 w-4 mr-2"/>Analyser
+                            </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <Link href={`/dashboard/clients/${client.id}/vault`}>
+                                <Shield className="h-4 w-4 mr-2"/>Coffre-fort
                             </Link>
                         </Button>
                         <Button asChild>

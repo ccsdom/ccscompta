@@ -247,3 +247,17 @@ export interface Asset {
   createdAt: string;
   updatedAt: string;
 }
+
+export type VaultCategory = 'legal' | 'tax' | 'hr' | 'contract' | 'other';
+
+export interface VaultDocument {
+  id: string;
+  clientId: string;
+  cabinetId: string;
+  name: string;
+  uploadDate: string; // ISO 8601 string
+  storagePath: string;
+  uploadedBy: 'client' | 'accountant';
+  category: VaultCategory;
+  uploaderName?: string;
+}

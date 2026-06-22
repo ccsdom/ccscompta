@@ -45,6 +45,7 @@ const secretaryNavItems: NavItem[] = [
 
 const clientNavItems: NavItem[] = [
   { href: '/dashboard/scanner', icon: ScanLine, label: 'Scanner Mobile' },
+  { href: '/dashboard/vault', icon: Shield, label: 'Mon Coffre-fort' },
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes Achats' },
   { href: '/dashboard/sales', icon: TrendingUp, label: 'Mes Ventes (Facturation)' },
   { href: '/dashboard/my-bank', icon: Landmark, label: 'Ma Banque' },
