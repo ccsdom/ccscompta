@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
+import { admin, db } from '@/lib/firebase-admin';
 
 // Initialize Stripe (we fall back to a dummy key if not set, for local dev/builds)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
@@ -20,8 +20,6 @@ export async function POST(req: Request) {
     const activePriceId = priceId || process.env.STRIPE_PRICE_ID_DEFAULT || 'price_dummy';
 
     // 1. Fetch Client and its Cabinet from Firebase
-    const admin = getFirebaseAdminApp();
-    const db = admin.firestore();
     const clientRef = db.collection('clients').doc(clientId);
     const clientDoc = await clientRef.get();
 
