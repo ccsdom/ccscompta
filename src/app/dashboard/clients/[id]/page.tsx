@@ -7,7 +7,7 @@ import type { Client, Document } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Building, Mail, Phone, BarChart2, Edit, FileWarning, Clock, CheckCircle, Shield } from 'lucide-react';
+import { Building, Mail, Phone, BarChart2, Edit, FileWarning, Clock, CheckCircle, Shield, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { DocumentHistory } from '@/components/document-history';
 import { BilanHistory } from '@/components/bilan-history';
@@ -150,6 +150,19 @@ export default function ClientProfilePage() {
                                 <div className="flex items-start gap-3">
                                     <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
                                     <div><p className="font-medium">Téléphone</p><p className="text-muted-foreground">{client.phone || 'N/A'}</p></div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <CreditCard className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                    <div>
+                                        <p className="font-medium">Abonnement (Stripe)</p>
+                                        <p className="text-muted-foreground">
+                                            {client.pricingPlan === 'pro' ? (
+                                                <span className="text-emerald-500 font-bold flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Premium Actif</span>
+                                            ) : (
+                                                <span>Essentiel (Gratuit)</span>
+                                            )}
+                                        </p>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

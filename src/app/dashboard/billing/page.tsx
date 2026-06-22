@@ -1,448 +1,134 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Download, CheckCircle, Clock, MoreHorizontal, FileDown, FilterX, Users, ShieldCheck } from "lucide-react";
-import { useRouter } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { useToast } from '@/hooks/use-toast';
-import { Checkbox } from '@/components/ui/checkbox';
-import type { Invoice, Client } from '@/lib/types';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Label } from '@/components/ui/label';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, updateDoc, doc } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useBranding } from '@/components/branding-provider';
-import { where } from 'firebase/firestore';
-import { parseDate } from '@/lib/utils';
+import { CreditCard, CheckCircle2, Zap, Shield, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
 
 export default function BillingPage() {
-    const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+    const { profile } = useBranding();
     const { toast } = useToast();
-    const { role, profile, isLoading: isBrandingLoading } = useBranding();
-    const router = useRouter();
+    const searchParams = useSearchParams();
+    const [isLoading, setIsLoading] = useState(false);
 
-    // Filters state
-    const [clientFilter, setClientFilter] = useState('all');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [startDateFilter, setStartDateFilter] = useState('');
-    const [endDateFilter, setEndDateFilter] = useState('');
-
-    const isStaff = useMemo(() => role && ['accountant', 'secretary'].includes(role), [role]);
-
-    // Explicit block for Super Admin to force impersonation
-    if (false && role === 'admin') {
-        /*
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
-                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
-                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                        <ShieldCheck className="h-10 w-10 text-red-500" />
-                    </div>
-                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
-                    <p className="text-muted-foreground mb-8 text-lg font-medium">L'accès direct à la facturation cabinet est restreint pour le Super Admin. Veuillez impersonner un cabinet pour gérer sa facturation.</p>
-                    <Button onClick={() => router.push('/dashboard/cabinets')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
-                        Aller à la Gestion Cabinets
-                    </Button>
-                </Card>
-            </div>
-        */
-    }
-
-    const clientsQuery = useMemoFirebase(() => {
-        if (!isStaff || !role) return null;
-        
-        if (profile?.cabinetId) {
-            return query(collection(db, 'clients'), where('cabinetId', '==', profile.cabinetId));
+    useEffect(() => {
+        if (searchParams.get('success')) {
+            toast({ title: "Paiement réussi !", description: "Votre abonnement est maintenant actif." });
         }
-
-        return null;
-    }, [isStaff, role, profile?.cabinetId]);
-    const { data: clients, isLoading: isLoadingClients } = useCollection<Client>(clientsQuery);
-    
-    const invoicesQuery = useMemoFirebase(() => {
-        if (!isStaff || !role) return null;
-        
-        if (profile?.cabinetId) {
-            return query(collection(db, 'invoices'), where('cabinetId', '==', profile.cabinetId));
+        if (searchParams.get('canceled')) {
+            toast({ variant: "destructive", title: "Paiement annulé", description: "Vous n'avez pas été facturé." });
         }
+    }, [searchParams, toast]);
 
-        return null;
-    }, [isStaff, role, profile?.cabinetId]);
-    const { data: invoices, isLoading: isLoadingInvoices } = useCollection<Invoice>(invoicesQuery);
-
-    const loading = isBrandingLoading || (isStaff && (isLoadingClients || isLoadingInvoices));
-
-
-    const filteredInvoices = useMemo(() => {
-        if (!invoices) return [];
-        return invoices.filter(invoice => {
-            const invoiceDate = parseDate(invoice.date) || new Date();
-            const start = startDateFilter ? new Date(startDateFilter) : null;
-            const end = endDateFilter ? new Date(endDateFilter) : null;
-
-            if (start) start.setHours(0,0,0,0);
-            if (end) end.setHours(23,59,59,999);
-
-            return (clientFilter === 'all' || invoice.clientId === clientFilter) &&
-                   (statusFilter === 'all' || invoice.status === statusFilter) &&
-                   (!start || invoiceDate >= start) &&
-                   (!end || invoiceDate <= end);
-        }).sort((a, b) => (parseDate(b.date)?.getTime() || 0) - (parseDate(a.date)?.getTime() || 0));
-    }, [invoices, clientFilter, statusFilter, startDateFilter, endDateFilter]);
-
-    // Explicit block for Super Admin to force impersonation
-    if (role === 'admin') {
-        return (
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
-                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
-                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                        <ShieldCheck className="h-10 w-10 text-red-500" />
-                    </div>
-                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
-                    <p className="text-muted-foreground mb-8 text-lg font-medium">L'acces direct a la facturation cabinet est restreint pour le Super Admin. Veuillez impersonner un cabinet pour gerer sa facturation.</p>
-                    <Button onClick={() => router.push('/dashboard/cabinets')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
-                        Aller a la Gestion Cabinets
-                    </Button>
-                </Card>
-            </div>
-        )
-    }
-
-    const handleSelectAll = (checked: boolean | 'indeterminate') => {
-        setSelectedInvoiceIds(checked ? filteredInvoices.map(inv => inv.id) : []);
-    };
-    
-    const handleSelectRow = (invoiceId: string, checked: boolean) => {
-        setSelectedInvoiceIds(prev => 
-            checked ? [...prev, invoiceId] : prev.filter(id => id !== invoiceId)
-        );
-    };
-
-    const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newStartDate = e.target.value;
-        setStartDateFilter(newStartDate);
-        if (endDateFilter && newStartDate > endDateFilter) {
-            setEndDateFilter(newStartDate);
+    const handleSubscribe = async () => {
+        if (!profile?.id) return;
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/stripe/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: profile.id })
+            });
+            const data = await response.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error(data.error || 'Erreur lors de la création de la session');
+            }
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Erreur", description: error.message });
+            setIsLoading(false);
         }
     };
 
-    const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newEndDate = e.target.value;
-        setEndDateFilter(newEndDate);
-        if (startDateFilter && newEndDate < startDateFilter) {
-            setStartDateFilter(newEndDate);
-        }
-    };
-
-
-    const handleResetFilters = () => {
-        setClientFilter('all');
-        setStatusFilter('all');
-        setStartDateFilter('');
-        setEndDateFilter('');
-        setSelectedInvoiceIds([]);
-    }
-
-    const handleBulkMarkAsPaid = async () => {
-        const updates = selectedInvoiceIds.map(id => 
-            updateDoc(doc(db, 'invoices', id), { status: 'paid' })
-        );
-        await Promise.all(updates);
-
-        toast({
-            title: "Factures mises à jour",
-            description: `${selectedInvoiceIds.length} facture(s) ont été marquées comme payées.`,
-        });
-        setSelectedInvoiceIds([]);
-    }
-
-    const handleBulkDownloadPDF = async () => {
-        const docToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id)) || [];
-        if (docToExport.length === 0) return;
-        
-        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-            import('jspdf'),
-            import('jspdf-autotable'),
-        ]);
-        const pdf = new jsPDF();
-        pdf.text("Factures sélectionnées", 14, 16);
-        autoTable(pdf, {
-            head: [['Client', 'Numéro', 'Montant', 'Statut']],
-            body: docToExport.map(inv => [
-                    inv.clientName,
-                    inv.number,
-                    inv.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }),
-                    inv.status
-                ]),
-            startY: 20,
-        });
-        pdf.save(`export-factures-${new Date().toISOString().slice(0, 10)}.pdf`);
-        toast({ title: 'Téléchargement lancé', description: 'Le PDF avec les factures sélectionnées est en cours de génération.' });
-    };
-
-    const handleBulkExportCSV = async () => {
-        const dataToExport = invoices?.filter(inv => selectedInvoiceIds.includes(inv.id))
-            .map(({ clientName, number, amount, status, date, dueDate }) => ({
-                Client: clientName,
-                Numero: number,
-                Montant: amount,
-                Statut: status,
-                Date: date,
-                Echeance: dueDate,
-            })) || [];
-        
-        if(dataToExport.length === 0) return;
-
-        const Papa = await import('papaparse');
-        const csv = Papa.unparse(dataToExport);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `export-factures-${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        toast({ title: 'Exportation réussie', description: 'Le fichier CSV a été téléchargé.' });
-    };
-
-    const getStatusBadge = (status: Invoice['status']) => {
-        switch(status) {
-            case 'paid': return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80"><CheckCircle className="mr-1 h-3 w-3"/>Payée</Badge>
-            case 'pending': return <Badge variant="secondary"><Clock className="mr-1 h-3 w-3"/>En attente</Badge>
-            case 'overdue': return <Badge variant="destructive"><Clock className="mr-1 h-3 w-3"/>En retard</Badge>
-            default: return <Badge variant="outline">{status}</Badge>
-        }
-    }
-
-    const hasActiveFilters = clientFilter !== 'all' || statusFilter !== 'all' || startDateFilter !== '' || endDateFilter !== '';
-
-    
-    if (!isStaff) {
-         return (
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center">
-                <Card className="w-full max-w-md text-center">
-                     <CardHeader>
-                        <Users className="h-12 w-12 mx-auto text-muted-foreground" />
-                        <CardTitle className="mt-4">Accès non autorisé</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">Vous n'avez pas les permissions nécessaires pour accéder à cette page.</p>
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
-
-    if (loading) {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <Skeleton className="h-9 w-1/3" />
-                    <Skeleton className="h-5 w-2/3 mt-2" />
-                </div>
-                <Card>
-                    <CardHeader><Skeleton className="h-10 w-full" /></CardHeader>
-                    <CardContent>
-                        <Skeleton className="h-64 w-full" />
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
-
+    const isPro = profile?.pricingPlan === 'pro';
 
     return (
-        <div className="space-y-6">
-             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Facturation Clients</h1>
-                <p className="text-muted-foreground mt-1">Suivez les paiements et gérez les factures de vos clients.</p>
+        <div className="p-4 md:p-8 space-y-8 max-w-5xl mx-auto animate-in slide-in-from-bottom-4 fade-in duration-500">
+            <div>
+                <h1 className="text-4xl font-black font-space tracking-tight flex items-center gap-3">
+                    <CreditCard className="h-8 w-8 text-primary" />
+                    Mon Abonnement
+                </h1>
+                <p className="text-muted-foreground mt-2 font-medium">Gérez votre formule et accédez à l'ensemble des fonctionnalités Premium.</p>
             </div>
-             <Card>
-                <CardHeader>
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div>
-                            <CardTitle>Suivi des factures</CardTitle>
-                            <CardDescription>Filtrez et gérez les factures de vos clients.</CardDescription>
-                        </div>
-                         <div className="flex flex-wrap items-center gap-4">
-                             {isStaff && (
-                                <Select value={clientFilter} onValueChange={setClientFilter}>
-                                    <SelectTrigger className="w-full sm:w-auto min-w-[160px]">
-                                        <SelectValue placeholder="Client" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Tous les clients</SelectItem>
-                                        {(clients || []).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                             )}
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-full sm:w-auto min-w-[140px]">
-                                    <SelectValue placeholder="Statut" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tous les statuts</SelectItem>
-                                    <SelectItem value="paid">Payée</SelectItem>
-                                    <SelectItem value="pending">En attente</SelectItem>
-                                    <SelectItem value="overdue">En retard</SelectItem>
-                                </SelectContent>
-                            </Select>
-                             <div className="flex items-center gap-2 flex-wrap">
-                                 <Label htmlFor="start-date" className="text-sm font-medium">Période:</Label>
-                                 <Input id="start-date" type="date" value={startDateFilter} onChange={handleStartDateChange} className="w-full sm:w-auto"/>
-                                 <span className="text-muted-foreground">à</span>
-                                 <Input type="date" value={endDateFilter} onChange={handleEndDateChange} className="w-full sm:w-auto"/>
-                             </div>
-                             {hasActiveFilters && (
-                                <Button variant="ghost" onClick={handleResetFilters}>
-                                    <FilterX className="mr-2 h-4 w-4"/>
-                                    Réinitialiser
-                                </Button>
-                             )}
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                     {selectedInvoiceIds.length > 0 && (
-                        <div className="bg-muted p-2 rounded-lg mb-4 flex items-center justify-between">
-                             <span className="text-sm font-medium pl-2">{selectedInvoiceIds.length} facture(s) sélectionnée(s)</span>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline">Actions <MoreHorizontal className="ml-2 h-4 w-4"/></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={handleBulkMarkAsPaid}>
-                                        <CheckCircle className="mr-2 h-4 w-4" /> Marquer comme payée
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                     <DropdownMenuItem onClick={handleBulkDownloadPDF}>
-                                        <FileDown className="mr-2 h-4 w-4" /> Télécharger en PDF
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={handleBulkExportCSV}>
-                                        <FileDown className="mr-2 h-4 w-4" /> Exporter en CSV
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                {/* Plan Basique */}
+                <Card className={`glass-panel border-white/10 premium-shadow overflow-hidden relative ${!isPro ? 'ring-2 ring-primary' : 'opacity-70'}`}>
+                    {!isPro && (
+                        <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-lg">
+                            Actuel
                         </div>
                     )}
-                    {/* Desktop Table */}
-                    <div className="hidden md:block">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[40px]">
-                                        <Checkbox
-                                            checked={filteredInvoices.length > 0 && selectedInvoiceIds.length === filteredInvoices.length}
-                                            onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                                            aria-label="Tout sélectionner"
-                                        />
-                                    </TableHead>
-                                    <TableHead>Client</TableHead>
-                                    <TableHead>Numéro</TableHead>
-                                    <TableHead>Échéance</TableHead>
-                                    <TableHead>Montant</TableHead>
-                                    <TableHead>Statut</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
-                                    <TableRow key={invoice.id} data-state={selectedInvoiceIds.includes(invoice.id) && 'selected'}>
-                                        <TableCell>
-                                            <Checkbox
-                                                checked={selectedInvoiceIds.includes(invoice.id)}
-                                                onCheckedChange={(checked) => handleSelectRow(invoice.id, !!checked)}
-                                                aria-label={`Sélectionner la facture ${invoice.number}`}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-medium">{invoice.clientName}</TableCell>
-                                        <TableCell>{invoice.number}</TableCell>
-                                        <TableCell>{(parseDate(invoice.dueDate) || new Date()).toLocaleDateString('fr-FR')}</TableCell>
-                                        <TableCell>{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                        <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon">
-                                                <Download className="h-4 w-4" />
-                                                <span className="sr-only">Télécharger</span>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
-                                            Aucune facture ne correspond à vos filtres.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    <CardHeader>
+                        <CardTitle className="text-2xl">Plan Essentiel</CardTitle>
+                        <CardDescription>Pour démarrer la comptabilité</CardDescription>
+                        <div className="mt-4 flex items-baseline text-4xl font-black">
+                            Gratuit
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                            <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500"/> Scan de factures basique</li>
+                            <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500"/> OCR Standard</li>
+                            <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500"/> Support par email</li>
+                        </ul>
+                    </CardContent>
+                    <CardFooter>
+                        {!isPro ? (
+                            <Button variant="outline" className="w-full" disabled>Plan Actif</Button>
+                        ) : (
+                            <Button variant="outline" className="w-full" disabled>Géré par Stripe</Button>
+                        )}
+                    </CardFooter>
+                </Card>
 
-                    {/* Mobile Card List */}
-                    <div className="md:hidden space-y-4">
-                       {filteredInvoices.length > 0 ? filteredInvoices.map(invoice => (
-                           <Card key={invoice.id}>
-                               <CardHeader className="flex flex-row justify-between items-start p-4 pb-2">
-                                   <div>
-                                       <CardTitle className="text-base">{invoice.clientName}</CardTitle>
-                                       <CardDescription>{invoice.number}</CardDescription>
-                                   </div>
-                                   {getStatusBadge(invoice.status)}
-                               </CardHeader>
-                               <CardContent className="p-4 pt-2 flex items-end justify-between">
-                                    <div>
-                                        <p className="text-2xl font-bold">{invoice.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</p>
-                                        <p className="text-xs text-muted-foreground">Échéance : {(parseDate(invoice.dueDate) || new Date()).toLocaleDateString('fr-FR')}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <Button variant="ghost" size="icon">
-                                            <Download className="h-4 w-4" />
-                                            <span className="sr-only">Télécharger</span>
-                                        </Button>
-                                        {(invoice.status === 'pending' || invoice.status === 'overdue') && (
-                                            <Button variant="outline" size="icon">
-                                                <CreditCard className="h-4 w-4" />
-                                                <span className="sr-only">Payer</span>
-                                            </Button>
-                                        )}
-                                    </div>
-                               </CardContent>
-                           </Card>
-                       )) : (
-                            <div className="h-48 text-center flex flex-col items-center justify-center text-muted-foreground">
-                                <FilterX className="h-10 w-10 mb-2"/>
-                                <p className="font-semibold">Aucune facture trouvée</p>
-                                <p className="text-sm">Essayez de modifier vos filtres.</p>
-                            </div>
-                       )}
+                {/* Plan Pro */}
+                <Card className={`glass-panel border-none premium-shadow overflow-hidden relative bg-gradient-to-br from-primary/10 to-transparent ${isPro ? 'ring-2 ring-primary' : ''}`}>
+                    {isPro && (
+                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                            Actif
+                        </div>
+                    )}
+                    <div className="absolute top-4 right-4 text-primary animate-pulse">
+                        <Sparkles className="h-6 w-6" />
                     </div>
-                </CardContent>
-                 <CardFooter className="text-xs text-muted-foreground p-6">
-                    <p>Pour toute question concernant une facture, veuillez contacter votre gestionnaire de dossier.</p>
-                </CardFooter>
-            </Card>
+                    <CardHeader>
+                        <CardTitle className="text-2xl text-primary flex items-center gap-2">
+                            Plan Premium
+                        </CardTitle>
+                        <CardDescription>Automatisation complète et IA prédictive</CardDescription>
+                        <div className="mt-4 flex items-baseline text-4xl font-black">
+                            49€ <span className="text-lg text-muted-foreground font-medium ml-1">/ mois</span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <ul className="space-y-2 text-sm font-medium">
+                            <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary"/> IA de Pré-saisie avancée (Gemini)</li>
+                            <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary"/> Bilan pour les nuls & Cashflow prédictif</li>
+                            <li className="flex items-center gap-2"><Shield className="h-4 w-4 text-primary"/> Coffre-fort GED illimité</li>
+                            <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary"/> Support prioritaire</li>
+                        </ul>
+                    </CardContent>
+                    <CardFooter>
+                        {isPro ? (
+                            <Button className="w-full" variant="outline" disabled>Vous êtes Premium</Button>
+                        ) : (
+                            <Button 
+                                className="w-full font-bold shadow-xl transition-all hover:scale-[1.02]" 
+                                onClick={handleSubscribe} 
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Redirection Stripe..." : "Passer Premium"}
+                            </Button>
+                        )}
+                    </CardFooter>
+                </Card>
+            </div>
         </div>
-    )
+    );
 }
-
-    
