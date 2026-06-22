@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onDocumentApproved = exports.inviteClient = exports.disposeAsset = exports.generateFECExport = exports.validateAccountingEntry = exports.generateDepreciationODs = exports.generateAssetSchedule = exports.autoMatchBankTransactions = exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.stripeWebhook = exports.generateCabinetCheckout = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.verifyCabinetInvitation = exports.sendCabinetInvitation = exports.createCabinetWithInvitation = exports.prepareCabinetInvitation = exports.sendUserSetupEmail = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = exports.supportChat = exports.saveBankReconciliation = exports.runBankReconciliation = exports.intelligentSearch = exports.createInvoiceForDocument = exports.syncBankTransactions = exports.finalizeBankConnection = exports.getBankAuthLink = exports.extractClientData = exports.searchCompany = void 0;
+exports.onDocumentApproved = exports.inviteClient = exports.disposeAsset = exports.generateFECExport = exports.validateAccountingEntry = exports.generateDepreciationODs = exports.generateAssetSchedule = exports.autoMatchBankTransactions = exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.stripeWebhook = exports.generateCabinetCheckout = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.verifyCabinetInvitation = exports.sendCabinetInvitation = exports.createCabinetWithInvitation = exports.prepareCabinetInvitation = exports.sendUserSetupEmail = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = exports.supportChat = exports.runGhostHunter = exports.saveBankReconciliation = exports.runBankReconciliation = exports.intelligentSearch = exports.createInvoiceForDocument = exports.syncBankTransactions = exports.finalizeBankConnection = exports.getBankAuthLink = exports.extractClientData = exports.searchCompany = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
  * Backend logic for assigning user roles, creating users and processing documents.
@@ -819,6 +819,58 @@ exports.saveBankReconciliation = (0, https_1.onCall)({ region: 'europe-west9', m
     }
     catch (error) {
         throwCallableError(error, 'saveBankReconciliation failed');
+    }
+});
+exports.runGhostHunter = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
+    var _a;
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
+    }
+    try {
+        const clientId = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.clientId) === 'string' ? request.data.clientId.trim() : '';
+        if (!clientId) {
+            throw new https_1.HttpsError('invalid-argument', 'Client obligatoire.');
+        }
+        await assertClientCabinetAccess(request.auth, clientId, ['admin', 'accountant', 'secretary']);
+        // 1. Récupération des transactions bancaires
+        const transactions = buildMockBankTransactions();
+        // 2. Lecture des rapprochements existants
+        const reconciliationsSnap = await getDb().collection('reconciliations')
+            .where('clientId', '==', clientId)
+            .get();
+        const reconciledIndices = new Set();
+        reconciliationsSnap.forEach(doc => {
+            const data = doc.data();
+            if (Array.isArray(data.matches)) {
+                data.matches.forEach((m) => {
+                    if (typeof m.transactionIndex === 'number') {
+                        reconciledIndices.add(m.transactionIndex);
+                    }
+                });
+            }
+        });
+        // 3. Détection des dépenses non rapprochées
+        const missingDocuments = [];
+        transactions.forEach((tx, index) => {
+            // tx.amount est négatif pour les dépenses
+            if (tx.amount < 0 && !reconciledIndices.has(index)) {
+                // Filtre : exclure les virements internes
+                if (!tx.description.toLowerCase().includes('virement interne')) {
+                    missingDocuments.push(Object.assign(Object.assign({}, tx), { transactionIndex: index, status: 'missing', identifiedAt: new Date().toISOString() }));
+                }
+            }
+        });
+        // 4. Sauvegarde dans une collection dédiée pour le client
+        await getDb().collection('missing_documents').doc(clientId).set({
+            clientId,
+            items: missingDocuments,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        logger.log(`👻 [GhostHunter] ${missingDocuments.length} justificatifs manquants identifiés pour ${clientId}`);
+        return { success: true, count: missingDocuments.length, items: missingDocuments };
+    }
+    catch (error) {
+        throwCallableError(error, 'runGhostHunter failed');
     }
 });
 exports.supportChat = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 }, async (request) => {

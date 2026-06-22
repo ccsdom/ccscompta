@@ -12,11 +12,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCollection, useMemoFirebase } from '@/firebase';
+import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, doc, onSnapshot } from 'firebase/firestore';
 import type { Document } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 
 import { BankService, type BankTransaction } from '@/services/bank-service';
@@ -29,6 +31,8 @@ export default function MyBankPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     const storedClientId = typeof window !== 'undefined' ? localStorage.getItem('selectedClientId') : null;
+
+    const [missingCount, setMissingCount] = useState(0);
 
     useEffect(() => {
         const loadTransactions = async () => {
@@ -44,6 +48,18 @@ export default function MyBankPage() {
             }
         };
         loadTransactions();
+    }, [storedClientId]);
+
+    useEffect(() => {
+        if (!storedClientId) return;
+        const unsub = onSnapshot(doc(db, 'missing_documents', storedClientId), (snap) => {
+            if (snap.exists()) {
+                setMissingCount(snap.data()?.items?.filter((i: any) => i.status === 'missing')?.length || 0);
+            } else {
+                setMissingCount(0);
+            }
+        });
+        return () => unsub();
     }, [storedClientId]);
 
     const documentsQuery = useMemoFirebase(() => {
@@ -217,14 +233,19 @@ export default function MyBankPage() {
                         </p>
                     </CardContent>
                 </Card>
-                <Card className="glass-panel border-white/10">
-                    <CardHeader className="pb-2">
-                        <CardDescription className="uppercase tracking-widest font-black text-[10px]">Justificatifs Manquants</CardDescription>
-                        <CardTitle className="text-3xl font-black text-orange-500">12</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-xs text-muted-foreground">Action requise pour la clôture</p>
-                    </CardContent>
+                <Card className="glass-panel border-white/10 hover:border-orange-500/50 transition-colors cursor-pointer group">
+                    <Link href="/dashboard/my-bank/missing">
+                        <CardHeader className="pb-2">
+                            <CardDescription className="uppercase tracking-widest font-black text-[10px] group-hover:text-orange-500 transition-colors">Justificatifs Manquants</CardDescription>
+                            <CardTitle className="text-3xl font-black text-orange-500">{missingCount}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-xs text-muted-foreground flex items-center justify-between">
+                                Action requise
+                                <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-orange-500" />
+                            </p>
+                        </CardContent>
+                    </Link>
                 </Card>
                 <Card className="glass-panel border-white/10">
                     <CardHeader className="pb-2">

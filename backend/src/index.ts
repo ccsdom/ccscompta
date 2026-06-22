@@ -1027,6 +1027,74 @@ export const saveBankReconciliation = onCall(
   }
 );
 
+export const runGhostHunter = onCall(
+  { region: 'europe-west9', memory: '256MiB' },
+  async (request: CallableRequest<{ clientId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = typeof request.data?.clientId === 'string' ? request.data.clientId.trim() : '';
+      if (!clientId) {
+        throw new HttpsError('invalid-argument', 'Client obligatoire.');
+      }
+
+      await assertClientCabinetAccess(request.auth, clientId, ['admin', 'accountant', 'secretary']);
+
+      // 1. Récupération des transactions bancaires
+      const transactions = buildMockBankTransactions();
+
+      // 2. Lecture des rapprochements existants
+      const reconciliationsSnap = await getDb().collection('reconciliations')
+        .where('clientId', '==', clientId)
+        .get();
+
+      const reconciledIndices = new Set<number>();
+      reconciliationsSnap.forEach(doc => {
+        const data = doc.data();
+        if (Array.isArray(data.matches)) {
+          data.matches.forEach((m: any) => {
+            if (typeof m.transactionIndex === 'number') {
+              reconciledIndices.add(m.transactionIndex);
+            }
+          });
+        }
+      });
+
+      // 3. Détection des dépenses non rapprochées
+      const missingDocuments: any[] = [];
+      transactions.forEach((tx, index) => {
+        // tx.amount est négatif pour les dépenses
+        if (tx.amount < 0 && !reconciledIndices.has(index)) {
+          // Filtre : exclure les virements internes
+          if (!tx.description.toLowerCase().includes('virement interne')) {
+            missingDocuments.push({
+              ...tx,
+              transactionIndex: index,
+              status: 'missing',
+              identifiedAt: new Date().toISOString()
+            });
+          }
+        }
+      });
+
+      // 4. Sauvegarde dans une collection dédiée pour le client
+      await getDb().collection('missing_documents').doc(clientId).set({
+        clientId,
+        items: missingDocuments,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      logger.log(`👻 [GhostHunter] ${missingDocuments.length} justificatifs manquants identifiés pour ${clientId}`);
+
+      return { success: true, count: missingDocuments.length, items: missingDocuments };
+    } catch (error) {
+      throwCallableError(error, 'runGhostHunter failed');
+    }
+  }
+);
+
 export const supportChat = onCall(
   { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 },
   async (request: CallableRequest<{ history?: unknown, clientId?: unknown }>) => {

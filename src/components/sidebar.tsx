@@ -14,7 +14,7 @@ import { SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { Client } from '@/lib/types';
 import { useBranding } from '@/components/branding-provider';
@@ -81,6 +81,23 @@ const isNavItemActive = (pathname: string, itemHref: string) => {
 export function NavItems({ currentRole }: { currentRole: Role }) {
     const pathname = usePathname();
     const { items } = roleConfig[currentRole] || roleConfig.client;
+    const [missingCount, setMissingCount] = useState(0);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const clientId = localStorage.getItem('selectedClientId');
+        // On écoute s'il y a un clientId, même si c'est un comptable qui "impersonate" un client
+        if (clientId && (currentRole === 'client' || currentRole === 'accountant')) {
+            const unsub = onSnapshot(doc(db, 'missing_documents', clientId), (snap) => {
+                if (snap.exists()) {
+                    setMissingCount(snap.data()?.items?.filter((i: any) => i.status === 'missing')?.length || 0);
+                } else {
+                    setMissingCount(0);
+                }
+            });
+            return () => unsub();
+        }
+    }, [currentRole]);
 
     return (
         <ul className="space-y-1.5 list-none m-0 p-0">
@@ -101,7 +118,12 @@ export function NavItems({ currentRole }: { currentRole: Role }) {
                                 "h-5 w-5 transition-transform duration-300", 
                                 isActive ? "scale-110" : "group-hover:scale-110"
                             )} />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {item.href === '/dashboard/my-bank' && missingCount > 0 && (
+                                <Badge variant="destructive" className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
+                                    {missingCount}
+                                </Badge>
+                            )}
                         </Link>
                     </li>
                 );

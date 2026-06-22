@@ -208,10 +208,28 @@ function StepImport({
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<ParsedTransaction[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isHunting, setIsHunting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handleRunGhostHunter = async () => {
+    setIsHunting(true);
+    try {
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('@/firebase');
+      const runGhostHunter = httpsCallable(functions, 'runGhostHunter');
+      const result = await runGhostHunter({ clientId: client.id }) as any;
+      toast({
+        title: "Ghost Hunter terminé",
+        description: `${result.data?.count || 0} justificatifs manquants détectés.`
+      });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur Ghost Hunter', description: err.message });
+    } finally {
+      setIsHunting(false);
+    }
+  };
 
   const handleBankSync = async () => {
     setIsSyncing(true);
@@ -337,6 +355,16 @@ function StepImport({
                     <Landmark className="h-3 w-3 mr-2" /> Banque
                 </Button>
             </div>
+            <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRunGhostHunter} 
+                disabled={isHunting}
+                className="rounded-xl border-orange-500/20 text-orange-500 hover:bg-orange-500/10 gap-2 font-space uppercase text-[10px] tracking-widest font-bold"
+            >
+                <Search className={cn("h-3 w-3", isHunting && "animate-spin")} /> 
+                {isHunting ? 'Analyse...' : 'Ghost-Hunter'}
+            </Button>
             <Button variant="ghost" size="sm" onClick={onBack} className="rounded-xl hover:bg-white/10 gap-2 font-space uppercase text-[10px] tracking-widest font-bold">
                 <RotateCcw className="h-3 w-3" /> Changer
             </Button>
