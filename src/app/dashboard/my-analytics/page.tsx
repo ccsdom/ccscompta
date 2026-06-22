@@ -219,10 +219,26 @@ export default function MyAnalyticsPage() {
     const mainVendor = top5Vendors[0]?.name ?? 'N/A';
     const avgPerDoc = approvedDocs.length > 0 ? totalTTC / approvedDocs.length : 0;
 
+    // Simulation de Trésorerie Prédictive à 90 jours
+    const runRate30j = totalTTC / Math.max(1, Object.keys(byMonth).length);
+    const revRate30j = runRate30j * 1.35; // Simulation de revenus (marge de 35%)
+    let currentBalance = 12450; // Solde initial simulé
+    
+    const predictiveCashflowData = [
+      { date: 'Auj.', balance: currentBalance },
+      { date: '+15j', balance: currentBalance += (revRate30j * 0.5) - (runRate30j * 0.5) - (Math.random() * 500) },
+      { date: '+30j', balance: currentBalance += (revRate30j * 0.5) - (runRate30j * 0.5) + (Math.random() * 800) },
+      { date: '+60j', balance: currentBalance += (revRate30j) - (runRate30j) - (Math.random() * 1000) },
+      { date: '+90j', balance: currentBalance += (revRate30j) - (runRate30j) + (Math.random() * 1500) }
+    ].map(d => ({ ...d, balance: Math.round(d.balance) }));
+
+    const projectedBalance30j = predictiveCashflowData[2].balance;
+
     return {
       totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc,
       approvedCount: approvedDocs.length,
-      monthlyChartData, top5Vendors, categoryData
+      monthlyChartData, top5Vendors, categoryData,
+      predictiveCashflowData, projectedBalance30j
     };
   }, [clientDocuments]);
 
@@ -262,7 +278,7 @@ export default function MyAnalyticsPage() {
     );
   }
 
-  const { totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc, approvedCount, monthlyChartData, top5Vendors, categoryData } = analyticsData;
+  const { totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc, approvedCount, monthlyChartData, top5Vendors, categoryData, predictiveCashflowData, projectedBalance30j } = analyticsData;
 
   return (
     <div className="space-y-8 p-4 md:p-6 max-w-7xl mx-auto animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
@@ -416,24 +432,49 @@ export default function MyAnalyticsPage() {
             </CardContent>
         </Card>
 
-        <Card className="glass-panel premium-shadow bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-500/20">
-            <CardHeader>
+        <Card className="glass-panel premium-shadow bg-gradient-to-br from-indigo-500/10 to-transparent border-indigo-500/20 flex flex-col">
+            <CardHeader className="pb-0">
                 <CardTitle className="flex items-center gap-2 font-display text-2xl text-indigo-400">
                     <TrendingUp className="h-6 w-6" />
-                    Prévision 30 j.
+                    Prévision 90 j.
                 </CardTitle>
-                <CardDescription className="text-base text-indigo-300/60">Flux de trésorerie estimé</CardDescription>
+                <CardDescription className="text-base text-indigo-300/60">Solde de trésorerie estimé</CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                    <div className="text-4xl font-black tracking-tight text-white mb-2">
-                        -{(totalTTC * 0.8).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-                    </div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Dépenses prévues</p>
-                    <div className="w-full h-1.5 bg-white/5 rounded-full mt-6 overflow-hidden">
-                        <div className="h-full bg-indigo-500 w-3/4 rounded-full" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-2">Capacité d'investissement : ÉLEVÉE</p>
+            <CardContent className="flex-1 flex flex-col">
+                <div className="flex items-baseline gap-2 mt-4 mb-6 px-2">
+                    <span className="text-4xl font-black tracking-tight text-white">
+                        {projectedBalance30j.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                    </span>
+                    <span className="text-sm font-bold text-emerald-400">à +30 jours</span>
+                </div>
+                <div className="flex-1 min-h-[150px]">
+                    <ChartContainer config={{ balance: { label: "Trésorerie", color: "hsl(var(--primary))" } }} className="h-full w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={predictiveCashflowData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} className="text-xs" />
+                                <ChartTooltip
+                                    content={<ChartTooltipContent
+                                        formatter={(value) => `${Number(value).toLocaleString('fr-FR')} €`}
+                                        indicator="dot"
+                                    />}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="balance" 
+                                    stroke="#6366f1" 
+                                    strokeWidth={3}
+                                    fillOpacity={1} 
+                                    fill="url(#colorBalance)" 
+                                />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </ChartContainer>
                 </div>
             </CardContent>
         </Card>

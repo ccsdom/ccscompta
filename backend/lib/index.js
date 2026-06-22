@@ -891,26 +891,48 @@ exports.supportChat = (0, https_1.onCall)({ region: 'europe-west9', memory: '512
             let totalSpent = 0;
             let totalVat = 0;
             const vendors = {};
+            const categories = {};
+            const months = {};
             snapshot.docs.forEach(docSnap => {
-                var _a, _b, _c;
+                var _a, _b, _c, _d, _e;
                 const data = docSnap.data();
                 const amounts = ((_a = data.extractedData) === null || _a === void 0 ? void 0 : _a.amounts) || [];
                 const vat = ((_b = data.extractedData) === null || _b === void 0 ? void 0 : _b.vatAmount) || 0;
                 const vendor = (((_c = data.extractedData) === null || _c === void 0 ? void 0 : _c.vendorNames) || [])[0] || 'Inconnu';
+                const category = ((_d = data.extractedData) === null || _d === void 0 ? void 0 : _d.category) || 'Autre';
+                const rawDate = (((_e = data.extractedData) === null || _e === void 0 ? void 0 : _e.dates) || [])[0];
                 const amount = amounts.reduce((a, b) => a + b, 0);
                 totalSpent += amount;
                 totalVat += vat;
                 vendors[vendor] = (vendors[vendor] || 0) + amount;
+                categories[category] = (categories[category] || 0) + amount;
+                if (rawDate) {
+                    const dateObj = new Date(rawDate);
+                    if (!isNaN(dateObj.getTime())) {
+                        const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+                        months[monthKey] = (months[monthKey] || 0) + amount;
+                    }
+                }
             });
             const topVendors = Object.entries(vendors)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 3)
                 .map(([name, val]) => `${name} (${val.toFixed(2)} €)`);
+            const categoryList = Object.entries(categories)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, val]) => `${name} (${val.toFixed(2)} €)`);
+            const monthlyEvolution = Object.entries(months)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([name, val]) => `${name} : ${val.toFixed(2)} €`);
             financialContext = `
 Nombre de documents approuvés: ${snapshot.docs.length}
 Total des dépenses TTC: ${totalSpent.toFixed(2)} €
 TVA Déductible totale: ${totalVat.toFixed(2)} €
 Top Fournisseurs: ${topVendors.length > 0 ? topVendors.join(', ') : 'Aucun'}
+Répartition par catégories:
+${categoryList.length > 0 ? categoryList.join('\n') : 'Aucune'}
+Évolution mensuelle des dépenses:
+${monthlyEvolution.length > 0 ? monthlyEvolution.join('\n') : 'Aucune'}
 `;
         }
         const response = await generateSupportChatAnswer(history, financialContext);
