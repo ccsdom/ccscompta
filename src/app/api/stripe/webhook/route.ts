@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getFirebaseAdminApp } from '@/lib/firebase-admin';
+import { admin, db } from '@/lib/firebase-admin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2025-02-24.acacia',
@@ -36,8 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
-    const admin = getFirebaseAdminApp();
-    const db = admin.firestore();
+    // db is already imported
 
     switch (event.type) {
       case 'checkout.session.completed': {
