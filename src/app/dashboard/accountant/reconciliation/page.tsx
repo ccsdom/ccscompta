@@ -208,6 +208,7 @@ function StepImport({
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<ParsedTransaction[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isHunting, setIsHunting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
