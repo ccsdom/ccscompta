@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCollection, useMemoFirebase } from '@/firebase';
-import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, where, doc, onSnapshot } from 'firebase/firestore';
 import type { Document } from '@/lib/types';
