@@ -14,6 +14,33 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { AccountAutocomplete } from '@/components/account-autocomplete';
+
+const DEBIT_ACCOUNT_OPTIONS = [
+  { code: '606100', label: 'Fournitures non stockables (Eau, Énergie, EDF...)' },
+  { code: '606400', label: 'Fournitures de bureau (Papeterie, encre...)' },
+  { code: '613200', label: 'Locations immobilières (Loyer)' },
+  { code: '615000', label: 'Entretien et réparations' },
+  { code: '616000', label: 'Primes d\'assurances' },
+  { code: '622600', label: 'Honoraires (Avocat, expert-comptable, conseil...)' },
+  { code: '623000', label: 'Publicité, relations publiques (Google/FB Ads...)' },
+  { code: '625100', label: 'Voyages et déplacements (SNCF, Uber, Avion...)' },
+  { code: '625600', label: 'Missions et réceptions (Restaurant, repas...)' },
+  { code: '626000', label: 'Frais postaux et télécommunications (Orange, SFR...)' },
+  { code: '627800', label: 'Frais bancaires (Commissions, abonnements...)' },
+];
+
+const CREDIT_ACCOUNT_OPTIONS = [
+  { code: '401000', label: 'Fournisseurs - Général' },
+  { code: '401100', label: 'Fournisseurs - Achats de biens' },
+  { code: '401200', label: 'Fournisseurs - Prestations de services' },
+];
+
+const VAT_ACCOUNT_OPTIONS = [
+  { code: '445660', label: 'TVA déductible sur autres biens et services' },
+  { code: '445620', label: 'TVA déductible sur immobilisations' },
+  { code: '445710', label: 'TVA collectée' },
+];
 
 export default function ValidationExpertPage() {
   const [queue, setQueue] = useState<Document[]>([]);
@@ -28,7 +55,8 @@ export default function ValidationExpertPage() {
     creditAccount: '',
     vatAccount: '',
     vatAmount: '',
-    amountTTC: ''
+    amountTTC: '',
+    amountHT: ''
   });
 
   // 1. Fetch the queue
@@ -73,12 +101,16 @@ export default function ValidationExpertPage() {
     if (!currentDocument) return;
     const ext = currentDocument.extractedData || {};
     const entry = ext.accountingEntry || {};
+    const ttc = ext.amounts?.[0] || 0;
+    const vat = ext.vatAmount || 0;
+    const ht = ttc - vat;
     setEditedData({
       debitAccount: entry.debitAccount || '',
       creditAccount: entry.creditAccount || '',
       vatAccount: entry.vatAccount || '445660',
-      vatAmount: (ext.vatAmount || 0).toString(),
-      amountTTC: (ext.amounts?.[0] || 0).toString()
+      vatAmount: vat.toString(),
+      amountTTC: ttc.toString(),
+      amountHT: ht.toFixed(2)
     });
   }, [currentIndex, currentDocument]);
 
@@ -105,6 +137,18 @@ export default function ValidationExpertPage() {
   // Single Validation
   const handleApprove = useCallback(async () => {
     if (!currentDocument || isActionLoading) return;
+    
+    const ttc = parseFloat(editedData.amountTTC) || 0;
+    const vat = parseFloat(editedData.vatAmount) || 0;
+    const ht = parseFloat(editedData.amountHT) || 0;
+
+    if (Math.abs(ht + vat - ttc) > 0.02) {
+      const confirm = window.confirm(
+        `Attention: Écart de cohérence détecté.\nHT (${ht.toFixed(2)} €) + TVA (${vat.toFixed(2)} €) = ${(ht + vat).toFixed(2)} € (TTC saisi : ${ttc.toFixed(2)} €).\nVoulez-vous tout de même valider ?`
+      );
+      if (!confirm) return;
+    }
+
     setIsActionLoading(true);
     try {
       const batch = writeBatch(db);
@@ -126,15 +170,12 @@ export default function ValidationExpertPage() {
         'extractedData.accountingEntry.debitAccount': editedData.debitAccount,
         'extractedData.accountingEntry.creditAccount': editedData.creditAccount,
         'extractedData.accountingEntry.vatAccount': editedData.vatAccount,
-        'extractedData.vatAmount': parseFloat(editedData.vatAmount) || 0,
-        'extractedData.amounts': [parseFloat(editedData.amountTTC) || 0]
+        'extractedData.vatAmount': vat,
+        'extractedData.amounts': [ttc]
       });
 
       // 2. Generate Accounting Entry (Grand Livre)
       const entryRef = doc(collection(db, 'accounting_entries'));
-      const ttc = parseFloat(editedData.amountTTC) || 0;
-      const vat = parseFloat(editedData.vatAmount) || 0;
-      const ht = ttc - vat;
       
       const lines = [];
       if (editedData.creditAccount) {
@@ -277,8 +318,20 @@ export default function ValidationExpertPage() {
   const score = currentDocument?.extractedData?.accountingEntry?.confidenceScore || 0;
   const numTtC = parseFloat(editedData.amountTTC) || 0;
   const numVat = parseFloat(editedData.vatAmount) || 0;
-  const numHt = numTtC - numVat;
-  
+  const numHt = parseFloat(editedData.amountHT) || 0;
+  const isCoherent = Math.abs(numHt + numVat - numTtC) < 0.02;
+
+  const applyVatRate = (rate: number) => {
+    const rateFactor = 1 + rate / 100;
+    const computedHT = numTtC / rateFactor;
+    const computedVAT = numTtC - computedHT;
+    setEditedData({
+      ...editedData,
+      amountHT: computedHT.toFixed(2),
+      vatAmount: computedVAT.toFixed(2)
+    });
+  };
+
   const autoApprovableCount = queue.filter(d => (d.extractedData?.accountingEntry?.confidenceScore || 0) >= 90).length;
 
   return (
@@ -346,10 +399,11 @@ export default function ValidationExpertPage() {
                     <CardDescription className="uppercase font-semibold tracking-wider text-xs">Débit (Charge)</CardDescription>
                   </CardHeader>
                   <CardContent className="p-3 pt-0">
-                    <Input 
+                    <AccountAutocomplete 
                       className="text-2xl font-mono font-bold h-12 bg-background border-muted hover:border-primary focus:border-primary transition-colors"
                       value={editedData.debitAccount}
-                      onChange={e => setEditedData({...editedData, debitAccount: e.target.value})}
+                      onChange={val => setEditedData({...editedData, debitAccount: val})}
+                      options={DEBIT_ACCOUNT_OPTIONS}
                       placeholder="Ex: 606400"
                     />
                   </CardContent>
@@ -360,10 +414,11 @@ export default function ValidationExpertPage() {
                     <CardDescription className="uppercase font-semibold tracking-wider text-xs">Crédit (Fournisseur)</CardDescription>
                   </CardHeader>
                   <CardContent className="p-3 pt-0">
-                    <Input 
+                    <AccountAutocomplete 
                       className="text-2xl font-mono font-bold h-12 bg-background border-muted hover:border-primary focus:border-primary transition-colors text-emerald-600 dark:text-emerald-400"
                       value={editedData.creditAccount}
-                      onChange={e => setEditedData({...editedData, creditAccount: e.target.value})}
+                      onChange={val => setEditedData({...editedData, creditAccount: val})}
+                      options={CREDIT_ACCOUNT_OPTIONS}
                       placeholder="Ex: 401000"
                     />
                   </CardContent>
@@ -371,15 +426,30 @@ export default function ValidationExpertPage() {
               </div>
 
               <Card className="bg-muted/10">
-                  <CardHeader className="p-3 pb-1">
+                  <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between">
                     <CardDescription className="uppercase font-semibold tracking-wider text-xs">TVA Déductible</CardDescription>
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" variant="ghost" size="sm" className="h-5 px-1.5 text-[9px] uppercase font-bold text-muted-foreground hover:text-primary bg-background/50 border border-muted hover:border-primary/30 rounded-md"
+                        onClick={() => applyVatRate(20)}
+                      >
+                        TVA 20%
+                      </Button>
+                      <Button 
+                        type="button" variant="ghost" size="sm" className="h-5 px-1.5 text-[9px] uppercase font-bold text-muted-foreground hover:text-primary bg-background/50 border border-muted hover:border-primary/30 rounded-md"
+                        onClick={() => applyVatRate(5.5)}
+                      >
+                        TVA 5.5%
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-3 pt-0 flex gap-4">
                     <div className="flex-1">
-                        <Input 
+                        <AccountAutocomplete 
                           className="text-xl font-mono h-10 bg-background border-muted"
                           value={editedData.vatAccount}
-                          onChange={e => setEditedData({...editedData, vatAccount: e.target.value})}
+                          onChange={val => setEditedData({...editedData, vatAccount: val})}
+                          options={VAT_ACCOUNT_OPTIONS}
                           placeholder="Compte TVA"
                         />
                     </div>
@@ -395,23 +465,79 @@ export default function ValidationExpertPage() {
                   </CardContent>
               </Card>
               
-               <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
-                  <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Montant HT calculé</span>
-                      <span className="font-mono font-bold text-muted-foreground">{numHt.toFixed(2)} €</span>
-                  </div>
-                  <div className="flex items-center gap-4 pt-2 border-t border-primary/10">
-                      <span className="text-primary font-bold">Total TTC</span>
-                      <div className="relative flex-1">
-                          <Input 
-                            className="text-xl font-bold h-10 border-primary/30 bg-background text-primary pr-8 text-right focus:border-primary"
-                            value={editedData.amountTTC}
-                            onChange={e => setEditedData({...editedData, amountTTC: e.target.value})}
-                          />
-                          <span className="absolute right-3 top-2 text-primary font-bold">€</span>
-                      </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-muted/10">
+                  <CardHeader className="p-3 pb-1">
+                    <CardDescription className="uppercase font-semibold tracking-wider text-xs">Montant HT</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 relative">
+                    <Input 
+                      className="text-xl font-bold h-10 bg-background border-muted pr-8 text-right font-mono"
+                      value={editedData.amountHT}
+                      onChange={e => setEditedData({...editedData, amountHT: e.target.value})}
+                      placeholder="0.00"
+                    />
+                    <span className="absolute right-6 top-2 text-muted-foreground font-bold">€</span>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-muted/10 border-primary/20">
+                  <CardHeader className="p-3 pb-1">
+                    <CardDescription className="uppercase font-semibold tracking-wider text-xs text-primary font-bold">Total TTC</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0 relative">
+                    <Input 
+                      className="text-xl font-bold h-10 border-primary/30 bg-background text-primary pr-8 text-right focus:border-primary font-mono"
+                      value={editedData.amountTTC}
+                      onChange={e => setEditedData({...editedData, amountTTC: e.target.value})}
+                      placeholder="0.00"
+                    />
+                    <span className="absolute right-6 top-2 text-primary font-bold">€</span>
+                  </CardContent>
+                </Card>
               </div>
+
+              <Card className={cn(
+                "border-dashed transition-all duration-300",
+                isCoherent ? "bg-emerald-500/5 border-emerald-500/20" : "bg-amber-500/5 border-amber-500/30"
+              )}>
+                <CardContent className="p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Formule : HT + TVA = TTC</span>
+                    {isCoherent ? (
+                      <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">✓ Cohérence OK</Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse">⚠ Écart : {Math.abs(numHt + numVat - numTtC).toFixed(2)} €</Badge>
+                    )}
+                  </div>
+                  
+                  {!isCoherent && (
+                    <div className="flex flex-col gap-2 pt-2 border-t border-dashed border-border/50">
+                      <p className="text-[11px] text-muted-foreground font-medium">Ajuster automatiquement pour équilibrer la formule :</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button 
+                          type="button" variant="outline" size="sm" className="h-7 text-[9px] uppercase font-bold border-amber-500/20 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 rounded-lg"
+                          onClick={() => setEditedData({...editedData, amountTTC: (numHt + numVat).toFixed(2)})}
+                        >
+                          Ajuster TTC
+                        </Button>
+                        <Button 
+                          type="button" variant="outline" size="sm" className="h-7 text-[9px] uppercase font-bold border-amber-500/20 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 rounded-lg"
+                          onClick={() => setEditedData({...editedData, amountHT: (numTtC - numVat).toFixed(2)})}
+                        >
+                          Ajuster HT
+                        </Button>
+                        <Button 
+                          type="button" variant="outline" size="sm" className="h-7 text-[9px] uppercase font-bold border-amber-500/20 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 rounded-lg"
+                          onClick={() => setEditedData({...editedData, vatAmount: (numTtC - numHt).toFixed(2)})}
+                        >
+                          Ajuster TVA
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
           </ScrollArea>

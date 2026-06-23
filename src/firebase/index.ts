@@ -3,10 +3,10 @@
 
 import { firebaseConfig, hasResolvedFirebaseConfig, isUsingLegacyFirebaseConfigOnly } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import { getFunctions } from 'firebase/functions';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 export function initializeFirebase() {
@@ -49,12 +49,32 @@ export function getSdks(firebaseApp: FirebaseApp) {
       }
   }
 
+  const auth = getAuth(firebaseApp);
+  const firestore = getFirestore(firebaseApp);
+  const storage = getStorage(firebaseApp);
+  const functions = getFunctions(firebaseApp, 'europe-west9');
+
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const isAlreadyConnected = (auth as any)._emulatorConfig || (auth as any).emulatorConfig;
+      if (!isAlreadyConnected) {
+        connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+        connectFirestoreEmulator(firestore, '127.0.0.1', 8080);
+        connectStorageEmulator(storage, '127.0.0.1', 9199);
+        connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+        console.log('[Firebase] Connected to local emulators');
+      }
+    } catch (e) {
+      console.warn('[Firebase] Emulators already connected or connection failed:', e);
+    }
+  }
+
   return {
     firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp),
-    storage: getStorage(firebaseApp),
-    functions: getFunctions(firebaseApp, 'europe-west9')
+    auth,
+    firestore,
+    storage,
+    functions
   };
 }
 

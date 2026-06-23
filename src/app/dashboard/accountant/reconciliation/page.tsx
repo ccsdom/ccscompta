@@ -25,6 +25,16 @@ import { getBankAuthLink, syncBankTransactions } from '@/services/bank-connectio
 import type { Client, Document } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -537,6 +547,12 @@ function StepResults({
   const [draggedDocId, setDraggedDocId] = useState<string | null>(null);
   const [dragOverTxIdx, setDragOverTxIdx] = useState<number | null>(null);
   const [localTransactions, setLocalTransactions] = useState<ParsedTransaction[]>(transactions);
+  const [pendingLink, setPendingLink] = useState<{
+    txIndex: number;
+    docId: string;
+    txAmount: number;
+    docAmount: number;
+  } | null>(null);
 
   // Fetch approved documents for this client
   const documentsQuery = useMemoFirebase(() => {
@@ -558,7 +574,7 @@ function StepResults({
     return documents.filter(doc => !matchedDocIds.has(doc.id) && doc.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [documents, matched, searchQuery]);
 
-  const handleLink = (txIndex: number, docId: string, isAiSuggestion = false) => {
+  const executeLink = useCallback((txIndex: number, docId: string, isAiSuggestion = false) => {
     const newTxs = [...localTransactions];
     newTxs[txIndex].matchingDocumentId = docId;
     if (!isAiSuggestion) {
@@ -571,6 +587,27 @@ function StepResults({
     setDragOverTxIdx(null);
     setDraggedDocId(null);
     toast({ title: 'Rapprochement effectué', description: 'Transaction et facture liées avec succès.' });
+  }, [localTransactions, toast]);
+
+  const handleLink = (txIndex: number, docId: string, isAiSuggestion = false) => {
+    if (isAiSuggestion) {
+      executeLink(txIndex, docId, true);
+      return;
+    }
+
+    const doc = documents?.find(d => d.id === docId);
+    if (doc) {
+      const amountHT = doc.extractedData?.amounts?.[0] || 0;
+      const vatAmount = doc.extractedData?.vatAmount || 0;
+      const docAmount = amountHT + vatAmount;
+      const txAmount = Math.abs(localTransactions[txIndex].amount);
+
+      if (Math.abs(docAmount - txAmount) > 0.01) {
+        setPendingLink({ txIndex, docId, txAmount, docAmount });
+        return;
+      }
+    }
+    executeLink(txIndex, docId, false);
   };
 
   const handleValidateAll = () => {
@@ -920,6 +957,47 @@ function StepResults({
           <RotateCcw className="h-4 w-4 mr-2" /> Nouveau Rapprochement
         </Button>
       </div>
+
+      <AlertDialog open={pendingLink !== null} onOpenChange={(open) => { if (!open) setPendingLink(null); }}>
+        <AlertDialogContent className="glass-panel border-white/10 max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-space font-black flex items-center gap-2 text-amber-500">
+              <AlertTriangle className="h-5 w-5" /> Montants non concordants
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground font-medium mt-2">
+              Le montant de la facture sélectionnée et le montant de la transaction ne correspondent pas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4 p-4 rounded-xl bg-white/5 border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Montant facture :</span>
+              <span className="font-bold text-foreground">{pendingLink?.docAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Montant transaction :</span>
+              <span className="font-bold text-foreground">{pendingLink?.txAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+            </div>
+            <div className="border-t border-white/5 pt-2 flex justify-between items-center text-xs text-red-400 font-bold">
+              <span>Écart :</span>
+              <span>{Math.abs((pendingLink?.docAmount || 0) - (pendingLink?.txAmount || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+            </div>
+          </div>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="border-white/10 hover:bg-white/5">Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (pendingLink) {
+                  executeLink(pendingLink.txIndex, pendingLink.docId, false);
+                  setPendingLink(null);
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-space font-bold"
+            >
+              Forcer le lettrage
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

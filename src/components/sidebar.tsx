@@ -170,7 +170,34 @@ export function MobileNav({ currentRole }: { currentRole: Role }) {
 
 export function Sidebar({ currentRole }: { currentRole: Role }) {
   const { theme, setTheme } = useTheme();
-  const { cabinet, isLoading } = useBranding();
+  const { cabinet, isLoading, isImpersonating, profile } = useBranding();
+  const router = useRouter();
+
+  const handleStopImpersonating = () => {
+      const originalRole = localStorage.getItem('originalUserRole');
+      const originalName = localStorage.getItem('originalUserName');
+      const originalEmail = localStorage.getItem('originalUserEmail');
+
+      localStorage.setItem('userName', originalName || 'Super Admin');
+      localStorage.setItem('userEmail', originalEmail || '');
+
+      localStorage.removeItem('originalUserRole');
+      localStorage.removeItem('originalUserName');
+      localStorage.removeItem('originalUserEmail');
+      localStorage.removeItem('impersonatedRole');
+      localStorage.removeItem('selectedClientId');
+      localStorage.removeItem('selectedCabinetId');
+
+      window.dispatchEvent(new Event('storage'));
+
+      if (originalRole === 'admin') {
+          router.push('/dashboard/admin');
+      } else if (originalRole === 'accountant') {
+          router.push('/dashboard/accountant');
+      } else {
+          router.push('/dashboard');
+      }
+  };
 
   const getDashboardHomeLink = () => {
     switch (currentRole) {
@@ -217,6 +244,30 @@ export function Sidebar({ currentRole }: { currentRole: Role }) {
                 </div>
             </Link>
           </div>
+          {isImpersonating && (
+            <div className="px-4 py-4 mx-4 mt-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col gap-3 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-amber-500/5 animate-pulse" />
+              <div className="flex items-center gap-2 relative">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                </span>
+                <span className="text-[10px] font-space font-black uppercase tracking-widest text-amber-500">Impersonation</span>
+              </div>
+              <p className="text-xs font-semibold leading-tight text-foreground relative">
+                Espace client de :<br/>
+                <span className="font-black text-amber-500 font-space text-sm">{profile?.name}</span>
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleStopImpersonating}
+                className="w-full h-9 rounded-xl border-amber-500/20 text-amber-500 hover:bg-amber-500/20 hover:text-amber-500 font-space font-black uppercase text-[10px] tracking-widest relative transition-all duration-300"
+              >
+                Quitter l'espace
+              </Button>
+            </div>
+          )}
           <ScrollArea className="flex-1">
             <nav className="px-4 py-6">
                 <NavItems currentRole={currentRole} />

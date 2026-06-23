@@ -238,12 +238,23 @@ export function Header({children}: {children?: React.ReactNode}) {
   }
 
   const ImpersonationBanner = () => (
-     <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-400 text-yellow-900 px-4 py-2 flex items-center justify-center text-sm font-medium shadow-lg animate-in slide-in-from-top duration-300">
-        <AlertTriangle className="h-4 w-4 mr-2"/>
-        Vous naviguez en tant que <span className="font-bold mx-1">{impersonationState.targetName}</span>.
-        <Button variant="link" size="sm" className="text-yellow-900 hover:text-black font-bold h-auto p-0 ml-2" onClick={handleStopImpersonating}>
-            Revenir à mon compte
-        </Button>
+     <div className="fixed top-16 left-0 right-0 z-50 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center text-sm font-bold shadow-lg border-b border-amber-400/50 animate-in slide-in-from-top duration-300">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+          </span>
+          <AlertTriangle className="h-4 w-4 text-amber-950 animate-bounce" />
+          <span>Mode Consultation • Vous naviguez en tant que <span className="underline font-black">{impersonationState.targetName}</span>.</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-amber-950 hover:bg-amber-950/15 hover:text-black font-black uppercase text-[10px] tracking-widest px-2.5 py-1 h-auto rounded-lg border border-amber-950/20 bg-amber-950/5 ml-2 transition-all duration-300"
+            onClick={handleStopImpersonating}
+          >
+            Quitter l'espace
+          </Button>
+        </div>
      </div>
   );
 
