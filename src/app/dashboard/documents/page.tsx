@@ -8,7 +8,7 @@ import { DataValidationForm } from '@/components/data-validation-form';
 import { type ExtractDataOutput } from '@/services/document-ai-service';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning, ShieldCheck, Search, X } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning, ShieldCheck, Search, X, Folder, FolderOpen, ChevronRight, Calendar, ArrowLeft, FileText } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { IntelligentSearchOutput } from '@/services/intelligent-search-service';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -38,6 +38,43 @@ import { ExportModal } from '@/components/export-modal';
 
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Utilisateur Démo';
+
+const getDocCategory = (doc: Document): 'achats' | 'ventes' | 'banque' | 'divers' => {
+  const type = (doc.type || (doc.extractedData as any)?.documentType || '').toLowerCase();
+  if (type.includes('purchase') || type.includes('receipt') || type.includes('achat') || type.includes('ticket') || type.includes('reçu')) {
+    return 'achats';
+  }
+  if (type.includes('sales') || type.includes('vente')) {
+    return 'ventes';
+  }
+  if (type.includes('bank') || type.includes('statement') || type.includes('relevé') || type.includes('banque')) {
+    return 'banque';
+  }
+  return 'divers';
+};
+
+const getDocDateInfo = (doc: Document): { year: string; monthIndex: number; monthName: string } => {
+  const dateStr = doc.extractedData?.dates?.[0] || doc.uploadDate;
+  const date = parseDate(dateStr) || new Date();
+  const year = date.getFullYear().toString();
+  const monthIndex = date.getMonth();
+  const months = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  ];
+  return {
+    year,
+    monthIndex,
+    monthName: months[monthIndex],
+  };
+};
+
+const categoryInfo = {
+  achats: { label: "Factures d'Achat", color: "from-amber-500/10 to-orange-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/10" },
+  ventes: { label: "Factures de Vente", color: "from-blue-500/10 to-indigo-500/10 border-blue-500/20 text-blue-500 hover:bg-blue-500/10" },
+  banque: { label: "Relevés Bancaires", color: "from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10" },
+  divers: { label: "Divers & Secrétariat", color: "from-slate-500/10 to-zinc-500/10 border-slate-500/20 text-slate-400 hover:bg-slate-500/10" }
+};
 
 const getStatusInfo = (status: Document['status']): { icon: React.ElementType, label: string, color: string } => {
   switch (status) {
@@ -76,6 +113,9 @@ export default function DocumentsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [localStatusFilter, setLocalStatusFilter] = useState<'all' | 'reviewing' | 'pending' | 'approved' | 'error'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<'achats' | 'ventes' | 'banque' | 'divers' | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -165,6 +205,12 @@ export default function DocumentsPage() {
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
   }, [selectedClientId, searchParams])
+
+  useEffect(() => {
+    setSelectedCategory(null);
+    setSelectedYear(null);
+    setSelectedMonth(null);
+  }, [selectedClientId]);
 
 
   const createNotification = (doc: Document, message: string) => {
@@ -459,6 +505,39 @@ export default function DocumentsPage() {
     return groups;
   }, [filteredDocuments]);
 
+  const binderTree = useMemo(() => {
+    const tree: {
+      [cat: string]: {
+        [year: string]: {
+          [month: string]: {
+            monthIndex: number;
+            docs: Document[];
+          }
+        }
+      }
+    } = {
+      achats: {},
+      ventes: {},
+      banque: {},
+      divers: {}
+    };
+
+    filteredDocuments.forEach(doc => {
+      const cat = getDocCategory(doc);
+      const { year, monthIndex, monthName } = getDocDateInfo(doc);
+
+      if (!tree[cat][year]) {
+        tree[cat][year] = {};
+      }
+      if (!tree[cat][year][monthName]) {
+        tree[cat][year][monthName] = { monthIndex, docs: [] };
+      }
+      tree[cat][year][monthName].docs.push(doc);
+    });
+
+    return tree;
+  }, [filteredDocuments]);
+
   // Explicit block for Super Admin to force impersonation
   if (userRole === 'admin') {
       return (
@@ -597,347 +676,492 @@ export default function DocumentsPage() {
   );
 
   const DocumentList = () => {
-    const documentGroups: { status: Document['status']; label: string }[] = [
-      { status: 'reviewing', label: 'Prêt pour examen' },
-      { status: 'pending', label: 'En attente de traitement' },
-      { status: 'processing', label: 'En cours de traitement' },
-      { status: 'approved', label: 'Approuvé' },
-      { status: 'duplicate', label: 'Doublons Potentiels' },
-      { status: 'error', label: 'Erreur' },
-    ];
+    return null;
+  };
 
+  const Breadcrumbs = () => {
+    return (
+      <div className="flex items-center space-x-1.5 text-[10px] font-space font-black uppercase tracking-widest text-muted-foreground/60 pl-1 py-1">
+        <button onClick={() => { setSelectedCategory(null); setSelectedYear(null); setSelectedMonth(null); }} className="hover:text-foreground transition-colors">Tous</button>
+        {selectedCategory && (
+          <>
+            <ChevronRight className="h-3 w-3" />
+            <button onClick={() => { setSelectedYear(null); setSelectedMonth(null); }} className="hover:text-foreground transition-colors text-primary">
+              {categoryInfo[selectedCategory].label}
+            </button>
+          </>
+        )}
+        {selectedYear && (
+          <>
+            <ChevronRight className="h-3 w-3" />
+            <button onClick={() => { setSelectedMonth(null); }} className="hover:text-foreground transition-colors text-primary">
+              {selectedYear}
+            </button>
+          </>
+        )}
+        {selectedMonth && (
+          <>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-foreground">{selectedMonth}</span>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const EmptyFolderState = ({ message }: { message: string }) => (
+    <div className="text-center py-16 space-y-4 border border-dashed border-white/5 rounded-3xl bg-white/5 dark:bg-[#0a0f1d]/10 max-w-lg mx-auto w-full">
+      <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 mx-auto opacity-30">
+          <Folder className="h-7 w-7 text-muted-foreground" />
+      </div>
+      <div className="space-y-1 px-4">
+          <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Dossier Vide</h3>
+          <p className="text-xs text-muted-foreground">
+            {message}
+          </p>
+      </div>
+    </div>
+  );
+
+  const FlatDocumentList = ({ docs }: { docs: Document[] }) => {
+    return (
+      <div className="space-y-2.5 w-full">
+        <AnimatePresence mode="popLayout">
+          {docs.map((doc, idx) => (
+             <motion.div
+               key={doc.id}
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.98 }}
+               transition={{ delay: idx * 0.02, duration: 0.2 }}
+               onClick={() => handleSetActiveDocument(doc)}
+               className={cn(
+                 'w-full text-left p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 cursor-pointer bg-white/5 dark:bg-[#0f172a]/20 border-white/5 hover:bg-white/10 dark:hover:bg-[#0f172a]/40 hover:scale-[1.005] premium-shadow-sm',
+                 statusBorderColors[doc.status] || 'border-l-transparent'
+               )}
+             >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      onCheckedChange={(checked) => {
+                        setSelectedDocumentIds(prev => 
+                          checked ? [...prev, doc.id] : prev.filter(id => id !== doc.id)
+                        );
+                      }}
+                      checked={selectedDocumentIds.includes(doc.id)}
+                      aria-label={`Sélectionner ${doc.name}`}
+                      className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary h-4.5 w-4.5 rounded"
+                    />
+                  </div>
+                  
+                  <div className="h-10 w-10 bg-white/5 rounded-xl flex items-center justify-center border border-white/5 shrink-0">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                     <p className="font-black text-sm text-foreground truncate" title={doc.extractedData?.vendorNames?.[0] || doc.name}>
+                         {doc.extractedData?.vendorNames?.[0] || doc.name}
+                     </p>
+                     <p className="text-[10px] text-muted-foreground font-medium truncate" title={doc.name}>
+                         Fichier : {doc.name}
+                     </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0">
+                   <div className="text-left sm:text-right">
+                     {doc.extractedData?.amounts?.[0] != null ? (
+                       <p className="font-space font-black text-xs text-foreground tabular-nums bg-white/5 px-2 py-0.5 rounded-lg inline-block">
+                           {doc.extractedData.amounts[0].toFixed(2)} €
+                       </p>
+                     ) : (
+                       <p className="text-xs text-muted-foreground">-</p>
+                     )}
+                     <p className="text-[9px] opacity-40 font-medium mt-0.5">
+                       {formatDistanceToNow(parseDate(doc.uploadDate) || new Date(), { addSuffix: true, locale: fr })}
+                     </p>
+                   </div>
+
+                   <div className="flex items-center gap-2">
+                       <Badge variant="outline" className={cn(
+                         "h-5 px-2 text-[9px] font-space font-bold uppercase tracking-wider border-none rounded-lg",
+                         getStatusInfo(doc.status).color.includes('green') ? "bg-emerald-500/10 text-emerald-500" :
+                         getStatusInfo(doc.status).color.includes('yellow') ? "bg-amber-500/10 text-amber-500" :
+                         getStatusInfo(doc.status).color.includes('red') ? "bg-red-500/10 text-red-500" :
+                         "bg-white/5 text-muted-foreground"
+                       )}>
+                           {getStatusInfo(doc.status).label}
+                       </Badge>
+                       {doc.isExported && (
+                           <Badge variant="outline" className="h-5 px-2 bg-blue-500/10 text-blue-500 border-none text-[9px] font-space font-bold uppercase tracking-wider rounded-lg">Exporté</Badge>
+                       )}
+                       {doc.status === 'duplicate' && (
+                           <Badge variant="outline" className="h-5 px-2 bg-rose-500/10 text-rose-500 border-none text-[9px] font-space font-bold uppercase tracking-wider rounded-lg">Doublon</Badge>
+                       )}
+                   </div>
+
+                   <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-foreground" onClick={() => handleSetActiveDocument(doc)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                   </div>
+                </div>
+             </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  const BinderExplorer = () => {
     if (!selectedClientId) {
       return (
-        <div className="h-full flex items-center justify-center bg-white/5 dark:bg-[#0a0f1d]/20 rounded-3xl m-4 border border-dashed border-white/10">
-          <div className="text-center space-y-4 max-w-sm p-8">
+        <div className="h-full flex items-center justify-center border border-dashed border-white/10 rounded-3xl p-12 bg-white/5 dark:bg-[#0a0f1d]/5 min-h-[300px] w-full">
+          <div className="text-center space-y-4 max-w-sm">
             <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 mx-auto opacity-40">
                 <FileUp className="h-7 w-7 text-muted-foreground" />
             </div>
             <div className="space-y-1">
                 <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Aucun client sélectionné</h3>
                 <p className="text-xs text-muted-foreground">
-                  Veuillez sélectionner un client dans le sélecteur ci-dessus pour consulter son flux de documents.
+                  Veuillez sélectionner un client dans le sélecteur pour consulter son classeur de documents.
                 </p>
             </div>
           </div>
         </div>
       );
     }
-    
-    return (
-      <div className="flex flex-col h-full bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30">
-        <div className="shrink-0 p-4 pb-3 border-b border-white/5 space-y-3 bg-white/5 dark:bg-[#0f172a]/10">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
-            <Input
-              placeholder="Rechercher dans ce client..."
-              value={localSearchQuery}
-              onChange={(e) => setLocalSearchQuery(e.target.value)}
-              className="pl-9 pr-8 bg-white/5 border-none h-9 text-xs rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground placeholder:text-muted-foreground/60"
-            />
-            {localSearchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setLocalSearchQuery('')}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
+
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+      );
+    }
+
+    // Flat list view if user is searching/filtering
+    const isSearchingOrFiltering = localSearchQuery.trim() !== '' || localStatusFilter !== 'all';
+    if (isSearchingOrFiltering) {
+      return (
+        <div className="space-y-4 w-full">
+          <div className="flex items-center justify-between">
+            <h3 className="font-space font-black uppercase text-[10px] tracking-widest text-muted-foreground/60 pl-1">
+              Résultats de recherche ({filteredDocuments.length})
+            </h3>
+            <Button variant="ghost" size="sm" onClick={() => { setLocalSearchQuery(''); setLocalStatusFilter('all'); }} className="h-7 px-2.5 rounded-lg text-[9px] font-space font-black uppercase tracking-wider text-rose-500">
+               Effacer
+            </Button>
+          </div>
+          <FlatDocumentList docs={filteredDocuments} />
+        </div>
+      );
+    }
+
+    // Level 1: Categories
+    if (!selectedCategory) {
+      const getCatPendingCount = (cat: 'achats' | 'ventes' | 'banque' | 'divers') => {
+        let count = 0;
+        const catTree = binderTree[cat] || {};
+        Object.values(catTree).forEach(yearTree => {
+          Object.values(yearTree).forEach(monthTree => {
+            count += monthTree.docs.filter(d => ['pending', 'reviewing', 'error'].includes(d.status)).length;
+          });
+        });
+        return count;
+      };
+
+      const getCatTotalCount = (cat: 'achats' | 'ventes' | 'banque' | 'divers') => {
+        let count = 0;
+        const catTree = binderTree[cat] || {};
+        Object.values(catTree).forEach(yearTree => {
+          Object.values(yearTree).forEach(monthTree => {
+            count += monthTree.docs.length;
+          });
+        });
+        return count;
+      };
+
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+          {(Object.keys(categoryInfo) as Array<'achats' | 'ventes' | 'banque' | 'divers'>).map((cat) => {
+            const info = categoryInfo[cat];
+            const total = getCatTotalCount(cat);
+            const pending = getCatPendingCount(cat);
+            return (
+              <Card 
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className="relative cursor-pointer overflow-hidden border border-white/5 bg-gradient-to-br from-white/5 to-white/10 dark:from-[#0f172a]/20 dark:to-[#0f172a]/40 backdrop-blur-md rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] hover:border-primary/30 premium-shadow-sm group flex flex-col justify-between h-40"
               >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-            {[
-              { id: 'all', label: 'Tous' },
-              { id: 'reviewing', label: 'À examiner' },
-              { id: 'pending', label: 'En cours' },
-              { id: 'approved', label: 'Approuvés' },
-              { id: 'error', label: 'Erreurs' },
-            ].map((pill) => {
-              const isActive = localStatusFilter === pill.id;
-              return (
-                <button
-                  key={pill.id}
-                  onClick={() => setLocalStatusFilter(pill.id as any)}
-                  className={cn(
-                    "px-3 py-1 rounded-lg text-[9px] font-space font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 border border-transparent select-none",
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {pill.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="shrink-0 pt-2">
-          <FilterDisplay />
-          {selectedDocumentIds.length > 0 && <div className="mt-2"><BulkActionsToolbar /></div>}
-        </div>
-        
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="p-4 space-y-4">
-            {isLoading ? (
-                <div className="space-y-3">
-                    <Skeleton className="h-20 w-full rounded-2xl" />
-                    <Skeleton className="h-20 w-full rounded-2xl" />
-                    <Skeleton className="h-20 w-full rounded-2xl" />
-                </div>
-            ) : (
-                documentGroups.map(group => {
-                  const docsInGroup = groupedDocuments[group.status];
-                  if (docsInGroup.length === 0) return null;
-                  
-                  const { icon: Icon, color } = getStatusInfo(group.status);
-
-                  return (
-                    <div key={group.status} className="space-y-2">
-                      <h3 className="text-[9px] font-space font-black uppercase tracking-widest flex items-center gap-2 mb-1.5 px-1 text-muted-foreground/60">
-                        <Icon className={cn("h-3.5 w-3.5", color)} />
-                        {group.label}
-                        <span className="text-[8px] bg-white/5 px-1.5 py-0.5 rounded-md font-mono">({docsInGroup.length})</span>
-                      </h3>
-                      <div className="space-y-2">
-                          <AnimatePresence mode="popLayout">
-                          {docsInGroup.map((doc, idx) => (
-                             <motion.div
-                               key={doc.id}
-                               initial={{ opacity: 0, x: -20 }}
-                               animate={{ opacity: 1, x: 0 }}
-                               exit={{ opacity: 0, scale: 0.95 }}
-                               transition={{ delay: idx * 0.03, duration: 0.2 }}
-                               onClick={() => handleSetActiveDocument(doc)}
-                               className={cn(
-                                 'w-full text-left p-3 rounded-xl border flex items-start gap-3.5 transition-all duration-300 cursor-pointer premium-shadow-sm',
-                                 statusBorderColors[doc.status] || 'border-l-transparent',
-                                 activeDocument?.id === doc.id 
-                                   ? 'bg-primary/5 dark:bg-primary/10 border-primary/20 text-foreground ring-1 ring-primary/10' 
-                                   : 'bg-white/5 dark:bg-[#0f172a]/20 border-white/5 hover:bg-white/10 dark:hover:bg-[#0f172a]/40 text-muted-foreground hover:text-foreground'
-                               )}
-                            >
-                               <div className="mt-0.5" onClick={(e) => e.stopPropagation()}>
-                                 <Checkbox
-                                      onCheckedChange={(checked) => {
-                                        setSelectedDocumentIds(prev => 
-                                          checked ? [...prev, doc.id] : prev.filter(id => id !== doc.id)
-                                        );
-                                      }}
-                                      checked={selectedDocumentIds.includes(doc.id)}
-                                      aria-label={`Sélectionner ${doc.name}`}
-                                      className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary h-4 w-4 rounded"
-                                  />
-                               </div>
-
-                              <div className="flex-1 overflow-hidden space-y-1">
-                                 <div className="flex items-start justify-between gap-2">
-                                     <p className={cn(
-                                       "font-black text-sm truncate flex-1",
-                                       activeDocument?.id === doc.id ? "text-primary" : "text-foreground"
-                                     )} title={doc.extractedData?.vendorNames?.[0] || doc.name}>
-                                         {doc.extractedData?.vendorNames?.[0] || doc.name}
-                                     </p>
-                                     {doc.extractedData?.amounts?.[0] != null && (
-                                         <p className="font-space font-black text-[10px] text-foreground tabular-nums shrink-0 bg-white/5 px-2 py-0.5 rounded-md">
-                                             {doc.extractedData.amounts[0].toFixed(2)} €
-                                         </p>
-                                     )}
-                                 </div>
-                                 
-                                 {doc.extractedData?.vendorNames?.[0] && (
-                                     <p className="text-[10px] text-muted-foreground font-medium truncate" title={doc.name}>
-                                         Fichier : {doc.name}
-                                     </p>
-                                 )}
-
-                                 <div className="flex items-center flex-wrap gap-2 pt-0.5">
-                                     <Badge variant="outline" className={cn(
-                                       "h-5 px-2 text-[9px] font-space font-bold uppercase tracking-wider border-none",
-                                       getStatusInfo(doc.status).color.includes('green') ? "bg-emerald-500/10 text-emerald-500" :
-                                       getStatusInfo(doc.status).color.includes('yellow') ? "bg-amber-500/10 text-amber-500" :
-                                       getStatusInfo(doc.status).color.includes('red') ? "bg-red-500/10 text-red-500" :
-                                       "bg-white/5 text-muted-foreground"
-                                     )}>
-                                         {getStatusInfo(doc.status).label}
-                                     </Badge>
-                                     
-                                     {doc.isExported && (
-                                         <Badge variant="outline" className="h-5 px-2 bg-blue-500/10 text-blue-500 border-none text-[9px] font-space font-bold uppercase tracking-wider">Exporté</Badge>
-                                     )}
-                                     {doc.status === 'duplicate' && (
-                                         <Badge variant="outline" className="h-5 px-2 bg-rose-500/10 text-rose-500 border-none text-[9px] font-space font-bold uppercase tracking-wider">Doublon</Badge>
-                                     )}
-                                 </div>
-                                 <p className="text-[9px] opacity-40 font-medium">
-                                     {formatDistanceToNow(parseDate(doc.uploadDate) || new Date(), { addSuffix: true, locale: fr })}
-                                 </p>
-                              </div>
-
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/10 rounded-lg" onClick={() => handleSetActiveDocument(doc)}>
-                                        <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Voir le détail</p></TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </div>
-                            </motion.div>
-                          ))}
-                          </AnimatePresence>
-                        </div>
-                    </div>
-                  )
-                })
-            )}
-            {filteredDocuments.length === 0 && !isLoading && (
-              <div className="text-center py-20 space-y-4">
-                <div className="h-20 w-20 bg-white/5 rounded-full flex items-center justify-center border border-white/10 mx-auto opacity-30">
-                    <FileClock className="h-8 w-8" />
+                <div className="flex items-start justify-between">
+                  <div className={cn("p-3 rounded-2xl bg-gradient-to-br border", info.color)}>
+                     <Folder className="h-6 w-6" />
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
                 </div>
                 <div className="space-y-1">
-                    <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Horizon Vide</h3>
-                    <p className="text-sm text-muted-foreground max-w-[240px] mx-auto">
-                      Aucun document ne correspond à vos critères de recherche actuels.
-                    </p>
+                  <h3 className="font-space font-black uppercase text-xs tracking-wider text-foreground">{info.label}</h3>
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-medium">
+                    <span>{total} fichiers</span>
+                    {pending > 0 && (
+                       <span className="flex items-center gap-1 text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full font-bold">
+                         {pending} à traiter
+                       </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
-    );
-  }
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
 
-  const DocumentPreviewAndForm = ({ inSheet = false }: { inSheet?: boolean }) => {
-    const Wrapper = Tabs;
-    const wrapperProps = { defaultValue: "preview", className: "w-full h-full flex flex-col" };
-    const ContentWrapper = TabsContent;
+    // Level 2: Years
+    if (!selectedYear) {
+      const years = Object.keys(binderTree[selectedCategory] || {}).sort((a,b) => b.localeCompare(a));
+      
+      const getYearTotalCount = (year: string) => {
+        let count = 0;
+        const yearTree = binderTree[selectedCategory][year] || {};
+        Object.values(yearTree).forEach(monthTree => {
+          count += monthTree.docs.length;
+        });
+        return count;
+      };
 
-    if (!selectedClientId) return null;
+      if (years.length === 0) {
+        return <EmptyFolderState message={`Aucun fichier dans la catégorie ${categoryInfo[selectedCategory].label}.`} />;
+      }
 
-    if (!activeDocument) {
-        return (
-            <div className="h-full flex items-center justify-center bg-white/5 dark:bg-[#0a0f1d]/20 rounded-3xl m-4 border border-dashed border-white/10">
-                <div className="text-center space-y-4 max-w-sm p-8">
-                    <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 mx-auto opacity-40">
-                        <FileClock className="h-7 w-7" />
-                    </div>
-                    <div className="space-y-1">
-                        <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Sélectionnez un document</h3>
-                        <p className="text-xs text-muted-foreground">
-                            Cliquez sur un document dans la liste de gauche pour le visualiser et procéder au lettrage ou à la validation.
-                        </p>
-                    </div>
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 w-full">
+          {years.map(year => {
+            const total = getYearTotalCount(year);
+            return (
+              <Card
+                key={year}
+                onClick={() => setSelectedYear(year)}
+                className="cursor-pointer border border-white/5 bg-white/5 hover:bg-white/10 p-5 rounded-2xl flex flex-col items-center justify-center space-y-3 transition-all text-center hover:scale-[1.02] premium-shadow-sm h-36"
+              >
+                <Folder className="h-8 w-8 text-primary/70" />
+                <div>
+                  <h4 className="font-space font-black text-sm text-foreground">{year}</h4>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{total} fichiers</p>
                 </div>
-            </div>
-        )
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Level 3: Months
+    if (!selectedMonth) {
+      const months = Object.keys(binderTree[selectedCategory][selectedYear] || {}).sort((a,b) => {
+        const mInfo = binderTree[selectedCategory][selectedYear];
+        return mInfo[b].monthIndex - mInfo[a].monthIndex;
+      });
+
+      if (months.length === 0) {
+        return <EmptyFolderState message={`Aucun fichier en ${selectedYear}.`} />;
+      }
+
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 w-full">
+          {months.map(monthName => {
+            const total = binderTree[selectedCategory][selectedYear][monthName].docs.length;
+            return (
+              <Card
+                key={monthName}
+                onClick={() => setSelectedMonth(monthName)}
+                className="cursor-pointer border border-white/5 bg-white/5 hover:bg-white/10 p-5 rounded-2xl flex flex-col items-center justify-center space-y-3 transition-all text-center hover:scale-[1.02] premium-shadow-sm h-36"
+              >
+                <Folder className="h-8 w-8 text-primary/70" />
+                <div>
+                  <h4 className="font-space font-black text-sm text-foreground">{monthName}</h4>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{total} fichiers</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Level 4: Documents list inside month folder
+    const docs = binderTree[selectedCategory][selectedYear]?.[selectedMonth]?.docs || [];
+    if (docs.length === 0) {
+      return <EmptyFolderState message="Dossier vide." />;
     }
 
     return (
-        <Wrapper {...wrapperProps}>
-            <div className={cn("px-4 pt-4", inSheet && "px-0 pt-0")}>
-                <TabsList className="bg-white/5 border-none p-1.5 h-12 rounded-2xl grid grid-cols-2 premium-shadow-sm">
-                    <TabsTrigger value="preview" className="rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Aperçu</TabsTrigger>
-                    <TabsTrigger value="validation" className="rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Validation & Données</TabsTrigger>
-                </TabsList>
-            </div>
-            <ContentWrapper value="preview" className="flex-1 mt-0 relative h-[calc(100%-4rem)]">
-                 <div className="relative bg-white/5 dark:bg-[#0a0f1d]/20 h-full overflow-hidden rounded-3xl border border-white/5 m-4 mt-0 premium-shadow-sm animate-in fade-in duration-300">
-                    <PreviewControls />
-                    <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
-                        {activeDocument.dataUrl ? (
-                            <iframe 
-                                src={activeDocument.dataUrl} 
-                                className="w-full h-full border-0 transition-transform duration-300"
-                                style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
-                                title="Aperçu du document" 
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-                                <Loader2 className="h-8 w-8 animate-spin mb-4"/>
-                                <p>Chargement de l'aperçu...</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </ContentWrapper>
-            <ContentWrapper value="validation" className="flex-1 mt-0 overflow-y-auto">
-                 <DataValidationForm
-                    key={activeDocument.id}
-                    document={activeDocument}
-                    onUpdate={handleUpdateDocumentData}
-                    isLoading={isProcessing || activeDocument.status === 'processing'}
-                    onAddComment={handleAddComment}
-                    onUpdateDocumentInList={updateLocalDocument}
-                />
-            </ContentWrapper>
-        </Wrapper>
+      <div className="space-y-4 w-full">
+        <div className="flex items-center justify-between">
+           <h3 className="font-space font-black uppercase text-[10px] tracking-widest text-muted-foreground/60 pl-1">
+             Documents ({docs.length})
+           </h3>
+           <Button variant="ghost" size="sm" onClick={() => setSelectedMonth(null)} className="h-7 px-2.5 rounded-lg text-[9px] font-space font-black uppercase tracking-wider text-muted-foreground/60 hover:text-foreground">
+              Retour
+           </Button>
+        </div>
+        <FlatDocumentList docs={docs} />
+      </div>
     );
-  }
-  
+  };
+
+  const DocumentPreviewAndForm = () => {
+    if (!activeDocument) return null;
+    
+    return (
+      <div className="h-full flex flex-col md:flex-row overflow-hidden bg-background">
+        {/* Left Side: Document Preview */}
+        <div className="flex-1 flex flex-col border-r border-white/5 relative min-w-0 h-[45vh] md:h-full bg-muted/20">
+          <PreviewControls />
+          <div className="flex-1 flex items-center justify-center overflow-auto p-4">
+            {activeDocument.dataUrl ? (
+                <iframe 
+                    src={activeDocument.dataUrl} 
+                    className="w-full h-full border-0 transition-transform duration-300"
+                    style={{ transform: `scale(${zoom}) rotate(${rotation}deg)`}}
+                    title="Aperçu du document" 
+                />
+            ) : (
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin mb-4"/>
+                    <p>Chargement de l'aperçu...</p>
+                </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Right Side: Metadata Validation Form */}
+        <div className="w-full md:w-[480px] shrink-0 h-[55vh] md:h-full flex flex-col overflow-hidden border-l border-white/5 bg-[#0b101c]/30">
+          <DataValidationForm
+            key={activeDocument.id}
+            document={activeDocument}
+            onUpdate={handleUpdateDocumentData}
+            isLoading={isProcessing || activeDocument.status === 'processing'}
+            onAddComment={handleAddComment}
+            onUpdateDocumentInList={updateLocalDocument}
+          />
+        </div>
+      </div>
+    );
+  };
+
   const getSheetStatusInfo = () => {
     if (!activeDocument) return null;
     const { icon: Icon, label, color } = getStatusInfo(activeDocument.status);
     return (
-        <div className={cn("flex items-center gap-1.5 text-xs", color)}>
-            <Icon className="h-3 w-3" />
+        <div className={cn("flex items-center gap-1.5 text-xs font-semibold", color)}>
+            <Icon className="h-3.5 w-3.5" />
             <span>{label}</span>
         </div>
     );
   };
 
-
   const MobileView = () => (
     <div className="md:hidden h-full flex flex-col">
-        <div className="p-4 border-b">
+        <div className="p-4 border-b border-white/5 bg-white/5">
              <ClientSwitcher />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <DocumentList />
+        {selectedClientId && (
+          <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between bg-white/5 dark:bg-[#0f172a]/10">
+              <Breadcrumbs />
+          </div>
+        )}
+        <div className="flex-1 overflow-y-auto p-4">
+          <BinderExplorer />
         </div>
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetContent className="w-full h-[90%] p-0 flex flex-col" side="bottom">
-                <SheetHeader className="p-4 border-b">
-                    <SheetTitle className="truncate">{activeDocument?.name}</SheetTitle>
-                    <SheetDescription asChild>
-                        <div className="text-sm text-muted-foreground flex items-center gap-x-3">
-                          {getSheetStatusInfo()}
-                          {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(parseDate(activeDocument.uploadDate) || new Date(), { addSuffix: true, locale: fr })}</span>}
-                        </div>
-                    </SheetDescription>
-                </SheetHeader>
-                <div className="flex-1 overflow-y-auto">
-                    {activeDocument && <DocumentPreviewAndForm inSheet={true} />}
-                </div>
-            </SheetContent>
-        </Sheet>
     </div>
   );
 
   const DesktopView = () => (
-     <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-[2rem] border border-white/5 bg-white/5 dark:bg-[#020617]/20 backdrop-blur-md premium-shadow-lg overflow-hidden">
-        <ResizablePanel defaultSize={35} minSize={25}>
-          <div className="flex flex-col h-full bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 border-r border-white/5">
+     <div className="hidden md:flex flex-1 w-full rounded-[2rem] border border-white/5 bg-white/5 dark:bg-[#020617]/20 backdrop-blur-md premium-shadow-lg overflow-hidden h-full">
+        {/* Left Sidebar */}
+        <div className="w-80 shrink-0 flex flex-col h-full bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 border-r border-white/5">
             <div className="p-4 border-b border-white/5 bg-white/5">
               <ClientSwitcher />
             </div>
-            <div className="flex-1 min-h-0">
-               <DocumentList />
+            
+            {/* Search and Filters */}
+            <div className="p-4 space-y-4 border-b border-white/5">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
+                <Input
+                  placeholder="Rechercher un document..."
+                  value={localSearchQuery}
+                  onChange={(e) => setLocalSearchQuery(e.target.value)}
+                  className="pl-9 pr-8 bg-white/5 border-none h-9 text-xs rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground placeholder:text-muted-foreground/60"
+                />
+                {localSearchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setLocalSearchQuery('')}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <span className="text-[9px] font-space font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Filtrer par statut</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'all', label: 'Tous' },
+                    { id: 'reviewing', label: 'À examiner' },
+                    { id: 'pending', label: 'En cours' },
+                    { id: 'approved', label: 'Approuvés' },
+                    { id: 'error', label: 'Erreurs' },
+                  ].map((pill) => {
+                    const isActive = localStatusFilter === pill.id;
+                    return (
+                      <button
+                        key={pill.id}
+                        onClick={() => setLocalStatusFilter(pill.id as any)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[9px] font-space font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 border border-transparent select-none",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-md"
+                            : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {pill.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle className="bg-white/5 w-1" />
-        <ResizablePanel defaultSize={65} minSize={40} className="bg-[#fafbfe]/10 dark:bg-[#0b0f19]/10">
-            <DocumentPreviewAndForm />
-        </ResizablePanel>
-    </ResizablePanelGroup>
+            
+            {/* Quick stats or rules */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {/* Empty placeholder */}
+            </div>
+        </div>
+
+        {/* Right Main Cabinet View */}
+        <div className="flex-1 flex flex-col h-full bg-[#fafbfe]/10 dark:bg-[#0b0f19]/10 overflow-hidden">
+            <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                <div>
+                   <h2 className="text-lg font-space font-black uppercase tracking-wider text-foreground">Classeur Documents</h2>
+                   <p className="text-xs text-muted-foreground">Organisation par dossiers de catégories comptables, années et mois.</p>
+                </div>
+                {selectedClientId && <Breadcrumbs />}
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+                <BinderExplorer />
+            </div>
+        </div>
+     </div>
   );
 
   return (
@@ -955,6 +1179,24 @@ export default function DocumentsPage() {
             setIsExportModalOpen(false);
         }}
       />
+      <Sheet open={!!activeDocument} onOpenChange={(open) => !open && handleSetActiveDocument(null)}>
+          <SheetContent className="w-[95vw] md:w-[85vw] max-w-7xl h-full p-0 flex flex-col border-l border-white/5 bg-[#030712] dark:bg-[#030712]" side="right">
+              <SheetHeader className="p-4 border-b border-white/5 shrink-0 flex flex-row items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                      <SheetTitle className="truncate text-base">{activeDocument?.name}</SheetTitle>
+                      <SheetDescription asChild>
+                          <div className="text-xs text-muted-foreground flex items-center gap-x-3 mt-1">
+                            {getSheetStatusInfo()}
+                            {activeDocument && <span className='text-muted-foreground'>- {formatDistanceToNow(parseDate(activeDocument.uploadDate) || new Date(), { addSuffix: true, locale: fr })}</span>}
+                          </div>
+                      </SheetDescription>
+                  </div>
+              </SheetHeader>
+              <div className="flex-1 min-h-0">
+                  {activeDocument && <DocumentPreviewAndForm />}
+              </div>
+          </SheetContent>
+      </Sheet>
     </div>
   );
 }
