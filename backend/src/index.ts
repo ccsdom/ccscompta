@@ -937,7 +937,7 @@ export const createInvoiceForDocument = onCall(
 );
 
 export const intelligentSearch = onCall(
-  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 },
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] },
   async (request: CallableRequest<{ query?: unknown; currentDate?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
@@ -955,7 +955,7 @@ export const intelligentSearch = onCall(
 );
 
 export const runBankReconciliation = onCall(
-  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 120 },
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 120, secrets: ['GEMINI_API_KEY'] },
   async (request: CallableRequest<{ transactions?: unknown; clientId?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
@@ -1096,7 +1096,7 @@ export const runGhostHunter = onCall(
 );
 
 export const supportChat = onCall(
-  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 },
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] },
   async (request: CallableRequest<{ history?: unknown, clientId?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
@@ -1184,7 +1184,8 @@ export const handleNewMailUpload = onObjectFinalized(
   {
     cpu: 2,
     memory: "1GiB",
-    region: "europe-west9"
+    region: "europe-west9",
+    secrets: ["GEMINI_API_KEY"]
   },
   async (event) => {
     const filePath = event.data.name ?? "";
@@ -2088,7 +2089,8 @@ export const onDocumentPending = onDocumentWritten(
     document: "documents/{docId}",
     region: "europe-west9",
     memory: "1GiB",
-    timeoutSeconds: 300
+    timeoutSeconds: 300,
+    secrets: ["GEMINI_API_KEY"]
   },
   async (event) => {
     const data = event.data?.after.data();

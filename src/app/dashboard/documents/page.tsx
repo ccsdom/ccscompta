@@ -8,7 +8,7 @@ import { DataValidationForm } from '@/components/data-validation-form';
 import { type ExtractDataOutput } from '@/services/document-ai-service';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
-import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning, ShieldCheck } from 'lucide-react';
+import { Check, Send, Trash2, Download, FileUp, ZoomIn, ZoomOut, RotateCw, RefreshCw, FilterX, Loader2, Play, Eye, FileClock, CheckCircle, FileWarning, ShieldCheck, Search, X } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { IntelligentSearchOutput } from '@/services/intelligent-search-service';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClientSwitcher } from '@/components/client-switcher';
+import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -50,6 +51,15 @@ const getStatusInfo = (status: Document['status']): { icon: React.ElementType, l
   }
 };
 
+const statusBorderColors: Record<string, string> = {
+  reviewing: 'border-l-[3px] border-l-amber-500',
+  pending: 'border-l-[3px] border-l-slate-400 dark:border-l-slate-600',
+  processing: 'border-l-[3px] border-l-blue-500',
+  approved: 'border-l-[3px] border-l-emerald-500',
+  duplicate: 'border-l-[3px] border-l-orange-500',
+  error: 'border-l-[3px] border-l-red-500',
+};
+
 
 export default function DocumentsPage() {
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
@@ -64,6 +74,8 @@ export default function DocumentsPage() {
   const [automationSettings, setAutomationSettings] = useState({ isEnabled: false, confidenceThreshold: 0.95, autoSend: false });
   const [isSheetOpen, setIsSheetOpen] = useState(false); // For mobile view
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [localStatusFilter, setLocalStatusFilter] = useState<'all' | 'reviewing' | 'pending' | 'approved' | 'error'>('all');
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -347,6 +359,23 @@ export default function DocumentsPage() {
   const filteredDocuments = useMemo(() => {
         let docs = [...(documents || [])];
         
+        if (localStatusFilter !== 'all') {
+            if (localStatusFilter === 'pending') {
+                docs = docs.filter(d => ['pending', 'processing'].includes(d.status));
+            } else {
+                docs = docs.filter(d => d.status === localStatusFilter);
+            }
+        }
+
+        if (localSearchQuery.trim()) {
+            const queryVal = localSearchQuery.toLowerCase().trim();
+            docs = docs.filter(doc => 
+                doc.name.toLowerCase().includes(queryVal) ||
+                (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(vendor => vendor != null && vendor.toLowerCase().includes(queryVal))) ||
+                (doc.extractedData?.amounts && doc.extractedData.amounts.some(amount => amount != null && amount.toString().includes(queryVal)))
+            );
+        }
+        
         if (dashboardFilter) {
             const today = new Date();
             const twentyFourHoursAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -411,7 +440,7 @@ export default function DocumentsPage() {
         }
         
         return docs.sort((a,b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
-  }, [documents, searchQuery, searchCriteria, dashboardFilter]);
+  }, [documents, searchQuery, searchCriteria, dashboardFilter, localSearchQuery, localStatusFilter]);
 
   const groupedDocuments = useMemo(() => {
     const groups: { [key: string]: Document[] } = {
@@ -478,45 +507,85 @@ export default function DocumentsPage() {
     }
 
     return (
-        <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border text-sm mx-4">
-            <span className="font-medium text-muted-foreground pl-2">{filterText}</span>
+        <div className="flex items-center space-x-2 bg-primary/5 border border-primary/10 p-3 rounded-2xl text-xs mx-4 premium-shadow-sm">
+            <span className="font-space font-black uppercase text-[10px] tracking-widest text-primary pl-1">{filterText}</span>
             <div className="flex-grow" />
-             <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <FilterX className="mr-2 h-4 w-4" />
-                Effacer le filtre
+             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 rounded-xl font-space font-black uppercase text-[9px] tracking-wider text-rose-500 hover:text-rose-600 hover:bg-rose-500/10">
+                <FilterX className="mr-2 h-3.5 w-3.5" />
+                Effacer
              </Button>
         </div>
     )
  };
 
   const BulkActionsToolbar = () => (
-    <div className="flex items-center space-x-2 bg-muted p-2 rounded-md border mx-4">
-        <span className="text-sm font-medium text-muted-foreground pl-2">{selectedDocumentIds.length} sélectionné(s)</span>
+    <div className="flex items-center space-x-3 bg-primary/5 border border-primary/10 p-3 rounded-2xl mx-4 premium-shadow-sm">
+        <Badge className="bg-primary text-primary-foreground border-none font-space font-black text-[10px] px-2.5 py-1 rounded-lg">
+            {selectedDocumentIds.length} sélectionné(s)
+        </Badge>
         <div className="flex-grow" />
-        <Button variant="outline" size="sm" onClick={handleBulkApprove}><Check className="h-4 w-4 mr-2" />Approuver</Button>
-        <Button variant="outline" size="sm" onClick={handleBulkExport}><Download className="h-4 w-4 mr-2" />Export Comptable</Button>
+        <Button variant="outline" size="sm" onClick={handleBulkApprove} className="h-8 px-3 rounded-xl bg-white/5 border-white/10 hover:bg-primary/10 hover:border-primary/20 hover:text-primary font-space font-black uppercase text-[9px] tracking-widest transition-all">
+            <Check className="h-3.5 w-3.5 mr-1" />
+            Approuver
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleBulkExport} className="h-8 px-3 rounded-xl bg-white/5 border-white/10 hover:bg-primary/10 hover:border-primary/20 hover:text-primary font-space font-black uppercase text-[9px] tracking-widest transition-all">
+            <Download className="h-3.5 w-3.5 mr-1" />
+            Export
+        </Button>
         <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
+                <Button variant="ghost" size="sm" className="h-8 px-3 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 font-space font-black uppercase text-[9px] tracking-widest transition-all">
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                    Supprimer
+                </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader><AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Les documents sélectionnés seront supprimés.</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">Supprimer</AlertDialogAction></AlertDialogFooter>
+            <AlertDialogContent className="glass-panel border-white/10 shadow-2xl rounded-[2rem] p-8">
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="text-2xl font-black font-space">Confirmation Requise</AlertDialogTitle>
+                    <AlertDialogDescription className="text-sm font-medium">
+                        Cette action est irréversible. Les documents sélectionnés seront définitivement supprimés.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mt-6 gap-2">
+                    <AlertDialogCancel className="h-11 px-6 rounded-xl border-white/10 font-space font-black uppercase text-[10px] tracking-widest">Annuler</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkDelete} className="h-11 px-6 rounded-xl bg-rose-500 hover:bg-rose-600 font-space font-black uppercase text-[10px] tracking-widest border-none">Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
     </div>
   )
   
   const PreviewControls = () => (
-    <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+    <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-background/60 backdrop-blur-md p-1.5 rounded-xl border border-white/5 premium-shadow-sm">
         <TooltipProvider>
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z * 1.2)}><ZoomIn className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom avant</p></TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setZoom(z => z / 1.2)}><ZoomOut className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Zoom arrière</p></TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRotation(r => r + 90)}><RotateCw className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent><p>Pivoter</p></TooltipContent></Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10 text-foreground" onClick={() => setZoom(z => z * 1.2)}>
+                        <ZoomIn className="h-4 w-4"/>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Zoom avant</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10 text-foreground" onClick={() => setZoom(z => z / 1.2)}>
+                        <ZoomOut className="h-4 w-4"/>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Zoom arrière</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10 text-foreground" onClick={() => setRotation(r => r + 90)}>
+                        <RotateCw className="h-4 w-4"/>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Pivoter</p></TooltipContent>
+            </Tooltip>
             {activeDocument?.id && (activeDocument.status === 'pending' || activeDocument.status === 'error') && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleReprocessDocument(activeDocument.id)} disabled={isProcessing}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10 text-primary" onClick={() => handleReprocessDocument(activeDocument.id)} disabled={isProcessing}>
                     <RefreshCw className="h-4 w-4"/>
                   </Button>
                 </TooltipTrigger>
@@ -539,30 +608,84 @@ export default function DocumentsPage() {
 
     if (!selectedClientId) {
       return (
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center">
-            <FileUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Aucun client sélectionné</h3>
-            <p className="text-sm text-muted-foreground mt-1">Veuillez sélectionner un client pour voir ses documents.</p>
+        <div className="h-full flex items-center justify-center bg-white/5 dark:bg-[#0a0f1d]/20 rounded-3xl m-4 border border-dashed border-white/10">
+          <div className="text-center space-y-4 max-w-sm p-8">
+            <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 mx-auto opacity-40">
+                <FileUp className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+                <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Aucun client sélectionné</h3>
+                <p className="text-xs text-muted-foreground">
+                  Veuillez sélectionner un client dans le sélecteur ci-dessus pour consulter son flux de documents.
+                </p>
+            </div>
           </div>
         </div>
       );
     }
     
     return (
-      <div className="flex flex-col h-full">
-        <div className="shrink-0 pt-4">
+      <div className="flex flex-col h-full bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30">
+        <div className="shrink-0 p-4 pb-3 border-b border-white/5 space-y-3 bg-white/5 dark:bg-[#0f172a]/10">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
+            <Input
+              placeholder="Rechercher dans ce client..."
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
+              className="pl-9 pr-8 bg-white/5 border-none h-9 text-xs rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground placeholder:text-muted-foreground/60"
+            />
+            {localSearchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocalSearchQuery('')}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            {[
+              { id: 'all', label: 'Tous' },
+              { id: 'reviewing', label: 'À examiner' },
+              { id: 'pending', label: 'En cours' },
+              { id: 'approved', label: 'Approuvés' },
+              { id: 'error', label: 'Erreurs' },
+            ].map((pill) => {
+              const isActive = localStatusFilter === pill.id;
+              return (
+                <button
+                  key={pill.id}
+                  onClick={() => setLocalStatusFilter(pill.id as any)}
+                  className={cn(
+                    "px-3 py-1 rounded-lg text-[9px] font-space font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 border border-transparent select-none",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {pill.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="shrink-0 pt-2">
           <FilterDisplay />
-          {selectedDocumentIds.length > 0 && <div className="mt-4"><BulkActionsToolbar /></div>}
+          {selectedDocumentIds.length > 0 && <div className="mt-2"><BulkActionsToolbar /></div>}
         </div>
         
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-4 space-y-4">
             {isLoading ? (
-                <div className="space-y-2">
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
+                <div className="space-y-3">
+                    <Skeleton className="h-20 w-full rounded-2xl" />
+                    <Skeleton className="h-20 w-full rounded-2xl" />
+                    <Skeleton className="h-20 w-full rounded-2xl" />
                 </div>
             ) : (
                 documentGroups.map(group => {
@@ -572,11 +695,11 @@ export default function DocumentsPage() {
                   const { icon: Icon, color } = getStatusInfo(group.status);
 
                   return (
-                    <div key={group.status}>
-                      <h3 className="text-sm font-semibold flex items-center gap-2 mb-2 px-1 text-muted-foreground">
-                        <Icon className={cn("h-4 w-4", color)} />
+                    <div key={group.status} className="space-y-2">
+                      <h3 className="text-[9px] font-space font-black uppercase tracking-widest flex items-center gap-2 mb-1.5 px-1 text-muted-foreground/60">
+                        <Icon className={cn("h-3.5 w-3.5", color)} />
                         {group.label}
-                        <span className="text-xs">({docsInGroup.length})</span>
+                        <span className="text-[8px] bg-white/5 px-1.5 py-0.5 rounded-md font-mono">({docsInGroup.length})</span>
                       </h3>
                       <div className="space-y-2">
                           <AnimatePresence mode="popLayout">
@@ -589,11 +712,14 @@ export default function DocumentsPage() {
                                transition={{ delay: idx * 0.03, duration: 0.2 }}
                                onClick={() => handleSetActiveDocument(doc)}
                                className={cn(
-                                 'w-full text-left p-2 rounded-lg border flex items-start gap-3 transition-colors cursor-pointer',
-                                 activeDocument?.id === doc.id ? 'bg-muted border-primary' : 'hover:bg-muted/50'
+                                 'w-full text-left p-3 rounded-xl border flex items-start gap-3.5 transition-all duration-300 cursor-pointer premium-shadow-sm',
+                                 statusBorderColors[doc.status] || 'border-l-transparent',
+                                 activeDocument?.id === doc.id 
+                                   ? 'bg-primary/5 dark:bg-primary/10 border-primary/20 text-foreground ring-1 ring-primary/10' 
+                                   : 'bg-white/5 dark:bg-[#0f172a]/20 border-white/5 hover:bg-white/10 dark:hover:bg-[#0f172a]/40 text-muted-foreground hover:text-foreground'
                                )}
                             >
-                               <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                               <div className="mt-0.5" onClick={(e) => e.stopPropagation()}>
                                  <Checkbox
                                       onCheckedChange={(checked) => {
                                         setSelectedDocumentIds(prev => 
@@ -602,29 +728,60 @@ export default function DocumentsPage() {
                                       }}
                                       checked={selectedDocumentIds.includes(doc.id)}
                                       aria-label={`Sélectionner ${doc.name}`}
+                                      className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary h-4 w-4 rounded"
                                   />
                                </div>
 
-                              <div className="flex-1 overflow-hidden">
-                                <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
-                                <div className="flex items-center gap-2">
-                                    <p className={cn("text-xs font-medium truncate", getStatusInfo(doc.status).color)}>{getStatusInfo(doc.status).label}</p>
-                                    {doc.isExported && (
-                                        <Badge variant="outline" className="h-4 px-1 bg-blue-500/10 text-blue-500 border-none text-[8px] font-black uppercase">Exporté</Badge>
-                                    )}
-                                    {doc.status === 'duplicate' && (
-                                        <Badge variant="outline" className="h-4 px-1 bg-amber-500/10 text-amber-500 border-none text-[8px] font-black uppercase">Doublon</Badge>
-                                    )}
-                                </div>
-                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(parseDate(doc.uploadDate) || new Date(), { addSuffix: true, locale: fr })}</p>
+                              <div className="flex-1 overflow-hidden space-y-1">
+                                 <div className="flex items-start justify-between gap-2">
+                                     <p className={cn(
+                                       "font-black text-sm truncate flex-1",
+                                       activeDocument?.id === doc.id ? "text-primary" : "text-foreground"
+                                     )} title={doc.extractedData?.vendorNames?.[0] || doc.name}>
+                                         {doc.extractedData?.vendorNames?.[0] || doc.name}
+                                     </p>
+                                     {doc.extractedData?.amounts?.[0] != null && (
+                                         <p className="font-space font-black text-[10px] text-foreground tabular-nums shrink-0 bg-white/5 px-2 py-0.5 rounded-md">
+                                             {doc.extractedData.amounts[0].toFixed(2)} €
+                                         </p>
+                                     )}
+                                 </div>
+                                 
+                                 {doc.extractedData?.vendorNames?.[0] && (
+                                     <p className="text-[10px] text-muted-foreground font-medium truncate" title={doc.name}>
+                                         Fichier : {doc.name}
+                                     </p>
+                                 )}
+
+                                 <div className="flex items-center flex-wrap gap-2 pt-0.5">
+                                     <Badge variant="outline" className={cn(
+                                       "h-5 px-2 text-[9px] font-space font-bold uppercase tracking-wider border-none",
+                                       getStatusInfo(doc.status).color.includes('green') ? "bg-emerald-500/10 text-emerald-500" :
+                                       getStatusInfo(doc.status).color.includes('yellow') ? "bg-amber-500/10 text-amber-500" :
+                                       getStatusInfo(doc.status).color.includes('red') ? "bg-red-500/10 text-red-500" :
+                                       "bg-white/5 text-muted-foreground"
+                                     )}>
+                                         {getStatusInfo(doc.status).label}
+                                     </Badge>
+                                     
+                                     {doc.isExported && (
+                                         <Badge variant="outline" className="h-5 px-2 bg-blue-500/10 text-blue-500 border-none text-[9px] font-space font-bold uppercase tracking-wider">Exporté</Badge>
+                                     )}
+                                     {doc.status === 'duplicate' && (
+                                         <Badge variant="outline" className="h-5 px-2 bg-rose-500/10 text-rose-500 border-none text-[9px] font-space font-bold uppercase tracking-wider">Doublon</Badge>
+                                     )}
+                                 </div>
+                                 <p className="text-[9px] opacity-40 font-medium">
+                                     {formatDistanceToNow(parseDate(doc.uploadDate) || new Date(), { addSuffix: true, locale: fr })}
+                                 </p>
                               </div>
 
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSetActiveDocument(doc)}>
-                                        <Eye className="h-4 w-4" />
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/10 rounded-lg" onClick={() => handleSetActiveDocument(doc)}>
+                                        <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent><p>Voir le détail</p></TooltipContent>
@@ -640,12 +797,16 @@ export default function DocumentsPage() {
                 })
             )}
             {filteredDocuments.length === 0 && !isLoading && (
-              <div className="text-center py-20">
-                <FileClock className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">Aucun document trouvé</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Aucun document ne correspond à vos critères de recherche actuels.
-                </p>
+              <div className="text-center py-20 space-y-4">
+                <div className="h-20 w-20 bg-white/5 rounded-full flex items-center justify-center border border-white/10 mx-auto opacity-30">
+                    <FileClock className="h-8 w-8" />
+                </div>
+                <div className="space-y-1">
+                    <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Horizon Vide</h3>
+                    <p className="text-sm text-muted-foreground max-w-[240px] mx-auto">
+                      Aucun document ne correspond à vos critères de recherche actuels.
+                    </p>
+                </div>
               </div>
             )}
           </div>
@@ -663,11 +824,17 @@ export default function DocumentsPage() {
 
     if (!activeDocument) {
         return (
-            <div className="h-full flex items-center justify-center bg-muted/50 rounded-lg">
-                <div className="text-center">
-                    <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold">Sélectionnez un document</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Cliquez sur un document dans la liste pour le visualiser et le traiter.</p>
+            <div className="h-full flex items-center justify-center bg-white/5 dark:bg-[#0a0f1d]/20 rounded-3xl m-4 border border-dashed border-white/10">
+                <div className="text-center space-y-4 max-w-sm p-8">
+                    <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 mx-auto opacity-40">
+                        <FileClock className="h-7 w-7" />
+                    </div>
+                    <div className="space-y-1">
+                        <h3 className="font-space font-black uppercase text-xs tracking-widest opacity-40">Sélectionnez un document</h3>
+                        <p className="text-xs text-muted-foreground">
+                            Cliquez sur un document dans la liste de gauche pour le visualiser et procéder au lettrage ou à la validation.
+                        </p>
+                    </div>
                 </div>
             </div>
         )
@@ -676,13 +843,13 @@ export default function DocumentsPage() {
     return (
         <Wrapper {...wrapperProps}>
             <div className={cn("px-4 pt-4", inSheet && "px-0 pt-0")}>
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="preview">Aperçu</TabsTrigger>
-                    <TabsTrigger value="validation">Validation & Données</TabsTrigger>
+                <TabsList className="bg-white/5 border-none p-1.5 h-12 rounded-2xl grid grid-cols-2 premium-shadow-sm">
+                    <TabsTrigger value="preview" className="rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Aperçu</TabsTrigger>
+                    <TabsTrigger value="validation" className="rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Validation & Données</TabsTrigger>
                 </TabsList>
             </div>
-            <ContentWrapper value="preview" className="flex-1 mt-0 relative">
-                 <div className="relative bg-muted/30 h-full overflow-hidden rounded-b-lg border m-4 mt-0">
+            <ContentWrapper value="preview" className="flex-1 mt-0 relative h-[calc(100%-4rem)]">
+                 <div className="relative bg-white/5 dark:bg-[#0a0f1d]/20 h-full overflow-hidden rounded-3xl border border-white/5 m-4 mt-0 premium-shadow-sm animate-in fade-in duration-300">
                     <PreviewControls />
                     <div className="w-full h-full flex items-center justify-center overflow-auto p-4">
                         {activeDocument.dataUrl ? (
@@ -755,10 +922,10 @@ export default function DocumentsPage() {
   );
 
   const DesktopView = () => (
-     <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-lg">
+     <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1 w-full rounded-[2rem] border border-white/5 bg-white/5 dark:bg-[#020617]/20 backdrop-blur-md premium-shadow-lg overflow-hidden">
         <ResizablePanel defaultSize={35} minSize={25}>
-          <div className="flex flex-col h-full">
-            <div className="p-4 border-b">
+          <div className="flex flex-col h-full bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 border-r border-white/5">
+            <div className="p-4 border-b border-white/5 bg-white/5">
               <ClientSwitcher />
             </div>
             <div className="flex-1 min-h-0">
@@ -766,8 +933,8 @@ export default function DocumentsPage() {
             </div>
           </div>
         </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={65} minSize={40}>
+        <ResizableHandle withHandle className="bg-white/5 w-1" />
+        <ResizablePanel defaultSize={65} minSize={40} className="bg-[#fafbfe]/10 dark:bg-[#0b0f19]/10">
             <DocumentPreviewAndForm />
         </ResizablePanel>
     </ResizablePanelGroup>

@@ -758,7 +758,7 @@ exports.createInvoiceForDocument = (0, https_1.onCall)({ region: 'europe-west9',
         throwCallableError(error, 'createInvoiceForDocument failed');
     }
 });
-exports.intelligentSearch = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 }, async (request) => {
+exports.intelligentSearch = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] }, async (request) => {
     var _a, _b;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -773,7 +773,7 @@ exports.intelligentSearch = (0, https_1.onCall)({ region: 'europe-west9', memory
         throwCallableError(error, 'intelligentSearch failed');
     }
 });
-exports.runBankReconciliation = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 120 }, async (request) => {
+exports.runBankReconciliation = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 120, secrets: ['GEMINI_API_KEY'] }, async (request) => {
     var _a, _b;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -873,7 +873,7 @@ exports.runGhostHunter = (0, https_1.onCall)({ region: 'europe-west9', memory: '
         throwCallableError(error, 'runGhostHunter failed');
     }
 });
-exports.supportChat = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60 }, async (request) => {
+exports.supportChat = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] }, async (request) => {
     var _a, _b;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -947,7 +947,8 @@ ${monthlyEvolution.length > 0 ? monthlyEvolution.join('\n') : 'Aucune'}
 exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
     cpu: 2,
     memory: "1GiB",
-    region: "europe-west9"
+    region: "europe-west9",
+    secrets: ["GEMINI_API_KEY"]
 }, async (event) => {
     var _a, _b, _c;
     const filePath = (_a = event.data.name) !== null && _a !== void 0 ? _a : "";
@@ -1713,7 +1714,8 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
     document: "documents/{docId}",
     region: "europe-west9",
     memory: "1GiB",
-    timeoutSeconds: 300
+    timeoutSeconds: 300,
+    secrets: ["GEMINI_API_KEY"]
 }, async (event) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after.data();
