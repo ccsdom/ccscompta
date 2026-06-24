@@ -7,7 +7,7 @@ const google_genai_1 = require("@genkit-ai/google-genai");
 function getAi() {
     return (0, genkit_1.genkit)({
         plugins: [(0, google_genai_1.googleAI)()],
-        model: 'googleai/gemini-1.5-flash',
+        model: 'googleai/gemini-2.5-flash',
     });
 }
 const FinancialBriefingOutput = genkit_1.z.object({

@@ -1020,7 +1020,7 @@ exports.handleNewMailUpload = (0, storage_1.onObjectFinalized)({
         logger.log(`Ã‰tape 1 : Analyse multimodale structurÃ©e (One-Shot) via Gemini (${contentType})`);
         const documentUri = `data:${contentType};base64,${fileBuffer.toString("base64")}`;
         const { output } = await ai.generate({
-            model: googleAI.model("gemini-1.5-flash"),
+            model: googleAI.model("gemini-2.5-flash"),
             prompt: [
                 { text: `Tu es un Expert-Comptable FranÃ§ais implacable. Analyse la facture ou le reÃ§u en piÃ¨ce jointe.
 1. Extraie les informations clÃ©s : ExpÃ©diteur, rÃ©sumÃ©, montants TTC et montants de TVA.

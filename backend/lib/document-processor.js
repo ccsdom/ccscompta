@@ -96,7 +96,7 @@ async function processDocumentContent(buffer, mimeType, providedDocumentType) {
     let isBankStatement = providedDocumentType === 'bank statement';
     if (!documentType || documentType === 'invoice' || documentType === 'other') {
         const { output: recognition } = await ai.generate({
-            model: 'googleai/gemini-1.5-flash',
+            model: 'googleai/gemini-2.5-flash',
             prompt: [
                 { text: recognitionPrompt },
                 { media: { url: `data:${mimeType};base64,${buffer.toString('base64')}`, contentType: mimeType } }
@@ -115,7 +115,7 @@ async function processDocumentContent(buffer, mimeType, providedDocumentType) {
     }
     // 2. Extraction des données
     const { output } = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
+        model: 'googleai/gemini-2.5-flash',
         prompt: [
             { text: `
             You are an expert and vigilant accounting data extraction specialist.
