@@ -64,7 +64,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         }
     }, [realProfile]);
 
-    const effectiveUid = (isActuallyStaff && impersonatedId) ? impersonatedId : user?.uid;
+    const effectiveUid = (isActuallyStaff && impersonatedRole && impersonatedId) ? impersonatedId : user?.uid;
     const profileRef = useMemo(() => effectiveUid ? doc(db, 'clients', effectiveUid) : null, [effectiveUid]);
     const { data: profile, isLoading: isProfileLoading, error: profileError } = useDoc<Client>(profileRef);
 
@@ -125,7 +125,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
     const value = useMemo(() => {
         const baseProfile = profile || null;
-        const canApplyImpersonatedRole = isActuallyStaff && !!impersonatedId && !!impersonatedRole;
+        const canApplyImpersonatedRole = isActuallyStaff && !!impersonatedRole && (!!impersonatedId || !!impersonatedCabinetId);
         const effectiveRole = canApplyImpersonatedRole ? impersonatedRole : (baseProfile?.role || null);
         // Patch profile cabinetId for impersonating admins
         const effectiveProfile = (baseProfile && isActuallyStaff && impersonatedCabinetId && !baseProfile.cabinetId)
@@ -137,7 +137,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
             profile: effectiveProfile,
             role: effectiveRole,
             isLoading: isUserLoading || isProfileLoading || isCabinetLoading,
-            isImpersonating: isActuallyStaff && (!!impersonatedId || !!impersonatedCabinetId),
+            isImpersonating: isActuallyStaff && !!impersonatedRole && (!!impersonatedId || !!impersonatedCabinetId),
         };
     }, [cabinet, profile, impersonatedRole, isUserLoading, isProfileLoading, isCabinetLoading, impersonatedId, impersonatedCabinetId, isActuallyStaff]);
 
