@@ -1082,84 +1082,76 @@ export default function DocumentsPage() {
   );
 
   const DesktopView = () => (
-     <div className="hidden md:flex flex-1 w-full rounded-[2rem] border border-white/5 bg-white/5 dark:bg-[#020617]/20 backdrop-blur-md premium-shadow-lg overflow-hidden h-full">
-        {/* Left Sidebar */}
-        <div className="w-80 shrink-0 flex flex-col h-full bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 border-r border-white/5">
-            <div className="p-4 border-b border-white/5 bg-white/5">
-              <ClientSwitcher />
+     <div className="hidden md:flex flex-col flex-1 w-full rounded-[2rem] border border-white/5 bg-white/5 dark:bg-[#020617]/20 backdrop-blur-md premium-shadow-lg overflow-hidden h-full">
+        {/* Top Header Row with Title, ClientSwitcher, Breadcrumbs */}
+        <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+            <div>
+               <h2 className="text-lg font-space font-black uppercase tracking-wider text-foreground">Classeur Documents</h2>
+               <p className="text-xs text-muted-foreground">Organisation par dossiers de catégories comptables, années et mois.</p>
             </div>
-            
-            {/* Search and Filters */}
-            <div className="p-4 space-y-4 border-b border-white/5">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
-                <Input
-                  placeholder="Rechercher un document..."
-                  value={localSearchQuery}
-                  onChange={(e) => setLocalSearchQuery(e.target.value)}
-                  className="pl-9 pr-8 bg-white/5 border-none h-9 text-xs rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground placeholder:text-muted-foreground/60"
-                />
-                {localSearchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setLocalSearchQuery('')}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <span className="text-[9px] font-space font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Filtrer par statut</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'all', label: 'Tous' },
-                    { id: 'reviewing', label: 'À examiner' },
-                    { id: 'pending', label: 'En cours' },
-                    { id: 'approved', label: 'Approuvés' },
-                    { id: 'error', label: 'Erreurs' },
-                  ].map((pill) => {
-                    const isActive = localStatusFilter === pill.id;
-                    return (
-                      <button
-                        key={pill.id}
-                        onClick={() => setLocalStatusFilter(pill.id as any)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-[9px] font-space font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 border border-transparent select-none",
-                          isActive
-                            ? "bg-primary text-primary-foreground shadow-md"
-                            : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {pill.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-            
-            {/* Quick stats or rules */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {/* Empty placeholder */}
+            <div className="flex items-center gap-4">
+               <ClientSwitcher />
+               {selectedClientId && <Breadcrumbs />}
             </div>
         </div>
 
-        {/* Right Main Cabinet View */}
-        <div className="flex-1 flex flex-col h-full bg-[#fafbfe]/10 dark:bg-[#0b0f19]/10 overflow-hidden">
-            <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                <div>
-                   <h2 className="text-lg font-space font-black uppercase tracking-wider text-foreground">Classeur Documents</h2>
-                   <p className="text-xs text-muted-foreground">Organisation par dossiers de catégories comptables, années et mois.</p>
-                </div>
-                {selectedClientId && <Breadcrumbs />}
+        {/* Search & Status Filters Bar (Full Width Row) */}
+        <div className="p-4 border-b border-white/5 bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 flex items-center justify-between gap-4">
+            {/* Search Bar */}
+            <div className="relative w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
+              <Input
+                placeholder="Rechercher un document..."
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                className="pl-9 pr-8 bg-white/5 border-none h-9 text-xs rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground placeholder:text-muted-foreground/60 w-full"
+              />
+              {localSearchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setLocalSearchQuery('')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-                <BinderExplorer />
+
+            {/* Status Filters */}
+            <div className="flex items-center gap-3">
+              <span className="text-[9px] font-space font-black uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">Filtrer par statut</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'all', label: 'Tous' },
+                  { id: 'reviewing', label: 'À examiner' },
+                  { id: 'pending', label: 'En cours' },
+                  { id: 'approved', label: 'Approuvés' },
+                  { id: 'error', label: 'Erreurs' },
+                ].map((pill) => {
+                  const isActive = localStatusFilter === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      onClick={() => setLocalStatusFilter(pill.id as any)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg text-[9px] font-space font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 border border-transparent select-none",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-md"
+                          : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {pill.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+        </div>
+
+        {/* Main Cabinet Folder View */}
+        <div className="flex-1 overflow-y-auto p-6 bg-[#fafbfe]/10 dark:bg-[#0b0f19]/10">
+            <BinderExplorer />
         </div>
      </div>
   );
