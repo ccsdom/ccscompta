@@ -655,9 +655,9 @@ export default function DocumentsPage() {
   }
 
   const DocumentPreviewAndForm = ({ inSheet = false }: { inSheet?: boolean }) => {
-    const Wrapper = inSheet ? 'div' : Tabs;
-    const wrapperProps = inSheet ? {} : { defaultValue: "preview", className: "w-full h-full flex flex-col" };
-    const ContentWrapper = inSheet ? 'div' : TabsContent;
+    const Wrapper = Tabs;
+    const wrapperProps = { defaultValue: "preview", className: "w-full h-full flex flex-col" };
+    const ContentWrapper = TabsContent;
 
     if (!selectedClientId) return null;
 
