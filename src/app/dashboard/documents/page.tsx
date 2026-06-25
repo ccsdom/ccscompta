@@ -97,6 +97,15 @@ const statusBorderColors: Record<string, string> = {
   error: 'border-l-[3px] border-l-red-500',
 };
 
+const statusIndicatorColors: Record<string, string> = {
+  reviewing: 'bg-amber-500',
+  pending: 'bg-slate-400 dark:bg-slate-600',
+  processing: 'bg-blue-500',
+  approved: 'bg-emerald-500',
+  duplicate: 'bg-orange-500',
+  error: 'bg-red-500',
+};
+
 
 export default function DocumentsPage() {
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
@@ -680,31 +689,72 @@ export default function DocumentsPage() {
   };
 
   const Breadcrumbs = () => {
+    const isAtRoot = !selectedCategory;
+    
+    const handleBack = () => {
+      if (selectedMonth) {
+        setSelectedMonth(null);
+      } else if (selectedYear) {
+        setSelectedYear(null);
+      } else if (selectedCategory) {
+        setSelectedCategory(null);
+      }
+    };
+
     return (
-      <div className="flex items-center space-x-1.5 text-[10px] font-space font-black uppercase tracking-widest text-muted-foreground/60 pl-1 py-1">
-        <button onClick={() => { setSelectedCategory(null); setSelectedYear(null); setSelectedMonth(null); }} className="hover:text-foreground transition-colors">Tous</button>
-        {selectedCategory && (
-          <>
-            <ChevronRight className="h-3 w-3" />
-            <button onClick={() => { setSelectedYear(null); setSelectedMonth(null); }} className="hover:text-foreground transition-colors text-primary">
-              {categoryInfo[selectedCategory].label}
-            </button>
-          </>
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/80 pl-1 py-1">
+        {!isAtRoot && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            className="h-7 w-7 rounded-lg hover:bg-white/10 dark:hover:bg-slate-800 text-muted-foreground hover:text-foreground transition-all duration-200 shrink-0"
+            title="Retour"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
         )}
-        {selectedYear && (
-          <>
-            <ChevronRight className="h-3 w-3" />
-            <button onClick={() => { setSelectedMonth(null); }} className="hover:text-foreground transition-colors text-primary">
-              {selectedYear}
-            </button>
-          </>
-        )}
-        {selectedMonth && (
-          <>
-            <ChevronRight className="h-3 w-3" />
-            <span className="text-foreground">{selectedMonth}</span>
-          </>
-        )}
+        
+        <div className="flex flex-wrap items-center gap-1.5 bg-muted/30 dark:bg-slate-900/30 px-3 py-1.5 rounded-xl border border-border/40 text-xs font-semibold select-none">
+          <button 
+            onClick={() => { setSelectedCategory(null); setSelectedYear(null); setSelectedMonth(null); }} 
+            className="hover:text-foreground transition-colors flex items-center gap-1 text-[11px] font-space uppercase tracking-wider"
+          >
+            <Folder className="h-3.5 w-3.5 text-muted-foreground/60" />
+            Tous
+          </button>
+          
+          {selectedCategory && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+              <button 
+                onClick={() => { setSelectedYear(null); setSelectedMonth(null); }} 
+                className="hover:text-foreground transition-colors text-primary flex items-center gap-1 text-[11px] font-space uppercase tracking-wider"
+              >
+                {categoryInfo[selectedCategory].label}
+              </button>
+            </>
+          )}
+          
+          {selectedYear && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+              <button 
+                onClick={() => { setSelectedMonth(null); }} 
+                className="hover:text-foreground transition-colors text-primary flex items-center gap-1 text-[11px] font-space uppercase tracking-wider"
+              >
+                {selectedYear}
+              </button>
+            </>
+          )}
+          
+          {selectedMonth && (
+            <>
+              <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+              <span className="text-foreground flex items-center gap-1 text-[11px] font-space uppercase tracking-wider">{selectedMonth}</span>
+            </>
+          )}
+        </div>
       </div>
     );
   };
@@ -736,11 +786,14 @@ export default function DocumentsPage() {
                transition={{ delay: idx * 0.02, duration: 0.2 }}
                onClick={() => handleSetActiveDocument(doc)}
                className={cn(
-                 'w-full text-left p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 cursor-pointer bg-white/5 dark:bg-[#0f172a]/20 border-white/5 hover:bg-white/10 dark:hover:bg-[#0f172a]/40 hover:scale-[1.005] premium-shadow-sm',
-                 statusBorderColors[doc.status] || 'border-l-transparent'
+                 'relative overflow-hidden w-full text-left p-4 pl-6 rounded-2xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 cursor-pointer bg-white/5 dark:bg-[#0f172a]/20 hover:bg-white/10 dark:hover:bg-[#0f172a]/40 hover:scale-[1.01] hover:shadow-md premium-shadow-sm'
                )}
              >
-                <div className="flex items-center gap-4 flex-1 min-w-0">
+                {/* Visual Status Indicator Strip */}
+                <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", statusIndicatorColors[doc.status] || "bg-muted")} />
+
+                {/* Column 1: Identity (45%) */}
+                <div className="flex items-center gap-4 flex-1 md:flex-[0.45] min-w-0">
                   <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       onCheckedChange={(checked) => {
@@ -763,48 +816,51 @@ export default function DocumentsPage() {
                          {doc.extractedData?.vendorNames?.[0] || doc.name}
                      </p>
                      <p className="text-[10px] text-muted-foreground font-medium truncate" title={doc.name}>
-                         Fichier : {doc.name}
+                         {doc.name}
                      </p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0">
-                   <div className="text-left sm:text-right">
+                {/* Column 2: Metrics (25%) */}
+                <div className="flex flex-col items-start md:items-center justify-center w-full md:w-[25%] shrink-0">
+                   <div className="text-left md:text-center space-y-0.5">
                      {doc.extractedData?.amounts?.[0] != null ? (
-                       <p className="font-space font-black text-xs text-foreground tabular-nums bg-white/5 px-2 py-0.5 rounded-lg inline-block">
+                       <p className="font-space font-black text-xs text-foreground tabular-nums bg-white/5 px-2.5 py-0.5 rounded-lg inline-block">
                            {doc.extractedData.amounts[0].toFixed(2)} €
                        </p>
                      ) : (
                        <p className="text-xs text-muted-foreground">-</p>
                      )}
-                     <p className="text-[9px] opacity-40 font-medium mt-0.5">
+                     <p className="text-[9px] opacity-40 font-medium block">
                        {formatDistanceToNow(parseDate(doc.uploadDate) || new Date(), { addSuffix: true, locale: fr })}
                      </p>
                    </div>
+                </div>
 
-                   <div className="flex items-center gap-2">
-                       <Badge variant="outline" className={cn(
-                         "h-5 px-2 text-[9px] font-space font-bold uppercase tracking-wider border-none rounded-lg",
-                         getStatusInfo(doc.status).color.includes('green') ? "bg-emerald-500/10 text-emerald-500" :
-                         getStatusInfo(doc.status).color.includes('yellow') ? "bg-amber-500/10 text-amber-500" :
-                         getStatusInfo(doc.status).color.includes('red') ? "bg-red-500/10 text-red-500" :
-                         "bg-white/5 text-muted-foreground"
-                       )}>
-                           {getStatusInfo(doc.status).label}
-                       </Badge>
-                       {doc.isExported && (
-                           <Badge variant="outline" className="h-5 px-2 bg-blue-500/10 text-blue-500 border-none text-[9px] font-space font-bold uppercase tracking-wider rounded-lg">Exporté</Badge>
-                       )}
-                       {doc.status === 'duplicate' && (
-                           <Badge variant="outline" className="h-5 px-2 bg-rose-500/10 text-rose-500 border-none text-[9px] font-space font-bold uppercase tracking-wider rounded-lg">Doublon</Badge>
-                       )}
-                   </div>
+                {/* Column 3: Statuses (25%) */}
+                <div className="flex items-center gap-2 w-full md:w-[25%] md:justify-center shrink-0">
+                    <Badge variant="outline" className={cn(
+                      "h-5 px-2 text-[9px] font-space font-bold uppercase tracking-wider border-none rounded-lg",
+                      getStatusInfo(doc.status).color.includes('green') ? "bg-emerald-500/10 text-emerald-500" :
+                      getStatusInfo(doc.status).color.includes('yellow') ? "bg-amber-500/10 text-amber-500" :
+                      getStatusInfo(doc.status).color.includes('red') ? "bg-red-500/10 text-red-500" :
+                      "bg-white/5 text-muted-foreground"
+                    )}>
+                        {getStatusInfo(doc.status).label}
+                    </Badge>
+                    {doc.isExported && (
+                        <Badge variant="outline" className="h-5 px-2 bg-blue-500/10 text-blue-500 border-none text-[9px] font-space font-bold uppercase tracking-wider rounded-lg">Exporté</Badge>
+                    )}
+                    {doc.status === 'duplicate' && (
+                        <Badge variant="outline" className="h-5 px-2 bg-rose-500/10 text-rose-500 border-none text-[9px] font-space font-bold uppercase tracking-wider rounded-lg">Doublon</Badge>
+                    )}
+                </div>
 
-                   <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-foreground" onClick={() => handleSetActiveDocument(doc)}>
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                   </div>
+                {/* Column 4: Chevron (5%) */}
+                <div className="hidden md:block w-[5%] text-right shrink-0" onClick={(e) => e.stopPropagation()}>
+                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 rounded-lg text-muted-foreground hover:text-foreground" onClick={() => handleSetActiveDocument(doc)}>
+                     <ChevronRight className="h-4 w-4" />
+                   </Button>
                 </div>
              </motion.div>
           ))}
@@ -1005,9 +1061,6 @@ export default function DocumentsPage() {
            <h3 className="font-space font-black uppercase text-[10px] tracking-widest text-muted-foreground/60 pl-1">
              Documents ({docs.length})
            </h3>
-           <Button variant="ghost" size="sm" onClick={() => setSelectedMonth(null)} className="h-7 px-2.5 rounded-lg text-[9px] font-space font-black uppercase tracking-wider text-muted-foreground/60 hover:text-foreground">
-              Retour
-           </Button>
         </div>
         <FlatDocumentList docs={docs} />
       </div>
@@ -1083,71 +1136,80 @@ export default function DocumentsPage() {
 
   const DesktopView = () => (
      <div className="hidden md:flex flex-col flex-1 w-full rounded-[2rem] border border-white/5 bg-white/5 dark:bg-[#020617]/20 backdrop-blur-md premium-shadow-lg overflow-hidden h-full">
-        {/* Top Header Row with Title, ClientSwitcher, Breadcrumbs */}
+        {/* Top Header Row with Title and ClientSwitcher */}
         <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-            <div>
-               <h2 className="text-lg font-space font-black uppercase tracking-wider text-foreground">Classeur Documents</h2>
-               <p className="text-xs text-muted-foreground">Organisation par dossiers de catégories comptables, années et mois.</p>
-            </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
+               <div>
+                  <h2 className="text-lg font-space font-black uppercase tracking-wider text-foreground">Classeur Documents</h2>
+                  <p className="text-xs text-muted-foreground">Organisation par dossiers de catégories comptables, années et mois.</p>
+               </div>
+               <div className="h-8 w-px bg-white/10 shrink-0" />
                <ClientSwitcher />
-               {selectedClientId && <Breadcrumbs />}
             </div>
         </div>
 
         {/* Search & Status Filters Bar (Full Width Row) */}
-        <div className="p-4 border-b border-white/5 bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 flex items-center justify-between gap-4">
-            {/* Search Bar */}
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
-              <Input
-                placeholder="Rechercher un document..."
-                value={localSearchQuery}
-                onChange={(e) => setLocalSearchQuery(e.target.value)}
-                className="pl-9 pr-8 bg-white/5 border-none h-9 text-xs rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground placeholder:text-muted-foreground/60 w-full"
-              />
-              {localSearchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setLocalSearchQuery('')}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+        {selectedClientId && (
+          <div className="px-6 py-3 border-b border-white/5 bg-[#fafbfe]/30 dark:bg-[#0b0f19]/30 flex items-center justify-between gap-4">
+             {/* Breadcrumbs (Left) */}
+             <div className="flex-1 min-w-0">
+                <Breadcrumbs />
+             </div>
 
-            {/* Status Filters */}
-            <div className="flex items-center gap-3">
-              <span className="text-[9px] font-space font-black uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">Filtrer par statut</span>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { id: 'all', label: 'Tous' },
-                  { id: 'reviewing', label: 'À examiner' },
-                  { id: 'pending', label: 'En cours' },
-                  { id: 'approved', label: 'Approuvés' },
-                  { id: 'error', label: 'Erreurs' },
-                ].map((pill) => {
-                  const isActive = localStatusFilter === pill.id;
-                  return (
-                    <button
-                      key={pill.id}
-                      onClick={() => setLocalStatusFilter(pill.id as any)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-[9px] font-space font-black uppercase tracking-widest whitespace-nowrap transition-all duration-200 border border-transparent select-none",
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-md"
-                          : "bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {pill.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-        </div>
+             {/* Unified Search & Filters panel (Right) */}
+             <div className="flex items-center gap-3 bg-muted/40 dark:bg-slate-900/40 border border-border/50 rounded-2xl p-1.5 premium-shadow-sm shrink-0">
+               {/* Search Input */}
+               <div className="relative w-64">
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground opacity-60" />
+                 <Input
+                   placeholder="Rechercher..."
+                   value={localSearchQuery}
+                   onChange={(e) => setLocalSearchQuery(e.target.value)}
+                   className="pl-8 pr-8 bg-transparent border-none h-8 text-xs rounded-xl focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground placeholder:text-muted-foreground/60 w-full"
+                 />
+                 {localSearchQuery && (
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     onClick={() => setLocalSearchQuery('')}
+                     className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
+                   >
+                     <X className="h-3 w-3" />
+                   </Button>
+                 )}
+               </div>
+
+               <div className="h-4 w-px bg-border/50" />
+
+               {/* Status Filters */}
+               <div className="flex items-center gap-1">
+                 {[
+                   { id: 'all', label: 'Tous' },
+                   { id: 'reviewing', label: 'À examiner' },
+                   { id: 'pending', label: 'En cours' },
+                   { id: 'approved', label: 'Approuvés' },
+                   { id: 'error', label: 'Erreurs' },
+                 ].map((pill) => {
+                   const isActive = localStatusFilter === pill.id;
+                   return (
+                     <button
+                       key={pill.id}
+                       onClick={() => setLocalStatusFilter(pill.id as any)}
+                       className={cn(
+                         "px-2.5 py-1 rounded-xl text-[10px] font-semibold tracking-wide whitespace-nowrap transition-all duration-200 border border-transparent select-none",
+                         isActive
+                           ? "bg-primary text-primary-foreground shadow-sm"
+                           : "bg-transparent hover:bg-white/10 dark:hover:bg-slate-800 text-muted-foreground hover:text-foreground"
+                       )}
+                     >
+                       {pill.label}
+                     </button>
+                   );
+                 })}
+               </div>
+             </div>
+          </div>
+        )}
 
         {/* Main Cabinet Folder View */}
         <div className="flex-1 overflow-y-auto p-6 bg-[#fafbfe]/10 dark:bg-[#0b0f19]/10">
