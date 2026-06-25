@@ -282,7 +282,9 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
                 <div className="flex items-center justify-between mb-1">
                    <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Imputation Comptable Suggérée</Label>
                    {formData.accountingEntry?.confidenceScore && (
-                       <Badge variant="outline" className="text-[8px] border-primary/20 text-primary bg-primary/5 font-black">Confiance: {formData.accountingEntry.confidenceScore}%</Badge>
+                       <Badge variant="outline" className="text-[8px] border-primary/20 text-primary bg-primary/5 font-black">
+                           Confiance: {formData.accountingEntry.confidenceScore <= 1 ? Math.round(formData.accountingEntry.confidenceScore * 100) : Math.round(formData.accountingEntry.confidenceScore)}%
+                       </Badge>
                    )}
                 </div>
                 <div className="space-y-3 bg-muted/40 p-4 rounded-2xl border border-border premium-shadow-sm">

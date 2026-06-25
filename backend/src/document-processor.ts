@@ -125,12 +125,16 @@ export async function processDocumentContent(
       }
   }
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   // 2. Extraction des données
   const { output } = await ai.generate({
     model: 'googleai/gemini-2.5-flash',
     prompt: [
         { text: `
             You are an expert and vigilant accounting data extraction specialist.
+            Today's date is: ${todayStr} (YYYY-MM-DD).
+
             ${isBankStatement ? bankStatementPrompt : singleDocumentPrompt}
             ${controllerPrompt}
             
