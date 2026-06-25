@@ -513,57 +513,63 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                     </TabsList>
 
                     <AnimatePresence mode="wait">
-                        <TabsContent key="data" value="data" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden p-0 m-0 rounded-2xl outline-none flex flex-col min-h-0">
-                            <ScrollArea className="h-full">
-                                <div className="p-6">
-                                    {hasAnomalies && (
-                                        <Alert variant="destructive" className="mb-6 rounded-2xl border-none bg-red-500/10 text-red-600">
-                                            <ShieldAlert className="h-5 w-5" />
-                                            <AlertTitle className="font-space font-bold uppercase text-xs tracking-widest mb-2">Attention : Anomalie IA</AlertTitle>
-                                            <AlertDescription className="text-sm">
-                                                <ul className="list-disc pl-4 space-y-1">
-                                                    {formData.anomalies!.map((anomaly, index) => <li key={index} className="font-medium">{anomaly}</li>)}
-                                                </ul>
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                    
-                                    <DocumentSummary 
-                                       summary={formData.summary} 
-                                       insight={formData.insight} 
-                                    />
+                        <TabsContent key="data" value="data" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden p-0 m-0 rounded-2xl outline-none">
+                            <div className="flex flex-col h-full min-h-0">
+                                <ScrollArea className="h-full">
+                                    <div className="p-6">
+                                        {hasAnomalies && (
+                                            <Alert variant="destructive" className="mb-6 rounded-2xl border-none bg-red-500/10 text-red-600">
+                                                <ShieldAlert className="h-5 w-5" />
+                                                <AlertTitle className="font-space font-bold uppercase text-xs tracking-widest mb-2">Attention : Anomalie IA</AlertTitle>
+                                                <AlertDescription className="text-sm">
+                                                    <ul className="list-disc pl-4 space-y-1">
+                                                        {formData.anomalies!.map((anomaly, index) => <li key={index} className="font-medium">{anomaly}</li>)}
+                                                    </ul>
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                        
+                                        <DocumentSummary 
+                                           summary={formData.summary} 
+                                           insight={formData.insight} 
+                                        />
 
-                                    {hasExtractedData ? (
-                                        isBankStatement ? (
-                                            <BankStatementData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} documentId={document.id} clientId={document.clientId!} />
+                                        {hasExtractedData ? (
+                                            isBankStatement ? (
+                                                <BankStatementData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} documentId={document.id} clientId={document.clientId!} />
+                                            ) : (
+                                                <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
+                                            )
                                         ) : (
-                                            <ExtractedData formData={formData} setFormData={setFormData} isReadOnly={isReadOnly} />
-                                        )
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center p-12 text-center space-y-4 opacity-40 py-20">
-                                            {document.status === 'pending' ? <Clock className="h-16 w-16 animate-pulse" /> : <AlertCircle className="h-16 w-16" />}
-                                            <div className="space-y-1">
-                                                <p className="font-space font-bold uppercase text-xs tracking-wider">
-                                                    {document.status === 'pending' ? "Traitement en attente" : "Erreur d'extraction"}
-                                                </p>
-                                                <p className="text-xs max-w-xs">
-                                                    {document.status === 'pending' ? "L'IA n'a pas encore analysé ce fichier." : "Impossible d'extraire des données exploitables."}
-                                                </p>
+                                            <div className="flex flex-col items-center justify-center p-12 text-center space-y-4 opacity-40 py-20">
+                                                {document.status === 'pending' ? <Clock className="h-16 w-16 animate-pulse" /> : <AlertCircle className="h-16 w-16" />}
+                                                <div className="space-y-1">
+                                                    <p className="font-space font-bold uppercase text-xs tracking-wider">
+                                                        {document.status === 'pending' ? "Traitement en attente" : "Erreur d'extraction"}
+                                                    </p>
+                                                    <p className="text-xs max-w-xs">
+                                                        {document.status === 'pending' ? "L'IA n'a pas encore analysé ce fichier." : "Impossible d'extraire des données exploitables."}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </ScrollArea>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </div>
                         </TabsContent>
 
-                        <TabsContent key="comments" value="comments" className="flex-1 mt-4 bg-card border border-border premium-shadow p-6 m-0 rounded-2xl outline-none flex flex-col min-h-0">
-                            <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
+                        <TabsContent key="comments" value="comments" className="flex-1 mt-4 bg-card border border-border premium-shadow p-6 m-0 rounded-2xl outline-none">
+                            <div className="flex flex-col h-full min-h-0">
+                                <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
+                            </div>
                         </TabsContent>
 
-                        <TabsContent key="history" value="history" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden m-0 rounded-2xl outline-none flex flex-col min-h-0">
-                            <ScrollArea className="h-full p-6">
-                               <AuditTrail trail={document.auditTrail} />
-                            </ScrollArea>
+                        <TabsContent key="history" value="history" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden m-0 rounded-2xl outline-none">
+                            <div className="flex flex-col h-full min-h-0">
+                                <ScrollArea className="h-full p-6">
+                                   <AuditTrail trail={document.auditTrail} />
+                                </ScrollArea>
+                            </div>
                         </TabsContent>
                     </AnimatePresence>
                 </Tabs>

@@ -1172,7 +1172,7 @@ export default function DocumentsPage() {
         }}
       />
       <Sheet open={!!activeDocument} onOpenChange={(open) => !open && handleSetActiveDocument(null)}>
-          <SheetContent className="w-[95vw] md:w-[85vw] max-w-7xl h-full p-0 flex flex-col border-l border-border bg-background text-foreground" side="right">
+          <SheetContent className="w-[95vw] md:w-[85vw] sm:max-w-none max-w-[85vw] md:max-w-7xl h-full p-0 flex flex-col border-l border-border bg-background text-foreground" side="right">
               <SheetHeader className="p-4 border-b border-border shrink-0 flex flex-row items-center justify-between bg-card text-card-foreground">
                   <div className="min-w-0 flex-1">
                       <SheetTitle className="truncate text-base">{activeDocument?.name}</SheetTitle>
