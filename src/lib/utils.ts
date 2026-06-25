@@ -50,6 +50,18 @@ export function parseDate(date: any): Date | null {
     d = new Date(date.seconds * 1000);
   } else if (date instanceof Date) {
     d = date;
+  } else if (typeof date === 'string') {
+    const trimmed = date.trim();
+    // Matches DD/MM/YYYY, DD-MM-YYYY, or DD.MM.YYYY (supporting 1 or 2 digits for day/month)
+    const match = trimmed.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1; // 0-based index
+      const year = parseInt(match[3], 10);
+      d = new Date(year, month, day);
+    } else {
+      d = new Date(date);
+    }
   } else {
     d = new Date(date);
   }

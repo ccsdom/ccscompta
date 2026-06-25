@@ -211,29 +211,29 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
         <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Marchand & SIRET</Label>
+                    <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Marchand & SIRET</Label>
                     <div className="space-y-2">
-                        <Input value={formData.supplierName ?? formData.vendorNames?.[0] ?? ''} onChange={e => handleInputChange('supplierName', e.target.value)} readOnly={isReadOnly} placeholder="Nom du fournisseur" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold" />
+                        <Input value={formData.supplierName ?? formData.vendorNames?.[0] ?? ''} onChange={e => handleInputChange('supplierName', e.target.value)} readOnly={isReadOnly} placeholder="Nom du fournisseur" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold rounded-xl focus:border-primary/50 text-foreground" />
                         <div className="relative">
-                            <Input value={formData.siret ?? ''} onChange={e => handleInputChange('siret', e.target.value)} readOnly={isReadOnly} placeholder="N° SIRET" className="bg-white/5 border-none h-11 premium-shadow-sm font-mono text-xs pl-9" />
+                            <Input value={formData.siret ?? ''} onChange={e => handleInputChange('siret', e.target.value)} readOnly={isReadOnly} placeholder="N° SIRET" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-mono text-xs pl-9 rounded-xl focus:border-primary/50 text-foreground" />
                             <Landmark className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                         </div>
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Date(s) Détectée(s)</Label>
-                    <div className="space-y-1">
+                    <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Date(s) Détectée(s)</Label>
+                    <div className="space-y-2">
                         {(formData.dates || []).map((date, index) => (
-                            <Input key={index} value={date ?? ''} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-11 premium-shadow-sm font-mono" />
+                            <Input key={index} value={date ?? ''} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-mono rounded-xl focus:border-primary/50 text-foreground" />
                         ))}
-                        {(formData.dates || []).length === 0 && <Input value="-" readOnly disabled className="bg-white/5 border-none opacity-50" />}
+                        {(formData.dates || []).length === 0 && <Input value="-" readOnly disabled className="bg-black/25 border border-white/10 opacity-50 rounded-xl" />}
                     </div>
                 </div>
             </div>
             
             <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Ventilation TVA</Label>
+                <div className="flex items-center justify-between mb-1">
+                    <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Ventilation TVA</Label>
                     {!isReadOnly && (
                         <Button type="button" variant="ghost" size="sm" onClick={handleAddVat} className="h-6 px-2 text-[10px] hover:bg-white/10 text-primary">
                             <Plus className="h-3 w-3 mr-1" /> Ajouter
@@ -252,16 +252,16 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
                             >
                                 <div className="grid grid-cols-3 gap-2 flex-1">
                                     <div className="relative">
-                                        <Input type="number" value={vat.rate} onChange={(e) => handleVatChange(index, 'rate', e.target.value)} readOnly={isReadOnly} placeholder="Taux" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8" />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs">%</span>
+                                        <Input type="number" value={vat.rate} onChange={(e) => handleVatChange(index, 'rate', e.target.value)} readOnly={isReadOnly} placeholder="Taux" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold pr-8 rounded-xl focus:border-primary/50 text-foreground" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold">%</span>
                                     </div>
                                     <div className="relative">
-                                        <Input type="number" value={vat.baseHT} onChange={(e) => handleVatChange(index, 'baseHT', e.target.value)} readOnly={isReadOnly} placeholder="Base HT" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8" />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs">€ (HT)</span>
+                                        <Input type="number" value={vat.baseHT} onChange={(e) => handleVatChange(index, 'baseHT', e.target.value)} readOnly={isReadOnly} placeholder="Base HT" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold pr-12 rounded-xl focus:border-primary/50 text-foreground" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold">€ (HT)</span>
                                     </div>
                                     <div className="relative">
-                                        <Input type="number" value={vat.amount} onChange={(e) => handleVatChange(index, 'amount', e.target.value)} readOnly={isReadOnly} placeholder="Montant TVA" className="bg-white/5 border-none h-11 premium-shadow-sm font-semibold pr-8 text-emerald-500" />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs text-emerald-500">€ (TVA)</span>
+                                        <Input type="number" value={vat.amount} onChange={(e) => handleVatChange(index, 'amount', e.target.value)} readOnly={isReadOnly} placeholder="Montant TVA" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold pr-14 rounded-xl text-emerald-500 focus:border-primary/50 text-foreground" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold text-emerald-500">€ (TVA)</span>
                                     </div>
                                 </div>
                                 {!isReadOnly && (
@@ -279,37 +279,39 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
             </div>
 
             <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                   <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Imputation Comptable Suggérée</Label>
+                <div className="flex items-center justify-between mb-1">
+                   <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Imputation Comptable Suggérée</Label>
                    {formData.accountingEntry?.confidenceScore && (
-                       <Badge variant="outline" className="text-[8px] border-primary/20 text-primary bg-primary/5">Confiance: {formData.accountingEntry.confidenceScore}%</Badge>
+                       <Badge variant="outline" className="text-[8px] border-primary/20 text-primary bg-primary/5 font-black">Confiance: {formData.accountingEntry.confidenceScore}%</Badge>
                    )}
                 </div>
-                <div className="grid grid-cols-3 gap-2 bg-white/5 p-3 rounded-xl border border-white/5 premium-shadow-sm transition-all focus-within:ring-1 focus-within:ring-primary/50">
-                    <div>
-                        <Label className="text-[8px] opacity-50 uppercase tracking-widest mb-1 block">Compte de charge (Débit)</Label>
-                        <div className="relative">
-                            <Sparkles className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-primary" />
-                            <Input value={formData.accountingEntry?.debitAccount ?? ''} onChange={e => handleAccountingChange('debitAccount', e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-8 pl-7 font-mono text-sm text-primary font-bold focus-visible:ring-1 focus-visible:ring-primary/50 rounded-lg" placeholder="Ex: 606400" />
+                <div className="space-y-3 bg-[#0f172a]/50 dark:bg-black/30 p-4 rounded-2xl border border-white/10 premium-shadow-sm">
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-[9px] font-space font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">Charge (Débit)</Label>
+                            <div className="relative">
+                                <Sparkles className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/80" />
+                                <Input value={formData.accountingEntry?.debitAccount ?? ''} onChange={e => handleAccountingChange('debitAccount', e.target.value)} readOnly={isReadOnly} className="bg-black/30 border border-white/10 h-10 pl-8 font-mono text-sm text-primary font-bold focus:border-primary/50 focus:ring-primary/20 rounded-xl text-foreground" placeholder="Ex: 606400" />
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <Label className="text-[8px] opacity-50 uppercase tracking-widest mb-1 block">Compte Tiers (Crédit)</Label>
-                        <Input value={formData.accountingEntry?.creditAccount ?? ''} onChange={e => handleAccountingChange('creditAccount', e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-8 font-mono text-sm focus-visible:ring-1 focus-visible:ring-primary/50 rounded-lg" placeholder="Ex: 401000" />
-                    </div>
-                    <div>
-                        <Label className="text-[8px] opacity-50 uppercase tracking-widest mb-1 block">Compte TVA (Débit)</Label>
-                        <Input value={formData.accountingEntry?.vatAccount ?? ''} onChange={e => handleAccountingChange('vatAccount', e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-8 font-mono text-sm focus-visible:ring-1 focus-visible:ring-primary/50 rounded-lg" placeholder="Ex: 445660" />
+                        <div className="space-y-1">
+                            <Label className="text-[9px] font-space font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">Tiers (Crédit)</Label>
+                            <Input value={formData.accountingEntry?.creditAccount ?? ''} onChange={e => handleAccountingChange('creditAccount', e.target.value)} readOnly={isReadOnly} className="bg-black/30 border border-white/10 h-10 font-mono text-sm focus:border-primary/50 focus:ring-primary/20 rounded-xl font-semibold text-foreground" placeholder="Ex: 401000" />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-[9px] font-space font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">TVA (Débit)</Label>
+                            <Input value={formData.accountingEntry?.vatAccount ?? ''} onChange={e => handleAccountingChange('vatAccount', e.target.value)} readOnly={isReadOnly} className="bg-black/30 border border-white/10 h-10 font-mono text-sm focus:border-primary/50 focus:ring-primary/20 rounded-xl font-semibold text-foreground" placeholder="Ex: 445660" />
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div className="space-y-2">
-                <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Montant(s) Total TTC</Label>
+                <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Montant(s) Total TTC</Label>
                 <div className="grid grid-cols-2 gap-2">
                     {(formData.amounts || []).map((amount, index) => (
                         <div key={index} className="relative">
-                            <Input type="number" value={amount ?? ''} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} className="bg-white/5 border-none h-11 premium-shadow-sm font-black text-lg text-emerald-500 pr-8" />
+                            <Input type="number" value={amount ?? ''} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-black text-lg text-emerald-500 pr-8 rounded-xl focus:border-primary/50" />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500/50 font-black text-xs">€</span>
                         </div>
                     ))}
@@ -317,8 +319,8 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
             </div>
 
             <div className="space-y-2">
-                <Label className="text-[10px] font-space font-black uppercase tracking-widest opacity-60">Notes d'extraction</Label>
-                <Textarea value={formData.otherInformation || ''} onChange={(e) => handleInputChange('otherInformation', e.target.value)} readOnly={isReadOnly} rows={3} className="bg-white/5 border-none rounded-xl premium-shadow-sm resize-none" />
+                <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Notes d'extraction</Label>
+                <Textarea value={formData.otherInformation || ''} onChange={(e) => handleInputChange('otherInformation', e.target.value)} readOnly={isReadOnly} rows={3} className="bg-black/25 border border-white/10 rounded-2xl premium-shadow-sm resize-none focus:border-primary/50 focus:ring-primary/20 text-foreground" />
             </div>
         </div>
     )
