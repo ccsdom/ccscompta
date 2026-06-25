@@ -495,7 +495,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                     </motion.div>
                 )}
 
-                <Tabs defaultValue="data" className="flex-1 flex flex-col h-full overflow-hidden">
+                <Tabs defaultValue="data" className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <TabsList className="bg-muted p-1 h-12 rounded-2xl grid grid-cols-3 border border-border premium-shadow-sm">
                         <TabsTrigger value="data" className="rounded-xl font-space font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                             {isBankStatement ? <Landmark className="h-3.5 w-3.5 mr-2"/> : <FileJson2 className="h-3.5 w-3.5 mr-2" />}
@@ -513,7 +513,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                     </TabsList>
 
                     <AnimatePresence mode="wait">
-                        <TabsContent key="data" value="data" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden p-0 m-0 rounded-2xl outline-none">
+                        <TabsContent key="data" value="data" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden p-0 m-0 rounded-2xl outline-none flex flex-col min-h-0">
                             <ScrollArea className="h-full">
                                 <div className="p-6">
                                     {hasAnomalies && (
@@ -556,11 +556,11 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                             </ScrollArea>
                         </TabsContent>
 
-                        <TabsContent key="comments" value="comments" className="flex-1 mt-4 bg-card border border-border premium-shadow p-6 m-0 rounded-2xl outline-none">
+                        <TabsContent key="comments" value="comments" className="flex-1 mt-4 bg-card border border-border premium-shadow p-6 m-0 rounded-2xl outline-none flex flex-col min-h-0">
                             <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
                         </TabsContent>
 
-                        <TabsContent key="history" value="history" className="flex-1 mt-4 bg-card border border-border premium-shadow m-0 rounded-2xl outline-none">
+                        <TabsContent key="history" value="history" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden m-0 rounded-2xl outline-none flex flex-col min-h-0">
                             <ScrollArea className="h-full p-6">
                                <AuditTrail trail={document.auditTrail} />
                             </ScrollArea>

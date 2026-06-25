@@ -1020,7 +1020,7 @@ export default function DocumentsPage() {
     return (
       <div className="h-full flex flex-col md:flex-row overflow-hidden bg-background">
         {/* Left Side: Document Preview */}
-        <div className="flex-1 flex flex-col border-r border-white/5 relative min-w-0 h-[45vh] md:h-full bg-muted/20">
+        <div className="flex-1 flex flex-col border-r border-border relative min-w-0 h-[40%] md:h-full bg-muted/20">
           <PreviewControls />
           <div className="flex-1 flex items-center justify-center overflow-auto p-4">
             {activeDocument.dataUrl ? (
@@ -1040,7 +1040,7 @@ export default function DocumentsPage() {
         </div>
         
         {/* Right Side: Metadata Validation Form */}
-        <div className="w-full md:w-[480px] shrink-0 h-[55vh] md:h-full flex flex-col overflow-hidden border-l border-border bg-card text-card-foreground">
+        <div className="w-full md:w-[480px] shrink-0 h-[60%] md:h-full flex flex-col overflow-hidden border-l border-border bg-card text-card-foreground">
           <DataValidationForm
             key={activeDocument.id}
             document={activeDocument}
