@@ -71,7 +71,7 @@ const AuditTrail = ({ trail }: { trail: AuditEvent[] }) => {
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="relative pl-8 pb-6 border-l border-white/10 last:pb-0"
+            className="relative pl-8 pb-6 border-l border-border last:pb-0"
           >
             <div className="absolute left-[-9px] top-0 h-4 w-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
               <div className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -117,7 +117,7 @@ const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAd
                                 <Avatar className="h-8 w-8 border-none bg-primary/10 shrink-0">
                                     <AvatarFallback className="text-[10px] font-black">{comment.user.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <div className="flex-1 glass-panel p-3 premium-shadow-sm border-none">
+                                <div className="flex-1 bg-muted/40 p-3 premium-shadow-sm border border-border rounded-2xl">
                                     <div className="flex items-center justify-between mb-1">
                                         <p className="font-black font-space text-[10px] uppercase tracking-widest text-primary">{comment.user}</p>
                                         <p className="text-[9px] opacity-40 font-mono">{format(parseDate(comment.date) || new Date(), "HH:mm")}</p>
@@ -134,12 +134,12 @@ const CommentsSection = ({ comments, onAddComment }: { comments: Comment[], onAd
                     )}
                 </div>
             </ScrollArea>
-             <div className="pt-4 border-t border-white/10 space-y-3">
+             <div className="pt-4 border-t border-border space-y-3">
                 <Textarea 
                     placeholder="Écrivez votre message..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    className="bg-white/5 border-none focus-visible:ring-primary h-20 rounded-2xl resize-none text-sm p-4"
+                    className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-20 rounded-2xl resize-none text-sm p-4"
                 />
                 <Button 
                     className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 font-space font-black uppercase tracking-widest text-xs" 
@@ -211,31 +211,31 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
         <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Marchand & SIRET</Label>
+                    <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Marchand & SIRET</Label>
                     <div className="space-y-2">
-                        <Input value={formData.supplierName ?? formData.vendorNames?.[0] ?? ''} onChange={e => handleInputChange('supplierName', e.target.value)} readOnly={isReadOnly} placeholder="Nom du fournisseur" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold rounded-xl focus:border-primary/50 text-foreground" />
+                        <Input value={formData.supplierName ?? formData.vendorNames?.[0] ?? ''} onChange={e => handleInputChange('supplierName', e.target.value)} readOnly={isReadOnly} placeholder="Nom du fournisseur" className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-11 premium-shadow-sm font-semibold rounded-xl" />
                         <div className="relative">
-                            <Input value={formData.siret ?? ''} onChange={e => handleInputChange('siret', e.target.value)} readOnly={isReadOnly} placeholder="N° SIRET" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-mono text-xs pl-9 rounded-xl focus:border-primary/50 text-foreground" />
+                            <Input value={formData.siret ?? ''} onChange={e => handleInputChange('siret', e.target.value)} readOnly={isReadOnly} placeholder="N° SIRET" className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-11 premium-shadow-sm font-mono text-xs pl-9 rounded-xl" />
                             <Landmark className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                         </div>
                     </div>
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Date(s) Détectée(s)</Label>
+                    <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Date(s) Détectée(s)</Label>
                     <div className="space-y-2">
                         {(formData.dates || []).map((date, index) => (
-                            <Input key={index} value={date ?? ''} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-mono rounded-xl focus:border-primary/50 text-foreground" />
+                            <Input key={index} value={date ?? ''} onChange={e => handleArrayInputChange('dates', index, e.target.value)} readOnly={isReadOnly} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-11 premium-shadow-sm font-mono rounded-xl" />
                         ))}
-                        {(formData.dates || []).length === 0 && <Input value="-" readOnly disabled className="bg-black/25 border border-white/10 opacity-50 rounded-xl" />}
+                        {(formData.dates || []).length === 0 && <Input value="-" readOnly disabled className="bg-background border border-input h-11 premium-shadow-sm text-foreground opacity-50 rounded-xl" />}
                     </div>
                 </div>
             </div>
             
             <div className="space-y-2">
                 <div className="flex items-center justify-between mb-1">
-                    <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Ventilation TVA</Label>
+                    <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Ventilation TVA</Label>
                     {!isReadOnly && (
-                        <Button type="button" variant="ghost" size="sm" onClick={handleAddVat} className="h-6 px-2 text-[10px] hover:bg-white/10 text-primary">
+                        <Button type="button" variant="ghost" size="sm" onClick={handleAddVat} className="h-6 px-2 text-[10px] hover:bg-muted text-primary">
                             <Plus className="h-3 w-3 mr-1" /> Ajouter
                         </Button>
                     )}
@@ -252,16 +252,16 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
                             >
                                 <div className="grid grid-cols-3 gap-2 flex-1">
                                     <div className="relative">
-                                        <Input type="number" value={vat.rate} onChange={(e) => handleVatChange(index, 'rate', e.target.value)} readOnly={isReadOnly} placeholder="Taux" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold pr-8 rounded-xl focus:border-primary/50 text-foreground" />
+                                        <Input type="number" value={vat.rate} onChange={(e) => handleVatChange(index, 'rate', e.target.value)} readOnly={isReadOnly} placeholder="Taux" className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-11 premium-shadow-sm font-semibold pr-8 rounded-xl" />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold">%</span>
                                     </div>
                                     <div className="relative">
-                                        <Input type="number" value={vat.baseHT} onChange={(e) => handleVatChange(index, 'baseHT', e.target.value)} readOnly={isReadOnly} placeholder="Base HT" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold pr-12 rounded-xl focus:border-primary/50 text-foreground" />
+                                        <Input type="number" value={vat.baseHT} onChange={(e) => handleVatChange(index, 'baseHT', e.target.value)} readOnly={isReadOnly} placeholder="Base HT" className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-11 premium-shadow-sm font-semibold pr-12 rounded-xl" />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold">€ (HT)</span>
                                     </div>
                                     <div className="relative">
-                                        <Input type="number" value={vat.amount} onChange={(e) => handleVatChange(index, 'amount', e.target.value)} readOnly={isReadOnly} placeholder="Montant TVA" className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-semibold pr-14 rounded-xl text-emerald-500 focus:border-primary/50 text-foreground" />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold text-emerald-500">€ (TVA)</span>
+                                        <Input type="number" value={vat.amount} onChange={(e) => handleVatChange(index, 'amount', e.target.value)} readOnly={isReadOnly} placeholder="Montant TVA" className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 h-11 premium-shadow-sm font-semibold pr-14 rounded-xl text-emerald-600 dark:text-emerald-400 text-foreground" />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 text-xs font-bold text-emerald-600 dark:text-emerald-400">€ (TVA)</span>
                                     </div>
                                 </div>
                                 {!isReadOnly && (
@@ -280,47 +280,47 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
 
             <div className="space-y-2">
                 <div className="flex items-center justify-between mb-1">
-                   <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Imputation Comptable Suggérée</Label>
+                   <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Imputation Comptable Suggérée</Label>
                    {formData.accountingEntry?.confidenceScore && (
                        <Badge variant="outline" className="text-[8px] border-primary/20 text-primary bg-primary/5 font-black">Confiance: {formData.accountingEntry.confidenceScore}%</Badge>
                    )}
                 </div>
-                <div className="space-y-3 bg-[#0f172a]/50 dark:bg-black/30 p-4 rounded-2xl border border-white/10 premium-shadow-sm">
+                <div className="space-y-3 bg-muted/40 p-4 rounded-2xl border border-border premium-shadow-sm">
                     <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-1">
                             <Label className="text-[9px] font-space font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">Charge (Débit)</Label>
                             <div className="relative">
                                 <Sparkles className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/80" />
-                                <Input value={formData.accountingEntry?.debitAccount ?? ''} onChange={e => handleAccountingChange('debitAccount', e.target.value)} readOnly={isReadOnly} className="bg-black/30 border border-white/10 h-10 pl-8 font-mono text-sm text-primary font-bold focus:border-primary/50 focus:ring-primary/20 rounded-xl text-foreground" placeholder="Ex: 606400" />
+                                <Input value={formData.accountingEntry?.debitAccount ?? ''} onChange={e => handleAccountingChange('debitAccount', e.target.value)} readOnly={isReadOnly} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-10 pl-8 font-mono text-sm text-primary font-bold rounded-xl" placeholder="Ex: 606400" />
                             </div>
                         </div>
                         <div className="space-y-1">
                             <Label className="text-[9px] font-space font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">Tiers (Crédit)</Label>
-                            <Input value={formData.accountingEntry?.creditAccount ?? ''} onChange={e => handleAccountingChange('creditAccount', e.target.value)} readOnly={isReadOnly} className="bg-black/30 border border-white/10 h-10 font-mono text-sm focus:border-primary/50 focus:ring-primary/20 rounded-xl font-semibold text-foreground" placeholder="Ex: 401000" />
+                            <Input value={formData.accountingEntry?.creditAccount ?? ''} onChange={e => handleAccountingChange('creditAccount', e.target.value)} readOnly={isReadOnly} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-10 font-mono text-sm rounded-xl font-semibold" placeholder="Ex: 401000" />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-[9px] font-space font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">TVA (Débit)</Label>
-                            <Input value={formData.accountingEntry?.vatAccount ?? ''} onChange={e => handleAccountingChange('vatAccount', e.target.value)} readOnly={isReadOnly} className="bg-black/30 border border-white/10 h-10 font-mono text-sm focus:border-primary/50 focus:ring-primary/20 rounded-xl font-semibold text-foreground" placeholder="Ex: 445660" />
+                            <Input value={formData.accountingEntry?.vatAccount ?? ''} onChange={e => handleAccountingChange('vatAccount', e.target.value)} readOnly={isReadOnly} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-10 font-mono text-sm rounded-xl font-semibold" placeholder="Ex: 445660" />
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="space-y-2">
-                <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Montant(s) Total TTC</Label>
+                <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Montant(s) Total TTC</Label>
                 <div className="grid grid-cols-2 gap-2">
                     {(formData.amounts || []).map((amount, index) => (
                         <div key={index} className="relative">
-                            <Input type="number" value={amount ?? ''} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} className="bg-black/25 border border-white/10 h-11 premium-shadow-sm font-black text-lg text-emerald-500 pr-8 rounded-xl focus:border-primary/50" />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500/50 font-black text-xs">€</span>
+                            <Input type="number" value={amount ?? ''} onChange={e => handleAmountsChange(index, e.target.value)} readOnly={isReadOnly} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-11 premium-shadow-sm font-black text-lg text-emerald-600 dark:text-emerald-400 pr-8 rounded-xl" />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600/50 dark:text-emerald-400/50 font-black text-xs">€</span>
                         </div>
                     ))}
                 </div>
             </div>
 
             <div className="space-y-2">
-                <Label className="text-[10px] font-space font-black uppercase tracking-widest text-foreground/80">Notes d'extraction</Label>
-                <Textarea value={formData.otherInformation || ''} onChange={(e) => handleInputChange('otherInformation', e.target.value)} readOnly={isReadOnly} rows={3} className="bg-black/25 border border-white/10 rounded-2xl premium-shadow-sm resize-none focus:border-primary/50 focus:ring-primary/20 text-foreground" />
+                <Label className="text-[10px] font-space font-bold uppercase tracking-wider text-muted-foreground">Notes d'extraction</Label>
+                <Textarea value={formData.otherInformation || ''} onChange={(e) => handleInputChange('otherInformation', e.target.value)} readOnly={isReadOnly} rows={3} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground rounded-2xl premium-shadow-sm resize-none" />
             </div>
         </div>
     )
@@ -380,7 +380,7 @@ const BankStatementData = ({ formData, setFormData, isReadOnly, documentId, clie
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center glass-panel p-4 mb-2 border-none">
+            <div className="flex justify-between items-center bg-muted/40 p-4 mb-2 border border-border rounded-2xl">
                 <div>
                    <h4 className="font-black font-space text-[10px] uppercase tracking-widest text-primary">Opérations Bancaires</h4>
                    <p className="text-xs opacity-60">{(formData.transactions || []).length} lignes extraites.</p>
@@ -393,10 +393,10 @@ const BankStatementData = ({ formData, setFormData, isReadOnly, documentId, clie
                 )}
             </div>
             
-            <div className="glass-panel overflow-hidden border-none premium-shadow-sm">
+            <div className="bg-card border border-border overflow-hidden rounded-2xl premium-shadow-sm">
                 <Table>
-                    <TableHeader className="bg-white/5">
-                        <TableRow className="border-white/10">
+                    <TableHeader className="bg-muted/50">
+                        <TableRow className="border-border">
                             <TableHead className="font-space font-black uppercase text-[9px] tracking-widest pl-4">Date</TableHead>
                             <TableHead className="font-space font-black uppercase text-[9px] tracking-widest">Detail</TableHead>
                             <TableHead className="font-space font-black uppercase text-[9px] tracking-widest text-right">Montant</TableHead>
@@ -405,12 +405,12 @@ const BankStatementData = ({ formData, setFormData, isReadOnly, documentId, clie
                     </TableHeader>
                     <TableBody>
                         {(formData.transactions || []).map((t: any, i) => (
-                            <TableRow key={i} className={cn("border-white/5 transition-colors", t.isAnomaly ? "bg-red-500/5" : "hover:bg-white/5")}>
+                            <TableRow key={i} className={cn("border-border/50 transition-colors", t.isAnomaly ? "bg-red-500/5" : "hover:bg-muted/50")}>
                                 <td className="px-4 py-2 font-mono text-[10px] opacity-60">{t.date}</td>
                                 <td className="px-4 py-2">
                                     <div className="font-bold text-xs">{t.vendor || t.description}</div>
                                 </td>
-                                <td className={cn("px-4 py-2 text-right font-black font-space text-xs tabular-nums", (t.amount ?? 0) < 0 ? 'text-red-500' : 'text-emerald-500')}>
+                                <td className={cn("px-4 py-2 text-right font-black font-space text-xs tabular-nums", (t.amount ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>
                                     {t.amount?.toFixed(2)} €
                                 </td>
                                 <td className="px-4 py-2 text-center">
@@ -418,17 +418,17 @@ const BankStatementData = ({ formData, setFormData, isReadOnly, documentId, clie
                                         <Tooltip>
                                             <TooltipTrigger>
                                                 {t.matchingDocumentId ? (
-                                                    <div className="inline-flex items-center justify-center p-1 rounded-lg bg-emerald-500/10 text-emerald-500">
+                                                    <div className="inline-flex items-center justify-center p-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                                         <CheckCircle className="h-3.5 w-3.5" />
                                                     </div>
                                                 ) : (
-                                                    <div className="inline-flex items-center justify-center p-1 rounded-lg bg-white/5 text-muted-foreground opacity-50">
+                                                    <div className="inline-flex items-center justify-center p-1 rounded-lg bg-muted text-muted-foreground opacity-50">
                                                         <Clock className="h-3.5 w-3.5" />
                                                     </div>
                                                 )}
                                             </TooltipTrigger>
                                             {t.matchingDocumentId && (
-                                                <TooltipContent className="glass-panel border-white/10 shadow-2xl">
+                                                <TooltipContent className="bg-card border border-border shadow-2xl">
                                                     <p className="text-xs font-space font-black">MATCH {t.confidenceScore}%</p>
                                                     <p className="text-[10px]">Doc: {t.matchingDocumentId.slice(0,8)}</p>
                                                 </TooltipContent>
@@ -490,36 +490,36 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                         animate={{ opacity: 1 }} 
                         className="absolute inset-0 bg-background/60 backdrop-blur-md flex flex-col items-center justify-center z-50 rounded-3xl"
                     >
-                        <div className="h-16 w-16 rounded-[1.5rem] border-4 border-white/5 border-t-primary animate-spin" />
+                        <div className="h-16 w-16 rounded-[1.5rem] border-4 border-muted border-t-primary animate-spin" />
                         <p className="mt-4 font-space font-black uppercase text-xs tracking-widest text-primary">Analyse IA en cours...</p>
                     </motion.div>
                 )}
 
                 <Tabs defaultValue="data" className="flex-1 flex flex-col h-full overflow-hidden">
-                    <TabsList className="bg-white/5 border-none p-1.5 h-12 rounded-2xl grid grid-cols-3 premium-shadow-sm">
-                        <TabsTrigger value="data" className="rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <TabsList className="bg-muted p-1 h-12 rounded-2xl grid grid-cols-3 border border-border premium-shadow-sm">
+                        <TabsTrigger value="data" className="rounded-xl font-space font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                             {isBankStatement ? <Landmark className="h-3.5 w-3.5 mr-2"/> : <FileJson2 className="h-3.5 w-3.5 mr-2" />}
                             Data
                         </TabsTrigger>
-                        <TabsTrigger value="comments" className="relative rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                        <TabsTrigger value="comments" className="relative rounded-xl font-space font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                             <MessageSquare className="h-3.5 w-3.5 mr-2" />
                             Notes
                             {(document.comments || []).length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] h-4 w-4 flex items-center justify-center rounded-full animate-bounce">{(document.comments || []).length}</span>}
                         </TabsTrigger>
-                        <TabsTrigger value="history" className="rounded-xl font-space font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                        <TabsTrigger value="history" className="rounded-xl font-space font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                             <History className="h-3.5 w-3.5 mr-2" />
                             Logs
                         </TabsTrigger>
                     </TabsList>
 
                     <AnimatePresence mode="wait">
-                        <TabsContent key="data" value="data" className="flex-1 mt-4 glass-panel border-none premium-shadow overflow-hidden p-0 m-0 outline-none">
+                        <TabsContent key="data" value="data" className="flex-1 mt-4 bg-card border border-border premium-shadow overflow-hidden p-0 m-0 rounded-2xl outline-none">
                             <ScrollArea className="h-full">
                                 <div className="p-6">
                                     {hasAnomalies && (
                                         <Alert variant="destructive" className="mb-6 rounded-2xl border-none bg-red-500/10 text-red-600">
                                             <ShieldAlert className="h-5 w-5" />
-                                            <AlertTitle className="font-space font-black uppercase text-xs tracking-widest mb-2">Attention : Anomalie IA</AlertTitle>
+                                            <AlertTitle className="font-space font-bold uppercase text-xs tracking-widest mb-2">Attention : Anomalie IA</AlertTitle>
                                             <AlertDescription className="text-sm">
                                                 <ul className="list-disc pl-4 space-y-1">
                                                     {formData.anomalies!.map((anomaly, index) => <li key={index} className="font-medium">{anomaly}</li>)}
@@ -543,7 +543,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                                         <div className="flex flex-col items-center justify-center p-12 text-center space-y-4 opacity-40 py-20">
                                             {document.status === 'pending' ? <Clock className="h-16 w-16 animate-pulse" /> : <AlertCircle className="h-16 w-16" />}
                                             <div className="space-y-1">
-                                                <p className="font-space font-black uppercase text-xs tracking-widest">
+                                                <p className="font-space font-bold uppercase text-xs tracking-wider">
                                                     {document.status === 'pending' ? "Traitement en attente" : "Erreur d'extraction"}
                                                 </p>
                                                 <p className="text-xs max-w-xs">
@@ -556,11 +556,11 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                             </ScrollArea>
                         </TabsContent>
 
-                        <TabsContent key="comments" value="comments" className="flex-1 mt-4 glass-panel border-none premium-shadow p-6 m-0 outline-none">
+                        <TabsContent key="comments" value="comments" className="flex-1 mt-4 bg-card border border-border premium-shadow p-6 m-0 rounded-2xl outline-none">
                             <CommentsSection comments={document.comments || []} onAddComment={onAddComment} />
                         </TabsContent>
 
-                        <TabsContent key="history" value="history" className="flex-1 mt-4 glass-panel border-none premium-shadow m-0 outline-none">
+                        <TabsContent key="history" value="history" className="flex-1 mt-4 bg-card border border-border premium-shadow m-0 rounded-2xl outline-none">
                             <ScrollArea className="h-full p-6">
                                <AuditTrail trail={document.auditTrail} />
                             </ScrollArea>
@@ -569,10 +569,10 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
                 </Tabs>
             </div>
 
-            <div className="flex justify-end items-center gap-3 p-6 bg-white/5 border-t border-white/5">
+            <div className="flex justify-end items-center gap-3 p-6 bg-muted/30 border-t border-border">
               {document.status === 'reviewing' && (
                 <>
-                  <Button variant="ghost" type="button" onClick={handleDiscard} className="h-12 px-6 rounded-xl font-space font-black uppercase text-[10px] tracking-widest opacity-60 hover:opacity-100 hover:bg-white/5">
+                  <Button variant="ghost" type="button" onClick={handleDiscard} className="h-12 px-6 rounded-xl font-space font-bold uppercase text-[10px] tracking-widest opacity-60 hover:opacity-100 hover:bg-muted">
                     <RotateCcw className="h-4 w-4 mr-2" /> Rejeter
                   </Button>
                   <Button type="submit" className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 font-space font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20">

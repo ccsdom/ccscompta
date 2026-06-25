@@ -1040,7 +1040,7 @@ export default function DocumentsPage() {
         </div>
         
         {/* Right Side: Metadata Validation Form */}
-        <div className="w-full md:w-[480px] shrink-0 h-[55vh] md:h-full flex flex-col overflow-hidden border-l border-white/5 bg-[#0b101c]/30">
+        <div className="w-full md:w-[480px] shrink-0 h-[55vh] md:h-full flex flex-col overflow-hidden border-l border-border bg-card text-card-foreground">
           <DataValidationForm
             key={activeDocument.id}
             document={activeDocument}
@@ -1172,8 +1172,8 @@ export default function DocumentsPage() {
         }}
       />
       <Sheet open={!!activeDocument} onOpenChange={(open) => !open && handleSetActiveDocument(null)}>
-          <SheetContent className="w-[95vw] md:w-[85vw] max-w-7xl h-full p-0 flex flex-col border-l border-white/5 bg-[#030712] dark:bg-[#030712]" side="right">
-              <SheetHeader className="p-4 border-b border-white/5 shrink-0 flex flex-row items-center justify-between">
+          <SheetContent className="w-[95vw] md:w-[85vw] max-w-7xl h-full p-0 flex flex-col border-l border-border bg-background text-foreground" side="right">
+              <SheetHeader className="p-4 border-b border-border shrink-0 flex flex-row items-center justify-between bg-card text-card-foreground">
                   <div className="min-w-0 flex-1">
                       <SheetTitle className="truncate text-base">{activeDocument?.name}</SheetTitle>
                       <SheetDescription asChild>

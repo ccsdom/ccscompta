@@ -44,9 +44,9 @@ export function DocumentSummary({ summary, insight, className }: DocumentSummary
                     {insight && (
                         <div className={cn(
                             "flex items-center gap-3 p-3 rounded-2xl border",
-                            insight.type === 'positive' && "bg-emerald-500/5 border-emerald-500/10 text-emerald-600",
-                            insight.type === 'negative' && "bg-red-500/5 border-red-500/10 text-red-600",
-                            insight.type === 'neutral' && "bg-blue-500/5 border-blue-500/10 text-blue-600"
+                            insight.type === 'positive' && "bg-emerald-500/5 border-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                            insight.type === 'negative' && "bg-red-500/5 border-red-500/10 text-red-600 dark:text-red-400",
+                            insight.type === 'neutral' && "bg-blue-500/5 border-blue-500/10 text-blue-600 dark:text-blue-400"
                         )}>
                             {insight.type === 'positive' && <TrendingUp className="h-4 w-4 shrink-0" />}
                             {insight.type === 'negative' && <TrendingDown className="h-4 w-4 shrink-0" />}
