@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
@@ -16,7 +17,8 @@ import {
   Calendar,
   DollarSign,
   PieChart,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,30 +27,29 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { PieChart as ReChartsPie, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 // --- Constants (CCS Billing Model) ---
 const FIXED_BALANCE_FEE = 400;
 const LINE_FEE = 0.50;
 
 export default function BillingReportPage() {
+  const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
-  const { profile: userProfile } = useBranding();
+  const { profile: userProfile, role: userRole } = useBranding();
   const cabinetId = userProfile?.cabinetId;
-  const isAdmin = userProfile?.role === 'admin';
+  const isStaff = userRole && ['accountant', 'secretary'].includes(userRole);
+  const isAdmin = userRole === 'admin';
 
   // 1. Listen for Docs & Clients
   useEffect(() => {
     if (!userProfile) return;
     
-    const isAdmin = userProfile.role === 'admin';
-    const cabinetId = userProfile.cabinetId;
-
-    if (!isAdmin && !cabinetId) {
+    // Only query if the user is staff or admin
+    if (!isStaff && !isAdmin) {
         setLoading(false);
         return;
     }
@@ -56,17 +57,26 @@ export default function BillingReportPage() {
     const docsRef = collection(db, 'documents');
     const clientsRef = collection(db, 'clients');
 
-    const qDocs = isAdmin ? query(docsRef) : query(docsRef, where('cabinetId', '==', cabinetId));
+    // Filter documents by billingPeriod server-side to save cost and memory
+    const qDocs = isAdmin 
+      ? query(docsRef, where('billingPeriod', '==', selectedPeriod)) 
+      : query(docsRef, where('cabinetId', '==', cabinetId), where('billingPeriod', '==', selectedPeriod));
+      
     const qClients = isAdmin 
       ? query(clientsRef, where('role', '==', 'client')) 
       : query(clientsRef, where('role', '==', 'client'), where('cabinetId', '==', cabinetId));
 
     const unsubDocs = onSnapshot(qDocs, (snapshot) => {
       setDocuments(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Document)));
+    }, (error) => {
+      console.error("Firestore docs subscription failed:", error);
     });
     
     const unsubClients = onSnapshot(qClients, (snapshot) => {
       setClients(snapshot.docs.map(c => ({ id: c.id, ...c.data() } as Client)));
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore clients subscription failed:", error);
       setLoading(false);
     });
 
@@ -74,14 +84,25 @@ export default function BillingReportPage() {
       unsubDocs();
       unsubClients();
     };
-  }, [userProfile, cabinetId, isAdmin]);
+  }, [userProfile, cabinetId, isAdmin, isStaff, selectedPeriod]);
 
   // 2. Aggregate Data per Client for the selected period
   const billingData = useMemo(() => {
-    const periodDocs = documents.filter(doc => doc.billingPeriod === selectedPeriod && doc.status === 'approved');
+    const periodDocs = documents.filter(doc => doc.status === 'approved');
     
+    // Linear pass O(D) to group documents by client
+    const docsByClient = new Map<string, Document[]>();
+    periodDocs.forEach(d => {
+      if (d.clientId) {
+        const list = docsByClient.get(d.clientId) || [];
+        list.push(d);
+        docsByClient.set(d.clientId, list);
+      }
+    });
+
+    // O(C) mapping
     return clients.map(client => {
-      const clientDocs = periodDocs.filter(d => d.clientId === client.id);
+      const clientDocs = docsByClient.get(client.id) || [];
       const totalLines = clientDocs.reduce((acc, doc) => acc + (doc.billableLines || 0), 0);
       const totalDocs = clientDocs.length;
       
@@ -98,7 +119,7 @@ export default function BillingReportPage() {
         totalAmount
       };
     }).filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [documents, clients, selectedPeriod, searchQuery]);
+  }, [documents, clients, searchQuery]);
 
   // 3. Global Stats
   const globalStats = useMemo(() => {
@@ -119,6 +140,24 @@ export default function BillingReportPage() {
     }
     return p;
   }, []);
+
+  // Security Access Guard at component rendering level
+  if (!isStaff && !isAdmin) {
+      return (
+           <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+              <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                  <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                      <ShieldCheck className="h-10 w-10 text-red-500" />
+                  </div>
+                  <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+                  <p className="text-muted-foreground mb-8 text-lg font-medium">Vous n'avez pas les habilitations nécessaires pour accéder au pilotage de la facturation cabinet.</p>
+                  <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                      Retour au Dashboard
+                  </Button>
+              </Card>
+          </div>
+      );
+  }
 
   if (loading) return (
     <div className="p-8 flex items-center justify-center min-h-[400px]">

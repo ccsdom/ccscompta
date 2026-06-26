@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { collection, query, where, getDocs, writeBatch, doc, limit } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
 import type { Document, Client } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Download, FileSpreadsheet, CheckCircle, AlertTriangle, Sparkles, Filter, RefreshCw, FileText } from 'lucide-react';
+import { Loader2, Download, CheckCircle, Sparkles, Filter, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
 import { downloadExport, ExportFormat } from '@/services/export-service';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ExportPage() {
+    const router = useRouter();
     const [approvedDocs, setApprovedDocs] = useState<Document[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedClient, setSelectedClient] = useState<string>("all");
@@ -23,19 +25,19 @@ export default function ExportPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const [exportFormat, setExportFormat] = useState<ExportFormat>('cegid');
-    const { profile: userProfile } = useBranding();
+    const { profile: userProfile, role: userRole } = useBranding();
     const { toast } = useToast();
     
     const cabinetId = userProfile?.cabinetId;
-    const isAdmin = userProfile?.role === 'admin';
+    const isStaff = userRole && ['accountant', 'secretary'].includes(userRole);
+    const isAdmin = userRole === 'admin';
 
-    const fetchApprovedDocs = async () => {
+    const fetchApprovedDocs = useCallback(async () => {
         if (!userProfile) return;
         const cabinetId = userProfile.cabinetId;
-        const isAdmin = userProfile.role === 'admin';
+        const isAdmin = userRole === 'admin';
 
-        if (!isAdmin && !cabinetId) {
-            console.warn("User is not admin and has no cabinetId, skipping fetch.");
+        if (!isStaff && !isAdmin) {
             setIsLoading(false);
             return;
         }
@@ -44,8 +46,8 @@ export default function ExportPage() {
         try {
             const baseQuery = collection(db, 'documents');
             const q = isAdmin 
-                ? query(baseQuery, where('status', '==', 'approved'))
-                : query(baseQuery, where('status', '==', 'approved'), where('cabinetId', '==', cabinetId));
+                ? query(baseQuery, where('status', '==', 'approved'), limit(200))
+                : query(baseQuery, where('status', '==', 'approved'), where('cabinetId', '==', cabinetId), limit(200));
                 
             const snapshot = await getDocs(q);
             const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
@@ -68,44 +70,69 @@ export default function ExportPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [userProfile, cabinetId, isAdmin, isStaff, userRole, toast]);
 
     useEffect(() => {
         if (userProfile) {
             fetchApprovedDocs();
         }
-    }, [userProfile, cabinetId, isAdmin]);
+    }, [userProfile, cabinetId, isAdmin, isStaff, fetchApprovedDocs]);
 
-    const availablePeriods = Array.from(new Set(approvedDocs.map(doc => {
-        const dateStr = doc.extractedData?.dates?.[0] || doc.uploadDate;
-        if (!dateStr) return null;
-        try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return null;
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        } catch {
-            return null;
-        }
-    }).filter(Boolean))) as string[];
-    availablePeriods.sort((a, b) => b.localeCompare(a));
-
-    const filteredDocs = approvedDocs.filter(doc => {
-        if (selectedClient !== 'all' && doc.clientId !== selectedClient) return false;
-        
-        if (selectedPeriod !== 'all') {
+    const availablePeriods = useMemo(() => {
+        const periodsSet = new Set(approvedDocs.map(doc => {
             const dateStr = doc.extractedData?.dates?.[0] || doc.uploadDate;
-            if (!dateStr) return false;
+            if (!dateStr) return null;
             try {
                 const date = new Date(dateStr);
-                if (isNaN(date.getTime())) return false;
-                const docPeriod = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                if (docPeriod !== selectedPeriod) return false;
+                if (isNaN(date.getTime())) return null;
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             } catch {
-                return false;
+                return null;
             }
-        }
-        return true;
-    });
+        }).filter(Boolean));
+        
+        const sortedPeriods = Array.from(periodsSet) as string[];
+        sortedPeriods.sort((a, b) => b.localeCompare(a));
+        return sortedPeriods;
+    }, [approvedDocs]);
+
+    const filteredDocs = useMemo(() => {
+        return approvedDocs.filter(doc => {
+            if (selectedClient !== 'all' && doc.clientId !== selectedClient) return false;
+            
+            if (selectedPeriod !== 'all') {
+                const dateStr = doc.extractedData?.dates?.[0] || doc.uploadDate;
+                if (!dateStr) return false;
+                try {
+                    const date = new Date(dateStr);
+                    if (isNaN(date.getTime())) return false;
+                    const docPeriod = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (docPeriod !== selectedPeriod) return false;
+                } catch {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }, [approvedDocs, selectedClient, selectedPeriod]);
+
+    // Security Access Guard at component rendering level
+    if (!isStaff && !isAdmin) {
+        return (
+             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <ShieldCheck className="h-10 w-10 text-red-500" />
+                    </div>
+                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+                    <p className="text-muted-foreground mb-8 text-lg font-medium">Vous n'avez pas les habilitations nécessaires pour accéder au pilotage des exports comptables.</p>
+                    <Button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+                        Retour au Dashboard
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
 
     const handleExport = async () => {
         if (filteredDocs.length === 0) return;
