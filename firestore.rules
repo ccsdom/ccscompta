@@ -98,7 +98,7 @@ service cloud.firestore {
           isCabinetStaff(resource.data.cabinetId)
           && protectedClientFieldsUnchanged()
         );
-      allow delete: if false;
+      allow delete: if isCabinetStaff(resource.data.cabinetId);
     }
 
     match /documents/{docId} {

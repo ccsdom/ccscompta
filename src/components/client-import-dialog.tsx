@@ -1,4 +1,3 @@
-﻿
 'use client';
 
 import { useState } from 'react';
@@ -42,7 +41,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 toast({
                     variant: 'destructive',
                     title: 'Type de fichier invalide',
-                    description: 'Veuillez sÃ©lectionner un fichier CSV.'
+                    description: 'Veuillez sélectionner un fichier CSV.'
                 });
                 return;
             }
@@ -63,7 +62,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
 
                 if (missingHeaders.length > 0) {
-                    setErrors([`Les en-tÃªtes suivants sont manquants dans votre fichier CSV : ${missingHeaders.join(', ')}.`]);
+                    setErrors([`Les en-têtes suivants sont manquants dans votre fichier CSV : ${missingHeaders.join(', ')}.`]);
                     setIsLoading(false);
                     return;
                 }
@@ -92,7 +91,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
             toast({
                 variant: 'destructive',
                 title: 'Importation impossible',
-                description: 'Le fichier contient des erreurs ou aucune donnÃ©e valide Ã  importer.'
+                description: 'Le fichier contient des erreurs ou aucune donnée valide à importer.'
             });
             return;
         }
@@ -111,37 +110,45 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
 
         const createUserFunc = httpsCallable(functions, 'createUserWithRole');
 
+        // Process imports in parallel chunks of 5 to optimize speed and handle rate limits
+        const chunkSize = 5;
+        const chunks: ParsedClient[][] = [];
+        for (let i = 0; i < parsedData.length; i += chunkSize) {
+            chunks.push(parsedData.slice(i, i + chunkSize));
+        }
 
-        for (const clientData of parsedData) {
-            try {
-                const dataToSend = {
-                    ...clientData,
-                    role: 'client',
-                };
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (clientData) => {
+                try {
+                    const dataToSend = {
+                        ...clientData,
+                        role: 'client',
+                    };
 
-                const result = await createUserFunc(dataToSend);
-                const resultData = result.data as { success: boolean; setupLink?: string; emailQueued?: boolean };
+                    const result = await createUserFunc(dataToSend);
+                    const resultData = result.data as { success: boolean; setupLink?: string; emailQueued?: boolean };
 
-                if (resultData.success) {
-                    importedCount++;
-                    if (resultData.emailQueued) {
-                        emailedCount++;
+                    if (resultData.success) {
+                        importedCount++;
+                        if (resultData.emailQueued) {
+                            emailedCount++;
+                        }
+                        if (resultData.setupLink) {
+                            activationLinks.push({
+                                name: clientData.name,
+                                email: clientData.email,
+                                setupLink: resultData.setupLink,
+                            });
+                        }
+                    } else {
+                        throw new Error('La création a échoué côté serveur.');
                     }
-                    if (resultData.setupLink) {
-                        activationLinks.push({
-                            name: clientData.name,
-                            email: clientData.email,
-                            setupLink: resultData.setupLink,
-                        });
-                    }
-                } else {
-                    throw new Error('La crÃ©ation a Ã©chouÃ© cÃ´tÃ© serveur.');
+
+                } catch (error: any) {
+                    errorCount++;
+                    console.error(`Failed to import client ${clientData.name}: ${error.message}`);
                 }
-
-            } catch (error: any) {
-                errorCount++;
-                console.error(`Failed to import client ${clientData.name}: ${error.message}`);
-            }
+            }));
         }
 
         if (importedCount > 0) {
@@ -160,17 +167,17 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
 
             toast({
                 duration: 20000,
-                title: emailedCount > 0 ? 'Importation terminee, emails envoyes' : 'Importation terminee, action requise',
+                title: emailedCount > 0 ? 'Importation terminée, emails envoyés' : 'Importation terminée, action requise',
                 description: (
                     <div className="space-y-2">
-                        <p>{importedCount} profils clients et comptes d'accÃ¨s ont Ã©tÃ© crÃ©Ã©s.</p>
+                        <p>{importedCount} profils clients et comptes d'accès ont été créés.</p>
                         <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
                              <KeyRound className="h-4 w-4" />
-                             <AlertTitle>{emailedCount > 0 ? 'Emails d activation' : 'Liens d activation'}</AlertTitle>
+                             <AlertTitle>{emailedCount > 0 ? 'Emails d\'activation' : 'Liens d\'activation'}</AlertTitle>
                              <AlertDescription>
                                 {emailedCount > 0
-                                    ? `${emailedCount} email(s) d'activation ont ete mis en file. Un CSV de secours contenant les liens disponibles vient aussi d'etre genere.`
-                                    : "Un fichier CSV contenant les liens d'activation disponibles vient d'etre genere."}
+                                    ? `${emailedCount} email(s) d'activation ont été mis en file. Un CSV de secours contenant les liens disponibles vient aussi d'être généré.`
+                                    : "Un fichier CSV contenant les liens d'activation disponibles vient d'être généré."}
                              </AlertDescription>
                          </Alert>
                     </div>
@@ -183,7 +190,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
              toast({
                 variant: 'destructive',
                 title: `${errorCount} erreur(s) lors de l'importation`,
-                description: "Certains clients n'ont pas pu Ãªtre importÃ©s. VÃ©rifiez les doublons d'email ou de SIRET."
+                description: "Certains clients n'ont pas pu être importés. Vérifiez les doublons d'email ou de SIRET."
             });
         }
 
@@ -193,13 +200,13 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         setErrors([]);
         setIsOpen(false);
         setIsLoading(false);
-    }
+    };
 
     const resetState = () => {
         setFile(null);
         setParsedData([]);
         setErrors([]);
-    }
+    };
 
     const TriggerComponent = isMenuItem ? 'div' : Button;
     const triggerProps = isMenuItem ? {
@@ -230,7 +237,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                 <DialogHeader>
                     <DialogTitle>Importer des clients depuis un fichier CSV</DialogTitle>
                     <DialogDescription>
-                        TÃ©lÃ©versez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les en-tÃªtes : {REQUIRED_HEADERS.join(', ')}.
+                        Téléversez un fichier CSV pour ajouter plusieurs clients en une seule fois. Le fichier doit contenir les en-têtes : {REQUIRED_HEADERS.join(', ')}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -250,7 +257,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                             <div className="flex flex-col items-center justify-center text-center">
                                 <File className="h-10 w-10 text-muted-foreground" />
                                 <p className="mt-4 text-sm font-medium">
-                                    Glissez-dÃ©posez ou <span className="font-semibold text-primary">parcourir</span>
+                                    Glissez-déposez ou <span className="font-semibold text-primary">parcourir</span>
                                 </p>
                                 <p className="mt-1 text-xs text-muted-foreground">
                                     Fichier CSV uniquement
@@ -260,7 +267,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                         <div className="mt-6 text-center">
                            <a href="/clients-to-import.csv" download="clients-a-importer.csv" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2">
                                  <Download className="mr-2 h-4 w-4"/>
-                                 TÃ©lÃ©charger le fichier prÃ©-rempli
+                                 Télécharger le fichier pré-rempli
                                </a>
                         </div>
                     </div>
@@ -279,7 +286,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                             </div>
                         ) : errors.length > 0 ? (
                             <div className="h-64 p-4 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
-                                <h3 className="font-bold flex items-center gap-2"><AlertCircle /> Erreurs dÃ©tectÃ©es</h3>
+                                <h3 className="font-bold flex items-center gap-2"><AlertCircle /> Erreurs détectées</h3>
                                 <ScrollArea className="mt-2 h-[200px] text-sm">
                                     <ul className="space-y-1 list-disc pl-5">
                                         {errors.map((error, i) => <li key={i}>{error}</li>)}
@@ -290,7 +297,7 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
                             <div>
                                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                                     <CheckCircle className="h-5 w-5 text-green-500" />
-                                    AperÃ§u des donnÃ©es ({parsedData.length} clients dÃ©tectÃ©s)
+                                    Aperçu des données ({parsedData.length} clients détectés)
                                 </h3>
                                 <ScrollArea className="h-64 border rounded-lg">
                                     <Table>
@@ -329,5 +336,3 @@ export function ClientImportDialog({ onClientsImported, isMenuItem }: ClientImpo
         </Dialog>
     );
 }
-
-
