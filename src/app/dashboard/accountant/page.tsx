@@ -16,11 +16,13 @@ import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
 import { collection, query, orderBy, limit, where, doc } from 'firebase/firestore';
 import { cn, formatDate, parseDate } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 export default function AccountantDashboard() {
     const [isMounted, setIsMounted] = useState(false);
     const { profile: userProfile, cabinet, isLoading: isLoadingProfile } = useBranding();
     const router = useRouter();
+    const { theme } = useTheme();
 
     useEffect(() => {
         setIsMounted(true);
@@ -28,24 +30,6 @@ export default function AccountantDashboard() {
 
     const userRole = userProfile?.role || null;
     const isStaff = isMounted && userRole && (['accountant', 'secretary'].includes(userRole));
-
-    // Explicit block for Super Admin to force impersonation
-    if (false && userRole === 'admin') {
-        /*
-             <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
-                <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
-                    <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                        <ShieldCheck className="h-10 w-10 text-red-500" />
-                    </div>
-                    <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
-                    <p className="text-muted-foreground mb-8 text-lg font-medium">L'accès direct au dashboard cabinet est restreint pour le Super Admin. Veuillez impersonner un cabinet pour accéder à son dashboard.</p>
-                    <Button onClick={() => router.push('/dashboard/cabinets')} className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
-                        Aller à la Gestion Cabinets
-                    </Button>
-                </Card>
-            </div>
-        */
-    }
 
     const cabinetId = userProfile?.cabinetId;
 
@@ -101,18 +85,25 @@ export default function AccountantDashboard() {
         const docsPendingReview = documents.filter(d => ['pending', 'reviewing', 'error'].includes(d.status)).length;
         
         const docsApprovedToday = documents.filter((doc: Document) => {
-            const approvalEvent = (doc.auditTrail || []).find((e: AuditEvent) => e.action.includes('approuvé'));
+            if (!doc.auditTrail || !Array.isArray(doc.auditTrail)) return false;
+            const approvalEvent = doc.auditTrail.find((e: AuditEvent) => e.action.includes('approuvé'));
             const approvalDate = approvalEvent ? parseDate(approvalEvent.date) : null;
             return approvalDate && approvalDate >= twentyFourHoursAgo;
         }).length;
         
-        const activityByClient = clients.map(client => {
-            const clientDocsToday = documents.filter(d => {
-                const uDate = parseDate(d.uploadDate);
-                return d.clientId === client.id && uDate && uDate >= twentyFourHoursAgo;
-            }).length;
-            return { name: client.name, docs: clientDocsToday };
-        }).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
+        // Optimisation O(N + M) pour éviter les boucles imbriquées
+        const docsByClientToday = new Map<string, number>();
+        documents.forEach(d => {
+            const uDate = parseDate(d.uploadDate);
+            if (uDate && uDate >= twentyFourHoursAgo) {
+                docsByClientToday.set(d.clientId, (docsByClientToday.get(d.clientId) || 0) + 1);
+            }
+        });
+        
+        const activityByClient = clients.map(client => ({
+            name: client.name,
+            docs: docsByClientToday.get(client.id) || 0
+        })).filter(c => c.docs > 0).sort((a,b) => b.docs - a.docs).slice(0, 5);
 
         return {
             totalClients: clients.filter(c => c.status === 'active' && c.role === 'client').length,
@@ -306,7 +297,7 @@ export default function AccountantDashboard() {
                             {dashboardData?.activityByClient.length && dashboardData.activityByClient.length > 0 ? (
                                 <div className="h-[350px] w-full pt-4">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={dashboardData.activityByClient} layout="vertical" margin={{ left: 40, right: 40 }}>
+                                        <BarChart key={theme} data={dashboardData.activityByClient} layout="vertical" margin={{ left: 40, right: 40 }}>
                                             <XAxis type="number" hide />
                                             <YAxis 
                                                 dataKey="name" 
