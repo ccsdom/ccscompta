@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Papa from 'papaparse';
 import {
   Landmark, Upload, CheckCircle, AlertTriangle, Clock, ChevronRight,
   Loader2, FileSpreadsheet, Users, Zap, RotateCcw, ShieldCheck,
   TrendingUp, AlertCircle, Info, DownloadCloud, X, Search, Sparkles,
-  ArrowRight, FileText, BarChart3, Link2, RefreshCw, Database, Cloud, CheckCircle2
+  ArrowRight, FileText, BarChart3, Link2, RefreshCw, CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableHeader, TableRow, TableHead } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { collection, query, where, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, limit } from 'firebase/firestore';
 import { db, useCollection, useMemoFirebase } from '@/firebase';
 import { runBankReconciliation, saveBankReconciliation } from '@/services/bank-reconciliation-service';
 import { getBankAuthLink, syncBankTransactions } from '@/services/bank-connection-service';
@@ -557,7 +558,7 @@ function StepResults({
   // Fetch approved documents for this client
   const documentsQuery = useMemoFirebase(() => {
     if (!client.id) return null;
-    return query(collection(db, 'documents'), where('clientId', '==', client.id), where('status', '==', 'approved'));
+    return query(collection(db, 'documents'), where('clientId', '==', client.id), where('status', '==', 'approved'), limit(200));
   }, [client.id]);
 
   const { data: documents } = useCollection<Document>(documentsQuery);
@@ -1005,12 +1006,17 @@ function StepResults({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReconciliationPage() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('client');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [parsedTransactions, setParsedTransactions] = useState<ParsedTransaction[] | null>(null);
   const [reconciledTransactions, setReconciledTransactions] = useState<ParsedTransaction[] | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+
+  const { role: userRole, isLoading: isBrandingLoading } = useBranding();
+  const isStaff = userRole === 'accountant';
+  const isAdmin = userRole === 'admin';
 
   const handleTransactionsParsed = async (transactions: ParsedTransaction[]) => {
     if (!selectedClient) return;
@@ -1040,6 +1046,36 @@ export default function ReconciliationPage() {
       setIsProcessing(false);
     }
   };
+
+  if (isBrandingLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isStaff && !isAdmin) {
+    return (
+      <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+        <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+          <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <ShieldCheck className="h-10 w-10 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+          <p className="text-muted-foreground mb-8 text-lg font-medium">
+            Vous n'avez pas les habilitations nécessaires pour accéder au pilotage du rapprochement bancaire.
+          </p>
+          <Button 
+            onClick={() => router.push('/dashboard')} 
+            className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20 hover:bg-primary/90 text-primary-foreground"
+          >
+            Retour au Dashboard
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
