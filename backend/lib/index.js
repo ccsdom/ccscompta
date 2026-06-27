@@ -45,6 +45,7 @@ const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = __importStar(require("firebase-admin"));
 const crypto_1 = require("crypto");
+const gocardless_1 = require("./gocardless");
 // import { format as formatFns } from 'date-fns';
 // import { generateWeeklyBriefing } from './proactive-ai';
 // La dÃ©pendance pdf-parse a Ã©tÃ© retirÃ©e au profit de l'API native multimodale de Gemini.
@@ -668,22 +669,36 @@ exports.extractClientData = (0, https_1.onCall)({ region: 'europe-west9', memory
     }
 });
 exports.getBankAuthLink = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
-    var _a, _b;
+    var _a, _b, _c;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
     }
     try {
         const clientId = normalizeClientId((_a = request.data) === null || _a === void 0 ? void 0 : _a.clientId);
         const cabinetId = normalizeOptionalCabinetId((_b = request.data) === null || _b === void 0 ? void 0 : _b.cabinetId);
+        const institutionId = typeof ((_c = request.data) === null || _c === void 0 ? void 0 : _c.institutionId) === 'string' ? request.data.institutionId.trim() : 'SANDBOX_FINANCE';
         const { targetCabinetId } = await assertBankAccess(request.auth, clientId, cabinetId);
+        const resolvedCabinetId = targetCabinetId || cabinetId || null;
+        if (gocardless_1.GoCardlessService.isConfigured()) {
+            const redirectUrl = `${getAppBaseUrl()}/dashboard/accountant/reconciliation`;
+            const { requisitionId, consentUrl } = await gocardless_1.GoCardlessService.createRequisition(clientId, redirectUrl, institutionId);
+            logger.info('GoCardless bank auth link generated', {
+                clientId,
+                requisitionId,
+                cabinetId: resolvedCabinetId,
+                callerUid: request.auth.uid,
+            });
+            return { success: true, url: consentUrl, requisitionId };
+        }
+        // Fallback Mock
         const token = (0, crypto_1.randomBytes)(8).toString('base64url');
         const mockAuthUrl = `https://ob.nordigen.com/psd2/start/mock-auth-${token}`;
-        logger.info('Mock bank auth link generated', {
+        logger.info('Mock bank auth link generated (fallback)', {
             clientId,
-            cabinetId: targetCabinetId || cabinetId || null,
+            cabinetId: resolvedCabinetId,
             callerUid: request.auth.uid,
         });
-        return { success: true, url: mockAuthUrl };
+        return { success: true, url: mockAuthUrl, requisitionId: `mock_req_${token}` };
     }
     catch (error) {
         throwCallableError(error, 'getBankAuthLink failed');
@@ -701,13 +716,31 @@ exports.finalizeBankConnection = (0, https_1.onCall)({ region: 'europe-west9', m
         const { targetCabinetId } = await assertBankAccess(request.auth, clientId, cabinetId);
         const resolvedCabinetId = targetCabinetId || cabinetId || null;
         const db = getDb();
+        let institutionId = 'SANDBOX_FINANCE';
+        let institutionName = 'Banque de Demonstration';
+        let accountsList = [];
+        if (gocardless_1.GoCardlessService.isConfigured() && !requisitionId.startsWith('mock_req_')) {
+            try {
+                const details = await gocardless_1.GoCardlessService.getRequisitionDetails(requisitionId);
+                institutionId = details.institution_id || 'SANDBOX_FINANCE';
+                accountsList = details.accounts || [];
+                if (accountsList.length > 0) {
+                    const accDetails = await gocardless_1.GoCardlessService.getAccountDetails(accountsList[0]);
+                    institutionName = accDetails.name || 'Banque Connectée';
+                }
+            }
+            catch (err) {
+                logger.error('Failed to finalize GoCardless connection details', err);
+            }
+        }
         const connectionRef = await db.collection('bank_connections').add({
             clientId,
             cabinetId: resolvedCabinetId,
             requisitionId,
             status: 'active',
-            institutionId: 'SANDBOX_FINANCE',
-            institutionName: 'Banque de Demonstration',
+            institutionId,
+            institutionName,
+            accounts: accountsList,
             lastSync: new Date().toISOString(),
             createdAt: new Date().toISOString(),
             createdBy: request.auth.uid,
@@ -723,13 +756,49 @@ exports.finalizeBankConnection = (0, https_1.onCall)({ region: 'europe-west9', m
     }
 });
 exports.syncBankTransactions = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
-    var _a;
+    var _a, _b;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
     }
     try {
         const clientId = normalizeClientId((_a = request.data) === null || _a === void 0 ? void 0 : _a.clientId);
         await assertBankAccess(request.auth, clientId);
+        const db = getDb();
+        const clientDoc = await db.collection('clients').doc(clientId).get();
+        const lastBankConnectionId = (_b = clientDoc.data()) === null || _b === void 0 ? void 0 : _b.lastBankConnectionId;
+        if (gocardless_1.GoCardlessService.isConfigured() && lastBankConnectionId) {
+            const connDoc = await db.collection('bank_connections').doc(lastBankConnectionId).get();
+            const connData = connDoc.data();
+            if (connData && connData.status === 'active' && connData.requisitionId && !connData.requisitionId.startsWith('mock_req_')) {
+                const accounts = connData.accounts || [];
+                const allTransactions = [];
+                for (const accountId of accounts) {
+                    try {
+                        const txs = await gocardless_1.GoCardlessService.getAccountTransactions(accountId);
+                        txs.forEach((t) => {
+                            var _a;
+                            const amount = parseFloat(((_a = t.transactionAmount) === null || _a === void 0 ? void 0 : _a.amount) || '0');
+                            allTransactions.push({
+                                date: t.bookingDate || t.valueDate || new Date().toISOString().split('T')[0],
+                                description: t.remittanceInformationUnstructured || t.additionalInformation || 'Transaction',
+                                amount: amount,
+                            });
+                        });
+                    }
+                    catch (err) {
+                        logger.error(`Failed to sync transactions for account ${accountId}`, err);
+                    }
+                }
+                await db.collection('bank_connections').doc(lastBankConnectionId).update({
+                    lastSync: new Date().toISOString()
+                });
+                return {
+                    success: true,
+                    transactions: allTransactions
+                };
+            }
+        }
+        // Fallback Mock
         return {
             success: true,
             transactions: buildMockBankTransactions(),

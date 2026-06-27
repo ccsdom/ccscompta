@@ -11,6 +11,7 @@ import { onRequest, onCall, HttpsError, CallableRequest } from 'firebase-functio
 import { onDocumentWritten, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { GoCardlessService } from './gocardless';
 // import { format as formatFns } from 'date-fns';
 // import { generateWeeklyBriefing } from './proactive-ai';
 
@@ -829,7 +830,7 @@ export const extractClientData = onCall(
 
 export const getBankAuthLink = onCall(
   { region: 'europe-west9', memory: '256MiB' },
-  async (request: CallableRequest<{ clientId?: unknown; cabinetId?: unknown }>) => {
+  async (request: CallableRequest<{ clientId?: unknown; cabinetId?: unknown; institutionId?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
     }
@@ -837,17 +838,39 @@ export const getBankAuthLink = onCall(
     try {
       const clientId = normalizeClientId(request.data?.clientId);
       const cabinetId = normalizeOptionalCabinetId(request.data?.cabinetId);
+      const institutionId = typeof request.data?.institutionId === 'string' ? request.data.institutionId.trim() : 'SANDBOX_FINANCE';
       const { targetCabinetId } = await assertBankAccess(request.auth, clientId, cabinetId);
+      const resolvedCabinetId = targetCabinetId || cabinetId || null;
+
+      if (GoCardlessService.isConfigured()) {
+        const redirectUrl = `${getAppBaseUrl()}/dashboard/accountant/reconciliation`;
+        const { requisitionId, consentUrl } = await GoCardlessService.createRequisition(
+          clientId,
+          redirectUrl,
+          institutionId
+        );
+
+        logger.info('GoCardless bank auth link generated', {
+          clientId,
+          requisitionId,
+          cabinetId: resolvedCabinetId,
+          callerUid: request.auth.uid,
+        });
+
+        return { success: true, url: consentUrl, requisitionId };
+      }
+
+      // Fallback Mock
       const token = randomBytes(8).toString('base64url');
       const mockAuthUrl = `https://ob.nordigen.com/psd2/start/mock-auth-${token}`;
 
-      logger.info('Mock bank auth link generated', {
+      logger.info('Mock bank auth link generated (fallback)', {
         clientId,
-        cabinetId: targetCabinetId || cabinetId || null,
+        cabinetId: resolvedCabinetId,
         callerUid: request.auth.uid,
       });
 
-      return { success: true, url: mockAuthUrl };
+      return { success: true, url: mockAuthUrl, requisitionId: `mock_req_${token}` };
     } catch (error) {
       throwCallableError(error, 'getBankAuthLink failed');
     }
@@ -868,13 +891,34 @@ export const finalizeBankConnection = onCall(
       const { targetCabinetId } = await assertBankAccess(request.auth, clientId, cabinetId);
       const resolvedCabinetId = targetCabinetId || cabinetId || null;
       const db = getDb();
+
+      let institutionId = 'SANDBOX_FINANCE';
+      let institutionName = 'Banque de Demonstration';
+      let accountsList: string[] = [];
+
+      if (GoCardlessService.isConfigured() && !requisitionId.startsWith('mock_req_')) {
+        try {
+          const details = await GoCardlessService.getRequisitionDetails(requisitionId);
+          institutionId = details.institution_id || 'SANDBOX_FINANCE';
+          accountsList = details.accounts || [];
+
+          if (accountsList.length > 0) {
+            const accDetails = await GoCardlessService.getAccountDetails(accountsList[0]);
+            institutionName = accDetails.name || 'Banque Connectée';
+          }
+        } catch (err) {
+          logger.error('Failed to finalize GoCardless connection details', err);
+        }
+      }
+
       const connectionRef = await db.collection('bank_connections').add({
         clientId,
         cabinetId: resolvedCabinetId,
         requisitionId,
         status: 'active',
-        institutionId: 'SANDBOX_FINANCE',
-        institutionName: 'Banque de Demonstration',
+        institutionId,
+        institutionName,
+        accounts: accountsList,
         lastSync: new Date().toISOString(),
         createdAt: new Date().toISOString(),
         createdBy: request.auth.uid,
@@ -902,6 +946,47 @@ export const syncBankTransactions = onCall(
     try {
       const clientId = normalizeClientId(request.data?.clientId);
       await assertBankAccess(request.auth, clientId);
+      const db = getDb();
+
+      const clientDoc = await db.collection('clients').doc(clientId).get();
+      const lastBankConnectionId = clientDoc.data()?.lastBankConnectionId;
+
+      if (GoCardlessService.isConfigured() && lastBankConnectionId) {
+        const connDoc = await db.collection('bank_connections').doc(lastBankConnectionId).get();
+        const connData = connDoc.data();
+
+        if (connData && connData.status === 'active' && connData.requisitionId && !connData.requisitionId.startsWith('mock_req_')) {
+          const accounts: string[] = connData.accounts || [];
+          const allTransactions: any[] = [];
+
+          for (const accountId of accounts) {
+            try {
+              const txs = await GoCardlessService.getAccountTransactions(accountId);
+              txs.forEach((t: any) => {
+                const amount = parseFloat(t.transactionAmount?.amount || '0');
+                allTransactions.push({
+                  date: t.bookingDate || t.valueDate || new Date().toISOString().split('T')[0],
+                  description: t.remittanceInformationUnstructured || t.additionalInformation || 'Transaction',
+                  amount: amount,
+                });
+              });
+            } catch (err) {
+              logger.error(`Failed to sync transactions for account ${accountId}`, err);
+            }
+          }
+
+          await db.collection('bank_connections').doc(lastBankConnectionId).update({
+            lastSync: new Date().toISOString()
+          });
+
+          return {
+            success: true,
+            transactions: allTransactions
+          };
+        }
+      }
+
+      // Fallback Mock
       return {
         success: true,
         transactions: buildMockBankTransactions(),

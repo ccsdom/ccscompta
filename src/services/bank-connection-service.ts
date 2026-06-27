@@ -12,6 +12,7 @@ export type BankTransaction = {
 type BankAuthLinkResult = {
   success: boolean;
   url?: string;
+  requisitionId?: string;
   error?: string;
 };
 

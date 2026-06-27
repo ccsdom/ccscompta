@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { collection, query, where, doc, writeBatch, limit } from 'firebase/firestore';
 import { db, useCollection, useMemoFirebase } from '@/firebase';
 import { runBankReconciliation, saveBankReconciliation } from '@/services/bank-reconciliation-service';
-import { getBankAuthLink, syncBankTransactions } from '@/services/bank-connection-service';
+import { getBankAuthLink, syncBankTransactions, finalizeBankConnection } from '@/services/bank-connection-service';
 import type { Client, Document } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -222,8 +222,39 @@ function StepImport({
   const [fileName, setFileName] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isHunting, setIsHunting] = useState(false);
+  const [pendingRequisition, setPendingRequisition] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const savedReqId = localStorage.getItem('pendingRequisitionId');
+    const savedClientId = localStorage.getItem('pendingClientId');
+    if (savedReqId && savedClientId === client.id) {
+      setPendingRequisition(savedReqId);
+    }
+  }, [client.id]);
+
+  const handleFinalizeConnection = async () => {
+    if (!pendingRequisition) return;
+    setIsSyncing(true);
+    try {
+      const res = await finalizeBankConnection(client.id, client.cabinetId, pendingRequisition);
+      if (res.success) {
+        toast({ title: "Banque Connectée", description: "La connexion bancaire a été finalisée avec succès." });
+        localStorage.removeItem('pendingRequisitionId');
+        localStorage.removeItem('pendingClientId');
+        localStorage.removeItem('pendingCabinetId');
+        setPendingRequisition(null);
+        window.location.reload();
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur Finalisation', description: err.message });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleRunGhostHunter = async () => {
     setIsHunting(true);
@@ -265,17 +296,17 @@ function StepImport({
     try {
         const res = await getBankAuthLink(client.id, client.cabinetId || '');
         if (res.success && res.url) {
-            // In a real app, we would redirect. Here we simulate the result.
+            if (res.requisitionId) {
+              localStorage.setItem('pendingRequisitionId', res.requisitionId);
+              localStorage.setItem('pendingClientId', client.id);
+              localStorage.setItem('pendingCabinetId', client.cabinetId || '');
+              setPendingRequisition(res.requisitionId);
+            }
             window.open(res.url, '_blank');
             toast({ 
                 title: "Redirection Bancaire", 
-                description: "Veuillez valider l'accès sur l'interface de la banque (Simulation)." 
+                description: "Veuillez valider l'accès sur l'interface de la banque. Une fois terminé, cliquez sur 'Finaliser la liaison'." 
             });
-            // We should have a listener for completion, but for mock purposes:
-            setTimeout(() => {
-                toast({ title: "Banque Connectée", description: "Le compte est désormais lié." });
-                // Note: in a real app, the client object would be updated in DB and re-fetched.
-            }, 3000);
         }
     } catch (err: any) {
         toast({ variant: 'destructive', title: 'Erreur Connexion', description: err.message });
@@ -426,15 +457,26 @@ function StepImport({
               {!client.hasBankConnected ? (
                   <div className="space-y-6">
                       <p className="text-muted-foreground font-medium text-lg max-w-md mx-auto">
-                        Automatisez la récupération des flux bancaires en connectant le compte de votre client via notre partenaire sécurisé Nordigen.
+                        Automatisez la récupération des flux bancaires en connectant le compte de votre client via notre partenaire sécurisé GoCardless / Nordigen.
                       </p>
-                      <Button 
-                        onClick={handleConnectBank}
-                        className="h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black font-space text-lg shadow-xl shadow-blue-500/20"
-                      >
-                        <Link2 className="mr-3 h-5 w-5" /> Connecter un compte bancaire
-                      </Button>
-                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter opacity-50">Accès 90 jours • Sécurité Bancaire • RGPD Compliant</p>
+                      <div className="flex flex-col sm:flex-row justify-center gap-4">
+                        <Button 
+                          onClick={handleConnectBank}
+                          className="h-14 px-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black font-space text-lg shadow-xl shadow-blue-500/20"
+                        >
+                          <Link2 className="mr-3 h-5 w-5" /> Connecter un compte bancaire
+                        </Button>
+                        {pendingRequisition && (
+                          <Button 
+                            onClick={handleFinalizeConnection}
+                            disabled={isSyncing}
+                            className="h-14 px-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black font-space text-lg shadow-xl shadow-emerald-500/20"
+                          >
+                            <CheckCircle2 className="mr-3 h-5 w-5" /> Finaliser la liaison
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter opacity-50">Accès 90 jours • Securité Bancaire • RGPD Compliant</p>
                   </div>
               ) : (
                   <div className="space-y-8">
