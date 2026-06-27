@@ -1,26 +1,23 @@
 'use client';
 
 import { useState, useMemo, Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, CheckCircle, Calculator, Info,
-  TrendingUp, DownloadCloud, AlertTriangle, CloudOff, Target, Percent,
-  ChevronDown, ChevronUp, Coins, Trash2, Eye, CalendarRange
+  ChevronDown, ChevronUp, Eye, ArrowRight, ShieldCheck, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { db, functions } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, limit } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { Client, Document, Asset } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useBranding } from '@/components/branding-provider';
-import { ArrowRight } from 'lucide-react';
 
 // ─── Step 1: Client Selection (Reused concept) ────────────────────────────────
 
@@ -98,7 +95,7 @@ function RevisionDashboard({ client, onBack }: { client: Client; onBack: () => v
   const [isDisposingSubmitting, setIsDisposingSubmitting] = useState(false);
 
   // Queries
-  const docsQuery = useMemoFirebase(() => query(collection(db, 'documents'), where('clientId', '==', client.id)), [client.id]);
+  const docsQuery = useMemoFirebase(() => query(collection(db, 'documents'), where('clientId', '==', client.id), limit(500)), [client.id]);
   const assetsQuery = useMemoFirebase(() => query(collection(db, 'assets'), where('clientId', '==', client.id)), [client.id]);
 
   const { data: documents } = useCollection<Document>(docsQuery);
@@ -544,7 +541,42 @@ function RevisionDashboard({ client, onBack }: { client: Client; onBack: () => v
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RevisionPage() {
+  const router = useRouter();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  const { role: userRole, isLoading: isBrandingLoading } = useBranding();
+  const isStaff = userRole === 'accountant';
+  const isAdmin = userRole === 'admin';
+
+  if (isBrandingLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isStaff && !isAdmin) {
+    return (
+      <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+        <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+          <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <ShieldCheck className="h-10 w-10 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+          <p className="text-muted-foreground mb-8 text-lg font-medium">
+            Vous n'avez pas les habilitations nécessaires pour accéder au pilotage de la révision continue.
+          </p>
+          <Button 
+            onClick={() => router.push('/dashboard')} 
+            className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20 hover:bg-primary/90 text-primary-foreground"
+          >
+            Retour au Dashboard
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 pb-20 max-w-7xl mx-auto">
@@ -557,7 +589,7 @@ export default function RevisionPage() {
             Révision Continue
           </h1>
           <p className="text-muted-foreground text-xl max-w-2xl font-medium">
-            Gérez le cadrage TVA et le registre des immobilisations en temps réel.
+            Gérer le cadrage TVA et le registre des immobilisations en temps réel.
           </p>
         </div>
       </div>
