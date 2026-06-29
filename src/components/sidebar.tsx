@@ -82,6 +82,26 @@ const isNavItemActive = (pathname: string, itemHref: string) => {
     return pathname.startsWith(itemHref);
 }
 
+function LogoContainer({ currentRole, logoUrl, cabinetName }: { currentRole: Role; logoUrl?: string; cabinetName?: string }) {
+    if (currentRole === 'client') {
+        return (
+            <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-xl bg-[#2563eb]/5 text-[#2563eb] border border-[#2563eb]/10 group-hover:border-[#2563eb]/30 transition-all duration-500 shadow-sm shrink-0">
+                <Logo className="h-6 w-6" />
+            </div>
+        );
+    }
+    
+    return (
+        <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10 group-hover:border-primary/30 transition-all duration-500 shadow-sm shrink-0">
+            {logoUrl ? (
+                <img src={logoUrl} alt={cabinetName || "Cabinet logo"} className="h-full w-full object-cover" />
+            ) : (
+                <Logo className="h-6 w-6" />
+            )}
+        </div>
+    );
+}
+
 export function NavItems({ currentRole }: { currentRole: Role }) {
     const pathname = usePathname();
     const { items } = roleConfig[currentRole] || roleConfig.client;
@@ -154,13 +174,7 @@ export function MobileNav({ currentRole }: { currentRole: Role }) {
                         Navigation principale et options du compte pour l'application CCS Compta.
                     </SheetDescription>
                     <Link href="/" className="flex items-center gap-3 group w-full">
-                        <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10 group-hover:border-primary/30 transition-all duration-500 shadow-sm shrink-0">
-                            {cabinet?.logoUrl ? (
-                                <img src={cabinet.logoUrl} alt={cabinet.name} className="h-full w-full object-cover" />
-                            ) : (
-                                <Logo className="h-6 w-6" />
-                            )}
-                        </div>
+                        <LogoContainer currentRole={currentRole} logoUrl={cabinet?.logoUrl} cabinetName={cabinet?.name} />
                         <div className="flex flex-col text-left">
                             <span className="font-display font-bold text-lg leading-tight tracking-tight text-foreground truncate max-w-[180px]">
                                 {cabinet?.name || "CCS Compta"}
@@ -262,13 +276,7 @@ export function Sidebar({ currentRole }: { currentRole: Role }) {
             <Link
                 href={getDashboardHomeLink()}
                 className="flex items-center gap-3 group w-full px-2">
-                <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10 group-hover:border-primary/30 transition-all duration-500 shadow-sm shrink-0">
-                    {cabinet?.logoUrl ? (
-                        <img src={cabinet.logoUrl} alt={cabinet.name} className="h-full w-full object-cover" />
-                    ) : (
-                        <Logo className="h-6 w-6" />
-                    )}
-                </div>
+                <LogoContainer currentRole={currentRole} logoUrl={cabinet?.logoUrl} cabinetName={cabinet?.name} />
                 <div className="flex flex-col">
                     <span className="font-display font-bold text-base leading-tight tracking-tight text-foreground truncate max-w-[160px]">
                         {cabinet?.name || "CCS Compta"}
