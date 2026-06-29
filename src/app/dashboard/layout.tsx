@@ -23,7 +23,7 @@ import { SyncRoleBanner } from "@/components/sync-role-banner";
 
 const clientBottomNav = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Documents' },
-  { href: '/dashboard/scan', icon: ScanLine, label: 'Scanner' },
+  { href: '/dashboard/scanner', icon: ScanLine, label: 'Scanner' },
   { href: '/dashboard/my-bank', icon: CreditCard, label: 'Banque' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Analyse' },
 ];

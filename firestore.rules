@@ -110,6 +110,15 @@ service cloud.firestore {
       allow delete: if isCabinetStaff(resource.data.cabinetId);
     }
 
+    match /vault_documents/{docId} {
+      allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+      allow create: if canCreateClientScoped(request.resource.data.clientId, request.resource.data.cabinetId);
+      allow update: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId)
+        && clientIdentityUnchanged();
+      allow delete: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
+    }
+
     match /invoices/{invoiceId} {
       allow get: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);
       allow list: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId);

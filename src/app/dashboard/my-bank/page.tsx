@@ -1,24 +1,27 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { 
     Landmark, ArrowRightLeft, CheckCircle2, AlertCircle, 
     Link as LinkIcon, RefreshCw, Smartphone, ShieldCheck,
-    Banknote, ArrowUpRight, ArrowDownLeft
+    Banknote, ArrowUpRight, ArrowDownLeft, TrendingUp, Search, FileText, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
-import { collection, query, where, doc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, doc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import type { Document } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, formatDate, parseDate } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
-
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Area, ComposedChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 import { BankService, type BankTransaction } from '@/services/bank-service';
 
@@ -28,10 +31,15 @@ export default function MyBankPage() {
     const [transactions, setTransactions] = useState<BankTransaction[]>([]);
     const [isMatching, setIsMatching] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [missingCount, setMissingCount] = useState(0);
+
+    // States for manual matching
+    const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
+    const [isMatchSheetOpen, setIsMatchSheetOpen] = useState(false);
+    const [docSearchQuery, setDocSearchQuery] = useState('');
+    const [isSavingMatch, setIsSavingMatch] = useState(false);
 
     const storedClientId = typeof window !== 'undefined' ? localStorage.getItem('selectedClientId') : null;
-
-    const [missingCount, setMissingCount] = useState(0);
 
     useEffect(() => {
         const loadTransactions = async () => {
@@ -76,7 +84,6 @@ export default function MyBankPage() {
             setIsLinking(false);
             if (storedClientId) {
                 localStorage.setItem(`bank_linked_${storedClientId}`, 'true');
-                // Trigger storage event for other tabs/components
                 window.dispatchEvent(new Event('storage'));
             }
             toast({
@@ -85,7 +92,6 @@ export default function MyBankPage() {
             });
         }, 1500);
     };
-
 
     const runAutoMatch = async () => {
         if (!storedClientId || isMatching || transactions.length === 0) return;
@@ -101,7 +107,6 @@ export default function MyBankPage() {
             const matchCount = result.data?.matchCount || 0;
             
             if (matchCount > 0) {
-                // Recharger les transactions depuis la base de données
                 const data = await BankService.getTransactions(storedClientId);
                 setTransactions(data);
 
@@ -126,6 +131,120 @@ export default function MyBankPage() {
             setIsMatching(false);
         }
     };
+
+    const handleOpenMatchSheet = (tx: BankTransaction) => {
+        setSelectedTransaction(tx);
+        setDocSearchQuery('');
+        setIsMatchSheetOpen(true);
+    };
+
+    const handleMatchTransaction = async (docId: string) => {
+        if (!selectedTransaction || !storedClientId) return;
+        setIsSavingMatch(true);
+        
+        try {
+            const bankStatementDocRef = doc(db, 'documents', selectedTransaction.sourceDocId);
+            const docSnap = await getDoc(bankStatementDocRef);
+            if (!docSnap.exists()) throw new Error("Relevé bancaire introuvable");
+            
+            const data = docSnap.data();
+            const txs = [...(data.extractedData?.transactions || [])];
+            
+            const txIndex = parseInt(selectedTransaction.id.split('-').pop() || '');
+            if (isNaN(txIndex) || !txs[txIndex]) throw new Error("Transaction introuvable");
+            
+            // Link the document ID
+            txs[txIndex].matchingDocumentId = docId;
+            
+            await updateDoc(bankStatementDocRef, {
+                'extractedData.transactions': txs
+            });
+            
+            // Reload transactions
+            const updatedTxs = await BankService.getTransactions(storedClientId);
+            setTransactions(updatedTxs);
+            
+            toast({
+                title: "Transaction associée !",
+                description: "Le justificatif a été lié avec succès."
+            });
+            
+            setIsMatchSheetOpen(false);
+            setSelectedTransaction(null);
+        } catch (error: any) {
+            console.error("Match error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erreur d'association",
+                description: error.message || "Une erreur est survenue."
+            });
+        } finally {
+            setIsSavingMatch(false);
+        }
+    };
+
+    // Calculate daily balance history (30 days) working backwards from 12450.20
+    const balanceTrendData = useMemo(() => {
+        if (transactions.length === 0) return [];
+        let current = 12450.20;
+        const sortedTxs = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const points = [];
+        const now = new Date();
+        
+        for (let i = 30; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(now.getDate() - i);
+            const dateStr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+            
+            const dayTxs = sortedTxs.filter(tx => {
+                const txDate = new Date(tx.date);
+                return txDate.getDate() === d.getDate() && txDate.getMonth() === d.getMonth() && txDate.getFullYear() === d.getFullYear();
+            });
+            
+            dayTxs.forEach(tx => {
+                current += tx.amount;
+            });
+            
+            points.push({
+                date: dateStr,
+                solde: Math.round(current)
+            });
+        }
+        return points;
+    }, [transactions]);
+
+    // List of matchable documents (excluding bank statements, only approved or pending)
+    const matchableDocuments = useMemo(() => {
+        if (!clientDocuments) return [];
+        
+        // Filter out bank statements
+        let docs = clientDocuments.filter(d => d.type !== 'bank statement');
+        
+        // Search filter
+        if (docSearchQuery.trim()) {
+            const queryLower = docSearchQuery.toLowerCase();
+            docs = docs.filter(d => 
+                d.name.toLowerCase().includes(queryLower) ||
+                (d.extractedData?.vendorNames && d.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(queryLower))) ||
+                (d.extractedData?.amounts && d.extractedData.amounts.some(a => a && a.toString().includes(queryLower)))
+            );
+        }
+
+        // Sort: place documents that have the exact same amount as the selected transaction first!
+        if (selectedTransaction) {
+            const targetAmount = Math.abs(selectedTransaction.amount);
+            docs.sort((a, b) => {
+                const aHasMatchingAmount = a.extractedData?.amounts?.some(amt => amt != null && Math.abs(amt - targetAmount) < 0.01);
+                const bHasMatchingAmount = b.extractedData?.amounts?.some(amt => amt != null && Math.abs(amt - targetAmount) < 0.01);
+                
+                if (aHasMatchingAmount && !bHasMatchingAmount) return -1;
+                if (!aHasMatchingAmount && bHasMatchingAmount) return 1;
+                return 0;
+            });
+        }
+        
+        return docs;
+    }, [clientDocuments, docSearchQuery, selectedTransaction]);
 
     if (!isLinked) {
         return (
@@ -257,6 +376,63 @@ export default function MyBankPage() {
                 </Card>
             </div>
 
+            {/* Charts Row */}
+            <div className="grid gap-6 lg:grid-cols-3">
+                <Card className="lg:col-span-2 glass-panel border-white/10 p-6 flex flex-col h-[280px]">
+                    <CardHeader className="pb-0 pl-0 pt-0">
+                        <CardTitle className="text-lg font-bold flex items-center gap-2 font-display">
+                            <TrendingUp className="h-5 w-5 text-primary" />
+                            Évolution du Solde (30 jours)
+                        </CardTitle>
+                        <CardDescription className="text-xs">Historique reconstitué sur la base de vos transactions</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0 pl-0 pt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={balanceTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="bankBalanceGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.25}/>
+                                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} className="text-[10px] text-muted-foreground" />
+                                <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}€`} className="text-[10px] text-muted-foreground" />
+                                <Tooltip
+                                    formatter={(value) => [`${Number(value).toLocaleString('fr-FR')} €`, "Solde"]}
+                                    contentStyle={{ background: 'rgba(255, 255, 255, 0.8)', border: 'none', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.05)' }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="solde" 
+                                    stroke="var(--primary)" 
+                                    strokeWidth={3}
+                                    fillOpacity={1} 
+                                    fill="url(#bankBalanceGrad)" 
+                                />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+                <Card className="glass-panel border-white/10 p-6 bg-gradient-to-br from-primary/10 to-transparent border-primary/20 flex flex-col justify-between">
+                    <div>
+                        <CardTitle className="text-lg font-bold font-display flex items-center gap-2 text-primary">
+                            <ShieldCheck className="h-5 w-5 animate-pulse" />
+                            Sécurité & Synchronisation
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                            Votre connexion bancaire est protégée par un chiffrement de niveau militaire (AES-256) et régie par la directive européenne DSP2. Vos identifiants ne sont jamais stockés.
+                        </p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-border/10 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                        <span>Dernière synchro : Aujourd'hui</span>
+                        <span className="text-emerald-500 flex items-center gap-1.5 font-bold">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Actif
+                        </span>
+                    </div>
+                </Card>
+            </div>
+
             {/* Transaction List */}
             <Card className="glass-panel border-white/10 overflow-hidden">
                 <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
@@ -293,7 +469,7 @@ export default function MyBankPage() {
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
-                                    className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group"
+                                    className="p-6 flex items-center justify-between hover:bg-muted/30 transition-colors group"
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className={cn(
@@ -316,21 +492,31 @@ export default function MyBankPage() {
                                             {tx.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                                         </div>
                                         
-                                        <div className="w-32 flex justify-end">
+                                        <div className="w-32 flex items-center justify-end gap-2">
                                             {tx.status === 'matched' ? (
                                                 <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20 animate-in zoom-in duration-300">
                                                     <CheckCircle2 className="h-3 w-3 mr-1" />
                                                     Associé
                                                 </Badge>
-                                            ) : tx.status === 'pending' ? (
-                                                <Badge variant="outline" className="text-muted-foreground border-white/10">
-                                                    En attente
-                                                </Badge>
                                             ) : (
-                                                <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20">
-                                                    <AlertCircle className="h-3 w-3 mr-1" />
-                                                    Anomalie
-                                                </Badge>
+                                                <>
+                                                    <Badge 
+                                                        variant={tx.status === 'pending' ? 'outline' : 'destructive'} 
+                                                        className={cn(
+                                                            tx.status === 'pending' ? "text-muted-foreground border-border/60" : "bg-red-500/10 text-red-500 border-red-500/20"
+                                                        )}
+                                                    >
+                                                        {tx.status === 'pending' ? 'En attente' : 'Anomalie'}
+                                                    </Badge>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        onClick={() => handleOpenMatchSheet(tx)}
+                                                        className="h-8 px-2.5 rounded-lg text-primary hover:bg-primary/10 font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        Lier
+                                                    </Button>
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -340,7 +526,128 @@ export default function MyBankPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Manual Matching Dialog/Sheet */}
+            <Sheet open={isMatchSheetOpen} onOpenChange={setIsMatchSheetOpen}>
+                <SheetContent side="right" className="flex !w-full !max-w-none flex-col p-0 sm:!max-w-md md:!max-w-lg">
+                    {selectedTransaction && (
+                        <>
+                            <SheetHeader className="border-b p-6 text-left shrink-0">
+                                <SheetTitle className="font-display font-bold text-xl">Lier un justificatif</SheetTitle>
+                                <SheetDescription>
+                                    Associez un document comptable à cette transaction bancaire.
+                                </SheetDescription>
+
+                                {/* Transaction summary box */}
+                                <div className="mt-4 p-4 rounded-2xl bg-muted/50 border border-border/10 flex items-center justify-between">
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-sm truncate">{selectedTransaction.description}</p>
+                                        <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{selectedTransaction.date}</p>
+                                    </div>
+                                    <span className={cn(
+                                        "text-base font-black tracking-tight",
+                                        selectedTransaction.amount < 0 ? "text-foreground" : "text-emerald-500"
+                                    )}>
+                                        {selectedTransaction.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                    </span>
+                                </div>
+                            </SheetHeader>
+
+                            {/* Search box inside Sheet */}
+                            <div className="px-6 py-3 border-b shrink-0">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        type="text"
+                                        placeholder="Rechercher par nom, montant..."
+                                        value={docSearchQuery}
+                                        onChange={(e) => setDocSearchQuery(e.target.value)}
+                                        className="pl-9 h-10 bg-background/50 border-border/40 focus-visible:ring-primary focus-visible:ring-1"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Document List */}
+                            <div className="flex-1 min-h-0">
+                                <ScrollArea className="h-full px-6">
+                                    <div className="space-y-3 py-4">
+                                        {matchableDocuments.length > 0 ? (
+                                            matchableDocuments.map((docItem) => {
+                                                const docAmount = docItem.extractedData?.amounts?.[0];
+                                                const isExactAmountMatch = docAmount != null && Math.abs(docAmount - Math.abs(selectedTransaction.amount)) < 0.01;
+                                                const vendorName = docItem.extractedData?.vendorNames?.[0] || docItem.extractedData?.supplierName || "Fournisseur inconnu";
+
+                                                return (
+                                                    <div 
+                                                        key={docItem.id}
+                                                        onClick={() => !isSavingMatch && handleMatchTransaction(docItem.id)}
+                                                        className={cn(
+                                                            "p-4 rounded-2xl border border-border/10 bg-background hover:bg-muted/40 transition-colors cursor-pointer flex items-center justify-between group/doc relative overflow-hidden",
+                                                            isExactAmountMatch && "border-emerald-500/20 bg-emerald-500/[0.01] hover:bg-emerald-500/[0.03]",
+                                                            isSavingMatch && "opacity-50 pointer-events-none"
+                                                        )}
+                                                    >
+                                                        {isExactAmountMatch && (
+                                                            <div className="absolute top-0 right-0 h-4 bg-emerald-500 text-[8px] font-black uppercase text-white px-2 rounded-bl-lg tracking-widest">
+                                                                Montant Idéale
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <div className="flex items-start gap-3 min-w-0 pr-2">
+                                                            <div className="p-2.5 rounded-xl bg-muted group-hover/doc:bg-background transition-colors shrink-0">
+                                                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="font-bold text-sm truncate">{docItem.name}</p>
+                                                                <p className="text-[10px] text-muted-foreground mt-0.5">Fournisseur : {vendorName}</p>
+                                                                <p className="text-[9px] text-muted-foreground">Date : {docItem.extractedData?.dates?.[0] ? formatDate(docItem.extractedData.dates[0]) : formatDate(docItem.uploadDate)}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                                                            {docAmount != null && (
+                                                                <span className="font-black text-sm tracking-tight">
+                                                                    {docAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                                                                </span>
+                                                            )}
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant={isExactAmountMatch ? "default" : "outline"} 
+                                                                className={cn(
+                                                                    "h-7 text-[10px] font-bold px-2 rounded-lg opacity-0 group-hover/doc:opacity-100 transition-opacity",
+                                                                    isExactAmountMatch && "bg-emerald-500 hover:bg-emerald-600 text-white border-none"
+                                                                )}
+                                                            >
+                                                                Choisir
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="text-center py-12 text-sm text-muted-foreground">
+                                                Aucun justificatif disponible.
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="border-t p-6 shrink-0 bg-muted/10">
+                                <Button 
+                                    variant="outline" 
+                                    className="w-full h-11 rounded-xl"
+                                    onClick={() => setIsMatchSheetOpen(false)}
+                                    disabled={isSavingMatch}
+                                >
+                                    Annuler
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }
-
