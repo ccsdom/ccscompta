@@ -75,6 +75,13 @@ service firebase.storage {
       allow delete: if isAdmin() || (isStaff() && callerCabinetId() == cabinetId);
     }
 
+    match /vault/{clientId}/{allPaths=**} {
+      allow get: if canAccessClientFiles(clientId);
+      allow list: if isStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
+      allow create, update: if canAccessClientFiles(clientId) && isAccountingDocumentUpload();
+      allow delete: if canAccessClientFiles(clientId);
+    }
+
     match /{clientId}/{allPaths=**} {
       allow get: if canAccessClientFiles(clientId);
       allow list: if isStaff() && (isAdmin() || clientBelongsToCallerCabinet(clientId));
