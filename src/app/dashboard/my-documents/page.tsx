@@ -781,12 +781,12 @@ export default function MyDocumentsPage() {
                   <Button
                     key={option.value}
                     type="button"
-                    variant="ghost"
+                    variant={isActive ? 'default' : 'ghost'}
                     size="sm"
                     className={cn(
                       "h-9 shrink-0 rounded-xl px-4 transition-all duration-300 font-semibold text-xs border border-transparent",
                       isActive 
-                        ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
+                        ? "shadow-md font-bold" 
                         : "bg-background/40 hover:bg-muted/40 text-muted-foreground border-border/20"
                     )}
                     onClick={() => setStatusFilter(option.value)}
