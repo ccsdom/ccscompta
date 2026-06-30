@@ -1,11 +1,9 @@
-
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Play, Eye, Trash2, FileClock, Loader2, FileText } from "lucide-react";
+import { Play, Eye, Trash2, FileClock, Loader2, FileText, CheckCircle2, FileWarning, MessageSquare } from "lucide-react";
 import type { Document } from "@/lib/types";
 import React from 'react';
 import {
@@ -39,24 +37,47 @@ interface DocumentHistoryProps {
 const getStatusBadge = (status: Document['status']) => {
   switch (status) {
     case 'pending':
-      return <Badge variant="outline">En attente</Badge>;
+      return (
+        <Badge variant="outline" className="flex items-center gap-1.5 bg-amber-500/5 text-amber-500 border-amber-500/20 font-semibold px-2 rounded-xl">
+          <FileClock className="h-3 w-3"/>
+          En attente
+        </Badge>
+      );
     case 'processing':
-        return (
-            <Badge variant="secondary" className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                En traitement...
-            </Badge>
-        );
+      return (
+        <Badge variant="secondary" className="flex items-center gap-1.5 bg-primary/5 text-primary border-primary/20 font-semibold px-2 rounded-xl">
+          <Loader2 className="h-3 w-3 animate-spin text-primary" />
+          En traitement...
+        </Badge>
+      );
     case 'reviewing':
-      return <Badge>Prêt pour examen</Badge>;
+      return (
+        <Badge className="bg-yellow-500/5 hover:bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 flex items-center gap-1.5 font-semibold px-2 rounded-xl">
+          <FileWarning className="h-3 w-3"/>
+          En examen
+        </Badge>
+      );
     case 'approved':
-      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80">Approuvé</Badge>;
+      return (
+        <Badge className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border-emerald-500/20 flex items-center gap-1.5 font-semibold px-2 rounded-xl">
+          <CheckCircle2 className="h-3 w-3"/>
+          Approuvé
+        </Badge>
+      );
     case 'error':
-      return <Badge variant="destructive">Erreur</Badge>;
+      return (
+        <Badge variant="destructive" className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border-rose-500/25 font-semibold px-2 rounded-xl shadow-inner">
+          Erreur
+        </Badge>
+      );
     case 'duplicate':
-      return <Badge variant="secondary">Doublon</Badge>;
+      return (
+        <Badge variant="secondary" className="bg-slate-500/10 text-slate-500 border-slate-500/20 font-semibold px-2 rounded-xl">
+          Doublon
+        </Badge>
+      );
     default:
-      return <Badge variant="outline">Inconnu</Badge>;
+      return <Badge variant="outline" className="rounded-xl px-2">Inconnu</Badge>;
   }
 };
 
@@ -74,7 +95,7 @@ const getDocumentFacts = (doc: Document) => {
         doc.type ? { label: 'Type', value: doc.type } : null,
         vendor ? { label: 'Fournisseur', value: vendor } : null,
         amount ? { label: 'Montant', value: amount } : null,
-        documentDate ? { label: 'Date piece', value: documentDate } : null,
+        documentDate ? { label: 'Date pièce', value: documentDate } : null,
     ].filter(Boolean) as { label: string; value: string }[];
 };
 
@@ -103,20 +124,20 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
 
     if (isLoading) {
         return (
-            <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+            <div className="space-y-4 p-4">
+                <Skeleton className="h-10 w-full rounded-xl opacity-50" />
+                <Skeleton className="h-10 w-full rounded-xl opacity-50" />
+                <Skeleton className="h-10 w-full rounded-xl opacity-50" />
             </div>
         )
     }
 
     if (!documents || documents.length === 0) {
         return (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 border rounded-lg border-dashed">
-                <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">Aucun document ici</h3>
-                <p className="text-sm text-muted-foreground mt-1">Pas de documents de ce type ou correspondant à vos filtres.</p>
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 border rounded-3xl border-dashed border-border/40 min-h-[220px]">
+                <FileClock className="mx-auto h-12 w-12 text-muted-foreground/35 mb-4" />
+                <h3 className="text-base font-bold font-display">Aucun document</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-[240px] font-semibold">Aucun document n'a été trouvé avec vos critères ou filtres actifs.</p>
             </div>
         )
     }
@@ -126,12 +147,12 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
             {/* Desktop Table View */}
             <div className="hidden md:block">
                 <Table>
-                    <TableHeader>
-                        <TableRow className="border-b-border/40 hover:bg-transparent">
-                            <TableHead className="font-semibold text-foreground/80 h-12">Document</TableHead>
-                            <TableHead className="font-semibold text-foreground/80 h-12">Date de téléversement</TableHead>
-                            <TableHead className="font-semibold text-foreground/80 h-12">Statut</TableHead>
-                            <TableHead className="text-right font-semibold text-foreground/80 h-12">Actions</TableHead>
+                    <TableHeader className="bg-white/[0.01]">
+                        <TableRow className="border-b-border/20 hover:bg-transparent">
+                            <TableHead className="font-bold text-foreground/80 h-12 pl-4 text-xs uppercase tracking-wider">Document</TableHead>
+                            <TableHead className="font-bold text-foreground/80 h-12 text-xs uppercase tracking-wider">Date de téléversement</TableHead>
+                            <TableHead className="font-bold text-foreground/80 h-12 text-xs uppercase tracking-wider">Statut</TableHead>
+                            <TableHead className="text-right font-bold text-foreground/80 h-12 pr-4 text-xs uppercase tracking-wider">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -140,30 +161,67 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                             key={doc.id} 
                             data-state={selectedDocumentIds.includes(doc.id) ? "selected" : ""}
                             className={cn(
-                                "cursor-pointer transition-colors duration-300 hover:bg-primary/5 data-[state=selected]:bg-primary/10 border-b-border/20 group",
-                                activeDocumentId === doc.id && "bg-primary/10"
+                                "cursor-pointer transition-all duration-300 hover:bg-muted/30 border-b-border/10 group relative",
+                                activeDocumentId === doc.id && "bg-primary/[0.04] hover:bg-primary/[0.06]"
                             )}
                             onClick={() => setActiveDocument(doc)}
                         >
-                            <TableCell className="font-medium py-4">
+                            {/* Hover highlight bar indicator */}
+                            <TableCell className="font-semibold py-4 pl-4 relative">
+                                <div className={cn(
+                                    "absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-lg transition-transform scale-y-0 origin-center duration-300",
+                                    activeDocumentId === doc.id ? "scale-y-100" : "group-hover:scale-y-50"
+                                )} />
                                 <div className="flex items-center gap-3">
-                                    <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20 group-hover:bg-primary/20 transition-colors duration-300">
-                                        <FileText className="h-5 w-5 text-primary"/>
+                                    <div className={cn(
+                                        "p-2.5 rounded-xl border transition-colors duration-300",
+                                        activeDocumentId === doc.id 
+                                            ? "bg-primary/20 border-primary/30" 
+                                            : "bg-muted/40 border-border/20 group-hover:bg-primary/10 group-hover:border-primary/20"
+                                    )}>
+                                        <FileText className={cn("h-5 w-5", activeDocumentId === doc.id ? "text-primary" : "text-muted-foreground/80 group-hover:text-primary")}/>
                                     </div>
-                                    <span className="truncate max-w-xs font-semibold" title={doc.name}>{doc.name}</span>
+                                    <span className="truncate max-w-xs font-bold text-sm tracking-tight text-foreground/95" title={doc.name}>{doc.name}</span>
                                 </div>
                             </TableCell>
-                            <TableCell className="py-4 text-muted-foreground">{formatDate(doc.uploadDate)}</TableCell>
+                            <TableCell className="py-4 text-xs font-semibold text-muted-foreground">{formatDate(doc.uploadDate)}</TableCell>
                             <TableCell className="py-4">{getStatusBadge(doc.status)}</TableCell>
-                            <TableCell className="text-right space-x-2 py-4">
-                                <Button variant="ghost" size="icon" className="hover:bg-primary/10 hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); setActiveDocument(doc); }}><Eye className="h-4 w-4"/></Button>
+                            <TableCell className="text-right space-x-2 py-4 pr-4" onClick={(e) => e.stopPropagation()}>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-all text-muted-foreground opacity-0 group-hover:opacity-100" 
+                                    onClick={() => setActiveDocument(doc)}
+                                >
+                                    <Eye className="h-4.5 w-4.5"/>
+                                </Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="hover:bg-destructive/10 hover:text-destructive transition-colors text-muted-foreground" disabled={doc.status === 'approved'} onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4"/></Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-9 w-9 rounded-xl hover:bg-rose-500/10 hover:text-rose-500 transition-all text-muted-foreground opacity-0 group-hover:opacity-100" 
+                                            disabled={doc.status === 'approved'}
+                                        >
+                                            <Trash2 className="h-4.5 w-4.5"/>
+                                        </Button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent className="glass-panel">
-                                        <AlertDialogHeader><AlertDialogTitle className="font-display">Supprimer ce document ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
-                                        <AlertDialogFooter><AlertDialogCancel className="border-border/50">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 premium-shadow-sm">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                    <AlertDialogContent className="glass-panel w-[90vw] md:w-full max-w-md rounded-3xl border-white/15 dark:border-white/5 backdrop-blur-2xl">
+                                        <AlertDialogHeader>
+                                            <div className="h-12 w-12 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center mb-4">
+                                                <Trash2 className="h-6 w-6" />
+                                            </div>
+                                            <AlertDialogTitle className="font-display font-bold text-lg">Supprimer ce document ?</AlertDialogTitle>
+                                            <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                                                Cette action est définitive et irréversible. Le document <strong className="text-foreground">"{doc.name}"</strong> sera supprimé de votre espace GED.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter className="mt-6 flex-col sm:flex-row gap-2">
+                                            <AlertDialogCancel className="border-border/40 mt-0 h-10 rounded-xl font-bold text-xs">Annuler</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-rose-500 hover:bg-rose-600 text-white premium-shadow h-10 rounded-xl font-bold text-xs border-none">
+                                                Supprimer
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
                             </TableCell>
@@ -177,7 +235,7 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
             <div className="space-y-5 md:hidden">
                 {sortedMonths.map(month => (
                     <section key={month} className="animate-in slide-in-from-bottom-4 fade-in duration-500">
-                        <h4 className="px-1 pb-2 text-xs font-semibold uppercase text-muted-foreground">{month}</h4>
+                        <h4 className="px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground/60 font-space">{month}</h4>
                         <div className="space-y-3">
                             {monthlyGroups[month].map(doc => {
                                 const facts = getDocumentFacts(doc);
@@ -188,52 +246,56 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                         key={doc.id}
                                         onClick={() => setActiveDocument(doc)}
                                         className={cn(
-                                            "cursor-pointer overflow-hidden rounded-lg border-border/60 bg-background/70 transition-colors active:bg-primary/5",
-                                            isActive && "border-primary/60 bg-primary/5"
+                                            "overflow-hidden rounded-2xl border-white/10 dark:border-white/5 bg-background/40 transition-all duration-300 active:scale-[0.99] border",
+                                            isActive && "border-primary/40 bg-primary/[0.03] ring-1 ring-primary/20"
                                         )}
                                     >
-                                        <CardHeader className="p-3 pb-2">
+                                        <CardHeader className="p-4 pb-2">
                                             <div className="flex items-start gap-3">
-                                                <div className="mt-0.5 shrink-0 rounded-md border border-primary/20 bg-primary/10 p-2">
-                                                    <FileText className="h-4 w-4 text-primary"/>
+                                                <div className={cn(
+                                                    "mt-0.5 shrink-0 rounded-xl border p-2",
+                                                    isActive ? "bg-primary/20 border-primary/30 text-primary" : "bg-muted/60 border-border/10 text-muted-foreground"
+                                                )}>
+                                                    <FileText className="h-4.5 w-4.5"/>
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <CardTitle className="truncate text-sm font-semibold" title={doc.name}>{doc.name}</CardTitle>
-                                                    <CardDescription className="mt-1 text-xs">{formatDate(doc.uploadDate)}</CardDescription>
+                                                    <CardTitle className="truncate text-sm font-bold tracking-tight text-foreground/95" title={doc.name}>{doc.name}</CardTitle>
+                                                    <CardDescription className="mt-0.5 text-[10px] text-muted-foreground font-semibold">{formatDate(doc.uploadDate)}</CardDescription>
                                                 </div>
                                                 <div className="shrink-0">{getStatusBadge(doc.status)}</div>
                                             </div>
                                         </CardHeader>
 
-                                        <CardContent className="px-3 pb-3 pt-1">
+                                        <CardContent className="px-4 pb-3 pt-2">
                                             {facts.length > 0 ? (
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {facts.map((fact) => (
-                                                        <div key={fact.label} className="min-w-0 rounded-md bg-muted/40 p-2">
-                                                            <div className="text-[11px] font-medium text-muted-foreground">{fact.label}</div>
-                                                            <div className="truncate text-xs font-semibold text-foreground" title={fact.value}>{fact.value}</div>
+                                                        <div key={fact.label} className="min-w-0 rounded-xl bg-muted/30 border border-border/5 p-2 flex flex-col justify-between">
+                                                            <div className="text-[9px] font-bold text-muted-foreground/75 uppercase tracking-wide">{fact.label}</div>
+                                                            <div className="truncate text-xs font-bold text-foreground mt-0.5" title={fact.value}>{fact.value}</div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                                                    Analyse comptable en attente.
+                                                <div className="rounded-xl bg-muted/20 border border-dashed border-border/40 px-3 py-3 text-xs text-muted-foreground/75 font-semibold text-center leading-relaxed">
+                                                    Analyse comptable en cours...
                                                 </div>
                                             )}
                                         </CardContent>
 
-                                        <CardFooter className="flex items-center justify-between gap-2 border-t bg-muted/20 p-3">
-                                            <span className="truncate text-xs text-muted-foreground">
-                                                {(doc.comments || []).length} commentaire{(doc.comments || []).length > 1 ? 's' : ''}
+                                        <CardFooter className="flex items-center justify-between gap-2 border-t border-border/10 bg-white/[0.01] p-3 px-4">
+                                            <span className="truncate text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                                                <MessageSquare className="h-3.5 w-3.5 opacity-60" />
+                                                {(doc.comments || []).length} note{(doc.comments || []).length > 1 ? 's' : ''}
                                             </span>
-                                            <div className="flex shrink-0 items-center gap-2">
+                                            <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-8"
-                                                    onClick={(e) => { e.stopPropagation(); setActiveDocument(doc); }}
+                                                    className="h-8 rounded-xl text-xs font-bold px-3 hover:bg-muted"
+                                                    onClick={() => setActiveDocument(doc)}
                                                 >
-                                                    <Eye className="mr-1.5 h-4 w-4"/>
+                                                    <Eye className="mr-1.5 h-3.5 w-3.5"/>
                                                     Voir
                                                 </Button>
                                                 <AlertDialog>
@@ -241,17 +303,26 @@ export function DocumentHistory({ documents, onProcess, onDelete, activeDocument
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                                            className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
                                                             disabled={doc.status === 'approved'}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            aria-label="Supprimer le document"
                                                         >
                                                             <Trash2 className="h-4 w-4"/>
                                                         </Button>
                                                     </AlertDialogTrigger>
-                                                    <AlertDialogContent className="glass-panel w-[92vw] rounded-lg">
-                                                      <AlertDialogHeader><AlertDialogTitle className="font-display">Supprimer ce document ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Le document "{doc.name}" sera supprimé définitivement.</AlertDialogDescription></AlertDialogHeader>
-                                                      <AlertDialogFooter className="flex-col gap-2 sm:flex-row"><AlertDialogCancel className="mt-0 border-border/50">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 premium-shadow-sm">Supprimer</AlertDialogAction></AlertDialogFooter>
+                                                    <AlertDialogContent className="glass-panel w-[92vw] rounded-3xl border-white/15 dark:border-white/5 backdrop-blur-2xl">
+                                                      <AlertDialogHeader>
+                                                          <div className="h-12 w-12 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center mb-4">
+                                                              <Trash2 className="h-6 w-6" />
+                                                          </div>
+                                                          <AlertDialogTitle className="font-display font-bold text-lg">Supprimer ce document ?</AlertDialogTitle>
+                                                          <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                                                              Cette action est définitive et irréversible. Le document <strong className="text-foreground">"{doc.name}"</strong> sera supprimé définitivement.
+                                                          </AlertDialogDescription>
+                                                      </AlertDialogHeader>
+                                                      <AlertDialogFooter className="flex-col gap-2 sm:flex-row mt-6">
+                                                          <AlertDialogCancel className="mt-0 border-border/40 h-10 rounded-xl font-bold text-xs">Annuler</AlertDialogCancel>
+                                                          <AlertDialogAction onClick={() => onDelete(doc.id)} className="bg-rose-500 hover:bg-rose-600 text-white premium-shadow h-10 rounded-xl font-bold text-xs border-none">Supprimer</AlertDialogAction>
+                                                      </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             </div>

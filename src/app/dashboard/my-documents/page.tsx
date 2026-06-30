@@ -1,12 +1,10 @@
-
-
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { FileUploader } from '@/components/file-uploader';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AlertCircle, BellRing, ExternalLink, FileUp, FilterX, MessageSquare, Loader2, CheckCircle, FileWarning, FileClock, Search, ShieldAlert } from 'lucide-react';
+import { AlertCircle, BellRing, ExternalLink, FileUp, FilterX, MessageSquare, Loader2, CheckCircle2, FileWarning, FileClock, Search, ShieldAlert, FileText, Calendar, ShieldCheck, HelpCircle } from 'lucide-react';
 import type { Document, AuditEvent, Comment } from '@/lib/types';
 import { Sheet, SheetContent, SheetTitle, SheetHeader, SheetDescription } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
@@ -32,28 +30,46 @@ import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejecti
 import { OnboardingProgress } from '@/components/onboarding-progress';
 import { GamificationDashboard } from '@/components/gamification-dashboard';
 
-
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
 
 const getStatusBadge = (status: Document['status']) => {
   switch (status) {
     case 'pending':
-      return <Badge variant="outline" className="flex items-center gap-1.5"><FileClock className="h-3 w-3"/>En attente</Badge>;
+      return (
+        <Badge variant="outline" className="flex items-center gap-1.5 bg-amber-500/5 text-amber-500 border-amber-500/20 font-semibold px-2 rounded-xl">
+          <FileClock className="h-3 w-3"/>
+          En attente
+        </Badge>
+      );
     case 'processing':
       return (
-            <Badge variant="secondary" className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                En traitement...
-            </Badge>
-        );
+        <Badge variant="secondary" className="flex items-center gap-1.5 bg-primary/5 text-primary border-primary/20 font-semibold px-2 rounded-xl">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          En traitement...
+        </Badge>
+      );
     case 'reviewing':
-      return <Badge className="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100/80 flex items-center gap-1.5"><FileWarning className="h-3 w-3"/>En examen</Badge>;
+      return (
+        <Badge className="bg-yellow-500/5 hover:bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 flex items-center gap-1.5 font-semibold px-2 rounded-xl">
+          <FileWarning className="h-3 w-3"/>
+          En examen
+        </Badge>
+      );
     case 'approved':
-      return <Badge className="bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100/80 flex items-center gap-1.5"><CheckCircle className="h-3 w-3"/>Approuvé</Badge>;
+      return (
+        <Badge className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border-emerald-500/20 flex items-center gap-1.5 font-semibold px-2 rounded-xl">
+          <CheckCircle2 className="h-3 w-3"/>
+          Approuvé
+        </Badge>
+      );
     case 'error':
-      return <Badge variant="destructive">Erreur</Badge>;
+      return (
+        <Badge variant="destructive" className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border-rose-500/25 font-semibold px-2 rounded-xl shadow-inner">
+          Erreur
+        </Badge>
+      );
     default:
-      return <Badge variant="outline">Inconnu</Badge>;
+      return <Badge variant="outline" className="rounded-xl px-2">Inconnu</Badge>;
   }
 };
 
@@ -89,7 +105,6 @@ const documentMatchesText = (doc: Document, query: string) => {
   return searchableText.includes(normalizedQuery);
 };
 
-
 export default function MyDocumentsPage() {
   const [activeDocument, setActiveDocument] = useState<Document | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -118,7 +133,7 @@ export default function MyDocumentsPage() {
   const hasUploadedDocument = documents ? documents.length > 0 : false;
   const [hasConnectedBank, setHasConnectedBank] = useState(false);
 
-   useEffect(() => {
+  useEffect(() => {
     const loadState = () => {
         try {
             const storedClientId = localStorage.getItem('selectedClientId');
@@ -240,7 +255,6 @@ export default function MyDocumentsPage() {
     });
   };
 
-
   const handleFileDrop = async (files: File[]) => {
     if (!clientId) {
       toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
@@ -312,10 +326,10 @@ export default function MyDocumentsPage() {
             }
             if (minAmount) {
                 docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a >= minAmount));
- }
+            }
             if (maxAmount) {
                 docs = docs.filter(d => d.extractedData?.amounts?.some(a => a != null && a <= maxAmount));
- }
+            }
             if (startDate) {
                 docs = docs.filter(d => d.extractedData?.dates?.some(date => date != null && (parseDate(date)?.getTime() || 0) >= (parseDate(startDate)?.getTime() || 0)));
             }
@@ -328,16 +342,16 @@ export default function MyDocumentsPage() {
             }
             if (keywords && keywords.length > 0) {
                 docs = docs.filter(d => {
- const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || []), d.type || ''].join(' ').toLowerCase();
+                    const searchableText = [d.name, d.extractedData?.otherInformation || '', ...(d.extractedData?.vendorNames || []), d.type || ''].join(' ').toLowerCase();
                     return keywords.every(kw => searchableText.includes(kw.toLowerCase()));
                 });
             }
              if (!docs.length && originalQuery) {
-                 const lowercasedQuery = originalQuery.toLowerCase();
-                 docs = [...(documents || [])].filter(doc => 
-                    doc.name.toLowerCase().includes(lowercasedQuery) ||
-                    (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowercasedQuery)))
-                );
+                  const lowercasedQuery = originalQuery.toLowerCase();
+                  docs = [...(documents || [])].filter(doc => 
+                     doc.name.toLowerCase().includes(lowercasedQuery) ||
+                     (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowercasedQuery)))
+                 );
             }
         }
 
@@ -359,36 +373,47 @@ export default function MyDocumentsPage() {
 
   }, [documents, searchQuery, searchCriteria, statusFilter]);
 
-
   const CommentsSectionClient = ({ comments, onAddComment }: { comments: Comment[], onAddComment: (text: string) => void }) => {
     const [newComment, setNewComment] = useState("");
     const handleSubmit = () => { if (newComment.trim()) { onAddComment(newComment.trim()); setNewComment(""); } }
     
     return (
-        <div className="flex h-full min-h-0 flex-col">
-            <h3 className="px-4 pb-2 pt-4 text-base font-semibold sm:px-6 sm:pt-6">Commentaires</h3>
+        <div className="flex h-full min-h-0 flex-col bg-background/25">
+            <h3 className="px-4 pb-2 pt-4 text-base font-bold sm:px-6 sm:pt-6 font-display">Commentaires</h3>
             <ScrollArea className="min-h-0 flex-1 px-4 sm:px-6">
                 <div className="space-y-4 py-4">
                     {comments.length > 0 ? (
                         comments.slice().reverse().map((comment) => (
                             <div key={comment.id} className="flex items-start gap-3 text-sm">
-                                <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback>{comment.user.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
-                                <div className="min-w-0 flex-1 rounded-md bg-muted p-3">
-                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="font-semibold">{comment.user}</p><p className="text-xs text-muted-foreground">{format(parseDate(comment.date) || new Date(), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p></div>
-                                    <p className="mt-1 break-words text-foreground/90">{comment.text}</p>
+                                <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback className="bg-primary/10 text-primary font-bold">{comment.user.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+                                <div className="min-w-0 flex-1 rounded-2xl bg-muted/60 border border-border/10 p-3">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="font-semibold text-xs text-foreground/95">{comment.user}</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium">{format(parseDate(comment.date) || new Date(), "dd/MM/yy 'à' HH:mm", { locale: fr })}</p>
+                                    </div>
+                                    <p className="mt-1.5 break-words text-xs text-foreground/90 font-medium leading-relaxed">{comment.text}</p>
                                 </div>
                             </div>
                         ))
                     ) : (
-                         <div className="text-center text-sm text-muted-foreground py-10"><MessageSquare className="h-8 w-8 mx-auto mb-2" /><p>Aucun commentaire pour l'instant.</p></div>
+                         <div className="text-center text-xs text-muted-foreground py-10">
+                             <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground/45" />
+                             <p className="font-medium">Aucun commentaire pour l'instant.</p>
+                         </div>
                     )}
                 </div>
             </ScrollArea>
-             <div className="flex items-start gap-3 border-t p-4 sm:p-6">
-                <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback>Moi</AvatarFallback></Avatar>
+             <div className="flex items-start gap-3 border-t p-4 sm:p-6 bg-white/[0.01]">
+                <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">Moi</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1">
-                    <Textarea placeholder="Répondre ou poser une question..." value={newComment} onChange={(e) => setNewComment(e.target.value)} rows={2} className="bg-transparent border"/>
-                    <Button size="sm" className="mt-2 w-full sm:w-auto" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
+                    <Textarea 
+                        placeholder="Répondre ou poser une question..." 
+                        value={newComment} 
+                        onChange={(e) => setNewComment(e.target.value)} 
+                        rows={2} 
+                        className="bg-transparent border border-border/40 focus-visible:ring-primary focus-visible:ring-1 text-xs rounded-xl"
+                    />
+                    <Button size="sm" className="mt-2 w-full sm:w-auto rounded-lg font-semibold text-xs" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
                 </div>
             </div>
         </div>
@@ -398,22 +423,22 @@ export default function MyDocumentsPage() {
   const PreviewFrame = ({ docItem }: { docItem: Document }) => (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold">Aperçu</h3>
+        <h3 className="text-base font-bold font-display">Aperçu</h3>
         {docItem.dataUrl && (
-          <Button asChild size="sm" variant="outline" className="h-8 shrink-0">
+          <Button asChild size="sm" variant="outline" className="h-8 shrink-0 rounded-xl font-bold text-xs border-border/40 hover:bg-muted">
             <a href={docItem.dataUrl} target="_blank" rel="noreferrer">
-              <ExternalLink className="mr-1.5 h-4 w-4" />
+              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
               Ouvrir
             </a>
           </Button>
         )}
       </div>
-      <div className="min-h-[360px] flex-1 overflow-hidden rounded-lg border bg-muted/40">
+      <div className="min-h-[360px] flex-1 overflow-hidden rounded-2xl border bg-muted/20">
         {docItem.dataUrl ? (
-          <iframe src={docItem.dataUrl} className="h-full min-h-[360px] w-full" title="Aperçu du document" />
+          <iframe src={docItem.dataUrl} className="h-full min-h-[360px] w-full border-none" title="Aperçu du document" />
         ) : (
           <div className="flex h-full min-h-[360px] items-center justify-center text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin"/>
+            <Loader2 className="h-6 w-6 animate-spin text-primary/45"/>
           </div>
         )}
       </div>
@@ -421,9 +446,9 @@ export default function MyDocumentsPage() {
   );
 
   const DataRow = ({ label, value }: { label: string; value?: string | null }) => (
-    <div className="flex items-start justify-between gap-4 rounded-lg border bg-background/70 p-3 text-sm">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 max-w-[65%] truncate text-right font-medium" title={value || '-'}>{value || '-'}</span>
+    <div className="flex items-start justify-between gap-4 rounded-xl border bg-background/50 border-border/10 p-3 text-xs">
+      <span className="shrink-0 text-muted-foreground font-semibold">{label}</span>
+      <span className="min-w-0 max-w-[65%] truncate text-right font-bold text-foreground" title={value || '-'}>{value || '-'}</span>
     </div>
   );
 
@@ -436,10 +461,10 @@ export default function MyDocumentsPage() {
     const hasValidatedData = docItem.status === 'approved' && Boolean(data);
 
     return (
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 p-4 sm:p-6 bg-background/25">
         <div>
-          <h3 className="text-base font-semibold">Données validées</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Synthèse retenue par le cabinet.</p>
+          <h3 className="text-base font-bold font-display">Données validées</h3>
+          <p className="mt-1 text-xs text-muted-foreground font-medium">Synthèse retenue par le cabinet.</p>
         </div>
 
         {hasValidatedData ? (
@@ -451,7 +476,7 @@ export default function MyDocumentsPage() {
             <DataRow label="Catégorie" value={data?.category} />
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed bg-muted/10 border-border/30 p-4 text-xs text-muted-foreground font-medium leading-relaxed">
             Les données du document seront affichées après validation par votre comptable.
           </div>
         )}
@@ -460,23 +485,23 @@ export default function MyDocumentsPage() {
   };
 
   const DocumentPreviewSheet = () => (
-     <SheetContent side="right" className="flex !w-full !max-w-none flex-col p-0 sm:!max-w-3xl lg:!max-w-5xl">
+     <SheetContent side="right" className="flex !w-full !max-w-none flex-col p-0 sm:!max-w-3xl lg:!max-w-5xl rounded-l-[2rem] overflow-hidden border-white/10 dark:border-white/5 backdrop-blur-2xl bg-background/95">
         {activeDocument ? (
             <>
-                <SheetHeader className="border-b px-4 py-4 pr-12 text-left sm:px-6">
-                  <SheetTitle className="truncate text-base sm:text-lg" title={activeDocument.name}>{activeDocument.name}</SheetTitle>
-                   <div className="flex flex-wrap items-center gap-2">
-                    <SheetDescription>Téléversé le {formatDate(activeDocument.uploadDate)}</SheetDescription>
+                <SheetHeader className="border-b px-4 py-4 pr-12 text-left sm:px-6 bg-white/[0.01]">
+                  <SheetTitle className="truncate text-base sm:text-lg font-bold font-display" title={activeDocument.name}>{activeDocument.name}</SheetTitle>
+                   <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <SheetDescription className="text-xs font-medium">Téléversé le {formatDate(activeDocument.uploadDate)}</SheetDescription>
                     {getStatusBadge(activeDocument.status)}
                    </div>
                 </SheetHeader>
 
                 <Tabs defaultValue="preview" className="flex min-h-0 flex-1 flex-col md:hidden">
                   <div className="border-b px-4 py-3">
-                    <TabsList className="grid h-10 w-full grid-cols-3">
-                      <TabsTrigger value="preview">Aperçu</TabsTrigger>
-                      <TabsTrigger value="data">Données</TabsTrigger>
-                      <TabsTrigger value="comments">Notes</TabsTrigger>
+                    <TabsList className="grid h-10 w-full grid-cols-3 rounded-xl bg-muted/40">
+                      <TabsTrigger value="preview" className="rounded-lg text-xs font-semibold">Aperçu</TabsTrigger>
+                      <TabsTrigger value="data" className="rounded-lg text-xs font-semibold">Données</TabsTrigger>
+                      <TabsTrigger value="comments" className="rounded-lg text-xs font-semibold">Notes</TabsTrigger>
                     </TabsList>
                   </div>
                   <TabsContent value="preview" className="m-0 min-h-0 flex-1 overflow-hidden">
@@ -491,14 +516,14 @@ export default function MyDocumentsPage() {
                 </Tabs>
 
                 <div className="hidden min-h-0 flex-1 md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
-                    <div className="min-h-0 border-r">
+                    <div className="min-h-0 border-r border-border/20">
                         <PreviewFrame docItem={activeDocument} />
                     </div>
-                    <Tabs defaultValue="data" className="flex min-h-0 flex-col bg-muted/10">
-                      <div className="border-b p-4">
-                        <TabsList className="grid h-10 w-full grid-cols-2">
-                          <TabsTrigger value="data">Données</TabsTrigger>
-                          <TabsTrigger value="comments">Commentaires</TabsTrigger>
+                    <Tabs defaultValue="data" className="flex min-h-0 flex-col bg-muted/[0.04]">
+                      <div className="border-b p-4 border-border/20">
+                        <TabsList className="grid h-10 w-full grid-cols-2 rounded-xl bg-muted/40">
+                          <TabsTrigger value="data" className="rounded-lg text-xs font-bold">Données</TabsTrigger>
+                          <TabsTrigger value="comments" className="rounded-lg text-xs font-bold">Commentaires</TabsTrigger>
                         </TabsList>
                       </div>
                       <TabsContent value="data" className="m-0 min-h-0 flex-1 overflow-hidden">
@@ -512,12 +537,11 @@ export default function MyDocumentsPage() {
                     </Tabs>
                 </div>
 
-                 <div className="border-t p-4 sm:p-6"><Button onClick={() => setIsSheetOpen(false)} className="w-full">Fermer</Button></div>
+                 <div className="border-t p-4 sm:p-6 bg-white/[0.01]"><Button onClick={() => setIsSheetOpen(false)} className="w-full h-11 rounded-xl font-bold">Fermer</Button></div>
             </>
-        ) : ( <div className="h-full flex items-center justify-center"><p>Sélectionnez un document.</p></div> )}
+        ) : ( <div className="h-full flex items-center justify-center"><p className="text-sm font-semibold text-muted-foreground">Sélectionnez un document.</p></div> )}
       </SheetContent>
   )
-
 
   const anomalies = useMemo(() => {
     const list: { docId: string, docName: string, date: string, description: string, amount: number, transactionIndex: number }[] = [];
@@ -572,113 +596,125 @@ export default function MyDocumentsPage() {
     if (!hasItems) return null;
 
     return (
-      <section className="rounded-lg border bg-background/70 p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="glass-panel border-white/10 dark:border-white/5 bg-background/20 p-6 premium-shadow">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border/20">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <BellRing className="h-5 w-5" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <BellRing className="h-5 w-5 animate-pulse text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Suivi des pièces</h2>
-              <p className="text-sm text-muted-foreground">{documentStats.total} document{documentStats.total > 1 ? 's' : ''} dans votre espace</p>
+              <h2 className="text-lg font-bold font-display tracking-tight">Suivi des pièces</h2>
+              <p className="text-xs text-muted-foreground font-medium">{documentStats.total} document{documentStats.total > 1 ? 's' : ''} au total dans votre espace</p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center sm:w-auto">
-            <div className="rounded-md border bg-muted/30 px-3 py-2">
-              <div className="text-lg font-bold">{pendingDocuments.length}</div>
-              <div className="text-[11px] text-muted-foreground">En attente</div>
+          <div className="flex items-center gap-2">
+            <div className="rounded-xl border border-border/15 bg-background/50 px-3 py-1.5 text-center min-w-[70px]">
+              <div className="text-sm font-black">{pendingDocuments.length}</div>
+              <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">En attente</div>
             </div>
-            <div className="rounded-md border bg-muted/30 px-3 py-2">
-              <div className="text-lg font-bold">{documentsToReview.length}</div>
-              <div className="text-[11px] text-muted-foreground">À vérifier</div>
+            <div className="rounded-xl border border-border/15 bg-background/50 px-3 py-1.5 text-center min-w-[70px]">
+              <div className="text-sm font-black text-amber-500">{documentsToReview.length}</div>
+              <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">À vérifier</div>
             </div>
-            <div className="rounded-md border bg-muted/30 px-3 py-2">
-              <div className={cn("text-lg font-bold", documentsInError.length > 0 && "text-destructive")}>{documentsInError.length}</div>
-              <div className="text-[11px] text-muted-foreground">Erreurs</div>
+            <div className="rounded-xl border border-border/15 bg-background/50 px-3 py-1.5 text-center min-w-[70px]">
+              <div className={cn("text-sm font-black", documentsInError.length > 0 ? "text-rose-500 animate-pulse" : "text-foreground")}>{documentsInError.length}</div>
+              <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Erreurs</div>
             </div>
           </div>
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {recentUploadRejections.length > 0 && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-destructive">Fichier rejeté</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{summarizeUploadRejections(recentUploadRejections)}</p>
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.02] p-4 text-rose-500 flex items-start gap-3 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold">Fichier rejeté</p>
+                  <p className="mt-1 text-xs text-muted-foreground font-medium leading-relaxed">{summarizeUploadRejections(recentUploadRejections)}</p>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={scrollToUpload}>Corriger</Button>
               </div>
+              <Button size="sm" variant="outline" className="h-8 rounded-xl font-bold text-xs shrink-0 border-rose-500/20 hover:bg-rose-500/10" onClick={scrollToUpload}>Corriger</Button>
             </div>
           )}
 
           {anomalies.length > 0 && (
-            <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
-              <div className="flex items-start gap-3">
-                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{anomalies.length} justificatif{anomalies.length > 1 ? 's' : ''} manquant{anomalies.length > 1 ? 's' : ''}</p>
-                  <p className="mt-1 truncate text-xs opacity-80">{anomalies[0].description || anomalies[0].docName}</p>
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.02] p-4 text-amber-600 dark:text-amber-400 flex items-start gap-3 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <ShieldAlert className="mt-0.5 h-4.5 w-4.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold">{anomalies.length} justificatif{anomalies.length > 1 ? 's' : ''} manquant{anomalies.length > 1 ? 's' : ''}</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground font-medium">{anomalies[0].description || anomalies[0].docName}</p>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0 bg-transparent" onClick={scrollToUpload}>Fournir</Button>
               </div>
+              <Button size="sm" variant="outline" className="h-8 rounded-xl font-bold text-xs shrink-0 bg-transparent border-amber-500/20 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400" onClick={scrollToUpload}>Fournir</Button>
             </div>
           )}
 
           {documentsInError.length > 0 && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-              <div className="flex items-start gap-3">
-                <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-destructive">{documentsInError.length} document{documentsInError.length > 1 ? 's' : ''} en erreur</p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{documentsInError[0].name}</p>
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/[0.02] p-4 text-rose-500 flex items-start gap-3 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <FileWarning className="mt-0.5 h-4.5 w-4.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold">{documentsInError.length} document{documentsInError.length > 1 ? 's' : ''} en erreur</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground font-medium">{documentsInError[0].name}</p>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => { setStatusFilter('error'); scrollToHistory(); }}>Voir</Button>
               </div>
+              <Button size="sm" variant="outline" className="h-8 rounded-xl font-bold text-xs shrink-0 border-rose-500/20 hover:bg-rose-500/10" onClick={() => { setStatusFilter('error'); scrollToHistory(); }}>Voir</Button>
             </div>
           )}
 
           {documentsToReview.length > 0 && (
-            <div className="rounded-lg border border-yellow-300/70 bg-yellow-50 p-3 text-yellow-950 dark:border-yellow-900/60 dark:bg-yellow-950/20 dark:text-yellow-200">
-              <div className="flex items-start gap-3">
-                <FileClock className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{documentsToReview.length} document{documentsToReview.length > 1 ? 's' : ''} en examen</p>
-                  <p className="mt-1 truncate text-xs opacity-80">{documentsToReview[0].name}</p>
+            <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.02] p-4 text-yellow-600 dark:text-yellow-400 flex items-start gap-3 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <FileClock className="mt-0.5 h-4.5 w-4.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold">{documentsToReview.length} document{documentsToReview.length > 1 ? 's' : ''} en examen</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground font-medium">{documentsToReview[0].name}</p>
                 </div>
-                <Button size="sm" variant="outline" className="h-8 shrink-0 bg-transparent" onClick={() => { setStatusFilter('reviewing'); scrollToHistory(); }}>Suivre</Button>
               </div>
+              <Button size="sm" variant="outline" className="h-8 rounded-xl font-bold text-xs shrink-0 bg-transparent border-yellow-500/20 hover:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400" onClick={() => { setStatusFilter('reviewing'); scrollToHistory(); }}>Suivre</Button>
             </div>
           )}
         </div>
-      </section>
+      </Card>
     );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-4 md:p-6 max-w-7xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
        {showPasswordAlert && (
-        <Alert variant="destructive" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300">
-          <ShieldAlert className="h-4 w-4 !text-yellow-600 dark:!text-yellow-400" />
-          <AlertTitle className="font-bold text-yellow-900 dark:text-yellow-200">Action requise : Sécurisez votre compte !</AlertTitle>
-          <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-2">
-            <div>
-              Votre compte utilise un mot de passe temporaire. Pour protéger vos données, veuillez le modifier dès que possible.
-            </div>
-            <div className="flex gap-2 mt-2 md:mt-0">
-                <Button variant="outline" size="sm" onClick={handleDismissPasswordAlert} className="bg-transparent border-current text-current hover:bg-yellow-100 dark:hover:bg-yellow-900/50">Plus tard</Button>
-                <Button asChild size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950">
-                    <Link href="/dashboard/settings">Changer le mot de passe</Link>
-                </Button>
-            </div>
-          </AlertDescription>
+        <Alert variant="destructive" className="bg-yellow-500/5 border-yellow-500/20 text-yellow-600 dark:text-yellow-300 rounded-2xl p-4 flex gap-4">
+          <ShieldAlert className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+              <AlertTitle className="font-bold text-sm text-yellow-700 dark:text-yellow-200">Action requise : Sécurisez votre compte !</AlertTitle>
+              <AlertDescription className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-2 text-xs font-semibold text-muted-foreground">
+                <span>
+                  Votre compte utilise un mot de passe temporaire. Pour protéger vos données, veuillez le modifier dès que possible.
+                </span>
+                <div className="flex gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={handleDismissPasswordAlert} className="bg-transparent border-yellow-500/20 text-yellow-600 hover:bg-yellow-500/10 rounded-xl h-8 text-xs font-bold">Plus tard</Button>
+                    <Button asChild size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950 rounded-xl h-8 text-xs font-bold">
+                        <Link href="/dashboard/settings">Changer le mot de passe</Link>
+                    </Button>
+                </div>
+              </AlertDescription>
+          </div>
         </Alert>
       )}
 
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight font-display gradient-text">Mes pieces comptables</h1>
-        <p className="text-muted-foreground mt-2 text-lg">Depot securise, suivi clair et actions requises en un coup d'oeil.</p>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-border/30">
+        <div>
+          <h1 className="text-4xl font-black font-space tracking-tight flex items-center gap-3">
+            <FileText className="h-8 w-8 text-primary" />
+            Mes pièces comptables
+          </h1>
+          <p className="text-muted-foreground mt-2 font-medium">Déposez et suivez vos justificatifs, factures et documents en toute simplicité.</p>
+        </div>
+        <Badge variant="secondary" className="h-8 px-3 rounded-lg flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20 shrink-0 self-start md:self-auto">
+            <ShieldCheck className="h-4 w-4" />
+            Espace GED Client
+        </Badge>
       </div>
 
       <OnboardingProgress 
@@ -694,31 +730,31 @@ export default function MyDocumentsPage() {
 
       <AttentionCenter />
 
-      <Card ref={uploadSectionRef} className="glass-panel overflow-hidden border-primary/20 bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 premium-shadow">
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-8">
-            <CardTitle className="text-3xl font-display text-primary">Nouveau document</CardTitle>
-            <CardDescription className="text-base text-foreground/70">Ajoutez vos fichiers ici. Ils seront automatiquement transmis a votre comptable pour traitement.</CardDescription>
+      <Card ref={uploadSectionRef} className="glass-panel overflow-hidden border-primary/15 bg-background/20 premium-shadow rounded-3xl">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-6">
+            <CardTitle className="text-xl font-bold font-display text-primary">Nouveau document</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground font-semibold">Ajoutez vos fichiers ici. Notre IA extraira automatiquement les informations pour votre comptable.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
              <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} onFileReject={handleRejectedFiles} />
         </CardContent>
       </Card>
       
-      <div ref={historySectionRef} className="pt-8 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div ref={historySectionRef} className="space-y-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between pt-4">
             <div>
               <h2 className="text-2xl font-bold tracking-tight font-display sm:text-3xl">Historique des documents</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{filteredDocuments.length} résultat{filteredDocuments.length > 1 ? 's' : ''} affiché{filteredDocuments.length > 1 ? 's' : ''}</p>
+              <p className="mt-1 text-xs text-muted-foreground font-semibold">{filteredDocuments.length} document{filteredDocuments.length > 1 ? 's' : ''} affiché{filteredDocuments.length > 1 ? 's' : ''}</p>
             </div>
             {hasActiveDocumentFilters && (
-              <Button variant="ghost" size="sm" onClick={clearDocumentFilters} className="w-full justify-center sm:w-auto">
+              <Button variant="ghost" size="sm" onClick={clearDocumentFilters} className="w-full justify-center sm:w-auto h-9 rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted">
                 <FilterX className="mr-2 h-4 w-4" />
-                Réinitialiser
+                Réinitialiser les filtres
               </Button>
             )}
           </div>
 
-          <div className="mb-4 rounded-lg border bg-background/70 p-3 shadow-sm sm:p-4">
+          <div className="rounded-3xl border border-white/10 bg-background/20 p-4 shadow-sm space-y-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -726,18 +762,18 @@ export default function MyDocumentsPage() {
                 value={searchQuery}
                 onChange={(event) => handleLocalSearchChange(event.target.value)}
                 placeholder="Rechercher un document, fournisseur, montant..."
-                className="h-11 pl-9"
+                className="h-11 pl-9 bg-background/40 border-border/40 focus-visible:ring-primary focus-visible:ring-1 text-xs rounded-xl"
               />
             </div>
 
             {searchCriteria && (
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/40 px-3 py-2 text-xs font-semibold">
                 <span className="min-w-0 truncate text-muted-foreground">Recherche intelligente : {searchCriteria.originalQuery}</span>
-                <Button variant="ghost" size="sm" onClick={clearDocumentFilters} className="h-8 shrink-0">Effacer</Button>
+                <Button variant="ghost" size="sm" onClick={clearDocumentFilters} className="h-8 shrink-0 rounded-lg">Effacer</Button>
               </div>
             )}
 
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
               {statusFilterOptions.map((option) => {
                 const isActive = statusFilter === option.value;
                 const count = getFilterCount(option.value);
@@ -745,13 +781,23 @@ export default function MyDocumentsPage() {
                   <Button
                     key={option.value}
                     type="button"
-                    variant={isActive ? 'default' : 'outline'}
+                    variant="ghost"
                     size="sm"
-                    className="h-9 shrink-0"
+                    className={cn(
+                      "h-9 shrink-0 rounded-xl px-4 transition-all duration-300 font-semibold text-xs border border-transparent",
+                      isActive 
+                        ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
+                        : "bg-background/40 hover:bg-muted/40 text-muted-foreground border-border/20"
+                    )}
                     onClick={() => setStatusFilter(option.value)}
                   >
                     {option.label}
-                    <span className={cn("ml-2 rounded-full px-1.5 text-[11px]", isActive ? "bg-primary-foreground/20" : "bg-muted")}>{count}</span>
+                    <span className={cn(
+                      "ml-2 rounded-lg px-1.5 py-0.5 text-[10px] font-bold",
+                      isActive ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                    )}>
+                      {count}
+                    </span>
                   </Button>
                 );
               })}
@@ -759,25 +805,25 @@ export default function MyDocumentsPage() {
           </div>
 
            {documentsError ? (
-              <Alert variant="destructive" className="bg-destructive/5">
+              <Alert variant="destructive" className="bg-destructive/5 rounded-2xl">
                 <ShieldAlert className="h-4 w-4" />
-                <AlertTitle>Acces aux documents indisponible</AlertTitle>
-                <AlertDescription className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <AlertTitle className="font-bold">Accès aux documents indisponible</AlertTitle>
+                <AlertDescription className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-xs font-medium">
                   <span>
-                    Votre session ne permet pas de charger cet historique pour le moment. Reconnectez-vous ou contactez votre cabinet si le probleme persiste.
+                    Votre session ne permet pas de charger cet historique pour le moment. Reconnectez-vous ou contactez votre cabinet si le problème persiste.
                   </span>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0 bg-transparent" onClick={() => window.location.reload()}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 bg-transparent rounded-lg" onClick={() => window.location.reload()}>
                     Recharger
                   </Button>
                 </AlertDescription>
               </Alert>
            ) : isLoading ? (
-               <div className="space-y-4 glass-panel p-6 rounded-2xl">
-                  <Skeleton className="h-20 w-full opacity-50" />
-                  <Skeleton className="h-20 w-full opacity-50" />
+               <div className="space-y-4 glass-panel p-6 rounded-3xl bg-background/20">
+                  <Skeleton className="h-20 w-full opacity-50 rounded-2xl" />
+                  <Skeleton className="h-20 w-full opacity-50 rounded-2xl" />
                </div>
            ) : filteredDocuments.length > 0 ? (
-                <div className="glass-panel rounded-2xl p-1 sm:p-6 premium-shadow bg-gradient-to-br from-white/40 to-muted/10 dark:from-black/40 dark:to-muted/10 overflow-hidden">
+                <div className="glass-panel rounded-3xl p-1 sm:p-6 premium-shadow bg-background/20 overflow-hidden">
                     <DocumentHistory 
                         documents={filteredDocuments}
                         onProcess={() => {}}
@@ -790,13 +836,13 @@ export default function MyDocumentsPage() {
                     />
                 </div>
             ) : (
-                <Card className="glass-panel border-dashed border-2 border-border/50 bg-background/50 premium-shadow-sm hover:border-primary/50 transition-colors duration-500">
+                <Card className="glass-panel border-dashed border-2 border-border/40 bg-background/10 premium-shadow-sm hover:border-primary/45 transition-colors duration-500 rounded-3xl">
                   <CardContent className="h-64 flex flex-col items-center justify-center text-center">
-                      <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 ring-1 ring-primary/20 premium-shadow">
-                        <FileUp className="h-10 w-10 text-primary" />
+                      <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 ring-1 ring-primary/20 premium-shadow">
+                        <FileUp className="h-8 w-8 text-primary" />
                       </div>
-                      <h3 className="text-xl font-bold font-display tracking-tight">{hasActiveDocumentFilters ? 'Aucun résultat' : 'Aucun document historique'}</h3>
-                      <p className="text-base text-muted-foreground mt-2 max-w-md">
+                      <h3 className="text-lg font-bold font-display tracking-tight">{hasActiveDocumentFilters ? 'Aucun résultat' : 'Aucun document historique'}</h3>
+                      <p className="text-xs text-muted-foreground mt-2 max-w-sm font-semibold">
                         {hasActiveDocumentFilters
                           ? "Aucun document ne correspond aux filtres actifs."
                           : "Déposez votre premier justificatif dans la zone ci-dessus pour qu'il soit analysé par votre comptable."}
