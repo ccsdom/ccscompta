@@ -18,6 +18,7 @@ export type DocumentAccountingEntry = {
   creditAccount?: string;
   vatAccount?: string;
   confidenceScore?: number;
+  rationale?: string;
 };
 
 export type DocumentInsight = {

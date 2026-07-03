@@ -15,7 +15,7 @@ import {
   Bar, XAxis, YAxis, CartesianGrid, Pie, Cell, ResponsiveContainer,
   LabelList, BarChart as ReBarChart, PieChart as RePieChart, ComposedChart, Area
 } from 'recharts';
-import type { Document } from '@/lib/types';
+import type { Document, SalesInvoice } from '@/lib/types';
 import { type ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase, functions } from '@/firebase';
@@ -98,6 +98,24 @@ export default function MyAnalyticsPage() {
   }, [selectedClientId]);
 
   const { data: clientDocuments, isLoading: isLoadingDocs } = useCollection<Document>(documentsQuery);
+
+  // ── Requête : Factures de vente (créances) ────────────────────────────────
+  const salesQuery = useMemoFirebase(() => {
+    if (!selectedClientId) return null;
+    return query(collection(db, 'sales_invoices'), where('clientId', '==', selectedClientId));
+  }, [selectedClientId]);
+  const { data: salesInvoices, isLoading: isLoadingSales } = useCollection<SalesInvoice>(salesQuery);
+
+  // ── Requête : Relevés bancaires (pour identifier les docs déjà lettrés) ───
+  const bankStatementsQuery = useMemoFirebase(() => {
+    if (!selectedClientId) return null;
+    return query(
+      collection(db, 'documents'),
+      where('clientId', '==', selectedClientId),
+      where('type', '==', 'bank statement')
+    );
+  }, [selectedClientId]);
+  const { data: bankStatements, isLoading: isLoadingBank } = useCollection<Document>(bankStatementsQuery);
 
   const briefingQuery = useMemoFirebase(() => {
     if (!selectedClientId) return null;
@@ -219,30 +237,97 @@ export default function MyAnalyticsPage() {
     const mainVendor = top5Vendors[0]?.name ?? 'N/A';
     const avgPerDoc = approvedDocs.length > 0 ? totalTTC / approvedDocs.length : 0;
 
-    // Simulation de Trésorerie Prédictive à 90 jours
-    const runRate30j = totalTTC / Math.max(1, Object.keys(byMonth).length);
-    const revRate30j = runRate30j * 1.35; // Simulation de revenus (marge de 35%)
-    let currentBalance = 12450; // Solde initial simulé
-    
-    const predictiveCashflowData = [
-      { date: 'Auj.', balance: currentBalance },
-      { date: '+15j', balance: currentBalance += (revRate30j * 0.5) - (runRate30j * 0.5) - (Math.random() * 500) },
-      { date: '+30j', balance: currentBalance += (revRate30j * 0.5) - (runRate30j * 0.5) + (Math.random() * 800) },
-      { date: '+60j', balance: currentBalance += (revRate30j) - (runRate30j) - (Math.random() * 1000) },
-      { date: '+90j', balance: currentBalance += (revRate30j) - (runRate30j) + (Math.random() * 1500) }
-    ].map(d => ({ ...d, balance: Math.round(d.balance) }));
-
-    const projectedBalance30j = predictiveCashflowData[2].balance;
-
     return {
       totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc,
       approvedCount: approvedDocs.length,
       monthlyChartData, top5Vendors, categoryData,
-      predictiveCashflowData, projectedBalance30j
+      approvedDocs,
     };
   }, [clientDocuments]);
 
-  const isLoading = isInitialLoading || isLoadingDocs;
+  // ── Calcul de trésorerie prédictive réelle ──────────────────────────────────
+  const { predictiveCashflowData, projectedBalance30j } = useMemo(() => {
+    const fallback = {
+      predictiveCashflowData: [] as { date: string; balance: number; inflow: number; outflow: number }[],
+      projectedBalance30j: 0,
+    };
+    if (!analyticsData) return fallback;
+
+    const now = new Date();
+    const horizons = [
+      { label: 'Auj.', days: 0 },
+      { label: '+15j', days: 15 },
+      { label: '+30j', days: 30 },
+      { label: '+60j', days: 60 },
+      { label: '+90j', days: 90 },
+    ];
+
+    // 1. Solde initial (simulé — en V2 : solde bancaire réel via Open Banking)
+    const initialBalance = 12_450;
+
+    // 2. Identifier les documents déjà rapprochés via les relevés bancaires
+    const matchedDocIds = new Set<string>();
+    (bankStatements || []).forEach(bs => {
+      const txs = (bs as any).extractedData?.transactions || [];
+      txs.forEach((tx: any) => {
+        if (tx.matchingDocumentId) matchedDocIds.add(tx.matchingDocumentId);
+      });
+    });
+
+    // 3. Dettes (factures d'achat approuvées non rapprochées)
+    const unpaidPayables = (analyticsData.approvedDocs || []).filter(d => !matchedDocIds.has(d.id));
+    const payablesByHorizon = horizons.map(h => {
+      const cutoff = new Date(now.getTime() + h.days * 86_400_000);
+      return unpaidPayables
+        .filter(d => {
+          const docDate = parseDate(d.extractedData?.dates?.[0] ?? '') || new Date(d.uploadDate || now);
+          const dueDate = new Date(docDate.getTime() + 30 * 86_400_000); // échéance à +30j
+          return dueDate <= cutoff;
+        })
+        .reduce((sum, d) => sum + (d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0), 0);
+    });
+
+    // 4. Créances (factures de vente non payées — statut sent ou overdue)
+    const unpaidReceivables = (salesInvoices || []).filter(
+      inv => inv.status === 'sent' || inv.status === 'overdue'
+    );
+    const receivablesByHorizon = horizons.map(h => {
+      const cutoff = new Date(now.getTime() + h.days * 86_400_000);
+      return unpaidReceivables
+        .filter(inv => {
+          const dueDate = parseDate(inv.dueDate) || new Date(now.getTime() + 30 * 86_400_000);
+          return dueDate <= cutoff;
+        })
+        .reduce((sum, inv) => sum + (inv.totalTTC || 0), 0);
+    });
+
+    // 5. TVA nette estimée (collectée - déductible) — payée le mois suivant
+    const totalVatCollected = unpaidReceivables.reduce((s, inv) => s + (inv.totalVAT || 0), 0);
+    const totalVatDeductible = analyticsData.totalTVA || 0;
+    const netVAT = Math.max(0, totalVatCollected - totalVatDeductible);
+    // Positionner le paiement TVA au 15 du mois suivant
+    const nextVatPaymentDate = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+
+    // 6. Projection de trésorerie par horizon
+    const data = horizons.map((h, i) => {
+      const cutoff = new Date(now.getTime() + h.days * 86_400_000);
+      const inflow = receivablesByHorizon[i];
+      const outflow = payablesByHorizon[i] + (cutoff >= nextVatPaymentDate ? netVAT : 0);
+      return {
+        date: h.label,
+        balance: Math.round(initialBalance + inflow - outflow),
+        inflow: Math.round(inflow),
+        outflow: Math.round(outflow),
+      };
+    });
+
+    return {
+      predictiveCashflowData: data,
+      projectedBalance30j: data[2]?.balance ?? initialBalance,
+    };
+  }, [analyticsData, salesInvoices, bankStatements]);
+
+  const isLoading = isInitialLoading || isLoadingDocs || isLoadingSales || isLoadingBank;
 
   if (isLoading) {
     return (
@@ -278,7 +363,7 @@ export default function MyAnalyticsPage() {
     );
   }
 
-  const { totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc, approvedCount, monthlyChartData, top5Vendors, categoryData, predictiveCashflowData, projectedBalance30j } = analyticsData;
+  const { totalTTC, totalHT, totalTVA, mainVendor, avgPerDoc, approvedCount, monthlyChartData, top5Vendors, categoryData } = analyticsData;
 
   return (
     <div className="space-y-8 p-4 md:p-6 max-w-7xl mx-auto animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">

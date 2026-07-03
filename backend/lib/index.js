@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onDocumentApproved = exports.inviteClient = exports.disposeAsset = exports.generateFECExport = exports.validateAccountingEntry = exports.generateDepreciationODs = exports.generateAssetSchedule = exports.autoMatchBankTransactions = exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.stripeWebhook = exports.generateCabinetCheckout = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.verifyCabinetInvitation = exports.sendCabinetInvitation = exports.createCabinetWithInvitation = exports.prepareCabinetInvitation = exports.sendUserSetupEmail = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = exports.supportChat = exports.runGhostHunter = exports.saveBankReconciliation = exports.runBankReconciliation = exports.intelligentSearch = exports.createInvoiceForDocument = exports.syncBankTransactions = exports.finalizeBankConnection = exports.getBankAuthLink = exports.extractClientData = exports.searchCompany = void 0;
+exports.onDocumentApproved = exports.inviteClient = exports.disposeAsset = exports.generateFECExport = exports.validateAccountingEntry = exports.generateDepreciationODs = exports.generateAssetSchedule = exports.autoMatchBankTransactions = exports.requestWeeklySummary = exports.onCommentAdded = exports.exportDocuments = exports.stripeWebhook = exports.generateCabinetCheckout = exports.createPortalSession = exports.onDocumentPending = exports.setupInvitedCabinet = exports.verifyCabinetInvitation = exports.sendCabinetInvitation = exports.createCabinetWithInvitation = exports.prepareCabinetInvitation = exports.sendUserSetupEmail = exports.createUserWithRole = exports.syncAdminRole = exports.inboundEmailWebhook = exports.handleNewMailUpload = exports.supportChat = exports.sendGhostHunterReminders = exports.runGhostHunter = exports.saveBankReconciliation = exports.runBankReconciliation = exports.intelligentSearch = exports.createInvoiceForDocument = exports.syncBankTransactions = exports.finalizeBankConnection = exports.getBankAuthLink = exports.extractClientData = exports.searchCompany = void 0;
 /**
  * @fileOverview Cloud Functions for Firebase.
  * Backend logic for assigning user roles, creating users and processing documents.
@@ -380,6 +380,40 @@ async function searchFrenchCompanies(query) {
         };
     })
         .filter((result) => result !== null);
+}
+async function validateSiretInSirene(siret) {
+    var _a;
+    const cleanSiret = siret.replace(/\s+/g, '');
+    if (!/^\d{9}$/.test(cleanSiret) && !/^\d{14}$/.test(cleanSiret)) {
+        return { isValid: false };
+    }
+    try {
+        const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${cleanSiret}&per_page=1`);
+        if (!response.ok) {
+            logger.error('SIRET validation API failed', {
+                status: response.status,
+                statusText: response.statusText,
+            });
+            return { isValid: false };
+        }
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+            const company = data.results[0];
+            const name = company.nom_raison_sociale || company.nom_complet || '';
+            const isClosed = cleanSiret.length === 14
+                ? ((_a = company.siege) === null || _a === void 0 ? void 0 : _a.etat_administratif) === 'F'
+                : company.etat_administratif === 'C';
+            return {
+                isValid: true,
+                companyName: name,
+                isClosed: !!isClosed,
+            };
+        }
+    }
+    catch (error) {
+        logger.error('Error during SIRET validation in SIRENE registry', error);
+    }
+    return { isValid: false };
 }
 function normalizeSupportChatHistory(value) {
     if (!Array.isArray(value)) {
@@ -940,6 +974,124 @@ exports.runGhostHunter = (0, https_1.onCall)({ region: 'europe-west9', memory: '
     }
     catch (error) {
         throwCallableError(error, 'runGhostHunter failed');
+    }
+});
+// ─── Phase 4 : Relances Intelligentes GhostHunter AI ──────────────────────────
+exports.sendGhostHunterReminders = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] }, async (request) => {
+    var _a, _b, _c;
+    if (!request.auth) {
+        throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
+    }
+    try {
+        const clientId = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.clientId) === 'string' ? request.data.clientId.trim() : '';
+        if (!clientId) {
+            throw new https_1.HttpsError('invalid-argument', 'Client obligatoire.');
+        }
+        const { targetClient, targetCabinetId } = await assertClientCabinetAccess(request.auth, clientId, ['admin', 'accountant', 'secretary']);
+        // 1. Lire les justificatifs manquants
+        const missingDocSnap = await getDb().collection('missing_documents').doc(clientId).get();
+        if (!missingDocSnap.exists) {
+            return { sent: false, reason: 'no_missing', count: 0 };
+        }
+        const allItems = ((_b = missingDocSnap.data()) === null || _b === void 0 ? void 0 : _b.items) || [];
+        const missingItems = allItems.filter((i) => i.status === 'missing');
+        if (missingItems.length === 0) {
+            return { sent: false, reason: 'no_missing', count: 0 };
+        }
+        // 2. Récupérer le nom du cabinet
+        let cabinetName = 'Votre cabinet comptable';
+        if (targetCabinetId) {
+            const cabinetSnap = await getDb().collection('cabinets').doc(targetCabinetId).get();
+            if (cabinetSnap.exists) {
+                cabinetName = ((_c = cabinetSnap.data()) === null || _c === void 0 ? void 0 : _c.name) || cabinetName;
+            }
+        }
+        const clientName = targetClient.name || targetClient.email || 'Client';
+        const clientEmail = String(targetClient.email || '').trim().toLowerCase();
+        if (!clientEmail) {
+            throw new https_1.HttpsError('failed-precondition', 'Ce client n\'a pas d\'adresse email.');
+        }
+        // 3. Construire la liste textuelle des justificatifs manquants
+        const missingList = missingItems.map((item, idx) => `${idx + 1}. ${item.description || 'Transaction inconnue'} — ${Math.abs(item.amount || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} — ${item.date || 'Date inconnue'}`).join('\n');
+        // 4. Générer l'email avec Gemini
+        const { genkit } = await import('genkit');
+        const { googleAI } = await import('@genkit-ai/google-genai');
+        const ai = genkit({
+            plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
+        });
+        const prompt = `Tu es l'assistant IA du cabinet comptable "${cabinetName}". Rédige un email professionnel mais chaleureux en français pour demander à un client d'envoyer les justificatifs manquants suivants. Tutoie le client.
+
+Client : ${clientName}
+Cabinet : ${cabinetName}
+
+Justificatifs manquants :
+${missingList}
+
+Consignes :
+- L'email doit être court (max 8 lignes de texte).
+- Inclure un rappel que ces documents sont nécessaires pour la bonne tenue comptable et les obligations fiscales.
+- Terminer par une phrase d'encouragement bienveillante.
+- Ne pas inclure de signature, d'objet, ni de formule "De:" ou "À:".
+- Format : texte brut uniquement (pas de HTML).`;
+        const { text: emailBody } = await ai.generate({
+            model: googleAI.model('gemini-2.5-flash'),
+            prompt,
+        });
+        // 5. Construire et envoyer l'email via la collection mail (Firebase Trigger Email)
+        const htmlBody = emailBody
+            .split('\n')
+            .map((line) => line.trim() ? `<p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">${line}</p>` : '')
+            .join('\n');
+        const mailPayload = {
+            to: clientEmail,
+            message: {
+                subject: `[${cabinetName}] Justificatifs manquants — ${missingItems.length} document${missingItems.length > 1 ? 's' : ''} à envoyer`,
+                html: `
+            <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
+              <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 24px 28px; border-radius: 16px 16px 0 0;">
+                <h1 style="color: white; font-size: 20px; margin: 0;">👻 Justificatifs manquants</h1>
+                <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 6px 0 0;">${cabinetName} • Relance automatique</p>
+              </div>
+              <div style="padding: 28px; background: #ffffff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 16px 16px;">
+                ${htmlBody}
+                <div style="margin-top: 24px; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                  <p style="font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px;">Documents attendus</p>
+                  ${missingItems.map((item) => `<p style="font-size: 14px; margin: 4px 0; color: #374151;">• <strong>${item.description || 'Transaction'}</strong> — ${Math.abs(item.amount || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="color: #9ca3af;">(${item.date || ''})</span></p>`).join('\n')}
+                </div>
+                <p style="font-size: 12px; color: #9ca3af; margin-top: 20px; text-align: center;">
+                  Cet email a été généré automatiquement par CCS Compta pour ${cabinetName}.
+                </p>
+              </div>
+            </div>
+          `,
+            },
+            metadata: {
+                clientId,
+                cabinetId: targetCabinetId || null,
+                type: 'ghost-hunter-reminder',
+                itemCount: missingItems.length,
+            },
+            status: 'pending',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        await getDb().collection('mail').add(mailPayload);
+        // 6. Mettre à jour le statut des items → 'reminded'
+        const now = new Date().toISOString();
+        const updatedItems = allItems.map((item) => {
+            if (item.status === 'missing') {
+                return Object.assign(Object.assign({}, item), { status: 'reminded', remindedAt: now });
+            }
+            return item;
+        });
+        await getDb().collection('missing_documents').doc(clientId).update({
+            items: updatedItems,
+            lastRemindedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        logger.log(`📧 [GhostHunter] Relance envoyée à ${clientEmail} pour ${missingItems.length} justificatifs manquants`);
+        return { sent: true, count: missingItems.length, email: clientEmail };
+    }
+    catch (error) {
+        throwCallableError(error, 'sendGhostHunterReminders failed');
     }
 });
 exports.supportChat = (0, https_1.onCall)({ region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] }, async (request) => {
@@ -1786,7 +1938,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
     timeoutSeconds: 300,
     secrets: ["GEMINI_API_KEY"]
 }, async (event) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after.data();
     const previousData = (_b = event.data) === null || _b === void 0 ? void 0 : _b.before.data();
     // On ne traite que si le statut est 'pending' et qu'il ne l'Ã©tait pas dÃ©jÃ  (ou si c'est une crÃ©ation)
@@ -1809,12 +1961,46 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         // 3. Appel du processeur IA (Gemini multimodal)
         const { processDocumentContent, calculateBillableLines } = await import('./document-processor.js');
         const extractedData = await processDocumentContent(buffer, contentType, documentType);
+        // 3.5. Validation du SIRET via registre SIRENE
+        const extractedSiret = extractedData.siret;
+        if (extractedSiret) {
+            try {
+                const siretValidation = await validateSiretInSirene(extractedSiret);
+                if (!siretValidation.isValid) {
+                    if (!extractedData.anomalies)
+                        extractedData.anomalies = [];
+                    extractedData.anomalies.push(`Numéro SIRET (${extractedSiret}) invalide ou inconnu dans la base SIRENE.`);
+                }
+                else {
+                    if (siretValidation.isClosed) {
+                        if (!extractedData.anomalies)
+                            extractedData.anomalies = [];
+                        extractedData.anomalies.push(`Alerte : L'émetteur lié à ce SIRET (${siretValidation.companyName || 'Inconnu'}) est déclaré fermé ou en cessation d'activité.`);
+                    }
+                    // Vérification de cohérence du nom (supplierName)
+                    const supplierName = extractedData.supplierName || ((_d = extractedData.vendorNames) === null || _d === void 0 ? void 0 : _d[0]);
+                    if (supplierName && siretValidation.companyName) {
+                        const cleanSupplier = supplierName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const cleanOfficial = siretValidation.companyName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        // Si l'un n'est pas inclus dans l'autre (approximation floue simple)
+                        if (!cleanOfficial.includes(cleanSupplier) && !cleanSupplier.includes(cleanOfficial)) {
+                            if (!extractedData.anomalies)
+                                extractedData.anomalies = [];
+                            extractedData.anomalies.push(`Le nom du fournisseur extrait (${supplierName}) diffère de la raison sociale officielle (${siretValidation.companyName}).`);
+                        }
+                    }
+                }
+            }
+            catch (siretErr) {
+                logger.error(`Erreur lors de la validation du SIRET ${extractedSiret} :`, siretErr);
+            }
+        }
         // 4. DÃ©tection intelligente de doublons (Vendor + Date + Amount)
         let isDuplicate = false;
         let existingId = null;
-        const vendor = (_d = extractedData.vendorNames) === null || _d === void 0 ? void 0 : _d[0];
-        const date = (_e = extractedData.dates) === null || _e === void 0 ? void 0 : _e[0];
-        const amount = (_f = extractedData.amounts) === null || _f === void 0 ? void 0 : _f[0];
+        const vendor = (_e = extractedData.vendorNames) === null || _e === void 0 ? void 0 : _e[0];
+        const date = (_f = extractedData.dates) === null || _f === void 0 ? void 0 : _f[0];
+        const amount = (_g = extractedData.amounts) === null || _g === void 0 ? void 0 : _g[0];
         if (vendor && date && amount) {
             // Un seul array-contains autorisÃ© par requÃªte Firestore
             const duplicates = await getDb().collection("documents")
@@ -1825,8 +2011,8 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
             for (const otherDoc of duplicates.docs) {
                 const otherData = otherDoc.data().extractedData;
                 if (otherDoc.id !== docId &&
-                    ((_g = otherData === null || otherData === void 0 ? void 0 : otherData.vendorNames) === null || _g === void 0 ? void 0 : _g.includes(vendor)) &&
-                    ((_h = otherData === null || otherData === void 0 ? void 0 : otherData.dates) === null || _h === void 0 ? void 0 : _h.includes(date))) {
+                    ((_h = otherData === null || otherData === void 0 ? void 0 : otherData.vendorNames) === null || _h === void 0 ? void 0 : _h.includes(vendor)) &&
+                    ((_j = otherData === null || otherData === void 0 ? void 0 : otherData.dates) === null || _j === void 0 ? void 0 : _j.includes(date))) {
                     isDuplicate = true;
                     existingId = otherDoc.id;
                     break;
@@ -1870,7 +2056,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         if (isDuplicate) {
             updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel détecté : une facture identique existe déjà.");
         }
-        await ((_j = event.data) === null || _j === void 0 ? void 0 : _j.after.ref.update(updateData));
+        await ((_k = event.data) === null || _k === void 0 ? void 0 : _k.after.ref.update(updateData));
         logger.log(`âœ… [Processor] SuccÃ¨s pour ${docId} : ${billableLines} lignes dÃ©tectÃ©es. ${isDuplicate ? '(DOUBLON)' : ''}`);
         // 7. Report usage to Stripe & Update Cabinet Quotas if NOT a duplicate
         if (!isDuplicate) {
@@ -1903,7 +2089,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
     }
     catch (error) {
         logger.error(`âŒ [Processor] Ã‰chec pour ${docId} :`, error);
-        await ((_k = event.data) === null || _k === void 0 ? void 0 : _k.after.ref.update({
+        await ((_l = event.data) === null || _l === void 0 ? void 0 : _l.after.ref.update({
             status: 'error',
             'auditTrail': admin.firestore.FieldValue.arrayUnion({
                 action: `Erreur d'analyse IA : ${error.message}`,

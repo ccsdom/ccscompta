@@ -305,6 +305,15 @@ const ExtractedData = ({ formData, setFormData, isReadOnly }: { formData: Extrac
                             <Input value={formData.accountingEntry?.vatAccount ?? ''} onChange={e => handleAccountingChange('vatAccount', e.target.value)} readOnly={isReadOnly} className="bg-background border border-input focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary/50 text-foreground h-10 font-mono text-sm rounded-xl font-semibold" placeholder="Ex: 445660" />
                         </div>
                     </div>
+                    {formData.accountingEntry?.rationale && (
+                        <div className="mt-3 flex items-start gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/10 text-xs text-foreground/90 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="font-space font-black uppercase text-[8px] tracking-wider text-primary">Analyse d'imputation IA</p>
+                                <p className="leading-relaxed font-medium">{formData.accountingEntry.rationale}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

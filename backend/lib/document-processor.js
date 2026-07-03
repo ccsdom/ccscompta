@@ -34,7 +34,8 @@ exports.ExtractDataOutputSchema = genkit_1.z.object({
         debitAccount: genkit_1.z.string().optional(),
         creditAccount: genkit_1.z.string().optional(),
         vatAccount: genkit_1.z.string().optional(),
-        confidenceScore: genkit_1.z.number().optional()
+        confidenceScore: genkit_1.z.number().optional(),
+        rationale: genkit_1.z.string().optional().describe('Explication courte et en français justifiant le choix des comptes comptables proposés (débit/crédit).')
     }).optional()
 });
 const bankStatementPrompt = `
@@ -56,7 +57,7 @@ Your goal is to extract:
 - SIRET: Extract the 14-digit SIRET or 9-digit SIREN of the supplier if present on the document.
 - VAT Details: Extract every single VAT rate present on the document. For EACH rate (e.g., 20%, 10%, 5.5%), extract the 'rate' (as a number: 20), the 'amount' of VAT for that rate, and the 'baseHT' (the amount before tax that this rate applies to).
 - Category: Suggested accounting category.
-- Accounting Intelligence (PCG Français): Suggest technical accounts based on the supplier's activity (e.g. 626000 for telecom/internet, 607000 for merchandise, 613000 for rent, 606300 for small equipment). The credit account is usually 401000 for suppliers.
+- Accounting Intelligence (PCG Français): Suggest technical accounts based on the supplier's activity (e.g. 626000 for telecom/internet, 607000 for merchandise, 613000 for rent, 606300 for small equipment). The credit account is usually 401000 for suppliers. Also suggest the 'rationale' field, which is a brief explanation in French justifying the choice of these accounts (e.g., "Abonnement internet et téléphonie mobile Orange comptabilisé en frais de télécommunications (626000).").
 `;
 const controllerPrompt = `
 You are also a vigilant financial controller. Scrutinize the document for any red flags or anomalies.

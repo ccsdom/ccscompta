@@ -488,6 +488,47 @@ async function searchFrenchCompanies(query: string): Promise<CompanySearchResult
     .filter((result): result is CompanySearchResult => result !== null);
 }
 
+async function validateSiretInSirene(siret: string): Promise<{ isValid: boolean; companyName?: string; isClosed?: boolean }> {
+  const cleanSiret = siret.replace(/\s+/g, '');
+  if (!/^\d{9}$/.test(cleanSiret) && !/^\d{14}$/.test(cleanSiret)) {
+    return { isValid: false };
+  }
+
+  try {
+    const response = await fetch(
+      `https://recherche-entreprises.api.gouv.fr/search?q=${cleanSiret}&per_page=1`
+    );
+
+    if (!response.ok) {
+      logger.error('SIRET validation API failed', {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return { isValid: false };
+    }
+
+    const data = await response.json() as { results?: any[] };
+    if (data.results && data.results.length > 0) {
+      const company = data.results[0];
+      const name = company.nom_raison_sociale || company.nom_complet || '';
+      
+      const isClosed = cleanSiret.length === 14
+        ? company.siege?.etat_administratif === 'F'
+        : company.etat_administratif === 'C';
+
+      return {
+        isValid: true,
+        companyName: name,
+        isClosed: !!isClosed,
+      };
+    }
+  } catch (error) {
+    logger.error('Error during SIRET validation in SIRENE registry', error);
+  }
+
+  return { isValid: false };
+}
+
 function normalizeSupportChatHistory(value: unknown): SupportChatMessage[] {
   if (!Array.isArray(value)) {
     throw new HttpsError('invalid-argument', 'Historique de conversation invalide.');
@@ -1176,6 +1217,152 @@ export const runGhostHunter = onCall(
       return { success: true, count: missingDocuments.length, items: missingDocuments };
     } catch (error) {
       throwCallableError(error, 'runGhostHunter failed');
+    }
+  }
+);
+
+// ─── Phase 4 : Relances Intelligentes GhostHunter AI ──────────────────────────
+export const sendGhostHunterReminders = onCall(
+  { region: 'europe-west9', memory: '512MiB', timeoutSeconds: 60, secrets: ['GEMINI_API_KEY'] },
+  async (request: CallableRequest<{ clientId?: unknown }>) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Authentification requise.');
+    }
+
+    try {
+      const clientId = typeof request.data?.clientId === 'string' ? request.data.clientId.trim() : '';
+      if (!clientId) {
+        throw new HttpsError('invalid-argument', 'Client obligatoire.');
+      }
+
+      const { targetClient, targetCabinetId } = await assertClientCabinetAccess(
+        request.auth, clientId, ['admin', 'accountant', 'secretary']
+      );
+
+      // 1. Lire les justificatifs manquants
+      const missingDocSnap = await getDb().collection('missing_documents').doc(clientId).get();
+      if (!missingDocSnap.exists) {
+        return { sent: false, reason: 'no_missing', count: 0 };
+      }
+
+      const allItems: any[] = missingDocSnap.data()?.items || [];
+      const missingItems = allItems.filter((i: any) => i.status === 'missing');
+
+      if (missingItems.length === 0) {
+        return { sent: false, reason: 'no_missing', count: 0 };
+      }
+
+      // 2. Récupérer le nom du cabinet
+      let cabinetName = 'Votre cabinet comptable';
+      if (targetCabinetId) {
+        const cabinetSnap = await getDb().collection('cabinets').doc(targetCabinetId).get();
+        if (cabinetSnap.exists) {
+          cabinetName = cabinetSnap.data()?.name || cabinetName;
+        }
+      }
+
+      const clientName = targetClient.name || targetClient.email || 'Client';
+      const clientEmail = String(targetClient.email || '').trim().toLowerCase();
+
+      if (!clientEmail) {
+        throw new HttpsError('failed-precondition', 'Ce client n\'a pas d\'adresse email.');
+      }
+
+      // 3. Construire la liste textuelle des justificatifs manquants
+      const missingList = missingItems.map((item: any, idx: number) =>
+        `${idx + 1}. ${item.description || 'Transaction inconnue'} — ${Math.abs(item.amount || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} — ${item.date || 'Date inconnue'}`
+      ).join('\n');
+
+      // 4. Générer l'email avec Gemini
+      const { genkit } = await import('genkit');
+      const { googleAI } = await import('@genkit-ai/google-genai');
+
+      const ai = genkit({
+        plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
+      });
+
+      const prompt = `Tu es l'assistant IA du cabinet comptable "${cabinetName}". Rédige un email professionnel mais chaleureux en français pour demander à un client d'envoyer les justificatifs manquants suivants. Tutoie le client.
+
+Client : ${clientName}
+Cabinet : ${cabinetName}
+
+Justificatifs manquants :
+${missingList}
+
+Consignes :
+- L'email doit être court (max 8 lignes de texte).
+- Inclure un rappel que ces documents sont nécessaires pour la bonne tenue comptable et les obligations fiscales.
+- Terminer par une phrase d'encouragement bienveillante.
+- Ne pas inclure de signature, d'objet, ni de formule "De:" ou "À:".
+- Format : texte brut uniquement (pas de HTML).`;
+
+      const { text: emailBody } = await ai.generate({
+        model: googleAI.model('gemini-2.5-flash'),
+        prompt,
+      });
+
+      // 5. Construire et envoyer l'email via la collection mail (Firebase Trigger Email)
+      const htmlBody = emailBody
+        .split('\n')
+        .map((line: string) => line.trim() ? `<p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px;">${line}</p>` : '')
+        .join('\n');
+
+      const mailPayload = {
+        to: clientEmail,
+        message: {
+          subject: `[${cabinetName}] Justificatifs manquants — ${missingItems.length} document${missingItems.length > 1 ? 's' : ''} à envoyer`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
+              <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 24px 28px; border-radius: 16px 16px 0 0;">
+                <h1 style="color: white; font-size: 20px; margin: 0;">👻 Justificatifs manquants</h1>
+                <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 6px 0 0;">${cabinetName} • Relance automatique</p>
+              </div>
+              <div style="padding: 28px; background: #ffffff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 16px 16px;">
+                ${htmlBody}
+                <div style="margin-top: 24px; padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                  <p style="font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px;">Documents attendus</p>
+                  ${missingItems.map((item: any) =>
+                    `<p style="font-size: 14px; margin: 4px 0; color: #374151;">• <strong>${item.description || 'Transaction'}</strong> — ${Math.abs(item.amount || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} <span style="color: #9ca3af;">(${item.date || ''})</span></p>`
+                  ).join('\n')}
+                </div>
+                <p style="font-size: 12px; color: #9ca3af; margin-top: 20px; text-align: center;">
+                  Cet email a été généré automatiquement par CCS Compta pour ${cabinetName}.
+                </p>
+              </div>
+            </div>
+          `,
+        },
+        metadata: {
+          clientId,
+          cabinetId: targetCabinetId || null,
+          type: 'ghost-hunter-reminder',
+          itemCount: missingItems.length,
+        },
+        status: 'pending',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await getDb().collection('mail').add(mailPayload);
+
+      // 6. Mettre à jour le statut des items → 'reminded'
+      const now = new Date().toISOString();
+      const updatedItems = allItems.map((item: any) => {
+        if (item.status === 'missing') {
+          return { ...item, status: 'reminded', remindedAt: now };
+        }
+        return item;
+      });
+
+      await getDb().collection('missing_documents').doc(clientId).update({
+        items: updatedItems,
+        lastRemindedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.log(`📧 [GhostHunter] Relance envoyée à ${clientEmail} pour ${missingItems.length} justificatifs manquants`);
+
+      return { sent: true, count: missingItems.length, email: clientEmail };
+    } catch (error) {
+      throwCallableError(error, 'sendGhostHunterReminders failed');
     }
   }
 );
@@ -2207,6 +2394,38 @@ export const onDocumentPending = onDocumentWritten(
         // 3. Appel du processeur IA (Gemini multimodal)
         const { processDocumentContent, calculateBillableLines } = await import('./document-processor.js');
         const extractedData = await processDocumentContent(buffer, contentType, documentType);
+
+        // 3.5. Validation du SIRET via registre SIRENE
+        const extractedSiret = extractedData.siret;
+        if (extractedSiret) {
+            try {
+                const siretValidation = await validateSiretInSirene(extractedSiret);
+                if (!siretValidation.isValid) {
+                    if (!extractedData.anomalies) extractedData.anomalies = [];
+                    extractedData.anomalies.push(`Numéro SIRET (${extractedSiret}) invalide ou inconnu dans la base SIRENE.`);
+                } else {
+                    if (siretValidation.isClosed) {
+                        if (!extractedData.anomalies) extractedData.anomalies = [];
+                        extractedData.anomalies.push(`Alerte : L'émetteur lié à ce SIRET (${siretValidation.companyName || 'Inconnu'}) est déclaré fermé ou en cessation d'activité.`);
+                    }
+                    
+                    // Vérification de cohérence du nom (supplierName)
+                    const supplierName = extractedData.supplierName || extractedData.vendorNames?.[0];
+                    if (supplierName && siretValidation.companyName) {
+                        const cleanSupplier = supplierName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const cleanOfficial = siretValidation.companyName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        
+                        // Si l'un n'est pas inclus dans l'autre (approximation floue simple)
+                        if (!cleanOfficial.includes(cleanSupplier) && !cleanSupplier.includes(cleanOfficial)) {
+                            if (!extractedData.anomalies) extractedData.anomalies = [];
+                            extractedData.anomalies.push(`Le nom du fournisseur extrait (${supplierName}) diffère de la raison sociale officielle (${siretValidation.companyName}).`);
+                        }
+                    }
+                }
+            } catch (siretErr) {
+                logger.error(`Erreur lors de la validation du SIRET ${extractedSiret} :`, siretErr);
+            }
+        }
 
         // 4. DÃ©tection intelligente de doublons (Vendor + Date + Amount)
         let isDuplicate = false;

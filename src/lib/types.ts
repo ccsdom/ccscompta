@@ -196,6 +196,7 @@ export interface Document {
       creditAccount?: string;
       vatAccount?: string;
       confidenceScore?: number;
+      rationale?: string;
     };
     summary?: string;
     insight?: {

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, AlertCircle, UploadCloud, Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, AlertCircle, UploadCloud, Search, CheckCircle2, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from '@/firebase';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -25,7 +25,7 @@ export default function MissingDocumentsPage() {
         const unsub = onSnapshot(doc(db, 'missing_documents', storedClientId), (snap) => {
             if (snap.exists()) {
                 const items = snap.data()?.items || [];
-                setMissingItems(items.filter((i: any) => i.status === 'missing'));
+                setMissingItems(items.filter((i: any) => i.status === 'missing' || i.status === 'reminded'));
             } else {
                 setMissingItems([]);
             }
@@ -124,12 +124,18 @@ export default function MissingDocumentsPage() {
                                         </div>
                                         <div>
                                             <p className="font-bold text-base tracking-tight">{tx.description}</p>
-                                            <p className="text-xs text-muted-foreground font-mono uppercase opacity-70 flex gap-2">
+                                            <p className="text-xs text-muted-foreground font-mono uppercase opacity-70 flex gap-2 flex-wrap items-center">
                                                 <span>{tx.date}</span>
                                                 <span>•</span>
                                                 <span className="text-foreground font-bold">
                                                     {Math.abs(tx.amount).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                                                 </span>
+                                                {tx.status === 'reminded' && (
+                                                    <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 text-[9px] px-2 py-0 h-5 rounded-full font-bold gap-1">
+                                                        <Bell className="h-2.5 w-2.5" />
+                                                        Relancé{tx.remindedAt ? ` le ${new Date(tx.remindedAt).toLocaleDateString('fr-FR')}` : ''}
+                                                    </Badge>
+                                                )}
                                             </p>
                                         </div>
                                     </div>

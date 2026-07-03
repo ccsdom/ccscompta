@@ -8,7 +8,7 @@ import {
   Landmark, Upload, CheckCircle, AlertTriangle, Clock, ChevronRight,
   Loader2, FileSpreadsheet, Users, Zap, RotateCcw, ShieldCheck,
   TrendingUp, AlertCircle, Info, DownloadCloud, X, Search, Sparkles,
-  ArrowRight, FileText, BarChart3, Link2, RefreshCw, CheckCircle2
+  ArrowRight, FileText, BarChart3, Link2, RefreshCw, CheckCircle2, Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -222,6 +222,7 @@ function StepImport({
   const [fileName, setFileName] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isHunting, setIsHunting] = useState(false);
+  const [isReminding, setIsReminding] = useState(false);
   const [pendingRequisition, setPendingRequisition] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -271,6 +272,31 @@ function StepImport({
       toast({ variant: 'destructive', title: 'Erreur Ghost Hunter', description: err.message });
     } finally {
       setIsHunting(false);
+    }
+  };
+
+  const handleSendReminders = async () => {
+    setIsReminding(true);
+    try {
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('@/firebase');
+      const sendReminders = httpsCallable(functions, 'sendGhostHunterReminders');
+      const result = await sendReminders({ clientId: client.id }) as any;
+      if (result.data?.sent) {
+        toast({
+          title: "📧 Relance envoyée !",
+          description: `Un email personnalisé a été envoyé à ${result.data.email} pour ${result.data.count} justificatif${result.data.count > 1 ? 's' : ''} manquant${result.data.count > 1 ? 's' : ''}.`,
+        });
+      } else {
+        toast({
+          title: "Aucune relance nécessaire",
+          description: "Tous les justificatifs ont déjà été relancés ou sont résolus.",
+        });
+      }
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erreur de relance', description: err.message });
+    } finally {
+      setIsReminding(false);
     }
   };
 
@@ -407,6 +433,16 @@ function StepImport({
             >
                 <Search className={cn("h-3 w-3", isHunting && "animate-spin")} /> 
                 {isHunting ? 'Analyse...' : 'Ghost-Hunter'}
+            </Button>
+            <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSendReminders} 
+                disabled={isReminding}
+                className="rounded-xl border-violet-500/20 text-violet-500 hover:bg-violet-500/10 gap-2 font-space uppercase text-[10px] tracking-widest font-bold"
+            >
+                <Mail className={cn("h-3 w-3", isReminding && "animate-bounce")} /> 
+                {isReminding ? 'Envoi...' : 'Relancer'}
             </Button>
             <Button variant="ghost" size="sm" onClick={onBack} className="rounded-xl hover:bg-white/10 gap-2 font-space uppercase text-[10px] tracking-widest font-bold">
                 <RotateCcw className="h-3 w-3" /> Changer
