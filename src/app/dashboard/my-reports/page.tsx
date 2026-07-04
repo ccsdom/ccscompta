@@ -6,7 +6,7 @@ import {
   BookOpen, TrendingUp, TrendingDown, Landmark, Sparkles, Activity, FileText
 } from "lucide-react";
 import {
-  ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent
+  ChartContainer, ChartTooltip, ChartTooltipContent
 } from "@/components/ui/chart";
 import {
   Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
@@ -17,7 +17,7 @@ import { type ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { db } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { cn, parseDate } from '@/lib/utils';
 import { salesService } from '@/services/sales-service';
 
@@ -62,7 +62,6 @@ export default function MyReportsPage() {
     if (!clientDocuments || !invoices) return null;
 
     // 1. Calcul du Chiffre d'Affaires (Ventes HT et TTC)
-    // Pour simplifier le Bilan, on prend les ventes payées ou envoyées.
     let totalRevenueHT = 0;
     let totalRevenueTTC = 0;
     
@@ -74,8 +73,8 @@ export default function MyReportsPage() {
     });
 
     // 2. Calcul des Dépenses par catégorie (Coût des ventes vs Dépenses Opérationnelles)
-    let cogs = 0; // Cost of Goods Sold (ex: Marchandises)
-    let opex = 0; // Operating Expenses (ex: Services, Loyer)
+    let cogs = 0; // Cost of Goods Sold
+    let opex = 0; // Operating Expenses
     
     const categories: Record<string, number> = {
         "Achats de Marchandises": 0,
@@ -87,10 +86,9 @@ export default function MyReportsPage() {
 
     clientDocuments.forEach(d => {
         const cat = d.extractedData?.category || 'Autre';
-        // On calcule le HT estimé (TTC - TVA)
         const ttc = d.extractedData?.amounts?.reduce((a, b) => (a || 0) + (b || 0), 0) ?? 0;
         const tva = d.extractedData?.vatAmount ?? 0;
-        const ht = Math.max(0, ttc - tva); // Eviter les valeurs négatives bizarres
+        const ht = Math.max(0, ttc - tva);
 
         if (cat.toLowerCase().includes('marchandise') || cat.toLowerCase().includes('matière')) {
             cogs += ht;
@@ -129,11 +127,43 @@ export default function MyReportsPage() {
     };
   }, [clientDocuments, invoices]);
 
+  const strategicAdvice = useMemo(() => {
+    if (!reportData) return null;
+    const { totalRevenueHT, netIncome, netMarginPercent } = reportData;
+
+    if (totalRevenueHT === 0) {
+      return {
+        title: "Démarrage d'Activité",
+        content: "Vous n'avez pas encore enregistré de Chiffre d'Affaires significatif. Concentrez-vous sur la facturation de vos premières prestations ou produits depuis le module Ventes.",
+        status: "neutral"
+      };
+    }
+    if (netIncome < 0) {
+      return {
+        title: "Optimisation de rentabilité requise",
+        content: "Votre résultat net estimé est négatif. Vos charges globales dépassent vos revenus. Nous vous conseillons de mener un audit de vos charges de fonctionnement (OPEX) et de revoir vos coûts d'achats directs.",
+        status: "bad"
+      };
+    }
+    if (netMarginPercent < 10) {
+      return {
+        title: "Performance Modérée",
+        content: `Votre marge nette s'établit à ${netMarginPercent.toFixed(1)}%. Bien que bénéficiaire, elle se situe sous la moyenne idéale de 10%. Envisagez d'ajuster vos tarifs ou de réduire vos abonnements récurrents non essentiels.`,
+        status: "warning"
+      };
+    }
+    return {
+      title: "Rentabilité Excellente",
+      content: `Félicitations ! Votre structure génère une marge nette solide de ${netMarginPercent.toFixed(1)}%. Votre business model est viable et profitable. Profitez de ce cash excédentaire pour investir ou provisionner vos échéances fiscales.`,
+      status: "good"
+    };
+  }, [reportData]);
+
   const isLoading = isInitialLoading || isLoadingDocs || loadingSales;
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-4 md:p-6">
+      <div className="space-y-6 p-4 md:p-6 animate-pulse">
         <Skeleton className="h-9 w-1/3" />
         <Skeleton className="h-4 w-1/4" />
         <div className="grid gap-4 md:grid-cols-3 mt-8">
@@ -167,7 +197,7 @@ export default function MyReportsPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="glass-panel premium-shadow-sm border-white/10 relative overflow-hidden">
+        <Card className="glass-panel premium-shadow-sm hover:premium-shadow transition-all duration-500 hover:-translate-y-0.5 border-white/10 relative overflow-hidden">
              <div className="absolute top-0 right-0 p-4 opacity-5"><TrendingUp className="h-24 w-24" /></div>
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Chiffre d'Affaires (HT)</CardTitle>
@@ -180,7 +210,7 @@ export default function MyReportsPage() {
             </CardContent>
         </Card>
 
-        <Card className="glass-panel premium-shadow-sm border-white/10 relative overflow-hidden">
+        <Card className="glass-panel premium-shadow-sm hover:premium-shadow transition-all duration-500 hover:-translate-y-0.5 border-white/10 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-5"><Activity className="h-24 w-24" /></div>
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Marge Brute (HT)</CardTitle>
@@ -194,9 +224,9 @@ export default function MyReportsPage() {
         </Card>
 
         <Card className={cn(
-            "glass-panel premium-shadow-sm relative overflow-hidden border",
-            healthStatus === 'good' ? "bg-emerald-500/10 border-emerald-500/30" : 
-            healthStatus === 'bad' ? "bg-destructive/10 border-destructive/30" : 
+            "glass-panel premium-shadow-sm hover:premium-shadow transition-all duration-500 hover:-translate-y-0.5 relative overflow-hidden border",
+            healthStatus === 'good' ? "bg-emerald-500/10 border-emerald-500/30 animate-in fade-in" : 
+            healthStatus === 'bad' ? "bg-destructive/10 border-destructive/30 animate-in fade-in" : 
             "bg-muted/30 border-white/10"
         )}>
              <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -232,6 +262,36 @@ export default function MyReportsPage() {
             </CardContent>
         </Card>
       </div>
+
+      {/* Strategic Advisor Panel */}
+      {strategicAdvice && (
+        <Card className="glass-panel premium-shadow bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+          <CardHeader className="pb-2">
+              <CardTitle className="text-xl font-display flex items-center gap-2">
+                  <Sparkles className="h-5.5 w-5.5 text-primary" />
+                  Conseils Stratégiques IA
+              </CardTitle>
+              <CardDescription>Recommandations d'optimisation générées en temps réel.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2">
+              <div className={cn(
+                  "p-4 rounded-2xl border flex gap-4 items-start",
+                  strategicAdvice.status === 'good' ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400" :
+                  strategicAdvice.status === 'bad' ? "bg-rose-500/10 border-rose-500/25 text-rose-500" :
+                  strategicAdvice.status === 'warning' ? "bg-amber-500/10 border-amber-500/25 text-amber-500" :
+                  "bg-white/5 border-white/5 text-muted-foreground"
+              )}>
+                  <div className="h-10 w-10 shrink-0 rounded-xl bg-white/10 dark:bg-black/20 flex items-center justify-center text-primary">
+                      <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                      <h4 className="font-black text-sm uppercase tracking-wider mb-1">{strategicAdvice.title}</h4>
+                      <p className="text-xs font-semibold leading-relaxed text-foreground/80">{strategicAdvice.content}</p>
+                  </div>
+              </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Graphique Waterfall (P&L Visuel) */}
       <Card className="glass-panel premium-shadow border-white/10">

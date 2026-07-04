@@ -72,6 +72,7 @@ export async function uploadVaultDocument({
     uploadedBy,
     uploaderName,
     category,
+    sizeBytes: file.size,
   };
 
   const batch = writeBatch(db);

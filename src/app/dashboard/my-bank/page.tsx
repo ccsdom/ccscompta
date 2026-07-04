@@ -24,6 +24,7 @@ import { Area, ComposedChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 import { BankService, type BankTransaction } from '@/services/bank-service';
+import { getBankAuthLink, finalizeBankConnection, syncBankTransactions } from '@/services/bank-connection-service';
 
 export default function MyBankPage() {
     const [isLinked, setIsLinked] = useState(false);
@@ -39,23 +40,46 @@ export default function MyBankPage() {
     const [docSearchQuery, setDocSearchQuery] = useState('');
     const [isSavingMatch, setIsSavingMatch] = useState(false);
 
+    // Real banking connection states
+    const [clientData, setClientData] = useState<any>(null);
+    const [pendingRequisition, setPendingRequisition] = useState<string | null>(null);
+    const [isFinalizing, setIsFinalizing] = useState(false);
+
     const storedClientId = typeof window !== 'undefined' ? localStorage.getItem('selectedClientId') : null;
 
+    // Listen to client document for real connection state
+    useEffect(() => {
+        if (!storedClientId) return;
+        const unsub = onSnapshot(doc(db, 'clients', storedClientId), (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                setClientData(data);
+                setIsLinked(!!data.hasBankConnected);
+            }
+        });
+        return () => unsub();
+    }, [storedClientId]);
+
+    // Check for pending requisition on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const reqId = localStorage.getItem('clientPendingRequisitionId');
+            if (reqId) setPendingRequisition(reqId);
+        }
+    }, []);
+
+    // Load transactions from Firestore
     useEffect(() => {
         const loadTransactions = async () => {
-            if (storedClientId) {
-                const isBankLinked = localStorage.getItem(`bank_linked_${storedClientId}`) === 'true';
-                setIsLinked(isBankLinked);
-                if (isBankLinked) {
-                    setIsLoading(true);
-                    const data = await BankService.getTransactions(storedClientId);
-                    setTransactions(data);
-                    setIsLoading(false);
-                }
+            if (storedClientId && isLinked) {
+                setIsLoading(true);
+                const data = await BankService.getTransactions(storedClientId);
+                setTransactions(data);
+                setIsLoading(false);
             }
         };
         loadTransactions();
-    }, [storedClientId]);
+    }, [storedClientId, isLinked]);
 
     useEffect(() => {
         if (!storedClientId) return;
@@ -76,28 +100,93 @@ export default function MyBankPage() {
 
     const { data: clientDocuments } = useCollection<Document>(documentsQuery);
 
-    const handleLinkBank = () => {
+    const handleLinkBank = async () => {
+        if (!storedClientId) return;
         setIsLinking(true);
-        // Simulation d'une connexion via Bridge/Budget Insight
-        setTimeout(() => {
-            setIsLinked(true);
-            setIsLinking(false);
-            if (storedClientId) {
-                localStorage.setItem(`bank_linked_${storedClientId}`, 'true');
-                window.dispatchEvent(new Event('storage'));
+        try {
+            const cabinetId = clientData?.cabinetId || '';
+            const res = await getBankAuthLink(storedClientId, cabinetId);
+            if (res.success && res.url) {
+                if (res.requisitionId) {
+                    localStorage.setItem('clientPendingRequisitionId', res.requisitionId);
+                    setPendingRequisition(res.requisitionId);
+                }
+                window.open(res.url, '_blank');
+                toast({
+                    title: "Redirection vers votre banque",
+                    description: "Veuillez accepter l'autorisation de partage de données dans le nouvel onglet.",
+                });
+            } else {
+                throw new Error(res.error || "Impossible d'obtenir le lien d'autorisation.");
             }
+        } catch (error: any) {
+            console.error("Bank auth error:", error);
             toast({
-                title: "Banque connectée",
-                description: "Votre flux bancaire est désormais synchronisé avec CCS Compta.",
+                variant: "destructive",
+                title: "Erreur de connexion",
+                description: error.message || "Une erreur est survenue lors de la tentative de connexion bancaire."
             });
-        }, 1500);
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
+    const handleFinalizeConnection = async () => {
+        if (!storedClientId || !pendingRequisition) return;
+        setIsFinalizing(true);
+        try {
+            const cabinetId = clientData?.cabinetId || '';
+            const res = await finalizeBankConnection(storedClientId, cabinetId, pendingRequisition);
+            if (res.success) {
+                toast({
+                    title: "Banque connectée !",
+                    description: "Votre compte bancaire a été synchronisé avec succès."
+                });
+                
+                // Clear state
+                localStorage.removeItem('clientPendingRequisitionId');
+                setPendingRequisition(null);
+                
+                // Trigger initial sync of transactions
+                setIsLoading(true);
+                await syncBankTransactions(storedClientId);
+                
+                // Reload transactions
+                const updatedTxs = await BankService.getTransactions(storedClientId);
+                setTransactions(updatedTxs);
+                setIsLoading(false);
+            } else {
+                throw new Error(res.error || "Erreur lors de la finalisation.");
+            }
+        } catch (error: any) {
+            console.error("Finalize error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erreur de finalisation",
+                description: error.message || "Une erreur est survenue lors de la finalisation."
+            });
+        } finally {
+            setIsFinalizing(false);
+        }
+    };
+
+    const handleResetPendingConnection = () => {
+        localStorage.removeItem('clientPendingRequisitionId');
+        setPendingRequisition(null);
     };
 
     const runAutoMatch = async () => {
-        if (!storedClientId || isMatching || transactions.length === 0) return;
+        if (!storedClientId || isMatching) return;
         setIsMatching(true);
 
         try {
+            // First sync latest transactions from real bank connection
+            await syncBankTransactions(storedClientId);
+            
+            // Reload transactions list
+            const syncedData = await BankService.getTransactions(storedClientId);
+            setTransactions(syncedData);
+
             const { httpsCallable } = await import('firebase/firestore').then(() => import('firebase/functions'));
             const { functions } = await import('@/firebase');
             
@@ -106,18 +195,19 @@ export default function MyBankPage() {
             
             const matchCount = result.data?.matchCount || 0;
             
-            if (matchCount > 0) {
-                const data = await BankService.getTransactions(storedClientId);
-                setTransactions(data);
+            // Reload transactions list after matching
+            const data = await BankService.getTransactions(storedClientId);
+            setTransactions(data);
 
+            if (matchCount > 0) {
                 toast({
                     title: "Rapprochement terminé",
                     description: `${matchCount} transactions ont été automatiquement associées à vos justificatifs.`,
                 });
             } else {
                 toast({
-                    title: "Analyse terminée",
-                    description: "Aucune nouvelle correspondance trouvée pour le moment.",
+                    title: "Analyse & Sync terminées",
+                    description: "Votre flux est à jour. Aucune nouvelle correspondance trouvée.",
                 });
             }
         } catch (error: any) {
@@ -125,7 +215,7 @@ export default function MyBankPage() {
             toast({
                 variant: "destructive",
                 title: "Erreur de rapprochement",
-                description: "Une erreur s'est produite lors de l'appel au moteur de lettrage.",
+                description: "Une erreur s'est produite lors de la synchronisation ou du lettrage.",
             });
         } finally {
             setIsMatching(false);
@@ -261,45 +351,88 @@ export default function MyBankPage() {
                     />
                 </div>
 
-                <div className="max-w-md space-y-4">
-                    <h1 className="text-4xl font-black tracking-tight gradient-text font-display">Reliez votre Banque</h1>
-                    <p className="text-muted-foreground text-lg">
-                        Plus besoin de pointer vos relevés. Notre IA associe automatiquement vos transactions bancaires à vos factures reçues par mail ou scannées.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-2xl px-4">
-                    {[
-                        { icon: ShieldCheck, title: "Sécurisé", desc: "Chiffrement bancaire AES-256" },
-                        { icon: RefreshCw, title: "Automatique", desc: "Sync quotidienne 24/7" },
-                        { icon: CheckCircle2, title: "Zéro Papier", desc: "Rapprochement intelligent" }
-                    ].map((feature, i) => (
-                        <div key={i} className="glass-panel p-6 rounded-3xl border-white/10 text-center space-y-2 hover:border-primary/30 transition-colors">
-                            <feature.icon className="h-6 w-6 text-primary mx-auto opacity-70" />
-                            <h3 className="font-bold text-sm">{feature.title}</h3>
-                            <p className="text-[10px] text-muted-foreground leading-tight">{feature.desc}</p>
+                {pendingRequisition ? (
+                    <Card className="max-w-md glass-panel border-white/10 p-8 rounded-3xl premium-shadow space-y-6">
+                        <div className="space-y-2">
+                            <h1 className="text-3xl font-black tracking-tight gradient-text font-display">Autorisation en cours</h1>
+                            <p className="text-muted-foreground text-sm leading-relaxed">
+                                Veuillez compléter la connexion sur l'interface sécurisée de votre banque. Une fois terminé, cliquez ci-dessous pour finaliser l'importation.
+                            </p>
                         </div>
-                    ))}
-                </div>
 
-                <Button 
-                    size="lg" 
-                    disabled={isLinking}
-                    onClick={handleLinkBank}
-                    className="h-14 px-10 rounded-2xl bg-primary text-primary-foreground font-space font-black uppercase tracking-widest premium-shadow group hover:scale-105 transition-all duration-300"
-                >
-                    {isLinking ? (
-                        <>
-                            <RefreshCw className="mr-3 h-5 w-5 animate-spin" />
-                            Connexion sécurisée...
-                        </>
-                    ) : (
-                        <>
-                            <LinkIcon className="mr-3 h-5 w-5 group-hover:rotate-45 transition-transform" />
-                            Connecter mes comptes
-                        </>
-                    )}
-                </Button>
+                        <div className="flex flex-col gap-3">
+                            <Button 
+                                size="lg"
+                                disabled={isFinalizing}
+                                onClick={handleFinalizeConnection}
+                                className="h-12 rounded-xl bg-primary text-primary-foreground font-space font-bold uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                            >
+                                {isFinalizing ? (
+                                    <>
+                                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                        Finalisation...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        Finaliser la liaison
+                                    </>
+                                )}
+                            </Button>
+                            
+                            <Button 
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleResetPendingConnection}
+                                className="h-10 text-muted-foreground text-xs hover:bg-white/5"
+                            >
+                                Recommencer
+                            </Button>
+                        </div>
+                    </Card>
+                ) : (
+                    <>
+                        <div className="max-w-md space-y-4">
+                            <h1 className="text-4xl font-black tracking-tight gradient-text font-display">Reliez votre Banque</h1>
+                            <p className="text-muted-foreground text-lg">
+                                Plus besoin de pointer vos relevés. Notre IA associe automatiquement vos transactions bancaires à vos factures reçues par mail ou scannées.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-2xl px-4">
+                            {[
+                                { icon: ShieldCheck, title: "Sécurisé", desc: "Chiffrement bancaire AES-256" },
+                                { icon: RefreshCw, title: "Automatique", desc: "Sync quotidienne 24/7" },
+                                { icon: CheckCircle2, title: "Zéro Papier", desc: "Rapprochement intelligent" }
+                            ].map((feature, i) => (
+                                <div key={i} className="glass-panel p-6 rounded-3xl border-white/10 text-center space-y-2 hover:border-primary/30 transition-colors">
+                                    <feature.icon className="h-6 w-6 text-primary mx-auto opacity-70" />
+                                    <h3 className="font-bold text-sm">{feature.title}</h3>
+                                    <p className="text-[10px] text-muted-foreground leading-tight">{feature.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <Button 
+                            size="lg" 
+                            disabled={isLinking}
+                            onClick={handleLinkBank}
+                            className="h-14 px-10 rounded-2xl bg-primary text-primary-foreground font-space font-black uppercase tracking-widest premium-shadow group hover:scale-105 transition-all duration-300"
+                        >
+                            {isLinking ? (
+                                <>
+                                    <RefreshCw className="mr-3 h-5 w-5 animate-spin" />
+                                    Connexion sécurisée...
+                                </>
+                            ) : (
+                                <>
+                                    <LinkIcon className="mr-3 h-5 w-5 group-hover:rotate-45 transition-transform" />
+                                    Connecter mes comptes
+                                </>
+                            )}
+                        </Button>
+                    </>
+                )}
                 
                 <p className="text-[10px] text-primary/40 font-mono flex items-center gap-2">
                     <ShieldCheck className="h-3 w-3" />

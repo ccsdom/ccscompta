@@ -20,7 +20,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useCollection, useMemoFirebase, useUser, useDoc, db, useFirebase } from '@/firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { collection, doc, query, where, writeBatch, increment, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, increment, updateDoc, deleteDoc, getDoc, addDoc } from 'firebase/firestore';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { createInvoiceForDocument } from '@/services/invoice-service';
 import { ExportModal } from '@/components/export-modal';
+import { pafLogger } from '@/services/paf-logger';
 
 
 
@@ -222,19 +223,29 @@ export default function DocumentsPage() {
   }, [selectedClientId]);
 
 
-  const createNotification = (doc: Document, message: string) => {
-    const newNotification: Notification = {
-      id: crypto.randomUUID(),
-      documentId: doc.id,
-      documentName: doc.name,
+  const createNotification = async (docObj: Document, message: string) => {
+    const newNotification = {
+      clientId: docObj.clientId,
+      cabinetId: docObj.cabinetId,
+      documentId: docObj.id,
+      documentName: docObj.name,
       message,
       date: new Date().toISOString(),
       isRead: false
     };
-    // This part would ideally be a server-side operation
-    const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
-    localStorage.setItem('notifications', JSON.stringify([newNotification, ...existingNotifications]));
-    window.dispatchEvent(new Event('storage')); // Notify header
+
+    try {
+      await addDoc(collection(db, 'notifications'), newNotification);
+    } catch (error) {
+      console.warn("Could not save notification to Firestore", error);
+      const localNotification: Notification = {
+        ...newNotification,
+        id: crypto.randomUUID()
+      };
+      const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]') as Notification[];
+      localStorage.setItem('notifications', JSON.stringify([localNotification, ...existingNotifications]));
+      window.dispatchEvent(new Event('storage')); // Notify header
+    }
   };
 
   const addAuditEvent = async (docId: string, action: string, user: string = 'Système'): Promise<AuditEvent[]> => {
@@ -275,9 +286,27 @@ export default function DocumentsPage() {
         toast({ variant: "destructive", title: "Accès refusé", description: "Vous n'avez pas les droits pour modifier ce document." });
         return;
     }
-    const clientId = docSnap.data()!.clientId;
 
-    const trail = await addAuditEvent(docId, 'Document approuvé manuellement', getCurrentUser());
+    const docData = docSnap.data();
+    if (docData?.isLocked || docData?.isExported || docData?.status === 'exported') {
+        toast({ variant: "destructive", title: "Opération impossible", description: "Ce document est verrouillé car il a déjà été exporté." });
+        return;
+    }
+
+    const clientId = docSnap.data()!.clientId;
+    const actorName = getCurrentUser();
+    const actorEmail = userProfile?.email || localStorage.getItem('userEmail') || 'unknown@paf.ai';
+    const oldData = docData?.extractedData || {};
+
+    await pafLogger.logFormDifferences(
+      docId,
+      docData?.name || 'Document',
+      { name: actorName, email: actorEmail },
+      oldData,
+      updatedData
+    );
+
+    const trail = await addAuditEvent(docId, 'Document approuvé manuellement', actorName);
     const updates = { status: 'approved' as const, extractedData: updatedData, auditTrail: trail };
     await updateDoc(docRef, updates);
     
@@ -318,6 +347,9 @@ export default function DocumentsPage() {
     const currentComments = docSnap.data()?.comments || [];
     const updatedComments = [...currentComments, newComment];
     await updateDoc(docRef, { comments: updatedComments, auditTrail: trail });
+    
+    // Notify the client about the new comment
+    createNotification(activeDocument, `a reçu un nouveau commentaire de l'expert-comptable : "${commentText.substring(0, 30)}..."`);
   };
   
   const handleSetActiveDocument = async (doc: Document | null) => {

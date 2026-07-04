@@ -216,10 +216,12 @@ export interface Document {
   comments: Comment[];
   clientId: string;
   isExported?: boolean;
+  isLocked?: boolean;
   exportDate?: string;
   exportId?: string;
   billableLines?: number; // Number of accounting lines generated for this doc
   billingPeriod?: string; // YYYY-MM format for easy grouping
+  sizeBytes?: number;
 }
 
 export interface DepreciationSchedule {
@@ -263,4 +265,5 @@ export interface VaultDocument {
   uploadedBy: 'client' | 'accountant';
   category: VaultCategory;
   uploaderName?: string;
+  sizeBytes?: number;
 }

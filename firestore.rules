@@ -108,6 +108,34 @@ service cloud.firestore {
       allow update: if canReadClientScoped(resource.data.clientId, resource.data.cabinetId)
         && clientIdentityUnchanged();
       allow delete: if isCabinetStaff(resource.data.cabinetId);
+
+      match /paf_logs/{logId} {
+        allow read, write: if isAuthenticated() && canReadClientScoped(
+          get(/databases/$(database)/documents/documents/$(docId)).data.clientId,
+          get(/databases/$(database)/documents/documents/$(docId)).data.cabinetId
+        );
+      }
+    }
+
+    match /missing_documents/{clientId} {
+      allow read, write: if isAuthenticated() && (
+        isOwner(clientId) ||
+        (isStaff() && clientBelongsToCabinet(clientId, callerCabinetId()))
+      );
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.clientId) ||
+        isCabinetStaff(resource.data.cabinetId)
+      );
+      allow create: if isAuthenticated() && (
+        isOwner(request.resource.data.clientId) ||
+        isCabinetStaff(request.resource.data.cabinetId)
+      );
+      allow update: if isAuthenticated() && isOwner(resource.data.clientId)
+        && request.resource.data.isRead == true;
+      allow delete: if isAuthenticated() && isOwner(resource.data.clientId);
     }
 
     match /vault_documents/{docId} {

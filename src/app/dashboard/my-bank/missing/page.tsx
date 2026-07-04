@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, AlertCircle, UploadCloud, Search, CheckCircle2, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { db } from '@/firebase';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { db, storage } from '@/firebase';
+import { doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useBranding } from '@/components/branding-provider';
+import { uploadClientDocument } from '@/lib/uploads/client-document-upload';
 
 export default function MissingDocumentsPage() {
     const [missingItems, setMissingItems] = useState<any[]>([]);
@@ -35,36 +37,65 @@ export default function MissingDocumentsPage() {
         return () => unsub();
     }, [storedClientId]);
 
-    const handleUploadMock = async (index: number, tx: any) => {
-        setIsUploading(index);
-        // Simulation d'upload et de lettrage
-        setTimeout(async () => {
-            try {
-                if (!storedClientId) return;
-                
-                const docRef = doc(db, 'missing_documents', storedClientId);
-                // On met à jour le statut dans la liste (en vrai on devrait chercher par index ou id)
-                const newItems = [...missingItems];
-                const itemIndex = newItems.findIndex(i => i.transactionIndex === tx.transactionIndex);
-                if (itemIndex > -1) {
-                    newItems[itemIndex].status = 'uploaded';
-                    await updateDoc(docRef, { items: newItems });
-                }
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploadingTx, setUploadingTx] = useState<any>(null);
+    const { profile: userProfile } = useBranding();
 
-                toast({
-                    title: "Justificatif envoyé",
-                    description: `Le document pour ${tx.description} a bien été transmis à votre comptable.`,
-                });
-            } catch (err: any) {
-                toast({
-                    variant: 'destructive',
-                    title: "Erreur",
-                    description: "Une erreur est survenue lors de l'envoi."
-                });
-            } finally {
-                setIsUploading(null);
+    const handleTriggerUpload = (tx: any) => {
+        setUploadingTx(tx);
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !storedClientId || !uploadingTx) return;
+        const file = e.target.files[0];
+        const tx = uploadingTx;
+        
+        setIsUploading(tx.transactionIndex);
+        try {
+            const userName = userProfile?.name || localStorage.getItem('userName') || 'Utilisateur';
+            const cabinetId = userProfile?.cabinetId || null;
+            
+            // 1. Upload réel du document
+            const result = await uploadClientDocument({
+                db,
+                storage,
+                file,
+                clientId: storedClientId,
+                currentUser: userName,
+                cabinetId,
+                auditAction: `Justificatif déposé pour la transaction : ${tx.description}`
+            });
+
+            // 2. Mise à jour du statut dans missing_documents
+            const docRef = doc(db, 'missing_documents', storedClientId);
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const items = snap.data()?.items || [];
+                const itemIndex = items.findIndex((i: any) => i.transactionIndex === tx.transactionIndex);
+                if (itemIndex > -1) {
+                    items[itemIndex].status = 'uploaded';
+                    items[itemIndex].matchingDocumentId = result.documentId;
+                    await updateDoc(docRef, { items });
+                }
             }
-        }, 1500);
+
+            toast({
+                title: "Justificatif envoyé",
+                description: `Le document "${file.name}" a bien été téléversé et associé à la transaction.`,
+            });
+        } catch (err: any) {
+            console.error("Error uploading justification:", err);
+            toast({
+                variant: 'destructive',
+                title: "Erreur",
+                description: err.message || "Une erreur est survenue lors de l'envoi."
+            });
+        } finally {
+            setIsUploading(null);
+            setUploadingTx(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
     };
 
     return (
@@ -144,7 +175,7 @@ export default function MissingDocumentsPage() {
                                         <Button 
                                             variant="default"
                                             disabled={isUploading === tx.transactionIndex}
-                                            onClick={() => handleUploadMock(tx.transactionIndex, tx)}
+                                            onClick={() => handleTriggerUpload(tx)}
                                             className="w-full md:w-auto rounded-xl shadow-lg bg-orange-500 hover:bg-orange-600 text-white font-bold"
                                         >
                                             {isUploading === tx.transactionIndex ? (
@@ -161,6 +192,14 @@ export default function MissingDocumentsPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileChange}
+                accept="image/*,application/pdf"
+            />
         </div>
     );
 }

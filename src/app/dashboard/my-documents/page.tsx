@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { IntelligentSearchOutput } from '@/services/intelligent-search-service';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { collection, doc, updateDoc, deleteDoc, getDoc, query, where } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, getDoc, query, where, onSnapshot, addDoc } from 'firebase/firestore';
 import { DocumentHistory } from '@/components/document-history';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -28,6 +28,7 @@ import { db } from '@/firebase';
 import { cn, formatDate, parseDate } from '@/lib/utils';
 import { summarizeUploadRejections, uploadClientDocument, type FileUploadRejection } from '@/lib/uploads/client-document-upload';
 import { OnboardingProgress } from '@/components/onboarding-progress';
+import { useBranding } from '@/components/branding-provider';
 import { GamificationDashboard } from '@/components/gamification-dashboard';
 
 const getCurrentUser = () => localStorage.getItem('userName') || 'Client Démo';
@@ -120,21 +121,76 @@ export default function MyDocumentsPage() {
   const historySectionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { storage } = useFirebase();
-  
+  const { role: userRole, isLoading: isBrandingLoading } = useBranding();
+  const isSuperAdmin = userRole === 'admin';
+
   const documentsQuery = useMemoFirebase(() => {
-    if (!clientId) return null;
+    if (isSuperAdmin || !clientId) return null;
     return query(collection(db, 'documents'), where('clientId', '==', clientId));
-  }, [clientId]);
-  
+  }, [clientId, isSuperAdmin]);
+
   const { data: documents, isLoading: isLoadingDocuments, error: documentsError } = useCollection<Document>(documentsQuery);
 
   const isLoading = isLoadingDocuments;
 
   const hasUploadedDocument = documents ? documents.length > 0 : false;
   const [hasConnectedBank, setHasConnectedBank] = useState(false);
+  const [missingCount, setMissingCount] = useState(0);
+
+  // Read missing documents list
+  useEffect(() => {
+    if (isSuperAdmin) return;
+
+    if (clientId) {
+      const unsub = onSnapshot(doc(db, 'missing_documents', clientId), (snap) => {
+        if (snap.exists()) {
+          setMissingCount(snap.data()?.items?.filter((i: any) => i.status === 'missing')?.length || 0);
+        } else {
+          setMissingCount(0);
+        }
+      });
+      return () => unsub();
+    }
+  }, [clientId, isSuperAdmin]);
+
+  // Weekly missing documents notification generator
+  useEffect(() => {
+    if (isSuperAdmin) return;
+
+    if (clientId && missingCount > 0 && cabinetId) {
+      const lastCheckedKey = `last_notified_missing_${clientId}`;
+      const lastChecked = localStorage.getItem(lastCheckedKey);
+      const currentWeek = format(new Date(), 'yyyy-ww');
+
+      if (lastChecked !== currentWeek) {
+        addDoc(collection(db, 'notifications'), {
+          clientId,
+          cabinetId,
+          documentId: 'missing-docs-alert',
+          documentName: 'Relevé Bancaire',
+          message: `Alerte hebdomadaire : vous avez ${missingCount} transaction(s) en attente de justificatifs.`,
+          date: new Date().toISOString(),
+          isRead: false
+        })
+        .then(() => {
+          localStorage.setItem(lastCheckedKey, currentWeek);
+        })
+        .catch(e => console.warn("Could not save automatic weekly alert:", e));
+      }
+    }
+  }, [clientId, missingCount, cabinetId, isSuperAdmin]);
 
   useEffect(() => {
     const loadState = () => {
+        if (isSuperAdmin) {
+            setClientId(null);
+            setCabinetId(null);
+            setSearchQuery('');
+            setSearchCriteria(null);
+            setShowPasswordAlert(false);
+            return;
+        }
+
         try {
             const storedClientId = localStorage.getItem('selectedClientId');
             if (storedClientId) {
@@ -148,18 +204,21 @@ export default function MyDocumentsPage() {
             setSearchQuery(storedQuery || '');
             const storedCriteria = localStorage.getItem('searchCriteria');
             setSearchCriteria(storedCriteria ? JSON.parse(storedCriteria) : null);
-            
+
             const dismissed = localStorage.getItem(`password_alert_dismissed_${storedClientId}`);
             setShowPasswordAlert(!dismissed);
 
             if (storedClientId) {
                 getDoc(doc(db, 'clients', storedClientId))
-                    .then(snap => { if (snap.exists()) setCabinetId(snap.data().cabinetId); })
-                    .catch(err => console.warn('Could not load cabinet ID:', err));
+                    .then(snap => {
+                        if (snap.exists()) {
+                            const data = snap.data();
+                            setCabinetId(data.cabinetId);
+                            setHasConnectedBank(!!data.hasBankConnected);
+                        }
+                    })
+                    .catch(err => console.warn('Could not load client details:', err));
             }
-
-            // Gamification state
-            setHasConnectedBank(localStorage.getItem(`bank_linked_${storedClientId}`) === 'true');
 
         } catch (error) {
             console.error("Failed to load documents from localStorage", error)
@@ -168,7 +227,7 @@ export default function MyDocumentsPage() {
     loadState();
     window.addEventListener('storage', loadState);
     return () => window.removeEventListener('storage', loadState);
-  }, [clientId])
+  }, [clientId, isSuperAdmin])
 
   const handleDismissPasswordAlert = () => {
       if (clientId) {
@@ -218,6 +277,11 @@ export default function MyDocumentsPage() {
   };
 
   const processSingleFile = useCallback(async (file: File, clientId: string) => {
+    if (isSuperAdmin) {
+        toast({ variant: 'destructive', title: 'Zone interdite', description: 'Impersonnez un client avant de transmettre une piece.' });
+        return { success: false };
+    }
+
     try {
         const result = await uploadClientDocument({
             db,
@@ -244,7 +308,7 @@ export default function MyDocumentsPage() {
         });
         return { success: false };
     }
-}, [cabinetId, storage, toast]);
+}, [cabinetId, isSuperAdmin, storage, toast]);
 
   const handleRejectedFiles = (rejections: FileUploadRejection[]) => {
     setRecentUploadRejections(rejections.slice(0, 4));
@@ -256,22 +320,27 @@ export default function MyDocumentsPage() {
   };
 
   const handleFileDrop = async (files: File[]) => {
+    if (isSuperAdmin) {
+      toast({ variant: 'destructive', title: 'Zone interdite', description: 'Impersonnez un client avant de transmettre une piece.' });
+      return;
+    }
+
     if (!clientId) {
       toast({ variant: "destructive", title: "Aucun client sélectionné", description: `Votre identifiant client n'est pas défini. Impossible d'envoyer des documents.` });
       return;
     }
-    
+
     setIsUploading(true);
     let successCount = 0;
-    
-    const processingPromises = files.map(file => 
+
+    const processingPromises = files.map(file =>
         processSingleFile(file, clientId).then(result => {
             if (result.success) successCount++;
         })
     );
 
     await Promise.all(processingPromises);
-    
+
     if (successCount > 0) {
       setRecentUploadRejections([]);
       toast({ title: "Téléversement terminé", description: `${successCount} document(s) ont été envoyés avec succès.` });
@@ -286,7 +355,7 @@ export default function MyDocumentsPage() {
     if (!commentText.trim()) return;
     const docToUpdate = documents?.find(d => d.id === docId);
     if (!docToUpdate) return;
-    
+
     const newComment: Comment = { id: crypto.randomUUID(), text: commentText, user: getCurrentUser(), date: new Date().toISOString() };
     const trail = addAuditEvent(docToUpdate.auditTrail, `Commentaire ajouté: "${commentText.substring(0, 20)}..."`);
     const updatedComments = [...(docToUpdate.comments || []), newComment];
@@ -315,7 +384,7 @@ export default function MyDocumentsPage() {
     setActiveDocument(docWithDataUrl);
     setIsSheetOpen(true);
   }
-  
+
   const filteredDocuments = useMemo(() => {
         let docs = [...(documents || [])];
         if (searchCriteria) {
@@ -348,7 +417,7 @@ export default function MyDocumentsPage() {
             }
              if (!docs.length && originalQuery) {
                   const lowercasedQuery = originalQuery.toLowerCase();
-                  docs = [...(documents || [])].filter(doc => 
+                  docs = [...(documents || [])].filter(doc =>
                      doc.name.toLowerCase().includes(lowercasedQuery) ||
                      (doc.extractedData?.vendorNames && doc.extractedData.vendorNames.some(v => v && v.toLowerCase().includes(lowercasedQuery)))
                  );
@@ -364,7 +433,7 @@ export default function MyDocumentsPage() {
         } else if (statusFilter !== 'all') {
             docs = docs.filter(doc => doc.status === statusFilter);
         }
-        
+
         return docs.sort((a,b) => {
             const dateB = parseDate(b.uploadDate);
             const dateA = parseDate(a.uploadDate);
@@ -376,7 +445,7 @@ export default function MyDocumentsPage() {
   const CommentsSectionClient = ({ comments, onAddComment }: { comments: Comment[], onAddComment: (text: string) => void }) => {
     const [newComment, setNewComment] = useState("");
     const handleSubmit = () => { if (newComment.trim()) { onAddComment(newComment.trim()); setNewComment(""); } }
-    
+
     return (
         <div className="flex h-full min-h-0 flex-col bg-background/25">
             <h3 className="px-4 pb-2 pt-4 text-base font-bold sm:px-6 sm:pt-6 font-display">Commentaires</h3>
@@ -406,11 +475,11 @@ export default function MyDocumentsPage() {
              <div className="flex items-start gap-3 border-t p-4 sm:p-6 bg-white/[0.01]">
                 <Avatar className="h-8 w-8 border shrink-0"><AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">Moi</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1">
-                    <Textarea 
-                        placeholder="Répondre ou poser une question..." 
-                        value={newComment} 
-                        onChange={(e) => setNewComment(e.target.value)} 
-                        rows={2} 
+                    <Textarea
+                        placeholder="Répondre ou poser une question..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        rows={2}
                         className="bg-transparent border border-border/40 focus-visible:ring-primary focus-visible:ring-1 text-xs rounded-xl"
                     />
                     <Button size="sm" className="mt-2 w-full sm:w-auto rounded-lg font-semibold text-xs" onClick={handleSubmit} disabled={!newComment.trim()}>Envoyer</Button>
@@ -546,13 +615,13 @@ export default function MyDocumentsPage() {
   const anomalies = useMemo(() => {
     const list: { docId: string, docName: string, date: string, description: string, amount: number, transactionIndex: number }[] = [];
     if (!documents) return list;
-    
+
     documents.forEach(doc => {
         if (doc.extractedData?.transactions) {
             doc.extractedData.transactions.forEach((t: any, i) => {
                 if (t.isAnomaly && !t.matchingDocumentId) {
-                    list.push({ 
-                        docId: doc.id, 
+                    list.push({
+                        docId: doc.id,
                         docName: doc.name,
                         date: t.date || '',
                         description: t.description || t.vendor || '',
@@ -680,6 +749,31 @@ export default function MyDocumentsPage() {
     );
   };
 
+  if (isBrandingLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isSuperAdmin) {
+    return (
+      <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+        <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+          <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="h-10 w-10 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+          <p className="text-muted-foreground mb-8 text-lg font-medium">L'acces direct a l'espace documentaire client est restreint pour le Super Admin. Veuillez impersonner un client pour consulter ou deposer ses pieces.</p>
+          <Button asChild className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+            <Link href="/dashboard/cabinets">Aller a la Gestion Cabinets</Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 p-4 md:p-6 max-w-7xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
        {showPasswordAlert && (
@@ -717,15 +811,39 @@ export default function MyDocumentsPage() {
         </Badge>
       </div>
 
-      <OnboardingProgress 
-        hasCompletedProfile={true} 
-        hasConnectedBank={hasConnectedBank} 
-        hasUploadedDocument={hasUploadedDocument} 
+      {/* Monday morning alert for missing justifications */}
+      {missingCount > 0 && (
+        <div className="rounded-3xl bg-amber-500/10 border border-amber-500/20 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 premium-shadow-sm animate-in slide-in-from-top-4 duration-500">
+          <div className="flex items-start gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+              <BellRing className="h-6 w-6 animate-pulse text-amber-600 dark:text-amber-500" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-space font-black uppercase text-sm tracking-tight text-amber-700 dark:text-amber-500 flex items-center gap-2">
+                Alerte Hebdomadaire : Justificatifs Requis
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                Vous avez <span className="font-bold text-foreground">{missingCount} transaction{missingCount > 1 ? 's' : ''} bancaire{missingCount > 1 ? 's' : ''}</span> en attente de justificatif. Veuillez y associer des reçus pour finaliser votre saisie.
+              </p>
+            </div>
+          </div>
+          <Button asChild size="sm" className="h-10 px-5 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-amber-950 font-space text-[10px] uppercase tracking-wider shrink-0">
+            <Link href="/dashboard/my-bank/missing">
+              Associer les pièces
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      <OnboardingProgress
+        hasCompletedProfile={true}
+        hasConnectedBank={hasConnectedBank}
+        hasUploadedDocument={hasUploadedDocument}
       />
 
-      <GamificationDashboard 
-        documentsCount={filteredDocuments.length} 
-        anomaliesCount={anomalies.length} 
+      <GamificationDashboard
+        documentsCount={filteredDocuments.length}
+        anomaliesCount={anomalies.length}
       />
 
       <AttentionCenter />
@@ -739,7 +857,7 @@ export default function MyDocumentsPage() {
              <FileUploader onFileDrop={handleFileDrop} isLoading={isUploading} onFileReject={handleRejectedFiles} />
         </CardContent>
       </Card>
-      
+
       <div ref={historySectionRef} className="space-y-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between pt-4">
             <div>
@@ -785,8 +903,8 @@ export default function MyDocumentsPage() {
                     size="sm"
                     className={cn(
                       "h-9 shrink-0 rounded-xl px-4 transition-all duration-300 font-semibold text-xs border border-transparent",
-                      isActive 
-                        ? "shadow-md font-bold" 
+                      isActive
+                        ? "shadow-md font-bold"
                         : "bg-background/40 hover:bg-muted/40 text-muted-foreground border-border/20"
                     )}
                     onClick={() => setStatusFilter(option.value)}
@@ -824,7 +942,7 @@ export default function MyDocumentsPage() {
                </div>
            ) : filteredDocuments.length > 0 ? (
                 <div className="glass-panel rounded-3xl p-1 sm:p-6 premium-shadow bg-background/20 overflow-hidden">
-                    <DocumentHistory 
+                    <DocumentHistory
                         documents={filteredDocuments}
                         onProcess={() => {}}
                         onDelete={handleDelete}

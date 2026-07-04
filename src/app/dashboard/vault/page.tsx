@@ -152,9 +152,12 @@ export default function VaultPage() {
         return acc;
     }, {} as Record<VaultCategory, VaultDocument[]>) || {} as Record<VaultCategory, VaultDocument[]>;
 
-    // Simulated storage used calculation (1.5 MB avg per document)
-    const simulatedStorageUsed = (documents?.length || 0) * 1.5;
-    const storagePercentage = Math.min(100, (simulatedStorageUsed / 1024) * 100);
+    // Real storage used calculation in MB (falling back to 1.5 MB for legacy documents)
+    const realStorageUsedMb = (documents || []).reduce((total, doc) => {
+        const sizeInBytes = typeof doc.sizeBytes === 'number' ? doc.sizeBytes : 1.5 * 1024 * 1024;
+        return total + (sizeInBytes / (1024 * 1024));
+    }, 0);
+    const storagePercentage = Math.min(100, (realStorageUsedMb / 1024) * 100);
 
     return (
         <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto animate-in slide-in-from-bottom-4 fade-in duration-500">
@@ -177,7 +180,7 @@ export default function VaultPage() {
                         <div className="flex-1">
                             <div className="flex justify-between text-xs font-semibold">
                                 <span>Stockage Utilisé</span>
-                                <span className="text-muted-foreground">{simulatedStorageUsed.toFixed(1)} Mo / 1 Go</span>
+                                <span className="text-muted-foreground">{realStorageUsedMb.toFixed(1)} Mo / 1 Go</span>
                             </div>
                             {/* Sleek progress bar */}
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden mt-1.5">

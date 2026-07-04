@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Camera, ImagePlus, Loader2, RefreshCcw, Send, VideoOff } from 'lucide-react';
+import { AlertTriangle, Camera, ImagePlus, Loader2, RefreshCcw, Send, ShieldCheck, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Client } from '@/lib/types';
 import { db, useFirebase } from '@/firebase';
+import { useBranding } from '@/components/branding-provider';
+import Link from 'next/link';
 import { createInvoiceForDocument } from '@/services/invoice-service';
 import { doc as getDocRef, getDoc } from 'firebase/firestore';
 import {
@@ -31,6 +33,8 @@ export default function ScanPage() {
 
   const { toast } = useToast();
   const { storage } = useFirebase();
+  const { role: userRole, isLoading: isBrandingLoading } = useBranding();
+  const isSuperAdmin = userRole === 'admin';
 
   const stopCameraStream = useCallback(() => {
     if (!videoRef.current?.srcObject) return;
@@ -70,6 +74,13 @@ export default function ScanPage() {
   }, [stopCameraStream]);
 
   useEffect(() => {
+    if (isSuperAdmin) {
+      setSelectedClientId(null);
+      setCurrentClient(null);
+      stopCameraStream();
+      return;
+    }
+
     const loadClient = async () => {
       const clientId = localStorage.getItem('selectedClientId');
       setSelectedClientId(clientId);
@@ -96,9 +107,13 @@ export default function ScanPage() {
       window.removeEventListener('storage', loadClient);
       stopCameraStream();
     };
-  }, [startCamera, stopCameraStream]);
+  }, [isSuperAdmin, startCamera, stopCameraStream]);
 
   const processScannedFile = useCallback(async (file: File, clientId: string) => {
+    if (isSuperAdmin) {
+      throw new Error('Upload interdit pour le super admin hors impersonation client.');
+    }
+
     const result = await uploadClientDocument({
       db,
       storage,
@@ -115,7 +130,7 @@ export default function ScanPage() {
     }
 
     window.dispatchEvent(new Event('storage'));
-  }, [currentClient, storage]);
+  }, [currentClient, isSuperAdmin, storage]);
 
   const dataUrlToFile = async (dataUrl: string) => {
     const response = await fetch(dataUrl);
@@ -124,6 +139,11 @@ export default function ScanPage() {
   };
 
   const handleCapturedOrImportedFile = async (file: File) => {
+    if (isSuperAdmin) {
+      toast({ variant: 'destructive', title: 'Zone interdite', description: 'Impersonnez un client avant de transmettre une piece.' });
+      return;
+    }
+
     if (!selectedClientId) {
       toast({ variant: 'destructive', title: 'Client non identifie', description: 'Reconnectez-vous avant de transmettre une piece.' });
       return;
@@ -199,7 +219,32 @@ export default function ScanPage() {
     await handleCapturedOrImportedFile(file);
   };
 
-  const canCapture = hasCameraPermission === true && !capturedImage && !isProcessing && Boolean(selectedClientId);
+  const canCapture = hasCameraPermission === true && !capturedImage && !isProcessing && Boolean(selectedClientId) && !isSuperAdmin;
+
+  if (isBrandingLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isSuperAdmin) {
+    return (
+      <div className="flex h-[calc(100vh-10rem)] w-full items-center justify-center p-6 text-center">
+        <Card className="max-w-md glass-panel border-none premium-shadow p-12 rounded-[2.5rem]">
+          <div className="h-20 w-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <ShieldCheck className="h-10 w-10 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-black font-space tracking-tight mb-4 text-foreground">Zone Interdite</h2>
+          <p className="text-muted-foreground mb-8 text-lg font-medium">L'acces direct au scanner client est restreint pour le Super Admin. Veuillez impersonner un client avant de transmettre une piece.</p>
+          <Button asChild className="h-12 px-8 rounded-xl bg-primary font-space font-black uppercase text-xs tracking-widest shadow-lg shadow-primary/20">
+            <Link href="/dashboard/cabinets">Aller a la Gestion Cabinets</Link>
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-150 fill-mode-both">

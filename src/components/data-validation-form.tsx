@@ -26,7 +26,7 @@ import { Table, TableBody, TableHeader, TableRow, TableHead } from '@/components
 import { DocumentSummary } from './document-summary';
 
 import { runBankReconciliation } from '@/services/bank-reconciliation-service';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { cn, parseDate } from '@/lib/utils';
 
@@ -458,7 +458,7 @@ const BankStatementData = ({ formData, setFormData, isReadOnly, documentId, clie
 
 // ─── Main Component: DataValidationForm ───────────────────────────────────────
 
-export function DataValidationForm({ document, onUpdate, isLoading, onAddComment }: DataValidationFormProps) {
+export function DataValidationForm({ document, onUpdate, isLoading, onAddComment, onUpdateDocumentInList }: DataValidationFormProps) {
   const [formData, setFormData] = useState<ExtractDataOutput>(initialFormState);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
@@ -479,6 +479,36 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
     }
   }
 
+  const handleReject = async () => {
+    if (!document) return;
+    setIsSending(true);
+    try {
+      const docRef = doc(db, 'documents', document.id);
+      await updateDoc(docRef, { status: 'error' });
+      
+      // Update local UI
+      onUpdateDocumentInList({ ...document, status: 'error' });
+      
+      // Create Firestore notification
+      await addDoc(collection(db, 'notifications'), {
+        clientId: document.clientId,
+        cabinetId: document.cabinetId,
+        documentId: document.id,
+        documentName: document.name,
+        message: "a été rejeté par le cabinet (signalé en erreur).",
+        date: new Date().toISOString(),
+        isRead: false
+      });
+      
+      toast({ title: "Document signalé en erreur", description: "Le client a été notifié." });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Erreur", description: "Impossible de rejeter le document." });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if(document) onUpdate(document.id, formData);
@@ -486,7 +516,7 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
 
   if (!document) return null;
   
-  const isReadOnly = ['approved', 'processing'].includes(document.status) || isLoading;
+  const isReadOnly = ['approved', 'processing', 'exported'].includes(document.status) || document.isLocked || document.isExported || isLoading;
   const isBankStatement = document.type === 'bank statement';
   const hasAnomalies = formData.anomalies && formData.anomalies.length > 0;
   const hasExtractedData = (document.extractedData && !isLoading) && ((formData.amounts && formData.amounts.length > 0) || (formData.transactions && formData.transactions.length > 0));
@@ -589,11 +619,14 @@ export function DataValidationForm({ document, onUpdate, isLoading, onAddComment
             <div className="flex justify-end items-center gap-3 p-6 bg-muted/30 border-t border-border">
               {document.status === 'reviewing' && (
                 <>
-                  <Button variant="ghost" type="button" onClick={handleDiscard} className="h-12 px-6 rounded-xl font-space font-bold uppercase text-[10px] tracking-widest opacity-60 hover:opacity-100 hover:bg-muted">
-                    <RotateCcw className="h-4 w-4 mr-2" /> Rejeter
+                  <Button variant="ghost" type="button" onClick={handleDiscard} className="h-12 px-4 rounded-xl font-space font-bold uppercase text-[10px] tracking-widest opacity-60 hover:opacity-100 hover:bg-muted">
+                    Annuler modifications
                   </Button>
-                  <Button type="submit" className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 font-space font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20">
-                    <Check className="h-4 w-4 mr-2" /> Approuver l'extraction
+                  <Button variant="outline" type="button" onClick={handleReject} disabled={isSending} className="h-12 px-4 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border-rose-500/20 font-space font-bold uppercase text-[10px] tracking-widest">
+                    <AlertCircle className="h-4 w-4 mr-2" /> Signaler Erreur
+                  </Button>
+                  <Button type="submit" disabled={isSending} className="h-12 px-6 rounded-xl bg-primary hover:bg-primary/90 font-space font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20">
+                    <Check className="h-4 w-4 mr-2" /> Approuver
                   </Button>
                 </>
               )}

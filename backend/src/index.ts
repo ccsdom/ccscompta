@@ -2474,15 +2474,66 @@ export const onDocumentPending = onDocumentWritten(
             }
         }
 
+        // 4.7. Autopilot : Approbation automatique sur correspondance bancaire et score de confiance élevé (>98%)
+        let isAutopilot = false;
+        if (!isDuplicate && !isZeroTouch && amount && extractedData.accountingEntry?.confidenceScore && extractedData.accountingEntry.confidenceScore >= 98) {
+            try {
+                const bankStatements = await getDb().collection("documents")
+                    .where("clientId", "==", data.clientId)
+                    .where("type", "==", "bank statement")
+                    .get();
+
+                let hasMatchingTx = false;
+                for (const bsDoc of bankStatements.docs) {
+                    const bsData = bsDoc.data();
+                    const txs = bsData.extractedData?.transactions || [];
+                    for (const tx of txs) {
+                        const txAmount = Math.abs(tx.amount || 0);
+                        const invAmount = Math.abs(amount);
+                        const tolerance = 0.05;
+
+                        if (Math.abs(txAmount - invAmount) <= tolerance) {
+                            const txDateStr = tx.date;
+                            const invDateStr = date;
+                            if (txDateStr && invDateStr) {
+                                const txDate = new Date(txDateStr);
+                                const invDate = new Date(invDateStr);
+                                if (!isNaN(txDate.getTime()) && !isNaN(invDate.getTime())) {
+                                    const diffTime = Math.abs(txDate.getTime() - invDate.getTime());
+                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                    if (diffDays <= 7) {
+                                        hasMatchingTx = true;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                hasMatchingTx = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasMatchingTx) break;
+                }
+
+                if (hasMatchingTx) {
+                    isAutopilot = true;
+                    logger.log(`🤖 [Autopilot] Auto-approbation du document ${docId} (match bancaire + confiance ${extractedData.accountingEntry.confidenceScore}%)`);
+                }
+            } catch (autopilotErr) {
+                logger.error(`Erreur lors du traitement Autopilot pour le document ${docId} :`, autopilotErr);
+            }
+        }
+
         // 5. Calcul de la monetisation (billable lines)
         const billableLines = calculateBillableLines(extractedData, documentType);
 
         // 6. Mise a jour finale du document
-        const finalStatus = isDuplicate ? 'duplicate' : (isZeroTouch ? 'approved' : 'reviewing');
+        const finalStatus = isDuplicate ? 'duplicate' : (isZeroTouch || isAutopilot ? 'approved' : 'reviewing');
         
         const auditAction = isDuplicate 
             ? `Doublon detecte (ID: ${existingId})` 
-            : (isZeroTouch ? 'Auto-approbation (Zero-Touch) via Apprentissage Local' : 'Analyse IA automatique terminee');
+            : (isZeroTouch ? 'Auto-approbation (Zero-Touch) via Apprentissage Local' 
+              : (isAutopilot ? 'Auto-approbation (Autopilot) via concordance bancaire et confiance IA' : 'Analyse IA automatique terminee'));
 
         const updateData: any = {
             extractedData,
@@ -2665,10 +2716,55 @@ export const stripeWebhook = onRequest(
                         logger.info(`Checkout completed for cabinet ${cabinetId}`);
 
                         let stripeSubscriptionItemId = null;
+                        let plan = 'starter';
+                        let quotas = {
+                            maxClients: 20,
+                            maxDocumentsPerMonth: 200,
+                            maxCollaborators: 2,
+                            storageLimitGb: 10,
+                            usedDocumentsMonth: 0,
+                            usedClients: 0
+                        };
+
                         if (session.subscription) {
                             try {
                                 const { StripeService } = await import('./stripe.js');
                                 const subscriptionDetails = await StripeService.getSubscription(session.subscription as string);
+                                
+                                if (subscriptionDetails.items.data.length > 0) {
+                                    const priceItem = subscriptionDetails.items.data[0];
+                                    const productId = typeof priceItem.price.product === 'string'
+                                        ? priceItem.price.product
+                                        : (priceItem.price.product as any).id;
+
+                                    if (productId) {
+                                        const product = await StripeService.getProduct(productId);
+                                        const productName = (product.name || '').toLowerCase();
+
+                                        if (productName.includes('elite') || productName.includes('enterprise')) {
+                                            plan = 'elite';
+                                            quotas = {
+                                                maxClients: 500,
+                                                maxDocumentsPerMonth: 5000,
+                                                maxCollaborators: 50,
+                                                storageLimitGb: 200,
+                                                usedDocumentsMonth: 0,
+                                                usedClients: 0
+                                            };
+                                        } else if (productName.includes('pro') || productName.includes('professional')) {
+                                            plan = 'professional';
+                                            quotas = {
+                                                maxClients: 100,
+                                                maxDocumentsPerMonth: 1000,
+                                                maxCollaborators: 10,
+                                                storageLimitGb: 50,
+                                                usedDocumentsMonth: 0,
+                                                usedClients: 0
+                                            };
+                                        }
+                                    }
+                                }
+
                                 // Trouver l'item avec un usage "metered" (au compteur)
                                 const meteredItem = subscriptionDetails.items.data.find((item: any) => item.price.recurring?.usage_type === 'metered');
                                 if (meteredItem) {
@@ -2680,14 +2776,16 @@ export const stripeWebhook = onRequest(
                                     logger.info(`No specific metered item found, defaulting to: ${stripeSubscriptionItemId}`);
                                 }
                             } catch (e: any) {
-                                logger.error(`Error fetching subscription details: ${e.message}`);
+                                logger.error(`Error fetching subscription/product details: ${e.message}`);
                             }
                         }
 
                         const updateData: any = {
                             stripeCustomerId: session.customer,
                             stripeSubscriptionId: session.subscription,
-                            status: 'active'
+                            status: 'active',
+                            plan,
+                            quotas
                         };
 
                         if (stripeSubscriptionItemId) {
@@ -2695,7 +2793,7 @@ export const stripeWebhook = onRequest(
                         }
 
                         await getDb().collection("cabinets").doc(cabinetId).update(updateData);
-                        logger.info(`Updated cabinet ${cabinetId} with Stripe details.`);
+                        logger.info(`Updated cabinet ${cabinetId} with Stripe details, plan: ${plan}, quotas provisioned.`);
                     }
                     break;
                 }

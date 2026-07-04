@@ -131,4 +131,16 @@ export class StripeService {
       throw error;
     }
   }
+
+  /**
+   * Retrieves a product by its ID from Stripe.
+   */
+  static async getProduct(productId: string) {
+    try {
+      return await getStripe().products.retrieve(productId);
+    } catch (error) {
+      logger.error('Error retrieving product:', error);
+      throw error;
+    }
+  }
 }

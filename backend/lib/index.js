@@ -1938,7 +1938,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
     timeoutSeconds: 300,
     secrets: ["GEMINI_API_KEY"]
 }, async (event) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
     const data = (_a = event.data) === null || _a === void 0 ? void 0 : _a.after.data();
     const previousData = (_b = event.data) === null || _b === void 0 ? void 0 : _b.before.data();
     // On ne traite que si le statut est 'pending' et qu'il ne l'Ã©tait pas dÃ©jÃ  (ou si c'est une crÃ©ation)
@@ -2034,13 +2034,63 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
                 }
             }
         }
+        // 4.7. Autopilot : Approbation automatique sur correspondance bancaire et score de confiance élevé (>98%)
+        let isAutopilot = false;
+        if (!isDuplicate && !isZeroTouch && amount && ((_k = extractedData.accountingEntry) === null || _k === void 0 ? void 0 : _k.confidenceScore) && extractedData.accountingEntry.confidenceScore >= 98) {
+            try {
+                const bankStatements = await getDb().collection("documents")
+                    .where("clientId", "==", data.clientId)
+                    .where("type", "==", "bank statement")
+                    .get();
+                let hasMatchingTx = false;
+                for (const bsDoc of bankStatements.docs) {
+                    const bsData = bsDoc.data();
+                    const txs = ((_l = bsData.extractedData) === null || _l === void 0 ? void 0 : _l.transactions) || [];
+                    for (const tx of txs) {
+                        const txAmount = Math.abs(tx.amount || 0);
+                        const invAmount = Math.abs(amount);
+                        const tolerance = 0.05;
+                        if (Math.abs(txAmount - invAmount) <= tolerance) {
+                            const txDateStr = tx.date;
+                            const invDateStr = date;
+                            if (txDateStr && invDateStr) {
+                                const txDate = new Date(txDateStr);
+                                const invDate = new Date(invDateStr);
+                                if (!isNaN(txDate.getTime()) && !isNaN(invDate.getTime())) {
+                                    const diffTime = Math.abs(txDate.getTime() - invDate.getTime());
+                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                    if (diffDays <= 7) {
+                                        hasMatchingTx = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            else {
+                                hasMatchingTx = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasMatchingTx)
+                        break;
+                }
+                if (hasMatchingTx) {
+                    isAutopilot = true;
+                    logger.log(`🤖 [Autopilot] Auto-approbation du document ${docId} (match bancaire + confiance ${extractedData.accountingEntry.confidenceScore}%)`);
+                }
+            }
+            catch (autopilotErr) {
+                logger.error(`Erreur lors du traitement Autopilot pour le document ${docId} :`, autopilotErr);
+            }
+        }
         // 5. Calcul de la monetisation (billable lines)
         const billableLines = calculateBillableLines(extractedData, documentType);
         // 6. Mise a jour finale du document
-        const finalStatus = isDuplicate ? 'duplicate' : (isZeroTouch ? 'approved' : 'reviewing');
+        const finalStatus = isDuplicate ? 'duplicate' : (isZeroTouch || isAutopilot ? 'approved' : 'reviewing');
         const auditAction = isDuplicate
             ? `Doublon detecte (ID: ${existingId})`
-            : (isZeroTouch ? 'Auto-approbation (Zero-Touch) via Apprentissage Local' : 'Analyse IA automatique terminee');
+            : (isZeroTouch ? 'Auto-approbation (Zero-Touch) via Apprentissage Local'
+                : (isAutopilot ? 'Auto-approbation (Autopilot) via concordance bancaire et confiance IA' : 'Analyse IA automatique terminee'));
         const updateData = {
             extractedData,
             billableLines,
@@ -2056,7 +2106,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
         if (isDuplicate) {
             updateData.anomalies = admin.firestore.FieldValue.arrayUnion("Doublon potentiel détecté : une facture identique existe déjà.");
         }
-        await ((_k = event.data) === null || _k === void 0 ? void 0 : _k.after.ref.update(updateData));
+        await ((_m = event.data) === null || _m === void 0 ? void 0 : _m.after.ref.update(updateData));
         logger.log(`âœ… [Processor] SuccÃ¨s pour ${docId} : ${billableLines} lignes dÃ©tectÃ©es. ${isDuplicate ? '(DOUBLON)' : ''}`);
         // 7. Report usage to Stripe & Update Cabinet Quotas if NOT a duplicate
         if (!isDuplicate) {
@@ -2089,7 +2139,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
     }
     catch (error) {
         logger.error(`âŒ [Processor] Ã‰chec pour ${docId} :`, error);
-        await ((_l = event.data) === null || _l === void 0 ? void 0 : _l.after.ref.update({
+        await ((_o = event.data) === null || _o === void 0 ? void 0 : _o.after.ref.update({
             status: 'error',
             'auditTrail': admin.firestore.FieldValue.arrayUnion({
                 action: `Erreur d'analyse IA : ${error.message}`,
@@ -2186,10 +2236,51 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
                 if (cabinetId) {
                     logger.info(`Checkout completed for cabinet ${cabinetId}`);
                     let stripeSubscriptionItemId = null;
+                    let plan = 'starter';
+                    let quotas = {
+                        maxClients: 20,
+                        maxDocumentsPerMonth: 200,
+                        maxCollaborators: 2,
+                        storageLimitGb: 10,
+                        usedDocumentsMonth: 0,
+                        usedClients: 0
+                    };
                     if (session.subscription) {
                         try {
                             const { StripeService } = await import('./stripe.js');
                             const subscriptionDetails = await StripeService.getSubscription(session.subscription);
+                            if (subscriptionDetails.items.data.length > 0) {
+                                const priceItem = subscriptionDetails.items.data[0];
+                                const productId = typeof priceItem.price.product === 'string'
+                                    ? priceItem.price.product
+                                    : priceItem.price.product.id;
+                                if (productId) {
+                                    const product = await StripeService.getProduct(productId);
+                                    const productName = (product.name || '').toLowerCase();
+                                    if (productName.includes('elite') || productName.includes('enterprise')) {
+                                        plan = 'elite';
+                                        quotas = {
+                                            maxClients: 500,
+                                            maxDocumentsPerMonth: 5000,
+                                            maxCollaborators: 50,
+                                            storageLimitGb: 200,
+                                            usedDocumentsMonth: 0,
+                                            usedClients: 0
+                                        };
+                                    }
+                                    else if (productName.includes('pro') || productName.includes('professional')) {
+                                        plan = 'professional';
+                                        quotas = {
+                                            maxClients: 100,
+                                            maxDocumentsPerMonth: 1000,
+                                            maxCollaborators: 10,
+                                            storageLimitGb: 50,
+                                            usedDocumentsMonth: 0,
+                                            usedClients: 0
+                                        };
+                                    }
+                                }
+                            }
                             // Trouver l'item avec un usage "metered" (au compteur)
                             const meteredItem = subscriptionDetails.items.data.find((item) => { var _a; return ((_a = item.price.recurring) === null || _a === void 0 ? void 0 : _a.usage_type) === 'metered'; });
                             if (meteredItem) {
@@ -2203,19 +2294,21 @@ exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async
                             }
                         }
                         catch (e) {
-                            logger.error(`Error fetching subscription details: ${e.message}`);
+                            logger.error(`Error fetching subscription/product details: ${e.message}`);
                         }
                     }
                     const updateData = {
                         stripeCustomerId: session.customer,
                         stripeSubscriptionId: session.subscription,
-                        status: 'active'
+                        status: 'active',
+                        plan,
+                        quotas
                     };
                     if (stripeSubscriptionItemId) {
                         updateData.stripeSubscriptionItemId = stripeSubscriptionItemId;
                     }
                     await getDb().collection("cabinets").doc(cabinetId).update(updateData);
-                    logger.info(`Updated cabinet ${cabinetId} with Stripe details.`);
+                    logger.info(`Updated cabinet ${cabinetId} with Stripe details, plan: ${plan}, quotas provisioned.`);
                 }
                 break;
             }

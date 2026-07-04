@@ -149,6 +149,7 @@ export default function ExportPage() {
                 batch.update(docRef, { 
                     status: 'exported', 
                     isExported: true,
+                    isLocked: true,
                     exportDate: new Date().toISOString() 
                 });
             });

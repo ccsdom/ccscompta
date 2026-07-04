@@ -51,6 +51,7 @@ const clientNavItems: NavItem[] = [
   { href: '/dashboard/my-documents', icon: FileText, label: 'Mes Achats' },
   { href: '/dashboard/sales', icon: TrendingUp, label: 'Mes Ventes (Facturation)' },
   { href: '/dashboard/my-bank', icon: Landmark, label: 'Ma Banque' },
+  { href: '/dashboard/copilot', icon: MessageSquareText, label: 'Mon Assistant IA' },
   { href: '/dashboard/my-analytics', icon: BarChart, label: 'Mon Analyse' },
   { href: '/dashboard/my-reports', icon: BookOpen, label: 'Mon Bilan' },
   { href: '/dashboard/billing', icon: CreditCard, label: 'Mon Abonnement' },

@@ -81,31 +81,44 @@ Livre le 2026-05-26 :
 - Consultation document mobile restructuree par onglets `Apercu`, `Donnees`, `Notes`, avec ouverture externe du justificatif.
 - Recherche locale et filtres de statut ajoutes a l'historique client mobile.
 - Centre de suivi client ajoute : documents en attente, en examen, erreurs, fichiers rejetes et justificatifs manquants.
+- Livré le 2026-07-03 (Phase 6 & 7) :
+  - Scanner Mobile intelligent avec Auto-crop canvas, filtre contraste papier premium et binarisation Noir & Blanc nette.
+  - Upload résumable en tâche de fond avec progression dynamique circular loader.
+  - Centre de notifications métier bidirectionnel avec règles d'isolation Firestore.
+  - Alerte interactive hebdomadaire pour les justificatifs manquants du lundi matin.
+- Livré le 2026-07-03 (Phase 8) :
+  - Assistant IA de clavardage conversationnel ("Mon Assistant IA") intégré au menu client.
+  - Clavardage persistant (localStorage) avec questions suggérées et animations de chargement.
+  - Panneau latéral de monitoring financier synthétisant en temps réel les données clés (dépenses, TVA, top fournisseurs, alertes) servant de contexte à l'IA.
+- Livré le 2026-07-03 (Phase 9) :
+  - Onglet "Flux Trésorerie" avec double graphique interactif et ligne de flux net.
+  - Onglet "Prévisions & Simulations" avec solde initial modifiable et simulateur de dépenses récurrentes sous forme de switchs.
+  - Onglet "Calculateur TVA" avec jauge de TVA nette et alertes intelligentes de trésorerie.
+  - Intégration du widget "Conseils Stratégiques IA" sur la page des Bilans (/dashboard/my-reports).
 
 ### Chantier 4 - Cockpit Admin SaaS
 
-Statut : a planifier.
+Statut : terminé.
 
 Objectif : transformer l'admin en centre de pilotage complet.
 
-Livrables attendus :
-
-- Vue cabinets, utilisateurs, activite, incidents et abonnements.
-- Filtres, recherche, exports et actions rapides.
-- Indicateurs de securite et de qualite de donnees.
+Livrables terminés :
+- Cockpit multi-onglets premium avec monitoring infra (SystemHealth).
+- Annuaire de recherche et filtrage des utilisateurs par rôle/cabinet.
+- Outil de support d'impersonation directe avec journalisation des événements.
+- Suivi de la qualité IA, indicateurs de confiance OCR et résolution des incidents documentaires.
 
 ### Chantier 5 - Automatisation Comptable
 
-Statut : a planifier.
+Statut : terminé.
 
-Objectif : reduire fortement la saisie manuelle.
+Objectif : réduire fortement la saisie manuelle.
 
-Livrables attendus :
-
-- Validation OCR/IA robuste.
-- Workflow de rapprochement bancaire.
-- Journal OD, immobilisations, FEC et exports comptables verifies.
-- Tracabilite complete des corrections humaines.
+Livrables terminés :
+- Moteur d'extraction IA & OCR haute confiance.
+- Connexion réelle GoCardless (Nordigen) et synchronisation de transactions bancaires.
+- Algorithme d'auto-matching et rapprochement par IA.
+- Journal OD, export FEC conforme, PAF logs (Piste d'Audit Fiable) et traçabilité des modifications.
 
 ## Definition Of Done Projet
 

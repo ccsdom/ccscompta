@@ -88,7 +88,7 @@ export default function SubscriptionsTrackingPage() {
                 {[
                     { label: "Documents IA / Mois", value: globalUsage.docs, total: globalUsage.totalDocs, icon: FileText, color: "text-primary" },
                     { label: "Clients Actifs", value: globalUsage.clients, total: globalUsage.totalClients, icon: Users, color: "text-emerald-500" },
-                    { label: "Capacité Cloud", value: 245, total: 500, icon: HardDrive, color: "text-blue-500" },
+                    { label: "Capacité Cloud", value: Number((globalUsage.docs * 0.0005).toFixed(2)), total: globalUsage.storage || 10, icon: HardDrive, color: "text-blue-500" },
                 ].map((stat, i) => (
                     <Card key={i} className="glass-panel border-white/5 bg-white/5 premium-shadow">
                         <CardContent className="p-6">
