@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, UploadCloud, X, CheckCircle2, ScanLine, RotateCw, Sparkles, Sliders, Check, RefreshCw } from 'lucide-react';
+import { Camera, UploadCloud, X, CheckCircle2, ScanLine, RotateCw, Sparkles, Sliders, Check, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useBranding } from '@/components/branding-provider';
 import { db, storage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -16,12 +17,123 @@ import type { Document, AuditEvent } from '@/lib/types';
 type Step = 'capture' | 'edit' | 'uploading' | 'success';
 type FilterType = 'original' | 'premium' | 'binarized';
 
+interface QualityResult {
+  score: number;
+  isBlurry: boolean;
+  brightness: 'dark' | 'bright' | 'good';
+  avgBrightness: number;
+  blurScore: number;
+  warnings: string[];
+}
+
+function checkImageQuality(canvas: HTMLCanvasElement): QualityResult {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return { score: 100, isBlurry: false, brightness: 'good', avgBrightness: 128, blurScore: 50, warnings: [] };
+  }
+  
+  const w = 150;
+  const h = 150;
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = w;
+  tempCanvas.height = h;
+  const tempCtx = tempCanvas.getContext('2d');
+  if (!tempCtx) {
+    return { score: 100, isBlurry: false, brightness: 'good', avgBrightness: 128, blurScore: 50, warnings: [] };
+  }
+  
+  tempCtx.drawImage(canvas, 0, 0, w, h);
+  const imgData = tempCtx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+  
+  let totalBrightness = 0;
+  const gray = new Uint8Array(w * h);
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i+1];
+    const b = data[i+2];
+    const v = 0.299 * r + 0.587 * g + 0.114 * b;
+    gray[i / 4] = v;
+    totalBrightness += v;
+  }
+  const avgBrightness = totalBrightness / (w * h);
+  
+  let sumLap = 0;
+  let sumSquareLap = 0;
+  let count = 0;
+  
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = y * w + x;
+      const lap = 
+        gray[idx - w] + 
+        gray[idx - 1] - 
+        4 * gray[idx] + 
+        gray[idx + 1] + 
+        gray[idx + w];
+      
+      sumLap += lap;
+      sumSquareLap += lap * lap;
+      count++;
+    }
+  }
+  
+  const meanLap = sumLap / count;
+  const varianceLap = (sumSquareLap / count) - (meanLap * meanLap);
+  
+  const blurScore = Math.min(100, Math.max(0, (varianceLap / 35) * 100));
+  const isBlurry = varianceLap < 12;
+  
+  let brightness: 'dark' | 'bright' | 'good' = 'good';
+  const warnings: string[] = [];
+  
+  if (avgBrightness < 55) {
+    brightness = 'dark';
+    warnings.push("Image très sombre (utilisez le flash ou un éclairage direct).");
+  } else if (avgBrightness > 215) {
+    brightness = 'bright';
+    warnings.push("Image très lumineuse (surexposition potentielle).");
+  }
+  
+  if (isBlurry) {
+    warnings.push("Image floue (stabilisez votre appareil photo).");
+  }
+  
+  let sumSquareBright = 0;
+  for (let i = 0; i < gray.length; i++) {
+    const diff = gray[i] - avgBrightness;
+    sumSquareBright += diff * diff;
+  }
+  const varianceBright = sumSquareBright / gray.length;
+  if (varianceBright < 800) {
+    warnings.push("Faible contraste global.");
+  }
+  
+  let score = 100;
+  if (isBlurry) score -= 40;
+  if (brightness !== 'good') score -= 30;
+  if (varianceBright < 800) score -= 20;
+  score = Math.max(10, score);
+  
+  return {
+    score,
+    isBlurry,
+    brightness,
+    avgBrightness,
+    blurScore: Math.round(blurScore),
+    warnings
+  };
+}
+
 export default function ScannerPage() {
   const { profile } = useBranding();
   const { toast } = useToast();
   const router = useRouter();
   
+  const lastCheckedRef = useRef<string | null>(null);
+  
   const [step, setStep] = useState<Step>('capture');
+  const [qualityInfo, setQualityInfo] = useState<QualityResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('premium');
@@ -185,6 +297,14 @@ export default function ScannerPage() {
       ctx.rotate((rotation * Math.PI) / 180);
       ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
       ctx.restore();
+      
+      // Evaluate image quality once on the base rotated image
+      const cacheKey = `${imageSrc}_${rotation}`;
+      if (lastCheckedRef.current !== cacheKey) {
+        lastCheckedRef.current = cacheKey;
+        const qInfo = checkImageQuality(canvas);
+        setQualityInfo(qInfo);
+      }
       
       // Apply pixel processing filters
       if (filter !== 'original') {
@@ -595,6 +715,54 @@ export default function ScannerPage() {
                   className="max-w-full max-h-full object-contain cursor-crosshair touch-none"
                 />
               </div>
+
+              {/* Quality evaluation widget */}
+              {qualityInfo && (
+                <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        Qualité du scan
+                      </span>
+                      {qualityInfo.score >= 80 ? (
+                        <Badge className="bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-500 dark:text-emerald-400 border-emerald-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg">
+                          Optimale
+                        </Badge>
+                      ) : qualityInfo.score >= 50 ? (
+                        <Badge className="bg-amber-500/10 hover:bg-amber-500/25 text-amber-500 border-amber-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg">
+                          Améliorable
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border-rose-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg animate-pulse">
+                          Flou / Illisible
+                        </Badge>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-xs font-black font-space",
+                      qualityInfo.score >= 80 ? "text-emerald-500" : qualityInfo.score >= 50 ? "text-amber-500" : "text-rose-500"
+                    )}>
+                      {qualityInfo.score}/100
+                    </span>
+                  </div>
+                  
+                  {qualityInfo.warnings.length > 0 ? (
+                    <div className="space-y-1.5 pt-1 border-t border-white/5">
+                      {qualityInfo.warnings.map((w, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-[10px] text-rose-400 font-semibold leading-tight animate-in fade-in duration-300">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
+                          <span>{w}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-semibold pt-1 border-t border-white/5 animate-in fade-in duration-300">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>L'image est nette et parfaitement lisible.</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Filter selection tabs */}
               <div className="grid grid-cols-3 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
