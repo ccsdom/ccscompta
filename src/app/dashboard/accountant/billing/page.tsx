@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, addDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useBranding } from '@/components/branding-provider';
-import { Document, Client } from '@/lib/types';
+import { Document, Client, Invoice } from '@/lib/types';
 import { 
   Calculator, 
   TrendingUp, 
@@ -41,27 +41,88 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 // --- Constants (CCS Billing Model) ---
 const FIXED_BALANCE_FEE = 400;
 const LINE_FEE = 0.50;
+
+type ReminderTone = 'diplomatic' | 'assertive' | 'warm';
+
+function generateAiReminder(clientName: string, invNumber: string, amount: number, dueDate: string, tone: ReminderTone): string {
+  const formattedAmount = amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  switch (tone) {
+    case 'diplomatic':
+      return `Bonjour ${clientName},
+
+J'espère que vous allez bien.
+
+Je me permets de vous contacter concernant la facture n° ${invNumber} d'un montant de ${formattedAmount}, émise par notre cabinet et arrivant à échéance le ${dueDate}. Il est possible que ce document ait échappé à votre vigilance.
+
+Nous vous serions reconnaissants de bien vouloir vérifier son statut et, le cas échéant, procéder à son règlement depuis votre portail sécurisé CCS Compta.
+
+Si le paiement a déjà été effectué, n'hésitez pas à nous le signaler afin que nous puissions mettre à jour nos écritures.
+
+Bien cordialement,
+Votre expert-comptable`;
+    case 'assertive':
+      return `Bonjour ${clientName},
+
+Nous constatons à ce jour que la facture n° ${invNumber} d'un montant de ${formattedAmount}, émise par notre cabinet et arrivée à échéance le ${dueDate}, reste impayée.
+
+Nous vous demandons de bien vouloir régulariser cette situation dans les plus brefs délais en effectuant le règlement en ligne via votre espace client CCS Compta. 
+
+En cas de difficultés de trésorerie passagères, nous vous invitons à prendre contact avec notre cabinet pour en échanger.
+
+Dans l'attente de votre règlement,
+Le service facturation du cabinet`;
+    case 'warm':
+      return `Bonjour ${clientName},
+
+Comment se passe votre semaine ?
+
+Un petit message amical de notre équipe pour vous rappeler que la facture de prestations n° ${invNumber} d'un montant de ${formattedAmount} est disponible sur votre espace (échéance au ${dueDate}).
+
+Vous pouvez la régler en quelques clics en toute sécurité sur votre tableau de bord CCS Compta.
+
+Si vous avez la moindre question concernant vos déclarations ou vos documents récents, nous restons disponibles.
+
+Prenez soin de vous,
+L'équipe de votre Cabinet`;
+  }
+}
 
 export default function BillingReportPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
   const [activeView, setActiveView] = useState<'production' | 'stripe'>('production');
   const [isStripeLoading, setIsStripeLoading] = useState(false);
   const { profile: userProfile, role: userRole, cabinet } = useBranding();
+  
+  // GhostHunter Billing States
+  const [activeInvoiceForReminder, setActiveInvoiceForReminder] = useState<Invoice | null>(null);
+  const [reminderText, setReminderText] = useState('');
+  const [reminderTone, setReminderTone] = useState<ReminderTone>('diplomatic');
   const cabinetId = userProfile?.cabinetId;
   const isStaff = userRole && ['accountant', 'secretary'].includes(userRole);
   const isAdmin = userRole === 'admin';
 
-  // 1. Listen for Docs & Clients
+  // 1. Listen for Docs & Clients & Invoices
   useEffect(() => {
     if (!userProfile) return;
     
@@ -73,6 +134,7 @@ export default function BillingReportPage() {
 
     const docsRef = collection(db, 'documents');
     const clientsRef = collection(db, 'clients');
+    const invoicesRef = collection(db, 'invoices');
 
     // Filter documents by billingPeriod server-side to save cost and memory
     const qDocs = isAdmin 
@@ -97,9 +159,16 @@ export default function BillingReportPage() {
       setLoading(false);
     });
 
+    const unsubInvoices = onSnapshot(invoicesRef, (snapshot) => {
+      setInvoices(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+    }, (error) => {
+      console.error("Firestore invoices subscription failed:", error);
+    });
+
     return () => {
       unsubDocs();
       unsubClients();
+      unsubInvoices();
     };
   }, [userProfile, cabinetId, isAdmin, isStaff, selectedPeriod]);
 
@@ -126,6 +195,11 @@ export default function BillingReportPage() {
       const variableAmount = totalLines * LINE_FEE;
       const totalAmount = FIXED_BALANCE_FEE + variableAmount;
 
+      const clientInvoice = invoices.find(
+        inv => inv.clientId === client.id && 
+        (inv.date.startsWith(selectedPeriod) || inv.number.includes(selectedPeriod))
+      );
+
       return {
         id: client.id,
         name: client.name,
@@ -133,10 +207,11 @@ export default function BillingReportPage() {
         totalLines,
         variableAmount,
         fixedAmount: FIXED_BALANCE_FEE,
-        totalAmount
+        totalAmount,
+        invoice: clientInvoice
       };
     }).filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [documents, clients, searchQuery]);
+  }, [documents, clients, invoices, selectedPeriod, searchQuery]);
 
   // 3. Global Stats
   const globalStats = useMemo(() => {
@@ -204,6 +279,73 @@ export default function BillingReportPage() {
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
+      setIsStripeLoading(false);
+    }
+  };
+
+  const handleGenerateInvoice = async (clientId: string, clientName: string, amount: number, period: string) => {
+    try {
+      const invoicesRef = collection(db, 'invoices');
+      const invoiceNumber = `FAC-${period}-${clientId.substring(0, 4).toUpperCase()}`;
+      
+      const today = new Date().toISOString().substring(0, 10);
+      const dueDateObj = new Date();
+      dueDateObj.setDate(dueDateObj.getDate() + 15);
+      const dueDate = dueDateObj.toISOString().substring(0, 10);
+
+      const newInvoiceDoc = doc(invoicesRef);
+      await setDoc(newInvoiceDoc, {
+        clientId,
+        clientName,
+        number: invoiceNumber,
+        date: today,
+        dueDate,
+        amount,
+        status: 'pending'
+      });
+
+      toast({
+        title: "Facture générée !",
+        description: `La facture ${invoiceNumber} de ${amount.toFixed(2)} € a été créée avec succès.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur de génération",
+        description: error.message || "Impossible de générer la facture.",
+      });
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (!activeInvoiceForReminder) return;
+    setIsStripeLoading(true);
+    try {
+      const notifRef = collection(db, 'notifications');
+      await addDoc(notifRef, {
+        clientId: activeInvoiceForReminder.clientId,
+        message: `Relance Facture Cabinet : La facture ${activeInvoiceForReminder.number} d'un montant de ${activeInvoiceForReminder.amount.toFixed(2)} € est en attente. Règlement requis.`,
+        date: new Date().toISOString(),
+        isRead: false,
+        type: 'billing_reminder',
+        extraData: {
+          invoiceId: activeInvoiceForReminder.id,
+          text: reminderText
+        }
+      });
+
+      toast({
+        title: "Relance envoyée !",
+        description: `L'email de relance pour la facture ${activeInvoiceForReminder.number} a été envoyé au client.`,
+      });
+      setActiveInvoiceForReminder(null);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur d'envoi",
+        description: error.message || "Impossible d'envoyer la relance.",
+      });
+    } finally {
       setIsStripeLoading(false);
     }
   };
@@ -389,6 +531,61 @@ export default function BillingReportPage() {
                              </div>
                           </div>
 
+                          {/* Invoicing Status & Actions (GhostHunter Billing) */}
+                          <div className="p-6 border-t md:border-t-0 md:border-l md:border-r border-white/5 flex flex-col justify-center gap-3 md:w-[240px]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Facturation</span>
+                              {client.invoice ? (
+                                client.invoice.status === 'paid' ? (
+                                  <Badge className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-none font-bold text-[9px] px-2 py-0.5 rounded-lg">Payée</Badge>
+                                ) : client.invoice.status === 'overdue' ? (
+                                  <Badge variant="destructive" className="bg-rose-500/15 text-rose-500 border-none font-bold text-[9px] px-2 py-0.5 rounded-lg animate-pulse">En retard</Badge>
+                                ) : (
+                                  <Badge className="bg-amber-500/10 text-amber-500 border-none font-bold text-[9px] px-2 py-0.5 rounded-lg">En attente</Badge>
+                                )
+                              ) : (
+                                <Badge variant="secondary" className="bg-white/5 text-muted-foreground border-none font-bold text-[9px] px-2 py-0.5 rounded-lg">Non émise</Badge>
+                              )}
+                            </div>
+                            
+                            {client.invoice ? (
+                              <div className="space-y-1">
+                                <div className="text-xs font-bold text-foreground truncate">{client.invoice.number}</div>
+                                <div className="text-[10px] text-muted-foreground font-semibold">Échéance : {new Date(client.invoice.dueDate).toLocaleDateString('fr-FR')}</div>
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground italic font-medium">Aucune facture émise.</div>
+                            )}
+
+                            {client.invoice ? (
+                              (client.invoice.status === 'pending' || client.invoice.status === 'overdue') && (
+                                <Button 
+                                  onClick={() => {
+                                    setActiveInvoiceForReminder(client.invoice!);
+                                    setReminderTone('diplomatic');
+                                    setReminderText(generateAiReminder(
+                                      client.name, 
+                                      client.invoice!.number, 
+                                      client.invoice!.amount, 
+                                      new Date(client.invoice!.dueDate).toLocaleDateString('fr-FR'), 
+                                      'diplomatic'
+                                    ));
+                                  }}
+                                  className="w-full h-8 rounded-lg font-bold text-xs bg-amber-500 hover:bg-amber-600 text-black border-none flex gap-1.5 justify-center items-center shadow-lg shadow-amber-500/10"
+                                >
+                                  <AlertCircle className="h-3.5 w-3.5" /> Relancer (Ghost)
+                                </Button>
+                              )
+                            ) : (
+                              <Button 
+                                onClick={() => handleGenerateInvoice(client.id, client.name, client.totalAmount, selectedPeriod)}
+                                className="w-full h-8 rounded-lg font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground border-none flex gap-1.5 justify-center items-center"
+                              >
+                                <Calculator className="h-3.5 w-3.5" /> Émettre Facture
+                              </Button>
+                            )}
+                          </div>
+
                           {/* Right: Final Total */}
                           <div className="p-6 md:w-[200px] flex flex-col items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
                              <div className="text-center">
@@ -561,6 +758,101 @@ export default function BillingReportPage() {
         </>
       )}
 
+      {/* GhostHunter Billing Reminder Dialog */}
+      <Dialog open={!!activeInvoiceForReminder} onOpenChange={() => setActiveInvoiceForReminder(null)}>
+        <DialogContent className="glass-panel border-white/10 premium-shadow max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black font-space uppercase flex items-center gap-2">
+              <AlertCircle className="h-6 w-6 text-amber-500 animate-pulse" />
+              Relance Facture (GhostHunter)
+            </DialogTitle>
+            <DialogDescription>
+              Personnalisez et envoyez un rappel de paiement intelligent pour cette facture de cabinet.
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeInvoiceForReminder && (
+            <div className="py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                  <div className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Facture</div>
+                  <div className="font-bold text-sm text-foreground mt-0.5">{activeInvoiceForReminder.number}</div>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/5">
+                  <div className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Montant</div>
+                  <div className="font-bold text-sm text-foreground mt-0.5">
+                    {activeInvoiceForReminder.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tone Selector */}
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase opacity-60">Ton du message (IA)</Label>
+                <div className="flex bg-white/5 border border-white/10 rounded-2xl p-1 w-full">
+                  {[
+                    { id: 'diplomatic', label: 'Diplomate', tone: 'diplomatic' as const },
+                    { id: 'assertive', label: 'Ferme / Relance', tone: 'assertive' as const },
+                    { id: 'warm', label: 'Chaleureux', tone: 'warm' as const }
+                  ].map((t) => {
+                    const isActive = reminderTone === t.tone;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setReminderTone(t.tone);
+                          const clientName = activeInvoiceForReminder.clientName;
+                          setReminderText(generateAiReminder(
+                            clientName, 
+                            activeInvoiceForReminder.number, 
+                            activeInvoiceForReminder.amount, 
+                            new Date(activeInvoiceForReminder.dueDate).toLocaleDateString('fr-FR'), 
+                            t.tone
+                          ));
+                        }}
+                        className={cn(
+                          "flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300",
+                          isActive
+                            ? "bg-amber-500 text-black shadow-lg shadow-amber-500/25"
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        )}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Message Textarea */}
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase opacity-60">Contenu du Courriel</Label>
+                <Textarea 
+                  value={reminderText}
+                  onChange={(e) => setReminderText(e.target.value)}
+                  rows={10}
+                  className="bg-white/5 border-white/10 rounded-2xl text-xs font-medium font-sans leading-relaxed focus-visible:ring-amber-500"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActiveInvoiceForReminder(null)} className="rounded-xl border-white/10">
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleSendReminder}
+              disabled={isStripeLoading} 
+              className="rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-black border-none gap-2 px-6"
+            >
+              {isStripeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+              Envoyer la relance
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
