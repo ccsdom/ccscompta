@@ -7,7 +7,7 @@ import { collection, query, where, getDocs, onSnapshot, doc } from 'firebase/fir
 import { 
   Send, Bot, User, Sparkles, TrendingUp, Landmark, 
   FileText, Coins, HelpCircle, Loader2, Trash2, ArrowRight,
-  Info, ShieldCheck, CheckCircle2
+  Info, ShieldCheck, CheckCircle2, RefreshCw, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -34,6 +34,7 @@ export default function CopilotPage() {
   const [messages, setMessages] = useState<SupportChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   
   // Client context stats state
   const [stats, setStats] = useState({
@@ -164,6 +165,7 @@ export default function CopilotPage() {
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
     
+    setLastFailedMessage(null);
     const userMessage: SupportChatMessage = { role: 'user', text: textToSend };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
@@ -179,6 +181,7 @@ export default function CopilotPage() {
       setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (error) {
       console.error("AI chat assistant failed", error);
+      setLastFailedMessage(textToSend);
       toast({
         variant: "destructive",
         title: "Erreur de connexion",
@@ -398,6 +401,41 @@ export default function CopilotPage() {
                   <item.icon className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-colors" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Retry Banner */}
+          {lastFailedMessage && !isLoading && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-semibold animate-in slide-in-from-bottom-2 duration-300">
+              <span className="flex items-center gap-2">
+                <Info className="h-4 w-4 shrink-0 animate-bounce" />
+                La dernière requête a échoué. Souhaitez-vous réessayer ?
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const msg = lastFailedMessage;
+                    setLastFailedMessage(null);
+                    handleSend(msg);
+                  }}
+                  className="h-8 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-500 font-bold flex items-center gap-1.5"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Réessayer
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLastFailedMessage(null)}
+                  className="h-8 w-8 p-0 rounded-xl hover:bg-white/5 text-muted-foreground hover:text-foreground flex items-center justify-center"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           )}
 

@@ -6,7 +6,7 @@ const google_genai_1 = require("@genkit-ai/google-genai");
 // admin déchargé car non utilisé ici
 function getAi() {
     return (0, genkit_1.genkit)({
-        plugins: [(0, google_genai_1.googleAI)()],
+        plugins: [(0, google_genai_1.googleAI)({ apiKey: process.env.GEMINI_API_KEY })],
         model: 'googleai/gemini-2.5-flash',
     });
 }

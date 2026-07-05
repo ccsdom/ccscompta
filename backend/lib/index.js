@@ -702,7 +702,7 @@ exports.extractClientData = (0, https_1.onCall)({ region: 'europe-west9', memory
         throwCallableError(error, 'extractClientData failed');
     }
 });
-exports.getBankAuthLink = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
+exports.getBankAuthLink = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB', secrets: ['GOCARDLESS_SECRET_ID', 'GOCARDLESS_SECRET_KEY'] }, async (request) => {
     var _a, _b, _c;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -738,7 +738,7 @@ exports.getBankAuthLink = (0, https_1.onCall)({ region: 'europe-west9', memory: 
         throwCallableError(error, 'getBankAuthLink failed');
     }
 });
-exports.finalizeBankConnection = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
+exports.finalizeBankConnection = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB', secrets: ['GOCARDLESS_SECRET_ID', 'GOCARDLESS_SECRET_KEY'] }, async (request) => {
     var _a, _b, _c;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -789,7 +789,7 @@ exports.finalizeBankConnection = (0, https_1.onCall)({ region: 'europe-west9', m
         throwCallableError(error, 'finalizeBankConnection failed');
     }
 });
-exports.syncBankTransactions = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB' }, async (request) => {
+exports.syncBankTransactions = (0, https_1.onCall)({ region: 'europe-west9', memory: '256MiB', secrets: ['GOCARDLESS_SECRET_ID', 'GOCARDLESS_SECRET_KEY'] }, async (request) => {
     var _a, _b;
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentification requise.');
@@ -1321,7 +1321,7 @@ Respecte rigoureusement le format JSON de sortie et ne renvoie aucune phrase aut
 });
 // --- ðŸŽ¯ PHASE 2.2 : WEBHOOK MAIL-TO-BOX (Ingestion via E-mail) --- //
 // Service d'ingestion recommandÃ© : Postmark Inbound Webhook (JSON pur, pas de mutipart/form-data complexe)
-exports.inboundEmailWebhook = (0, https_1.onRequest)({ region: "europe-west9", memory: "256MiB", maxInstances: 10 }, async (req, res) => {
+exports.inboundEmailWebhook = (0, https_1.onRequest)({ region: "europe-west9", memory: "256MiB", maxInstances: 10, secrets: ["INBOUND_EMAIL_TOKEN"] }, async (req, res) => {
     // 1. Authentification trÃ¨s stricte du Webhook
     const expectedToken = process.env.INBOUND_EMAIL_TOKEN;
     const headerToken = req.headers['x-ccscompta-token'];
@@ -2152,7 +2152,7 @@ exports.onDocumentPending = (0, firestore_1.onDocumentWritten)({
 /**
  * GÃ©nÃ¨re un lien vers le Portail Client Stripe.
  */
-exports.createPortalSession = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+exports.createPortalSession = (0, https_1.onCall)({ region: "europe-west9", secrets: ["STRIPE_SECRET_KEY"] }, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Vous devez Ãªtre connectÃ©.');
     }
@@ -2177,7 +2177,7 @@ exports.createPortalSession = (0, https_1.onCall)({ region: "europe-west9" }, as
  * GÃ©nÃ¨re un lien Checkout Stripe pour l'abonnement d'un cabinet.
  * (RÃ©servÃ© aux super-admins)
  */
-exports.generateCabinetCheckout = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+exports.generateCabinetCheckout = (0, https_1.onCall)({ region: "europe-west9", secrets: ["STRIPE_SECRET_KEY"] }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Non autorisÃ©');
     const { cabinetId, priceId } = request.data;
@@ -2209,7 +2209,7 @@ exports.generateCabinetCheckout = (0, https_1.onCall)({ region: "europe-west9" }
 /**
  * Webhook Stripe pour Ã©couter les paiements et Ã©vÃ©nements d'abonnement.
  */
-exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9" }, async (req, res) => {
+exports.stripeWebhook = (0, https_1.onRequest)({ region: "europe-west9", secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] }, async (req, res) => {
     var _a;
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -2457,7 +2457,7 @@ exports.onCommentAdded = (0, firestore_1.onDocumentWritten)({
 /**
  * GÃ©nÃ¨re manuellement (ou via scheduler) le briefing hebdomadaire.
  */
-exports.requestWeeklySummary = (0, https_1.onCall)({ region: "europe-west9" }, async (request) => {
+exports.requestWeeklySummary = (0, https_1.onCall)({ region: "europe-west9", secrets: ["GEMINI_API_KEY"] }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Non autorisÃ©');
     const callerUid = request.auth.uid;

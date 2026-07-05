@@ -870,7 +870,7 @@ export const extractClientData = onCall(
 );
 
 export const getBankAuthLink = onCall(
-  { region: 'europe-west9', memory: '256MiB' },
+  { region: 'europe-west9', memory: '256MiB', secrets: ['GOCARDLESS_SECRET_ID', 'GOCARDLESS_SECRET_KEY'] },
   async (request: CallableRequest<{ clientId?: unknown; cabinetId?: unknown; institutionId?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
@@ -919,7 +919,7 @@ export const getBankAuthLink = onCall(
 );
 
 export const finalizeBankConnection = onCall(
-  { region: 'europe-west9', memory: '256MiB' },
+  { region: 'europe-west9', memory: '256MiB', secrets: ['GOCARDLESS_SECRET_ID', 'GOCARDLESS_SECRET_KEY'] },
   async (request: CallableRequest<{ clientId?: unknown; cabinetId?: unknown; requisitionId?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
@@ -978,7 +978,7 @@ export const finalizeBankConnection = onCall(
 );
 
 export const syncBankTransactions = onCall(
-  { region: 'europe-west9', memory: '256MiB' },
+  { region: 'europe-west9', memory: '256MiB', secrets: ['GOCARDLESS_SECRET_ID', 'GOCARDLESS_SECRET_KEY'] },
   async (request: CallableRequest<{ clientId?: unknown }>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Authentification requise.');
@@ -1632,7 +1632,7 @@ Respecte rigoureusement le format JSON de sortie et ne renvoie aucune phrase aut
 // Service d'ingestion recommandÃ© : Postmark Inbound Webhook (JSON pur, pas de mutipart/form-data complexe)
 
 export const inboundEmailWebhook = onRequest(
-  { region: "europe-west9", memory: "256MiB", maxInstances: 10 },
+  { region: "europe-west9", memory: "256MiB", maxInstances: 10, secrets: ["INBOUND_EMAIL_TOKEN"] },
   async (req: any, res: any) => {
     // 1. Authentification trÃ¨s stricte du Webhook
     const expectedToken = process.env.INBOUND_EMAIL_TOKEN;
@@ -2606,7 +2606,7 @@ export const onDocumentPending = onDocumentWritten(
  * GÃ©nÃ¨re un lien vers le Portail Client Stripe.
  */
 export const createPortalSession = onCall(
-    { region: "europe-west9" },
+    { region: "europe-west9", secrets: ["STRIPE_SECRET_KEY"] },
     async (request) => {
         if (!request.auth) {
             throw new HttpsError('unauthenticated', 'Vous devez Ãªtre connectÃ©.');
@@ -2637,7 +2637,7 @@ export const createPortalSession = onCall(
  * (RÃ©servÃ© aux super-admins)
  */
 export const generateCabinetCheckout = onCall(
-    { region: "europe-west9" },
+    { region: "europe-west9", secrets: ["STRIPE_SECRET_KEY"] },
     async (request) => {
         if (!request.auth) throw new HttpsError('unauthenticated', 'Non autorisÃ©');
 
@@ -2684,7 +2684,7 @@ export const generateCabinetCheckout = onCall(
  * Webhook Stripe pour Ã©couter les paiements et Ã©vÃ©nements d'abonnement.
  */
 export const stripeWebhook = onRequest(
-    { region: "europe-west9" },
+    { region: "europe-west9", secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] },
     async (req, res) => {
         const sig = req.headers['stripe-signature'];
         const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -2969,7 +2969,7 @@ export const onCommentAdded = onDocumentWritten(
  * GÃ©nÃ¨re manuellement (ou via scheduler) le briefing hebdomadaire.
  */
 export const requestWeeklySummary = onCall(
-    { region: "europe-west9" },
+    { region: "europe-west9", secrets: ["GEMINI_API_KEY"] },
     async (request) => {
         if (!request.auth) throw new HttpsError('unauthenticated', 'Non autorisÃ©');
 
