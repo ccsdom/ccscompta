@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import {
   TrendingUp, TrendingDown, Wallet, Receipt, BarChart as BarChartIcon,
   ArrowUpCircle, ArrowDownCircle, ShieldCheck, Sparkles, PlusCircle, CheckCircle2,
-  RefreshCw, AlertTriangle, Info, Calendar, Sliders, HelpCircle, Landmark, Coins
+  RefreshCw, AlertTriangle, Info, Calendar, Sliders, HelpCircle, Landmark, Coins,
+  Plus, Trash2
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent
@@ -93,6 +94,43 @@ export default function MyAnalyticsPage() {
     { id: 'adobe', label: 'Abonnements SaaS', amount: 65.99, active: true, desc: 'Licences logicielles' },
     { id: 'payroll', label: 'Rémunérations', amount: 3200, active: true, desc: 'Salaires & charges dirigeants' }
   ]);
+
+  const [newSubLabel, setNewSubLabel] = useState('');
+  const [newSubAmount, setNewSubAmount] = useState('');
+  const [newSubDesc, setNewSubDesc] = useState('');
+
+  const handleAddSubscription = () => {
+    if (!newSubLabel.trim() || !newSubAmount.trim()) return;
+    const amountNum = parseFloat(newSubAmount);
+    if (isNaN(amountNum) || amountNum <= 0) return;
+
+    const newSub = {
+      id: crypto.randomUUID(),
+      label: newSubLabel.trim(),
+      amount: amountNum,
+      active: true,
+      desc: newSubDesc.trim() || 'Échéance personnalisée'
+    };
+
+    setSimulatedSubscriptions(prev => [...prev, newSub]);
+    setNewSubLabel('');
+    setNewSubAmount('');
+    setNewSubDesc('');
+    toast({
+      title: "Échéance ajoutée",
+      description: `L'échéance "${newSub.label}" de ${newSub.amount} € a été intégrée au prévisionnel.`
+    });
+  };
+
+  const handleDeleteSubscription = (id: string) => {
+    const deletedSub = simulatedSubscriptions.find(s => s.id === id);
+    setSimulatedSubscriptions(prev => prev.filter(s => s.id !== id));
+    toast({
+      variant: "destructive",
+      title: "Échéance supprimée",
+      description: deletedSub ? `"${deletedSub.label}" a été retirée de la simulation.` : ""
+    });
+  };
 
   const loadClientId = useCallback(() => {
     const stored = localStorage.getItem('selectedClientId');
@@ -726,37 +764,88 @@ export default function MyAnalyticsPage() {
                   <Sliders className="h-5 w-5 text-indigo-400" />
                   Simulateur d'échéances
                 </CardTitle>
-                <CardDescription className="text-xs">Désactivez les coûts optionnels pour tester l'impact sur le cash.</CardDescription>
+                <CardDescription className="text-xs">Désactivez les coûts optionnels ou ajoutez vos propres charges.</CardDescription>
               </CardHeader>
-              <CardContent className="p-4 space-y-3.5 flex-1 overflow-y-auto">
-                {simulatedSubscriptions.map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5">
-                    <div>
-                      <div className="font-bold text-sm text-foreground flex items-center gap-2">
-                        {sub.label}
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-white/5 border-white/10 font-bold">{sub.amount}€</Badge>
+              <CardContent className="p-4 flex flex-col gap-4 flex-1 overflow-hidden">
+                {/* List of active/simulated subscriptions */}
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 flex-1">
+                  {simulatedSubscriptions.map((sub) => (
+                    <div key={sub.id} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5 group/sub">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-2">
+                          <span className="truncate">{sub.label}</span>
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 rounded bg-white/5 border-white/10 font-bold shrink-0">{sub.amount}€</Badge>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-semibold mt-0.5 truncate">{sub.desc}</div>
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">{sub.desc}</div>
+                      
+                      <div className="flex items-center gap-3 shrink-0">
+                        {/* Beautiful Glass Switch Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => toggleSubscription(sub.id)}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-white/10 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary",
+                            sub.active ? "bg-primary" : "bg-white/5"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out",
+                              sub.active ? "translate-x-5" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                        
+                        {/* Delete Button (visible on hover) */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteSubscription(sub.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg shrink-0 opacity-0 group-hover/sub:opacity-100 transition-opacity"
+                          title="Supprimer cette échéance"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    
-                    {/* Beautiful Glass Switch Toggle */}
-                    <button
-                      type="button"
-                      onClick={() => toggleSubscription(sub.id)}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-white/10 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary",
-                        sub.active ? "bg-primary" : "bg-white/5"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out",
-                          sub.active ? "translate-x-5" : "translate-x-0"
-                        )}
-                      />
-                    </button>
+                  ))}
+                </div>
+
+                {/* Form to add custom subscription */}
+                <div className="pt-4 border-t border-white/5 space-y-3 shrink-0">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Ajouter une échéance personnalisée</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Libellé (ex: Loyer)"
+                      value={newSubLabel}
+                      onChange={(e) => setNewSubLabel(e.target.value)}
+                      className="h-9 text-xs bg-background/50 border-white/10 focus-visible:ring-primary"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Montant (€)"
+                      value={newSubAmount}
+                      onChange={(e) => setNewSubAmount(e.target.value)}
+                      className="h-9 text-xs bg-background/50 border-white/10 focus-visible:ring-primary font-bold"
+                    />
                   </div>
-                ))}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Description (facultative)"
+                      value={newSubDesc}
+                      onChange={(e) => setNewSubDesc(e.target.value)}
+                      className="h-9 text-xs bg-background/50 border-white/10 focus-visible:ring-primary flex-1"
+                    />
+                    <Button
+                      onClick={handleAddSubscription}
+                      disabled={!newSubLabel.trim() || !newSubAmount.trim()}
+                      className="h-9 px-3 rounded-lg text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground flex gap-1.5 shrink-0"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Ajouter
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

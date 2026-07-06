@@ -207,7 +207,18 @@ export default function MyBankPage() {
             } else {
                 toast({
                     title: "Analyse & Sync terminées",
-                    description: "Votre flux est à jour. Aucune nouvelle correspondance trouvée.",
+                    description: (
+                        <div className="flex flex-col gap-2 mt-1">
+                            <span className="text-muted-foreground text-xs">Aucune correspondance trouvée. Si vous avez des justificatifs manquants, veuillez les importer dans votre espace.</span>
+                            <Link 
+                                href="/dashboard/my-documents" 
+                                className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1.5"
+                            >
+                                <FileText className="h-3.5 w-3.5" />
+                                Accéder à l'importation de pièces
+                            </Link>
+                        </div>
+                    ) as any
                 });
             }
         } catch (error: any) {

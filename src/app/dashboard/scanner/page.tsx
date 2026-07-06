@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, UploadCloud, X, CheckCircle2, ScanLine, RotateCw, Sparkles, Sliders, Check, RefreshCw, AlertCircle } from 'lucide-react';
+import { Camera, UploadCloud, X, CheckCircle2, ScanLine, RotateCw, Sparkles, Sliders, Check, RefreshCw, AlertCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useBranding } from '@/components/branding-provider';
 import { db, storage } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -683,117 +684,146 @@ export default function ScannerPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-6 animate-in fade-in duration-500" ref={containerRef}>
-              <div className="flex justify-between items-center pb-2 border-b border-white/5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
-                  <Sliders className="h-3.5 w-3.5" /> Ajustement du scan
-                </span>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => {
-                      if (imgRef.current) runAutoCrop(imgRef.current);
-                    }}
-                    className="h-8 w-8 hover:bg-white/10" 
-                    title="Auto-crop contours"
-                  >
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={rotateImage} className="h-8 w-8 hover:bg-white/10" title="Rotation 90°">
-                    <RotateCw className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Editing Canvas */}
-              <div className="relative rounded-2xl overflow-hidden bg-black/40 border border-white/5 flex items-center justify-center aspect-[3/4] w-full">
-                <canvas 
-                  ref={canvasRef}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  className="max-w-full max-h-full object-contain cursor-crosshair touch-none"
-                />
-              </div>
-
-              {/* Quality evaluation widget */}
-              {qualityInfo && (
-                <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        Qualité du scan
-                      </span>
-                      {qualityInfo.score >= 80 ? (
-                        <Badge className="bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-500 dark:text-emerald-400 border-emerald-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg">
-                          Optimale
-                        </Badge>
-                      ) : qualityInfo.score >= 50 ? (
-                        <Badge className="bg-amber-500/10 hover:bg-amber-500/25 text-amber-500 border-amber-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg">
-                          Améliorable
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border-rose-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg animate-pulse">
-                          Flou / Illisible
-                        </Badge>
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-xs font-black font-space",
-                      qualityInfo.score >= 80 ? "text-emerald-500" : qualityInfo.score >= 50 ? "text-amber-500" : "text-rose-500"
-                    )}>
-                      {qualityInfo.score}/100
+              {selectedFile?.type === 'application/pdf' ? (
+                <div className="flex flex-col gap-6">
+                  <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
+                      <Sliders className="h-3.5 w-3.5" /> Document PDF Détecté
                     </span>
                   </div>
-                  
-                  {qualityInfo.warnings.length > 0 ? (
-                    <div className="space-y-1.5 pt-1 border-t border-white/5">
-                      {qualityInfo.warnings.map((w, idx) => (
-                        <div key={idx} className="flex items-start gap-1.5 text-[10px] text-rose-400 font-semibold leading-tight animate-in fade-in duration-300">
-                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                          <span>{w}</span>
-                        </div>
-                      ))}
+
+                  <div className="flex flex-col items-center justify-center p-8 bg-white/5 border border-white/10 rounded-2xl aspect-[3/4] w-full text-center space-y-4">
+                    <div className="p-4 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                      <FileText className="w-12 h-12" />
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-semibold pt-1 border-t border-white/5 animate-in fade-in duration-300">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>L'image est nette et parfaitement lisible.</span>
+                    <div className="space-y-1 w-full px-2">
+                      <p className="font-bold text-sm truncate" title={selectedFile.name}>{selectedFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB • Document PDF</p>
+                    </div>
+                    <Alert className="bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400 text-left rounded-xl">
+                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                      <AlertTitle className="font-bold text-xs">Information de traitement</AlertTitle>
+                      <AlertDescription className="text-[10px] font-medium leading-relaxed text-muted-foreground mt-1">
+                        Les documents PDF ne nécessitent pas de recadrage visuel ni de filtres d'image. Votre fichier original sera téléversé directement au cabinet sans altération.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
+                      <Sliders className="h-3.5 w-3.5" /> Ajustement du scan
+                    </span>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => {
+                          if (imgRef.current) runAutoCrop(imgRef.current);
+                        }}
+                        className="h-8 w-8 hover:bg-white/10" 
+                        title="Auto-crop contours"
+                      >
+                        <Sparkles className="h-4 w-4 text-amber-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={rotateImage} className="h-8 w-8 hover:bg-white/10" title="Rotation 90°">
+                        <RotateCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Editing Canvas */}
+                  <div className="relative rounded-2xl overflow-hidden bg-black/40 border border-white/5 flex items-center justify-center aspect-[3/4] w-full">
+                    <canvas 
+                      ref={canvasRef}
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      className="max-w-full max-h-full object-contain cursor-crosshair touch-none"
+                    />
+                  </div>
+
+                  {/* Quality evaluation widget */}
+                  {qualityInfo && (
+                    <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Qualité du scan
+                          </span>
+                          {qualityInfo.score >= 80 ? (
+                            <Badge className="bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-500 dark:text-emerald-400 border-emerald-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg">
+                              Optimale
+                            </Badge>
+                          ) : qualityInfo.score >= 50 ? (
+                            <Badge className="bg-amber-500/10 hover:bg-amber-500/25 text-amber-500 border-amber-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg">
+                              Améliorable
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border-rose-500/20 font-bold text-[9px] px-2 py-0.5 rounded-lg animate-pulse">
+                              Flou / Illisible
+                            </Badge>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-xs font-black font-space",
+                          qualityInfo.score >= 80 ? "text-emerald-500" : qualityInfo.score >= 50 ? "text-amber-500" : "text-rose-500"
+                        )}>
+                          {qualityInfo.score}/100
+                        </span>
+                      </div>
+                      
+                      {qualityInfo.warnings.length > 0 ? (
+                        <div className="space-y-1.5 pt-1 border-t border-white/5">
+                          {qualityInfo.warnings.map((w, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5 text-[10px] text-rose-400 font-semibold leading-tight animate-in fade-in duration-300">
+                              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-500" />
+                              <span>{w}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-semibold pt-1 border-t border-white/5 animate-in fade-in duration-300">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          <span>L'image est nette et parfaitement lisible.</span>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {/* Filter selection tabs */}
+                  <div className="grid grid-cols-3 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
+                    <button
+                      onClick={() => setFilter('original')}
+                      className={cn(
+                        "py-2 text-[10px] font-black uppercase rounded-lg transition-all",
+                        filter === 'original' ? "bg-white/10 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Original
+                    </button>
+                    <button
+                      onClick={() => setFilter('premium')}
+                      className={cn(
+                        "py-2 text-[10px] font-black uppercase rounded-lg transition-all flex items-center justify-center gap-1",
+                        filter === 'premium' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Sparkles className="h-3 w-3" /> Premium
+                    </button>
+                    <button
+                      onClick={() => setFilter('binarized')}
+                      className={cn(
+                        "py-2 text-[10px] font-black uppercase rounded-lg transition-all",
+                        filter === 'binarized' ? "bg-white/10 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Noir & Blanc
+                    </button>
+                  </div>
                 </div>
               )}
-
-              {/* Filter selection tabs */}
-              <div className="grid grid-cols-3 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
-                <button
-                  onClick={() => setFilter('original')}
-                  className={cn(
-                    "py-2 text-[10px] font-black uppercase rounded-lg transition-all",
-                    filter === 'original' ? "bg-white/10 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Original
-                </button>
-                <button
-                  onClick={() => setFilter('premium')}
-                  className={cn(
-                    "py-2 text-[10px] font-black uppercase rounded-lg transition-all flex items-center justify-center gap-1",
-                    filter === 'premium' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Sparkles className="h-3 w-3" /> Premium
-                </button>
-                <button
-                  onClick={() => setFilter('binarized')}
-                  className={cn(
-                    "py-2 text-[10px] font-black uppercase rounded-lg transition-all",
-                    filter === 'binarized' ? "bg-white/10 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Noir & Blanc
-                </button>
-              </div>
 
               {/* Actions */}
               <div className="flex gap-3">
@@ -817,8 +847,7 @@ export default function ScannerPage() {
           {/* Hidden camera upload field */}
           <input
             type="file"
-            accept="image/*"
-            capture="environment"
+            accept="image/*,application/pdf"
             ref={fileInputRef}
             className="hidden"
             onChange={handleFileChange}

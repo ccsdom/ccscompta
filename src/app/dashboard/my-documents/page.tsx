@@ -369,20 +369,25 @@ export default function MyDocumentsPage() {
      toast({ variant: 'destructive', title: "Document supprimé" });
   }
 
-  const handleSetActive = async (doc: Document) => {
-    let docWithDataUrl = {...doc};
-    if (!doc.dataUrl) {
+  const handleSetActive = async (docItem: Document) => {
+    setActiveDocument(docItem);
+    setIsSheetOpen(true);
+    
+    if (!docItem.dataUrl) {
        try {
-        const storageRef = ref(storage, doc.storagePath);
+        const storageRef = ref(storage, docItem.storagePath);
         const downloadUrl = await getDownloadURL(storageRef);
-        docWithDataUrl.dataUrl = downloadUrl;
+        setActiveDocument(prev => {
+          if (prev && prev.id === docItem.id) {
+            return { ...prev, dataUrl: downloadUrl };
+          }
+          return prev;
+        });
       } catch (error) {
         console.error("Could not get document URL for preview:", error);
         toast({ variant: "destructive", title: "Erreur de prévisualisation", description: "Impossible de charger l'aperçu du document."});
       }
     }
-    setActiveDocument(docWithDataUrl);
-    setIsSheetOpen(true);
   }
 
   const filteredDocuments = useMemo(() => {
@@ -506,8 +511,9 @@ export default function MyDocumentsPage() {
         {docItem.dataUrl ? (
           <iframe src={docItem.dataUrl} className="h-full min-h-[360px] w-full border-none" title="Aperçu du document" />
         ) : (
-          <div className="flex h-full min-h-[360px] items-center justify-center text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin text-primary/45"/>
+          <div className="flex h-full min-h-[360px] flex-col items-center justify-center text-muted-foreground gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-xs font-semibold animate-pulse text-muted-foreground">Chargement sécurisé de l'aperçu...</p>
           </div>
         )}
       </div>
