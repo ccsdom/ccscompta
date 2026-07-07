@@ -18,7 +18,8 @@ import {
     Info,
     ShieldAlert,
     FileText,
-    History as HistoryIcon
+    History as HistoryIcon,
+    Loader2
 } from "lucide-react";
 import { useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
@@ -36,17 +37,19 @@ export default function AuditPage() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState<string | null>(null);
+    const [limitCount, setLimitCount] = useState(50);
 
     const auditQuery = useMemoFirebase(() => {
         if (!isAuthorizedAdmin) return null;
         return query(
             collection(db, 'audit'),
             orderBy('date', 'desc'),
-            limit(100)
+            limit(limitCount)
         );
-    }, [isAuthorizedAdmin]);
+    }, [isAuthorizedAdmin, limitCount]);
 
     const { data: logs, isLoading } = useCollection<SystemAuditLog>(auditQuery);
+    const hasMore = logs && logs.length === limitCount;
 
     // SECURITY: Only admin can see this page
     if (userRole && !isAuthorizedAdmin) {
@@ -158,7 +161,7 @@ export default function AuditPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? (
+                            {isLoading && (!logs || logs.length === 0) ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={i} className="border-b-border/10">
                                         <TableCell colSpan={5} className="py-8 text-center animate-pulse text-muted-foreground font-medium">Chargement des événements...</TableCell>
@@ -169,7 +172,20 @@ export default function AuditPage() {
                                     <TableCell colSpan={5} className="py-20 text-center">
                                         <div className="flex flex-col items-center gap-4">
                                             <Search className="h-12 w-12 text-muted-foreground opacity-20" />
-                                            <p className="text-muted-foreground font-medium">Aucun événement ne correspond à vos critères.</p>
+                                            {hasMore ? (
+                                                <>
+                                                    <p className="text-muted-foreground font-medium">Aucun événement ne correspond dans les {logs?.length} derniers logs chargés.</p>
+                                                    <Button 
+                                                        onClick={() => setLimitCount(prev => prev + 100)} 
+                                                        variant="outline"
+                                                        className="mt-2 font-space font-black uppercase text-[10px] tracking-widest rounded-xl bg-background border-border/40 hover:bg-primary/5 hover:text-primary transition-all"
+                                                    >
+                                                        Charger 100 logs de plus
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <p className="text-muted-foreground font-medium">Aucun événement ne correspond à vos critères.</p>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -214,6 +230,26 @@ export default function AuditPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            {hasMore && (
+                <div className="flex justify-center mt-6">
+                    <Button 
+                        onClick={() => setLimitCount(prev => prev + 50)} 
+                        variant="outline"
+                        className="font-space font-black uppercase text-[10px] tracking-widest h-11 px-8 rounded-xl bg-background border-border/40 hover:bg-primary/5 hover:text-primary transition-all duration-300"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Chargement...
+                            </>
+                        ) : (
+                            'Charger plus'
+                        )}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
