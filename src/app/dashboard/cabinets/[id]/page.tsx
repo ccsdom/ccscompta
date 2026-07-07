@@ -121,7 +121,7 @@ export default function ManageCabinetPage() {
         team: users?.filter(u => u.role !== 'client') || [],
     }), [users]);
 
-    if (loadingCabinet || isLoadingUsers) {
+    if (loadingCabinet || isLoadingUsers || !params?.id) {
         return (
             <div className="space-y-12 max-w-7xl mx-auto p-4 md:p-6 pb-20">
                 <div className="space-y-4">

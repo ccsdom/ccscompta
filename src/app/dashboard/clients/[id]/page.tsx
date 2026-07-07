@@ -27,7 +27,7 @@ export default function ClientProfilePage() {
     const documentsQuery = useMemoFirebase(() => params.id ? query(collection(db, 'documents'), where('clientId', '==', params.id)) : null, [params.id]);
     const { data: documents, isLoading: isLoadingDocuments } = useCollection<Document>(documentsQuery);
 
-    const loading = isLoadingClient || isLoadingDocuments;
+    const loading = isLoadingClient || isLoadingDocuments || !params?.id;
 
     const stats = useMemo(() => {
         if (!documents) return { pendingDocs: 0, overdueInvoices: 0, nextDeadline: new Date() };

@@ -20,7 +20,8 @@ export default function EditClientPage() {
     const { toast } = useToast();
     
     const clientRef = useMemoFirebase(() => params.id ? doc(db, 'clients', params.id) : null, [params.id]);
-    const { data: client, isLoading: loading } = useDoc<Client>(clientRef);
+    const { data: client, isLoading: isLoadingClient } = useDoc<Client>(clientRef);
+    const loading = isLoadingClient || !params?.id;
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 

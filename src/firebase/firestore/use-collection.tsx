@@ -61,6 +61,18 @@ export function useCollection<T = any>(
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
+  // Track the active query to synchronize loading state immediately on change
+  const [activeQuery, setActiveQuery] = useState<any>(null);
+
+  const isQueryChanged = memoizedTargetRefOrQuery !== activeQuery;
+
+  if (isQueryChanged) {
+    setActiveQuery(memoizedTargetRefOrQuery);
+    setIsLoading(memoizedTargetRefOrQuery ? true : false);
+    setData(null);
+    setError(null);
+  }
+
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
       setData(null);
@@ -118,5 +130,10 @@ export function useCollection<T = any>(
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
   }
-  return { data, isLoading, error };
+
+  const effectiveLoading = isQueryChanged ? (memoizedTargetRefOrQuery ? true : false) : isLoading;
+  const effectiveData = isQueryChanged ? null : data;
+  const effectiveError = isQueryChanged ? null : error;
+
+  return { data: effectiveData, isLoading: effectiveLoading, error: effectiveError };
 }

@@ -47,6 +47,19 @@ export function useDoc<T = any>(
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
+  // Track the active ref path to synchronize loading state immediately on ref change
+  const [activeRefPath, setActiveRefPath] = useState<string | null>(null);
+
+  const currentPath = memoizedDocRef?.path || null;
+  const isRefChanged = currentPath !== activeRefPath;
+
+  if (isRefChanged) {
+    setActiveRefPath(currentPath);
+    setIsLoading(currentPath ? true : false);
+    setData(null);
+    setError(null);
+  }
+
   useEffect(() => {
     if (!memoizedDocRef) {
       setData(null);
@@ -97,5 +110,9 @@ export function useDoc<T = any>(
     return () => unsubscribe();
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
 
-  return { data, isLoading, error };
+  const effectiveLoading = isRefChanged ? (currentPath ? true : false) : isLoading;
+  const effectiveData = isRefChanged ? null : data;
+  const effectiveError = isRefChanged ? null : error;
+
+  return { data: effectiveData, isLoading: effectiveLoading, error: effectiveError };
 }
