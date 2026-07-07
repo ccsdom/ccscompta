@@ -279,7 +279,7 @@ export default function CabinetsManagementPage() {
                                     <Plus className="h-4 w-4" /> Nouveau Cabinet
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="glass-panel border-white/10 sm:max-w-[425px]">
+                            <DialogContent className="bg-card border border-border sm:max-w-[425px] shadow-2xl rounded-2xl">
                                 <form onSubmit={handleSaveCabinet}>
                                     <DialogHeader>
                                         <DialogTitle className="font-space font-black uppercase tracking-tight italic">
@@ -292,17 +292,17 @@ export default function CabinetsManagementPage() {
                                     <div className="grid gap-4 py-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="name" className="text-[10px] uppercase font-black tracking-widest opacity-50">Nom du Cabinet</Label>
-                                            <Input id="name" name="name" defaultValue={editingCabinet?.name} className="bg-white/5 border-white/10" required />
+                                            <Input id="name" name="name" defaultValue={editingCabinet?.name} className="bg-background border-input" required />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="email" className="text-[10px] uppercase font-black tracking-widest opacity-50">Email de contact</Label>
-                                            <Input id="email" name="email" type="email" defaultValue={editingCabinet?.email} className="bg-white/5 border-white/10" required />
+                                            <Input id="email" name="email" type="email" defaultValue={editingCabinet?.email} className="bg-background border-input" required />
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] uppercase font-black tracking-widest opacity-50">Plan</Label>
                                                 <Select name="plan" defaultValue={editingCabinet?.plan || 'starter'}>
-                                                    <SelectTrigger className="bg-white/5 border-white/10">
+                                                    <SelectTrigger className="bg-background border-input">
                                                         <SelectValue placeholder="Choisir un plan" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -315,17 +315,17 @@ export default function CabinetsManagementPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="maxClients" className="text-[10px] uppercase font-black tracking-widest opacity-50">Max Clients</Label>
-                                                <Input id="maxClients" name="maxClients" type="number" defaultValue={editingCabinet?.quotas?.maxClients || 10} className="bg-white/5 border-white/10" />
+                                                <Input id="maxClients" name="maxClients" type="number" defaultValue={editingCabinet?.quotas?.maxClients || 10} className="bg-background border-input" />
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="maxDocs" className="text-[10px] uppercase font-black tracking-widest opacity-50">Max Docs / mois</Label>
-                                                <Input id="maxDocs" name="maxDocs" type="number" defaultValue={editingCabinet?.quotas?.maxDocumentsPerMonth || 100} className="bg-white/5 border-white/10" />
+                                                <Input id="maxDocs" name="maxDocs" type="number" defaultValue={editingCabinet?.quotas?.maxDocumentsPerMonth || 100} className="bg-background border-input" />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="storageLimit" className="text-[10px] uppercase font-black tracking-widest opacity-50">Stockage (GB)</Label>
-                                                <Input id="storageLimit" name="storageLimit" type="number" defaultValue={editingCabinet?.quotas?.storageLimitGb || 5} className="bg-white/5 border-white/10" />
+                                                <Input id="storageLimit" name="storageLimit" type="number" defaultValue={editingCabinet?.quotas?.storageLimitGb || 5} className="bg-background border-input" />
                                             </div>
                                         </div>
                                     </div>
